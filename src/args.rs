@@ -169,7 +169,7 @@ impl<'t> ArgKonfiguration<'t> {
                 } else {
                     match geparsed {
                         ParsedArgName::Lang(lang) if lang.starts_with("no-") => {
-                            if name.passend(&ParsedArgName::Lang(lang[3..].to_string())) {
+                            if name.passend(&ParsedArgName::Lang(lang[3..].to_owned())) {
                                 Some((Konfiguriert::Flag(false), name))
                             } else {
                                 None
@@ -241,10 +241,10 @@ impl ParsedArg<'_> {
                         let parsed_wert;
                         if let Some(lang) = string.strip_prefix("--") {
                             if let Some((name, wert)) = lang.split_once('=') {
-                                parsed_name = Some((ParsedArgName::Lang(name.to_string()), None));
+                                parsed_name = Some((ParsedArgName::Lang(name.to_owned()), None));
                                 parsed_wert = Some(wert.to_string());
                             } else {
-                                parsed_name = Some((ParsedArgName::Lang(lang.to_string()), None));
+                                parsed_name = Some((ParsedArgName::Lang(lang.to_owned()), None));
                                 parsed_wert = None;
                             }
                         } else if let Some(kurz) = string.strip_prefix('-') {
@@ -387,7 +387,7 @@ impl FromStr for Zugtyp {
         match s {
             "Märklin" => Ok(Zugtyp::Märklin),
             "Lego" => Ok(Zugtyp::Lego),
-            _ => Err(s.to_string()),
+            _ => Err(s.to_owned()),
         }
     }
 }
@@ -519,9 +519,8 @@ impl<T: 'static + Display + Clone> ArgKombination<T> {
                 } else {
                     let mut fehlermeldung = format!("Fehlende Flag: `--[no-]{}`", name_lang);
                     if let Some(kurz) = &name_kurz {
-                        if let Err(fehler) = write!(&mut fehlermeldung, "| -{}", kurz) {
-                            error!("Fehler beim erstellen der Fehlermeldung: {:?}", fehler)
-                        }
+                        fehlermeldung.push_str("| -");
+                        fehlermeldung.push(*kurz);
                     }
                     Err(vec![fehlermeldung.clone()])
                 }
