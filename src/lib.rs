@@ -35,7 +35,7 @@
 use std::{
     convert::identity,
     env,
-    ffi::OsStr,
+    ffi::{OsStr, OsString},
     fmt::{Debug, Display},
     iter,
     path::{Path, PathBuf},
@@ -153,6 +153,12 @@ impl<T, E> Debug for Arg<T, E> {
 // TODO parse-methode, die flag_kurzformen berücksichtigt
 // TODO shortcut zum direkten Verwenden von std::env::args_os
 impl<T, E> Arg<T, E> {
+    pub fn from_env(&self) -> (ParseErgebnis<T, E>, Vec<&OsStr>) {
+        let args_owned: Vec<_> = env::args_os().collect();
+        let args = args_owned.iter().map(OsString::as_os_str).collect();
+        Arg::parse(&self, args)
+    }
+
     pub fn parse(&self, args: Vec<&OsStr>) -> (ParseErgebnis<T, E>, Vec<&OsStr>) {
         let Arg { beschreibungen: _, flag_kurzformen, parse } = self;
         let angepasste_args = todo!("parse flag kurzformen");
