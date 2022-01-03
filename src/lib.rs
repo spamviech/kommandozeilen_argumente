@@ -69,8 +69,15 @@ impl<T: Display> ArgBeschreibung<T> {
 
 #[derive(Debug)]
 enum ArgString {
-    Flag { beschreibung: ArgBeschreibung<String>, invertiere_prefix: Option<String> },
-    Wert { beschreibung: ArgBeschreibung<String>, meta_var: String },
+    Flag {
+        beschreibung: ArgBeschreibung<String>,
+        invertiere_prefix: Option<String>,
+    },
+    Wert {
+        beschreibung: ArgBeschreibung<String>,
+        meta_var: String,
+        mögliche_werte: Option<NonEmpty<String>>,
+    },
 }
 
 #[derive(Debug)]
@@ -143,6 +150,7 @@ impl<E: Display> ParseFehler<E> {
 // TODO derive-Macro zum automatischen erstellen aus Struktur-Definition?
 // TODO Unterbefehle/subcommands
 // TODO Mögliche Werte (Enum?)
+// TODO Positions-basierte Argumente
 pub struct Arg<T, E> {
     beschreibungen: Vec<ArgString>,
     flag_kurzformen: Vec<String>,
@@ -308,6 +316,7 @@ impl<T: 'static + Display + Clone, E: 'static + Clone> Arg<T, E> {
     pub fn wert(
         beschreibung: ArgBeschreibung<T>,
         meta_var: String,
+        mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, E>,
     ) -> Arg<T, E> {
         let name_kurz = beschreibung.kurz.clone();
@@ -320,7 +329,13 @@ impl<T: 'static + Display + Clone, E: 'static + Clone> Arg<T, E> {
             meta_var: meta_var_clone.clone(),
         };
         Arg {
-            beschreibungen: vec![ArgString::Wert { beschreibung, meta_var }],
+            beschreibungen: vec![ArgString::Wert {
+                beschreibung,
+                meta_var,
+                mögliche_werte: mögliche_werte.and_then(|werte| {
+                    NonEmpty::from_vec(werte.iter().map(ToString::to_string).collect())
+                }),
+            }],
             flag_kurzformen: Vec::new(),
             parse: Box::new(move |args| {
                 let name_kurz_str = name_kurz.as_ref().map(String::as_str);
@@ -436,7 +451,14 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             hilfe: Some("Zeigt diesen Text an.".to_owned()),
             standard: None,
         };
-        self.erstelle_hilfe(beschreibung, programm_name, "OPTIONEN", "standard", name_regex_breite)
+        self.erstelle_hilfe(
+            beschreibung,
+            programm_name,
+            "OPTIONEN",
+            "standard",
+            "Erlaubte Werte",
+            name_regex_breite,
+        )
     }
 
     pub fn hilfe_und_version(
@@ -456,7 +478,14 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             hilfe: Some("Show this text.".to_owned()),
             standard: None,
         };
-        self.erstelle_hilfe(beschreibung, program_name, "OPTIONS", "default", name_regex_width)
+        self.erstelle_hilfe(
+            beschreibung,
+            program_name,
+            "OPTIONS",
+            "default",
+            "Possible values",
+            name_regex_width,
+        )
     }
 
     pub fn help_and_version(
@@ -475,6 +504,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         programm_name: &str,
         optionen: &str,
         standard: &str,
+        erlaubte_werte: &str,
         name_regex_breite: usize,
     ) -> Arg<T, E> {
         let current_exe = env::current_exe().ok();
@@ -492,10 +522,12 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         };
         fn hilfe_zeile(
             standard: &str,
+            erlaubte_werte: &str,
             name_regex_breite: usize,
             hilfe_text: &mut String,
             name_regex: &String,
             beschreibung: &ArgBeschreibung<String>,
+            mögliche_werte: &Option<NonEmpty<String>>,
         ) {
             hilfe_text.push_str("  ");
             hilfe_text.push_str(name_regex);
@@ -505,11 +537,31 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             if let Some(hilfe) = &beschreibung.hilfe {
                 hilfe_text.push_str(hilfe);
             }
-            if let Some(standard_wert) = &beschreibung.standard {
+            if let Some(werte) = mögliche_werte {
                 if beschreibung.hilfe.is_some() {
                     hilfe_text.push(' ');
                 }
                 hilfe_text.push('[');
+                hilfe_text.push_str(erlaubte_werte);
+                hilfe_text.push_str(": ");
+                hilfe_text.push_str(&werte.head);
+                for wert in &werte.tail {
+                    hilfe_text.push_str(", ");
+                    hilfe_text.push_str(wert);
+                }
+                if beschreibung.standard.is_some() {
+                    hilfe_text.push_str(" | ");
+                } else {
+                    hilfe_text.push(']');
+                }
+            }
+            if let Some(standard_wert) = &beschreibung.standard {
+                if !mögliche_werte.is_some() {
+                    if beschreibung.hilfe.is_some() {
+                        hilfe_text.push(' ');
+                    }
+                    hilfe_text.push('[');
+                }
                 hilfe_text.push_str(standard);
                 hilfe_text.push_str(": ");
                 hilfe_text.push_str(standard_wert);
@@ -533,13 +585,15 @@ impl<T: 'static, E: 'static> Arg<T, E> {
                     }
                     hilfe_zeile(
                         standard,
+                        erlaubte_werte,
                         name_regex_breite,
                         &mut hilfe_text,
                         &name_regex,
                         beschreibung,
+                        &None,
                     );
                 }
-                ArgString::Wert { beschreibung, meta_var } => {
+                ArgString::Wert { beschreibung, meta_var, mögliche_werte } => {
                     let mut name_regex = "--".to_owned();
                     name_regex.push_str(&beschreibung.lang);
                     name_regex.push_str("(=| )");
@@ -552,10 +606,12 @@ impl<T: 'static, E: 'static> Arg<T, E> {
                     }
                     hilfe_zeile(
                         standard,
+                        erlaubte_werte,
                         name_regex_breite,
                         &mut hilfe_text,
                         &name_regex,
                         beschreibung,
+                        mögliche_werte,
                     );
                 }
             }
