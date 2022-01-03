@@ -137,6 +137,7 @@ impl<E: Display> ParseFehler<E> {
     }
 }
 
+// TODO derive-Macro zum automatischen erstellen aus Struktur-Definition?
 pub struct Arg<T, E> {
     beschreibungen: Vec<ArgString>,
     flag_kurzformen: Vec<String>,
@@ -152,6 +153,7 @@ impl<T, E> Debug for Arg<T, E> {
     }
 }
 
+// TODO Methode, die automatisch process::exit für FrühesBeenden aufruft, Result-Rückgabewert
 impl<T, E> Arg<T, E> {
     pub fn from_env(&self) -> (ParseErgebnis<T, E>, Vec<OsString>) {
         Arg::parse(&self, env::args_os().collect())
