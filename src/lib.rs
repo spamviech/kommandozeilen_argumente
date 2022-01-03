@@ -49,6 +49,8 @@ use unicode_segmentation::UnicodeSegmentation;
 use void::Void;
 
 pub use kommandozeilen_argumente_derive::{kommandozeilen_argumente, ArgEnum};
+#[cfg(feature = "derive")]
+pub use unicase::eq as unicase_eq;
 
 #[cfg(test)]
 mod test;
@@ -335,16 +337,14 @@ impl<T: 'static + Display + Clone, E> Arg<T, E> {
 
 pub trait ArgEnum: Sized {
     fn varianten() -> Vec<Self>;
+
+    fn parse_enum(arg: &OsStr) -> Result<Self, OsString>;
 }
 
-impl<T: 'static + Display + Clone + ArgEnum, E: 'static + Clone> Arg<T, E> {
-    pub fn wert_enum(
-        beschreibung: ArgBeschreibung<T>,
-        meta_var: String,
-        parse: impl 'static + Fn(&OsStr) -> Result<T, E>,
-    ) -> Arg<T, E> {
+impl<T: 'static + Display + Clone + ArgEnum> Arg<T, OsString> {
+    pub fn wert_enum(beschreibung: ArgBeschreibung<T>, meta_var: String) -> Arg<T, OsString> {
         let mögliche_werte = NonEmpty::from_vec(T::varianten());
-        Arg::wert(beschreibung, meta_var, mögliche_werte, parse)
+        Arg::wert(beschreibung, meta_var, mögliche_werte, T::parse_enum)
     }
 }
 
