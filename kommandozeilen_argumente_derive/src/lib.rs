@@ -61,12 +61,12 @@ pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
                 variant.ident
             );
         }
-        varianten.push(&item_enum.ident);
+        varianten.push(variant.ident);
     }
     let instance = quote!(
         impl #crate_name::ArgEnum for #ident {
             fn varianten() -> Vec<Self> {
-                vec![#(#varianten),*]
+                vec![#(Self::#varianten),*]
             }
         }
     );

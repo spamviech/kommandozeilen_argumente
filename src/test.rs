@@ -4,6 +4,17 @@ use std::iter;
 
 use crate::*;
 
+#[derive(Debug, PartialEq, Eq, ArgEnum)]
+enum Bla {
+    Meh,
+    Muh,
+}
+
+#[test]
+fn arg_enum_derive() {
+    assert_eq!(Bla::varianten(), vec![Bla::Meh, Bla::Muh])
+}
+
 #[test]
 fn hilfe_test() {
     use std::{convert::identity, ffi::OsString};
