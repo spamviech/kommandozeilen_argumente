@@ -312,6 +312,21 @@ impl<T: 'static + Display + Clone, E> Arg<T, E> {
     }
 }
 
+pub trait ArgEnum: Sized {
+    fn varianten() -> Vec<Self>;
+}
+
+impl<T: 'static + Display + Clone + ArgEnum, E: 'static + Clone> Arg<T, E> {
+    pub fn wert_enum(
+        beschreibung: ArgBeschreibung<T>,
+        meta_var: String,
+        parse: impl 'static + Fn(&OsStr) -> Result<T, E>,
+    ) -> Arg<T, E> {
+        let mögliche_werte = NonEmpty::from_vec(T::varianten());
+        Arg::wert(beschreibung, meta_var, mögliche_werte, parse)
+    }
+}
+
 impl<T: 'static + Display + Clone, E: 'static + Clone> Arg<T, E> {
     pub fn wert(
         beschreibung: ArgBeschreibung<T>,
