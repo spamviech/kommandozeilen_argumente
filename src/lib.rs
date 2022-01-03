@@ -67,23 +67,82 @@ enum ArgString {
     Wert { beschreibung: ArgBeschreibung<String>, meta_var: String },
 }
 
-// TODO Eigener Fehler-Typ mit Display-Implementierung, parametrisiert über ParseFehler-Typ
 #[derive(Debug)]
-pub enum ParseErgebnis<T> {
+pub enum ParseErgebnis<T, E> {
     Wert(T),
     FrühesBeenden(NonEmpty<String>),
-    Fehler(NonEmpty<String>),
+    Fehler(NonEmpty<ParseFehler<E>>),
+}
+
+#[derive(Debug, Clone)]
+pub enum ParseFehler<E> {
+    FehlendeFlag { lang: String, kurz: Option<String>, invertiere_prefix: String },
+    FehlenderWert { lang: String, kurz: Option<String>, meta_var: String },
+    ParseFehler { lang: String, kurz: Option<String>, meta_var: String, fehler: E },
+}
+
+impl<E: Display> ParseFehler<E> {
+    #[inline(always)]
+    pub fn fehlermeldung(&self) -> String {
+        self.erstelle_fehlermeldung("Fehlende Flag", "Fehlender Wert", "Parse-Fehler")
+    }
+
+    #[inline(always)]
+    pub fn error_message(&self) -> String {
+        self.erstelle_fehlermeldung("Missing Flag", "Missing Value", "Parse Error")
+    }
+
+    pub fn erstelle_fehlermeldung(
+        &self,
+        fehlende_flag: &str,
+        fehlender_wert: &str,
+        parse_fehler: &str,
+    ) -> String {
+        match self {
+            ParseFehler::FehlendeFlag { lang, kurz, invertiere_prefix } => {
+                let mut fehlermeldung =
+                    format!("{}: --[{}-]{}", fehlende_flag, invertiere_prefix, lang);
+                if let Some(kurz) = kurz {
+                    fehlermeldung.push_str(" | -");
+                    fehlermeldung.push_str(kurz);
+                }
+                fehlermeldung
+            }
+            ParseFehler::FehlenderWert { lang, kurz, meta_var } => {
+                let mut fehlermeldung = format!("{}: --{} {}", fehlender_wert, lang, meta_var);
+                if let Some(kurz) = kurz {
+                    fehlermeldung.push_str(" | -");
+                    fehlermeldung.push_str(kurz);
+                    fehlermeldung.push_str("[=| ]");
+                    fehlermeldung.push_str(meta_var);
+                }
+                fehlermeldung
+            }
+            ParseFehler::ParseFehler { lang, kurz, meta_var, fehler } => {
+                let mut fehlermeldung = format!("{}: --{} {}", parse_fehler, lang, meta_var);
+                if let Some(kurz) = kurz {
+                    fehlermeldung.push_str(" | -");
+                    fehlermeldung.push_str(kurz);
+                    fehlermeldung.push_str("[=| ]");
+                    fehlermeldung.push_str(meta_var);
+                }
+                fehlermeldung.push('\n');
+                fehlermeldung.push_str(&fehler.to_string());
+                fehlermeldung
+            }
+        }
+    }
 }
 
 // TODO parse-methode, die flag_kurzformen berücksichtigt
 // TODO shortcut zum direkten Verwenden von std::env::args_os
-pub struct Arg<T> {
+pub struct Arg<T, E> {
     beschreibungen: Vec<ArgString>,
     flag_kurzformen: Vec<String>,
-    parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (ParseErgebnis<T>, Vec<Option<&OsStr>>)>,
+    parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (ParseErgebnis<T, E>, Vec<Option<&OsStr>>)>,
 }
 
-impl<T> Debug for Arg<T> {
+impl<T, E> Debug for Arg<T, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Arg")
             .field("beschreibungen", &self.beschreibungen)
@@ -92,29 +151,28 @@ impl<T> Debug for Arg<T> {
     }
 }
 
-impl<T: 'static + Display + Clone> Arg<T> {
+impl<T: 'static + Display + Clone, E> Arg<T, E> {
     #[inline(always)]
     pub fn flag_deutsch(
         beschreibung: ArgBeschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
-    ) -> Arg<T> {
-        Arg::flag(beschreibung, konvertiere, "Fehlende Flag", "kein")
+    ) -> Arg<T, E> {
+        Arg::flag(beschreibung, konvertiere, "kein")
     }
 
     #[inline(always)]
     pub fn flag_english(
         beschreibung: ArgBeschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
-    ) -> Arg<T> {
-        Arg::flag(beschreibung, konvertiere, "Missing Flag", "no")
+    ) -> Arg<T, E> {
+        Arg::flag(beschreibung, konvertiere, "no")
     }
 
     pub fn flag(
         beschreibung: ArgBeschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
-        fehlende_flag: &'static str,
-        invertiere_prefix: &str,
-    ) -> Arg<T> {
+        invertiere_prefix: &'static str,
+    ) -> Arg<T, E> {
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
         let invertiere_prefix_minus = format!("{}-", invertiere_prefix);
@@ -163,54 +221,34 @@ impl<T: 'static + Display + Clone> Arg<T> {
                 } else if let Some(wert) = &standard {
                     ParseErgebnis::Wert(wert.clone())
                 } else {
-                    let mut fehlermeldung =
-                        format!("{}: --[{}]{}", fehlende_flag, invertiere_prefix_minus, name_lang);
-                    if let Some(kurz) = &name_kurz {
-                        fehlermeldung.push_str(" | -");
-                        fehlermeldung.push_str(kurz);
-                    }
-                    ParseErgebnis::Fehler(NonEmpty::singleton(fehlermeldung))
+                    let fehler = ParseFehler::FehlendeFlag {
+                        lang: name_lang.clone(),
+                        kurz: name_kurz.clone(),
+                        invertiere_prefix: invertiere_prefix.to_owned(),
+                    };
+                    ParseErgebnis::Fehler(NonEmpty::singleton(fehler))
                 };
                 (ergebnis, nicht_verwendet)
             }),
         }
     }
+}
 
-    #[inline(always)]
-    pub fn wert_deutsch(
-        beschreibung: ArgBeschreibung<T>,
-        meta_var: String,
-        parse: impl 'static + Fn(&OsStr) -> Result<T, String>,
-    ) -> Arg<T> {
-        Arg::wert(beschreibung, meta_var, parse, "Fehlender Wert")
-    }
-
-    #[inline(always)]
-    pub fn value_english(
-        beschreibung: ArgBeschreibung<T>,
-        meta_var: String,
-        parse: impl 'static + Fn(&OsStr) -> Result<T, String>,
-    ) -> Arg<T> {
-        Arg::wert(beschreibung, meta_var, parse, "Missing Value")
-    }
-
+impl<T: 'static + Display + Clone, E: 'static + Clone> Arg<T, E> {
     pub fn wert(
         beschreibung: ArgBeschreibung<T>,
         meta_var: String,
-        parse: impl 'static + Fn(&OsStr) -> Result<T, String>,
-        fehlender_wert: &'static str,
-    ) -> Arg<T> {
+        parse: impl 'static + Fn(&OsStr) -> Result<T, E>,
+    ) -> Arg<T, E> {
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
         let meta_var_clone = meta_var.clone();
         let (beschreibung, standard) = beschreibung.als_string_beschreibung();
-        let mut fehlermeldung = format!("{}: --{} {}", fehlender_wert, name_lang, meta_var_clone);
-        if let Some(kurz) = &name_kurz {
-            fehlermeldung.push_str(" | -");
-            fehlermeldung.push_str(kurz);
-            fehlermeldung.push_str("[=| ]");
-            fehlermeldung.push_str(&meta_var_clone);
-        }
+        let fehler_kein_wert = ParseFehler::FehlenderWert {
+            lang: name_lang.clone(),
+            kurz: name_kurz.clone(),
+            meta_var: meta_var_clone.clone(),
+        };
         Arg {
             beschreibungen: vec![ArgString::Wert { beschreibung, meta_var }],
             flag_kurzformen: Vec::new(),
@@ -225,10 +263,15 @@ impl<T: 'static + Display + Clone> Arg<T> {
                     if let Some(wert_os_str) = arg {
                         match parse(wert_os_str) {
                             Ok(wert) => ergebnis = Some(wert),
-                            Err(parse_fehler) => fehler.push(parse_fehler),
+                            Err(parse_fehler) => fehler.push(ParseFehler::ParseFehler {
+                                lang: name_lang.clone(),
+                                kurz: name_kurz.clone(),
+                                meta_var: meta_var_clone.clone(),
+                                fehler: parse_fehler,
+                            }),
                         }
                     } else {
-                        fehler.push(fehlermeldung.clone())
+                        fehler.push(fehler_kein_wert.clone())
                     }
                 };
                 for arg in args {
@@ -277,7 +320,7 @@ impl<T: 'static + Display + Clone> Arg<T> {
                     (ParseErgebnis::Wert(wert.clone()), nicht_verwendet)
                 } else {
                     (
-                        ParseErgebnis::Fehler(NonEmpty::singleton(fehlermeldung.clone())),
+                        ParseErgebnis::Fehler(NonEmpty::singleton(fehler_kein_wert.clone())),
                         nicht_verwendet,
                     )
                 }
@@ -286,8 +329,8 @@ impl<T: 'static + Display + Clone> Arg<T> {
     }
 }
 
-impl<T: 'static> Arg<T> {
-    pub fn version_deutsch(self, programm_name: &str, version: &str) -> Arg<T> {
+impl<T: 'static, E: 'static> Arg<T, E> {
+    pub fn version_deutsch(self, programm_name: &str, version: &str) -> Arg<T, E> {
         let beschreibung = ArgBeschreibung {
             lang: "version".to_owned(),
             kurz: Some("v".to_owned()),
@@ -297,7 +340,7 @@ impl<T: 'static> Arg<T> {
         self.zeige_version(beschreibung, programm_name, version)
     }
 
-    pub fn version_english(self, program_name: &str, version: &str) -> Arg<T> {
+    pub fn version_english(self, program_name: &str, version: &str) -> Arg<T, E> {
         let beschreibung = ArgBeschreibung {
             lang: "version".to_owned(),
             kurz: Some("v".to_owned()),
@@ -312,11 +355,11 @@ impl<T: 'static> Arg<T> {
         beschreibung: ArgBeschreibung<Void>,
         programm_name: &str,
         version: &str,
-    ) -> Arg<T> {
+    ) -> Arg<T, E> {
         self.frühes_beenden(beschreibung, format!("{} {}", programm_name, version))
     }
 
-    pub fn hilfe(self, programm_name: &str, name_regex_breite: usize) -> Arg<T> {
+    pub fn hilfe(self, programm_name: &str, name_regex_breite: usize) -> Arg<T, E> {
         let beschreibung = ArgBeschreibung {
             lang: "hilfe".to_owned(),
             kurz: Some("h".to_owned()),
@@ -331,12 +374,12 @@ impl<T: 'static> Arg<T> {
         programm_name: &str,
         version: &str,
         name_regex_breite: usize,
-    ) -> Arg<T> {
+    ) -> Arg<T, E> {
         self.version_deutsch(programm_name, version)
             .hilfe(&format!("{} {}", programm_name, version), name_regex_breite)
     }
 
-    pub fn help(self, program_name: &str, name_regex_width: usize) -> Arg<T> {
+    pub fn help(self, program_name: &str, name_regex_width: usize) -> Arg<T, E> {
         let beschreibung = ArgBeschreibung {
             lang: "help".to_owned(),
             kurz: Some("h".to_owned()),
@@ -351,7 +394,7 @@ impl<T: 'static> Arg<T> {
         program_name: &str,
         version: &str,
         name_regex_breite: usize,
-    ) -> Arg<T> {
+    ) -> Arg<T, E> {
         self.version_english(program_name, version)
             .help(&format!("{} {}", program_name, version), name_regex_breite)
     }
@@ -363,7 +406,7 @@ impl<T: 'static> Arg<T> {
         optionen: &str,
         standard: &str,
         name_regex_breite: usize,
-    ) -> Arg<T> {
+    ) -> Arg<T, E> {
         let current_exe = env::current_exe().ok();
         let exe_name = current_exe
             .as_ref()
@@ -450,7 +493,11 @@ impl<T: 'static> Arg<T> {
         self.frühes_beenden(eigene_beschreibung, hilfe_text)
     }
 
-    pub fn frühes_beenden(self, beschreibung: ArgBeschreibung<Void>, nachricht: String) -> Arg<T> {
+    pub fn frühes_beenden(
+        self,
+        beschreibung: ArgBeschreibung<Void>,
+        nachricht: String,
+    ) -> Arg<T, E> {
         let Arg { mut beschreibungen, mut flag_kurzformen, parse } = self;
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
@@ -545,15 +592,15 @@ macro_rules! impl_kombiniere_n {
     ($name: ident ($($var: ident: $ty_var: ident),*)) => {
         pub fn $name<$($ty_var: 'static),*>(
             f: impl 'static + Fn($($ty_var),*) -> T,
-            $($var: Arg<$ty_var>),*
-        ) -> Arg<T> {
+            $($var: Arg<$ty_var, Error>),*
+        ) -> Arg<T, Error> {
             kombiniere!(f=>$($var),*)
         }
 
     };
 }
 
-impl<T> Arg<T> {
+impl<T, Error: 'static> Arg<T, Error> {
     impl_kombiniere_n! {konstant()}
     impl_kombiniere_n! {konvertiere(a: A)}
     impl_kombiniere_n! {kombiniere2(a: A, b: B)}
@@ -569,7 +616,7 @@ impl<T> Arg<T> {
 #[test]
 fn hilfe_test() {
     use std::{convert::identity, ffi::OsString};
-    let arg = Arg::hilfe_und_version(
+    let arg: Arg<bool, Void> = Arg::hilfe_und_version(
         Arg::flag_deutsch(
             ArgBeschreibung {
                 lang: "test".to_owned(),
