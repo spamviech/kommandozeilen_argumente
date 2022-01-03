@@ -1,6 +1,7 @@
 //! Macros für das kommandozeilen_argumente crate.
 
 use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
 use syn::{parse_macro_input, Fields, Ident, ItemEnum, ItemStruct};
@@ -33,9 +34,52 @@ macro_rules! unwrap_result_or_compile_error {
 /// Erstelle Methoden `kommandozeilen_argumente`, `parse[_aus_env][_frühes_beenden]`
 /// zum parsen aus Kommandozeilen-Argumenten.
 #[proc_macro_attribute]
-pub fn kommandozeilen_argumente(attr: TokenStream, mut item: TokenStream) -> TokenStream {
-    if !attr.is_empty() {
-        compile_error_return!(item, "Kein Argument unterstützt, aber \"{}\" erhalten.", attr);
+pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> TokenStream {
+    let args_str = args_ts.to_string();
+    let args: Vec<_> = args_str.split(',').collect();
+    // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
+    // let version = env!("CARGO_PKG_VERSION");
+    // CARGO_PKG_NAME — The name of your package.
+    // CARGO_PKG_VERSION — The full version of your package.
+    // CARGO_PKG_AUTHORS — Colon separated list of authors from the manifest of your package.
+    // CARGO_PKG_DESCRIPTION — The description from the manifest of your package.
+    // CARGO_BIN_NAME — The name of the binary that is currently being compiled (if it is a binary). This name does not include any file extension, such as .exe
+    let mut erstelle_version: Option<fn(TokenStream2) -> TokenStream2> = None;
+    let mut erstelle_hilfe: Option<fn(TokenStream2, usize) -> TokenStream2> = None;
+    let mut name_regex_breite: usize = 20;
+    for arg in args {
+        match arg {
+            "version_deutsch" => {
+                erstelle_version = Some(|item| {
+                    quote!({
+                        let name = env!("CARGO_PKG_NAME");
+                        let version = env!("CARGO_PKG_VERSION");
+                        #item.version_deutsch(name, version)
+                    })
+                })
+            }
+            "version_english" => {
+                erstelle_version = Some(|item| {
+                    quote!({
+                        let name = env!("CARGO_PKG_NAME");
+                        let version = env!("CARGO_PKG_VERSION");
+                        #item.version_english(name, version)
+                    })
+                })
+            }
+            "hilfe" => erstelle_hilfe = Some(|item, breite| quote!(#item.hilfe(name, #breite))),
+            "help" => erstelle_hilfe = Some(|item, width| quote!(#item.help(name, #width))),
+            string => match string.split_once(':') {
+                Some(("name_regex_breite" | "name_regex_width", wert_string)) => {
+                    if let Ok(wert) = wert_string.parse() {
+                        name_regex_breite = wert;
+                    } else {
+                        compile_error_return!(item, "Argument nicht unterstützt: {}", arg);
+                    }
+                }
+                _ => compile_error_return!(item, "Argument nicht unterstützt: {}", arg),
+            },
+        }
     }
     let crate_name = unwrap_result_or_compile_error!(item, base_name());
     let item_struct = parse_macro_input!(item as ItemStruct);
