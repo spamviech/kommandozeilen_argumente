@@ -33,6 +33,7 @@
 )]
 
 use std::{
+    convert::identity,
     env,
     ffi::OsStr,
     fmt::{Debug, Display},
@@ -134,8 +135,6 @@ impl<E: Display> ParseFehler<E> {
     }
 }
 
-// TODO parse-methode, die flag_kurzformen berücksichtigt
-// TODO shortcut zum direkten Verwenden von std::env::args_os
 pub struct Arg<T, E> {
     beschreibungen: Vec<ArgString>,
     flag_kurzformen: Vec<String>,
@@ -148,6 +147,17 @@ impl<T, E> Debug for Arg<T, E> {
             .field("beschreibungen", &self.beschreibungen)
             .field("parse", &"<function>")
             .finish()
+    }
+}
+
+// TODO parse-methode, die flag_kurzformen berücksichtigt
+// TODO shortcut zum direkten Verwenden von std::env::args_os
+impl<T, E> Arg<T, E> {
+    pub fn parse(&self, args: Vec<&OsStr>) -> (ParseErgebnis<T, E>, Vec<&OsStr>) {
+        let Arg { beschreibungen: _, flag_kurzformen, parse } = self;
+        let angepasste_args = todo!("parse flag kurzformen");
+        let (ergebnis, nicht_verwendet) = parse(angepasste_args);
+        (ergebnis, nicht_verwendet.into_iter().filter_map(identity).collect())
     }
 }
 
