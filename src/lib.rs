@@ -45,6 +45,8 @@ use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 use void::Void;
 
+pub use kommandozeilen_argumente_derive::kommandozeilen_argumente;
+
 #[cfg(test)]
 mod test;
 

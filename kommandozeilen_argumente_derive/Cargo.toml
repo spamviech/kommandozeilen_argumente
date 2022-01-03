@@ -1,5 +1,5 @@
 [package]
-name = "kommandozeilen_argumente"
+name = "kommandozeilen_argumente_derive"
 version = "0.1.0"
 authors = ["spamviech <spamviech@web.de>"]
 edition = "2021"
@@ -8,13 +8,7 @@ publish = false
 resolver = "2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+proc-macro = true
 
 [dependencies]
-itertools = "0.10.3"
-nonempty = "0.7.0"
-unicode-segmentation = "1.8.0"
-void = "1.0.2"
-
-[dependencies.kommandozeilen_argumente_derive]
-path = "./kommandozeilen_argumente_derive"
-version = "0.1.0"
