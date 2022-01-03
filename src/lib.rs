@@ -32,5 +32,4 @@
     variant_size_differences
 )]
 
-pub mod non_empty;
 pub mod parse;
