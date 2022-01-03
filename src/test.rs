@@ -1,5 +1,7 @@
 //! Tests zum Parsen von Kommandozeilen-Argumenten
 
+use std::iter;
+
 use crate::*;
 
 #[test]
@@ -20,7 +22,7 @@ fn hilfe_test() {
         20,
     );
     let hilfe = OsString::from("--hilfe".to_owned());
-    match arg.parse(vec![hilfe]) {
+    match arg.parse(iter::once(hilfe)) {
         (ParseErgebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
             let übrige = nicht_verwendet.iter().count();
             if übrige > 0 {

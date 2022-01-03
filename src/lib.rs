@@ -38,6 +38,7 @@ use std::{
     fmt::{Debug, Display},
     iter,
     path::{Path, PathBuf},
+    process,
 };
 
 use itertools::Itertools;
@@ -157,15 +158,43 @@ impl<T, E> Debug for Arg<T, E> {
     }
 }
 
-// TODO Methode, die automatisch process::exit für FrühesBeenden aufruft, Result-Rückgabewert
 impl<T, E> Arg<T, E> {
-    pub fn from_env(&self) -> (ParseErgebnis<T, E>, Vec<OsString>) {
-        Arg::parse(&self, env::args_os().collect())
+    #[inline(always)]
+    pub fn parse_aus_env(&self) -> (ParseErgebnis<T, E>, Vec<OsString>) {
+        Arg::parse(&self, env::args_os())
     }
 
-    pub fn parse(&self, args: Vec<OsString>) -> (ParseErgebnis<T, E>, Vec<OsString>) {
+    #[inline(always)]
+    pub fn parse_aus_env_mit_frühen_beenden(
+        &self,
+    ) -> (Result<T, NonEmpty<ParseFehler<E>>>, Vec<OsString>) {
+        self.parse_mit_frühen_beenden(env::args_os())
+    }
+
+    pub fn parse_mit_frühen_beenden(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> (Result<T, NonEmpty<ParseFehler<E>>>, Vec<OsString>) {
+        let (ergebnis, nicht_verwendet) = self.parse(args);
+        let result = match ergebnis {
+            ParseErgebnis::Wert(wert) => Ok(wert),
+            ParseErgebnis::FrühesBeenden(nachrichten) => {
+                for nachricht in nachrichten {
+                    println!("{}", nachricht);
+                }
+                process::exit(0)
+            }
+            ParseErgebnis::Fehler(fehler) => Err(fehler),
+        };
+        (result, nicht_verwendet)
+    }
+
+    pub fn parse(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> (ParseErgebnis<T, E>, Vec<OsString>) {
         let Arg { beschreibungen: _, flag_kurzformen, parse } = self;
-        let mut angepasste_args = Vec::with_capacity(args.len());
+        let mut angepasste_args = Vec::new();
         'args: for arg in args {
             if let Some(string) = arg.to_str() {
                 if let Some(kurz) = string.strip_prefix('-') {
