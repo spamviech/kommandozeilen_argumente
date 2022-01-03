@@ -149,7 +149,6 @@ impl<E: Display> ParseFehler<E> {
 
 // TODO derive-Macro zum automatischen erstellen aus Struktur-Definition?
 // TODO Unterbefehle/subcommands
-// TODO Mögliche Werte (Enum?)
 // TODO Positions-basierte Argumente
 pub struct Arg<T, E> {
     beschreibungen: Vec<ArgString>,
