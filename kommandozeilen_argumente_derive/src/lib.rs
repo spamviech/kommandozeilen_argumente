@@ -3,7 +3,7 @@
 use proc_macro::TokenStream;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, Ident, ItemEnum, ItemStruct};
+use syn::{parse_macro_input, Fields, Ident, ItemEnum, ItemStruct};
 
 fn base_name() -> Result<Ident, proc_macro_crate::Error> {
     Ok(match crate_name("kommandozeilen_argumente")? {
@@ -44,8 +44,31 @@ pub fn kommandozeilen_argumente(attr: TokenStream, mut item: TokenStream) -> Tok
 
 /// Derive-Macro für das ArgEnum-Trait.
 #[proc_macro_derive(ArgEnum)]
-pub fn derive_arg_enum(mut item: TokenStream) -> TokenStream {
-    let crate_name = unwrap_result_or_compile_error!(item, base_name());
+pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
+    let mut dummy = TokenStream::new();
+    let crate_name = unwrap_result_or_compile_error!(dummy, base_name());
     let item_enum = parse_macro_input!(item as ItemEnum);
-    todo!()
+    if !item_enum.generics.params.is_empty() {
+        compile_error_return!(dummy, "Nur Enums ohne Generics unterstützt.");
+    }
+    let ident = &item_enum.ident;
+    let mut varianten = Vec::new();
+    for variant in item_enum.variants {
+        if variant.fields != Fields::Unit {
+            compile_error_return!(
+                dummy,
+                "Nur Enums mit Unit-Varianten unterstützt, aber {} hält Daten.",
+                variant.ident
+            );
+        }
+        varianten.push(&item_enum.ident);
+    }
+    let instance = quote!(
+        impl #crate_name::ArgEnum for #ident {
+            fn varianten() -> Vec<Self> {
+                vec![#(#varianten),*]
+            }
+        }
+    );
+    instance.into()
 }
