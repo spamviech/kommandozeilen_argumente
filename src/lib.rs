@@ -206,7 +206,9 @@ impl<T, E> Arg<T, E> {
                                 return vec![arg];
                             }
                         }
-                        return gefundene_kurzformen;
+                        if !gefundene_kurzformen.is_empty() {
+                            return gefundene_kurzformen;
+                        }
                     }
                 }
                 vec![arg]
