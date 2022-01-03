@@ -4,7 +4,7 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, Fields, Ident, ItemEnum, ItemStruct};
+use syn::{parse_macro_input, Field, Fields, Ident, ItemEnum, ItemStruct};
 
 fn base_name() -> Result<Ident, proc_macro_crate::Error> {
     Ok(match crate_name("kommandozeilen_argumente")? {
@@ -83,6 +83,10 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
     }
     let crate_name = unwrap_result_or_compile_error!(item, base_name());
     let item_struct = parse_macro_input!(item as ItemStruct);
+    for field in item_struct.fields {
+        let Field { attrs, ident, ty, .. } = field;
+        todo!()
+    }
     todo!()
 }
 
@@ -107,10 +111,26 @@ pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
         }
         varianten.push(variant.ident);
     }
+    let varianten_str: Vec<_> = varianten.iter().map(ToString::to_string).collect();
     let instance = quote!(
         impl #crate_name::ArgEnum for #ident {
             fn varianten() -> Vec<Self> {
                 vec![#(Self::#varianten),*]
+            }
+
+            fn parse_enum(arg: &OsStr) -> Result<Self, OsString> {
+                if let Some(string) = arg.to_str() {
+                    #(
+                        if #crate_name::unicase_eq(string, #varianten_str) {
+                            Ok(Self::#varianten)
+                        } else
+                    )*
+                    {
+                        Err(arg.to_owned())
+                    }
+                } else {
+                    Err(arg.to_owned())
+                }
             }
         }
     );

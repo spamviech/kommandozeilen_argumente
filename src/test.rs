@@ -12,7 +12,10 @@ enum Bla {
 
 #[test]
 fn arg_enum_derive() {
-    assert_eq!(Bla::varianten(), vec![Bla::Meh, Bla::Muh])
+    assert_eq!(Bla::varianten(), vec![Bla::Meh, Bla::Muh]);
+    let os_string: OsString = "Meh".to_owned().into();
+    let parse_res = Bla::parse_enum(os_string.as_os_str());
+    assert_eq!(parse_res, Ok(Bla::Meh));
 }
 
 #[test]
