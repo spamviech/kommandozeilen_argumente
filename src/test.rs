@@ -1,6 +1,6 @@
 //! Tests zum Parsen von Kommandozeilen-Argumenten
 
-use std::iter;
+use std::{ffi::OsString, iter};
 
 use crate::*;
 
@@ -17,17 +17,13 @@ fn arg_enum_derive() {
 
 #[test]
 fn hilfe_test() {
-    use std::{convert::identity, ffi::OsString};
     let arg: Arg<bool, Void> = Arg::hilfe_und_version(
-        Arg::flag_deutsch(
-            ArgBeschreibung {
-                lang: "test".to_owned(),
-                kurz: None,
-                hilfe: Some("hilfe".to_owned()),
-                standard: Some(false),
-            },
-            identity,
-        ),
+        Arg::flag_deutsch(ArgBeschreibung {
+            lang: "test".to_owned(),
+            kurz: None,
+            hilfe: Some("hilfe".to_owned()),
+            standard: Some(false),
+        }),
         "programm",
         "0.test",
         20,

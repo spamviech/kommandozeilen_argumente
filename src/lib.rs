@@ -33,6 +33,7 @@
 )]
 
 use std::{
+    convert::identity,
     env,
     ffi::{OsStr, OsString},
     fmt::{Debug, Display},
@@ -228,24 +229,44 @@ impl<T, E> Arg<T, E> {
     }
 }
 
+impl<E> Arg<bool, E> {
+    #[inline(always)]
+    pub fn flag_deutsch(beschreibung: ArgBeschreibung<bool>) -> Arg<bool, E> {
+        Arg::flag(beschreibung, "kein")
+    }
+
+    #[inline(always)]
+    pub fn flag_english(beschreibung: ArgBeschreibung<bool>) -> Arg<bool, E> {
+        Arg::flag(beschreibung, "no")
+    }
+
+    #[inline(always)]
+    pub fn flag(
+        beschreibung: ArgBeschreibung<bool>,
+        invertiere_prefix: &'static str,
+    ) -> Arg<bool, E> {
+        Arg::flag_allgemein(beschreibung, identity, invertiere_prefix)
+    }
+}
+
 impl<T: 'static + Display + Clone, E> Arg<T, E> {
     #[inline(always)]
-    pub fn flag_deutsch(
+    pub fn flag_deutsch_allgemein(
         beschreibung: ArgBeschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
     ) -> Arg<T, E> {
-        Arg::flag(beschreibung, konvertiere, "kein")
+        Arg::flag_allgemein(beschreibung, konvertiere, "kein")
     }
 
     #[inline(always)]
-    pub fn flag_english(
+    pub fn flag_english_general(
         beschreibung: ArgBeschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
     ) -> Arg<T, E> {
-        Arg::flag(beschreibung, konvertiere, "no")
+        Arg::flag_allgemein(beschreibung, konvertiere, "no")
     }
 
-    pub fn flag(
+    pub fn flag_allgemein(
         beschreibung: ArgBeschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
         invertiere_prefix: &'static str,
