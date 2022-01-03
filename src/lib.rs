@@ -529,8 +529,8 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             .and_then(Path::file_name)
             .and_then(OsStr::to_str)
             .unwrap_or(programm_name);
-        let benutzen = format!("./{} [{}]", exe_name, optionen);
-        let mut hilfe_text = format!("{}\n{}\n\n{}:\n", programm_name, benutzen, optionen);
+        let mut hilfe_text =
+            format!("{}\n\n{} [{}]\n\n{}:\n", programm_name, exe_name, optionen, optionen);
         let eigener_arg_string = ArgString::Flag {
             beschreibung: eigene_beschreibung.clone().als_string_beschreibung().0,
             invertiere_prefix: None,
