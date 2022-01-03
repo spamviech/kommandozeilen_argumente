@@ -459,7 +459,12 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         self.frühes_beenden(beschreibung, format!("{} {}", programm_name, version))
     }
 
-    pub fn hilfe(self, programm_name: &str, name_regex_breite: usize) -> Arg<T, E> {
+    pub fn hilfe(
+        self,
+        programm_name: &str,
+        version: Option<&str>,
+        name_regex_breite: usize,
+    ) -> Arg<T, E> {
         let beschreibung = ArgBeschreibung {
             lang: "hilfe".to_owned(),
             kurz: Some("h".to_owned()),
@@ -469,6 +474,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         self.erstelle_hilfe(
             beschreibung,
             programm_name,
+            version,
             "OPTIONEN",
             "standard",
             "Erlaubte Werte",
@@ -482,11 +488,19 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         version: &str,
         name_regex_breite: usize,
     ) -> Arg<T, E> {
-        self.version_deutsch(programm_name, version)
-            .hilfe(&format!("{} {}", programm_name, version), name_regex_breite)
+        self.version_deutsch(programm_name, version).hilfe(
+            programm_name,
+            Some(version),
+            name_regex_breite,
+        )
     }
 
-    pub fn help(self, program_name: &str, name_regex_width: usize) -> Arg<T, E> {
+    pub fn help(
+        self,
+        program_name: &str,
+        version: Option<&str>,
+        name_regex_width: usize,
+    ) -> Arg<T, E> {
         let beschreibung = ArgBeschreibung {
             lang: "help".to_owned(),
             kurz: Some("h".to_owned()),
@@ -496,6 +510,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         self.erstelle_hilfe(
             beschreibung,
             program_name,
+            version,
             "OPTIONS",
             "default",
             "Possible values",
@@ -509,14 +524,18 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         version: &str,
         name_regex_breite: usize,
     ) -> Arg<T, E> {
-        self.version_english(program_name, version)
-            .help(&format!("{} {}", program_name, version), name_regex_breite)
+        self.version_english(program_name, version).help(
+            program_name,
+            Some(version),
+            name_regex_breite,
+        )
     }
 
     pub fn erstelle_hilfe(
         self,
         eigene_beschreibung: ArgBeschreibung<Void>,
         programm_name: &str,
+        version: Option<&str>,
         optionen: &str,
         standard: &str,
         erlaubte_werte: &str,
@@ -529,8 +548,11 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             .and_then(Path::file_name)
             .and_then(OsStr::to_str)
             .unwrap_or(programm_name);
-        let mut hilfe_text =
-            format!("{}\n\n{} [{}]\n\n{}:\n", programm_name, exe_name, optionen, optionen);
+        let mut name = programm_name.to_owned();
+        if let Some(version) = version {
+            name.push_str(version);
+        }
+        let mut hilfe_text = format!("{}\n\n{} [{}]\n\n{}:\n", name, exe_name, optionen, optionen);
         let eigener_arg_string = ArgString::Flag {
             beschreibung: eigene_beschreibung.clone().als_string_beschreibung().0,
             invertiere_prefix: None,
