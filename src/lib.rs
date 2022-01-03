@@ -40,6 +40,7 @@ use std::{
     iter,
     path::{Path, PathBuf},
     process,
+    str::FromStr,
 };
 
 use itertools::Itertools;
@@ -344,6 +345,31 @@ impl<T: 'static + Display + Clone + ArgEnum, E: 'static + Clone> Arg<T, E> {
     ) -> Arg<T, E> {
         let mögliche_werte = NonEmpty::from_vec(T::varianten());
         Arg::wert(beschreibung, meta_var, mögliche_werte, parse)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum FromStrFehler<E> {
+    InvaliderString(OsString),
+    ParseFehler(E),
+}
+
+impl<T> Arg<T, FromStrFehler<T::Err>>
+where
+    T: 'static + Display + Clone + FromStr,
+    T::Err: 'static + Clone,
+{
+    pub fn wert_from_str(
+        beschreibung: ArgBeschreibung<T>,
+        meta_var: String,
+        mögliche_werte: Option<NonEmpty<T>>,
+    ) -> Arg<T, FromStrFehler<T::Err>> {
+        Arg::wert(beschreibung, meta_var, mögliche_werte, |os_str| {
+            os_str
+                .to_str()
+                .ok_or_else(|| FromStrFehler::InvaliderString(os_str.to_owned()))
+                .and_then(|string| T::from_str(string).map_err(FromStrFehler::ParseFehler))
+        })
     }
 }
 
