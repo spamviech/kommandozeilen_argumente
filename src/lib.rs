@@ -149,8 +149,6 @@ impl<T, E> Debug for Arg<T, E> {
     }
 }
 
-// TODO parse-methode, die flag_kurzformen berücksichtigt
-// TODO shortcut zum direkten Verwenden von std::env::args_os
 impl<T, E> Arg<T, E> {
     pub fn from_env(&self) -> (ParseErgebnis<T, E>, Vec<OsString>) {
         Arg::parse(&self, env::args_os().collect())
@@ -646,40 +644,45 @@ impl<T, Error: 'static> Arg<T, Error> {
     impl_kombiniere_n! {kombiniere9(a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H, i: I)}
 }
 
-#[test]
-fn hilfe_test() {
-    use std::{convert::identity, ffi::OsString};
-    let arg: Arg<bool, Void> = Arg::hilfe_und_version(
-        Arg::flag_deutsch(
-            ArgBeschreibung {
-                lang: "test".to_owned(),
-                kurz: None,
-                hilfe: Some("hilfe".to_owned()),
-                standard: Some(false),
-            },
-            identity,
-        ),
-        "programm",
-        "0.test",
-        20,
-    );
-    let hilfe = OsString::from("--hilfe".to_owned());
-    match (arg.parse)(vec![Some(&hilfe)]) {
-        (ParseErgebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
-            let übrige = nicht_verwendet.iter().filter_map(Option::as_ref).count();
-            if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
-                std::process::exit(1);
-            } else {
-                for nachricht in nachrichten {
-                    println!("{}", nachricht);
+#[cfg(test)]
+mod test {
+    use crate::*;
+
+    #[test]
+    fn hilfe_test() {
+        use std::{convert::identity, ffi::OsString};
+        let arg: Arg<bool, Void> = Arg::hilfe_und_version(
+            Arg::flag_deutsch(
+                ArgBeschreibung {
+                    lang: "test".to_owned(),
+                    kurz: None,
+                    hilfe: Some("hilfe".to_owned()),
+                    standard: Some(false),
+                },
+                identity,
+            ),
+            "programm",
+            "0.test",
+            20,
+        );
+        let hilfe = OsString::from("--hilfe".to_owned());
+        match arg.parse(vec![hilfe]) {
+            (ParseErgebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+                let übrige = nicht_verwendet.iter().count();
+                if übrige > 0 {
+                    eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
+                    std::process::exit(1);
+                } else {
+                    for nachricht in nachrichten {
+                        println!("{}", nachricht);
+                    }
+                    std::process::exit(0);
                 }
-                std::process::exit(0);
             }
-        }
-        res => {
-            eprintln!("Unerwartetes Ergebnis: {:?}", res);
-            std::process::exit(2);
+            res => {
+                eprintln!("Unerwartetes Ergebnis: {:?}", res);
+                std::process::exit(2);
+            }
         }
     }
 }
