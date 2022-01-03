@@ -33,7 +33,6 @@
 )]
 
 use std::{
-    convert::identity,
     env,
     ffi::{OsStr, OsString},
     fmt::{Debug, Display},
@@ -153,17 +152,35 @@ impl<T, E> Debug for Arg<T, E> {
 // TODO parse-methode, die flag_kurzformen berücksichtigt
 // TODO shortcut zum direkten Verwenden von std::env::args_os
 impl<T, E> Arg<T, E> {
-    pub fn from_env(&self) -> (ParseErgebnis<T, E>, Vec<&OsStr>) {
-        let args_owned: Vec<_> = env::args_os().collect();
-        let args = args_owned.iter().map(OsString::as_os_str).collect();
-        Arg::parse(&self, args)
+    pub fn from_env(&self) -> (ParseErgebnis<T, E>, Vec<OsString>) {
+        Arg::parse(&self, env::args_os().collect())
     }
 
-    pub fn parse(&self, args: Vec<&OsStr>) -> (ParseErgebnis<T, E>, Vec<&OsStr>) {
+    pub fn parse(&self, args: Vec<OsString>) -> (ParseErgebnis<T, E>, Vec<OsString>) {
         let Arg { beschreibungen: _, flag_kurzformen, parse } = self;
-        let angepasste_args = todo!("parse flag kurzformen");
-        let (ergebnis, nicht_verwendet) = parse(angepasste_args);
-        (ergebnis, nicht_verwendet.into_iter().filter_map(identity).collect())
+        let mut angepasste_args = Vec::with_capacity(args.len());
+        'args: for arg in args {
+            if let Some(string) = arg.to_str() {
+                if let Some(kurz) = string.strip_prefix('-') {
+                    let mut gefundene_kurzformen = Vec::new();
+                    for grapheme in kurz.graphemes(true) {
+                        if flag_kurzformen.iter().any(|string| string == grapheme) {
+                            gefundene_kurzformen.push(grapheme.to_owned().into())
+                        } else {
+                            angepasste_args.push(arg);
+                            continue 'args;
+                        }
+                    }
+                    angepasste_args.extend(gefundene_kurzformen);
+                    continue 'args;
+                }
+            }
+            angepasste_args.push(arg);
+        }
+        let args_os_str: Vec<_> =
+            angepasste_args.iter().map(OsString::as_os_str).map(Some).collect();
+        let (ergebnis, nicht_verwendet) = parse(args_os_str);
+        (ergebnis, nicht_verwendet.into_iter().filter_map(|opt| opt.map(OsStr::to_owned)).collect())
     }
 }
 
