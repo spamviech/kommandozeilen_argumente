@@ -194,25 +194,24 @@ impl<T, E> Arg<T, E> {
         args: impl Iterator<Item = OsString>,
     ) -> (ParseErgebnis<T, E>, Vec<OsString>) {
         let Arg { beschreibungen: _, flag_kurzformen, parse } = self;
-        let mut angepasste_args = Vec::new();
-        'args: for arg in args {
-            if let Some(string) = arg.to_str() {
-                if let Some(kurz) = string.strip_prefix('-') {
-                    let mut gefundene_kurzformen = Vec::new();
-                    for grapheme in kurz.graphemes(true) {
-                        if flag_kurzformen.iter().any(|string| string == grapheme) {
-                            gefundene_kurzformen.push(grapheme.to_owned().into())
-                        } else {
-                            angepasste_args.push(arg);
-                            continue 'args;
+        let angepasste_args: Vec<OsString> = args
+            .flat_map(|arg| {
+                if let Some(string) = arg.to_str() {
+                    if let Some(kurz) = string.strip_prefix('-') {
+                        let mut gefundene_kurzformen = Vec::new();
+                        for grapheme in kurz.graphemes(true) {
+                            if flag_kurzformen.iter().any(|string| string == grapheme) {
+                                gefundene_kurzformen.push(grapheme.to_owned().into())
+                            } else {
+                                return vec![arg];
+                            }
                         }
+                        return gefundene_kurzformen;
                     }
-                    angepasste_args.extend(gefundene_kurzformen);
-                    continue 'args;
                 }
-            }
-            angepasste_args.push(arg);
-        }
+                vec![arg]
+            })
+            .collect();
         let args_os_str: Vec<_> =
             angepasste_args.iter().map(OsString::as_os_str).map(Some).collect();
         let (ergebnis, nicht_verwendet) = parse(args_os_str);
