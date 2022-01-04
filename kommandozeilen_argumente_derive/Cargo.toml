@@ -16,7 +16,6 @@ quote = "1.0.9"
 proc-macro2 = "1.0.36"
 proc-macro-crate = "1.1.0"
 unicode-segmentation = "1.8.0"
-itertools = "0.10.3"
 
 [dependencies.syn]
 version = "1.0.84"

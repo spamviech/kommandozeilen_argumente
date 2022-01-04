@@ -32,7 +32,6 @@
     variant_size_differences
 )]
 
-use itertools::Itertools;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro_crate::{crate_name, FoundCrate};
@@ -199,6 +198,8 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         let mut hilfe_lits = Vec::new();
         let mut standard = quote!(#crate_name::parse::ArgumentArt::standard());
         let mut glätten = false;
+        let mut field_invertiere_prefix = quote!(#invertiere_prefix);
+        let mut field_meta_var = quote!(#meta_var);
         for attr in attrs {
             match attr.parse_meta() {
                 Ok(Meta::NameValue(MetaNameValue {
@@ -218,33 +219,66 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                         match nested_meta {
                             NestedMeta::Meta(Meta::Path(path)) => {
                                 if let Some(ident) = path.get_ident() {
+                                    // TODO FromStr-Werte
                                     let arg = ident.to_string().trim().to_owned();
                                     match arg.as_str() {
                                         "glätten" | "flatten" => glätten = true,
                                         "benötigt" | "required" => standard = quote!(None),
-                                        _ => {}
+                                        _ => {
+                                            compile_error_return!("Unbekanntes Attribut: {}", arg)
+                                        }
                                     }
+                                } else {
+                                    compile_error_return!("Unbekanntes Attribut: {}", quote!(#path))
                                 }
                             }
                             NestedMeta::Meta(Meta::List(MetaList {
                                 path,
-                                paren_token: _,
+                                paren_token,
                                 nested,
                             })) => {
                                 if let Some(ident) = path.get_ident() {
                                     let arg_name = ident.to_string().trim().to_owned();
-                                    // TODO standard, meta_var, invertiere_prefix, ...
                                     match arg_name.as_str() {
                                         "standard" | "default" if nested.len() == 1 => {
                                             if let Some(nested_meta) = nested.first() {
                                                 standard = quote!(Some(#nested_meta));
                                             }
                                         }
-                                        _ => {}
+                                        "meta_var" if nested.len() == 1 => {
+                                            if let Some(nested_meta) = nested.first() {
+                                                field_meta_var = quote!(#nested_meta)
+                                            }
+                                        }
+                                        "invertiere_prefix" | "invert_prefix"
+                                            if nested.len() == 1 =>
+                                        {
+                                            if let Some(nested_meta) = nested.first() {
+                                                field_invertiere_prefix = quote!(#nested_meta)
+                                            }
+                                        }
+                                        _ => {
+                                            compile_error_return!(
+                                                "Unbekanntes Attribut mit Wert: {}:{}",
+                                                arg_name,
+                                                quote!(#nested)
+                                            )
+                                        }
                                     }
+                                } else {
+                                    let meta_list = MetaList { path, paren_token, nested };
+                                    compile_error_return!(
+                                        "Unbekanntes Attribut: {}",
+                                        quote!(#meta_list)
+                                    )
                                 }
                             }
-                            _ => {}
+                            _ => {
+                                compile_error_return!(
+                                    "Unbekanntes Attribut: {}",
+                                    quote!(#nested_meta)
+                                )
+                            }
                         }
                     }
                 }
@@ -286,15 +320,14 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                 };
                 #crate_name::parse::ArgumentArt::erstelle_arg(
                     beschreibung,
-                    #invertiere_prefix,
-                    #meta_var
+                    #field_invertiere_prefix,
+                    #field_meta_var
                 )
             })
         };
         tuples.push((ident, erstelle_args));
     }
-    let (idents, erstelle_args): (Vec<_>, Vec<_>) = tuples.into_iter().multiunzip();
-    // TODO Attribute, z.B. standard, meta_var, Flatten, FromStr-Werte, ...
+    let (idents, erstelle_args): (Vec<_>, Vec<_>) = tuples.into_iter().unzip();
     let kombiniere = quote!(
         #(
             let #idents = #erstelle_args;
