@@ -1,10 +1,6 @@
 //! Tests zum Parsen von Kommandozeilen-Argumenten
 
-use std::{
-    ffi::{OsStr, OsString},
-    fmt::Display,
-    iter, process,
-};
+use std::{ffi::OsString, fmt::Display, iter, process};
 
 use void::Void;
 
