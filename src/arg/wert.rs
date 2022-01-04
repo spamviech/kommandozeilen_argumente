@@ -19,6 +19,7 @@ use crate::{
 pub use kommandozeilen_argumente_derive::ArgEnum;
 
 impl<T: 'static + Display + Clone, E: 'static + Clone> Arg<T, E> {
+    /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
     pub fn wert(
         beschreibung: Beschreibung<T>,
         meta_var: String,
@@ -119,22 +120,33 @@ impl<T: 'static + Display + Clone, E: 'static + Clone> Arg<T, E> {
         }
     }
 }
+
+/// Trait für Typen mit einer festen Anzahl an Werten und Methode zum Parsen.
+/// Gedacht für Summentypen ohne extra Daten (nur Unit-Varianten).
+///
+/// Mit aktiviertem `derive`-Feature kann die Implementierung automatisch erzeugt werden.
 pub trait ArgEnum: Sized {
+    /// Alle Varianten des Typs.
     fn varianten() -> Vec<Self>;
 
+    /// Versuche einen Wert ausgehend vom übergebenen [OsStr] zu erzeugen.
     fn parse_enum(arg: &OsStr) -> Result<Self, OsString>;
 }
 
 impl<T: 'static + Display + Clone + ArgEnum> Arg<T, OsString> {
+    /// Erzeuge ein Wert-Argument für ein [ArgEnum].
     pub fn wert_enum(beschreibung: Beschreibung<T>, meta_var: String) -> Arg<T, OsString> {
         let mögliche_werte = NonEmpty::from_vec(T::varianten());
         Arg::wert(beschreibung, meta_var, mögliche_werte, T::parse_enum)
     }
 }
 
+/// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr].
 #[derive(Debug, Clone)]
 pub enum FromStrFehler<E> {
+    /// Die Konvertierung in ein &[str] ist fehlgeschlagen.
     InvaliderString(OsString),
+    /// Fehler beim Parsen des Strings.
     ParseFehler(E),
 }
 
@@ -143,6 +155,7 @@ where
     T: 'static + Display + Clone + FromStr,
     T::Err: 'static + Clone,
 {
+    /// Erzeuge ein Wert-Argument anhand der [FromStr]-Implementierung.
     pub fn wert_from_str(
         beschreibung: Beschreibung<T>,
         meta_var: String,

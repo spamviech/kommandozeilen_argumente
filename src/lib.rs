@@ -1,5 +1,6 @@
 //! Parsen von Kommandozeilen-Argumenten, inklusiver automatisch generierter (deutscher) Hilfe.
 
+// Enable all warnings except box_pointers, non_ascii_idents, unstable_features
 #![warn(
     absolute_paths_not_starting_with_crate,
     elided_lifetimes_in_paths,
@@ -10,7 +11,7 @@
     missing_abi,
     missing_copy_implementations,
     missing_debug_implementations,
-    // missing_docs,
+    missing_docs,
     noop_method_call,
     pointer_structural_match,
     rust_2021_incompatible_closure_captures,

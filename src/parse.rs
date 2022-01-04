@@ -65,7 +65,7 @@ impl<T: 'static + ArgEnum + Display + Clone> ArgumentArt for T {
 
 /// Erlaube parsen aus Kommandozeilen-Argumenten ausgehend einer Standard-Konfiguration.
 ///
-/// Mit aktiviertem `derive`-Feature kann dies automatisch erzeugt werden.
+/// Mit aktiviertem `derive`-Feature kann diese automatisch erzeugt werden.
 pub trait Parse: Sized {
     /// Möglicher Parse-Fehler, die automatisch erzeugte Implementierung verwendet [OsString].
     type Fehler;
