@@ -74,6 +74,12 @@ macro_rules! unwrap_option_or_compile_error {
     };
 }
 
+enum Sprache {
+    Deutsch,
+    Englisch,
+}
+use Sprache::*;
+
 /// Erstelle Methoden `kommandozeilen_argumente`, `parse[_aus_env][_frühes_beenden]`
 /// zum parsen aus Kommandozeilen-Argumenten.
 #[proc_macro_derive(Parse, attributes(kommandozeilen_argumente))]
@@ -108,22 +114,38 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     // CARGO_PKG_AUTHORS — Colon separated list of authors from the manifest of your package.
     // CARGO_PKG_DESCRIPTION — The description from the manifest of your package.
     // CARGO_BIN_NAME — The name of the binary that is currently being compiled (if it is a binary). This name does not include any file extension, such as .exe
-    let mut erstelle_version: Option<fn(TokenStream2) -> TokenStream2> = None;
+    let mut erstelle_version: Option<fn(TokenStream2, Sprache) -> TokenStream2> = None;
     let mut erstelle_hilfe: Option<fn(TokenStream2, usize) -> TokenStream2> = None;
     let mut name_regex_breite: usize = 40;
-    let mut invertiere_prefix = "kein".to_owned();
-    let mut meta_var = "Wert".to_owned();
+    let mut sprache = Deutsch;
+    let mut invertiere_prefix = None;
+    let mut meta_var = None;
     for arg in args {
         match arg.as_str() {
+            "deutsch" => sprache = Deutsch,
+            "german" => sprache = Deutsch,
+            "english" => sprache = Englisch,
+            "englisch" => sprache = Englisch,
+            "version" => {
+                erstelle_version = Some(|item, sprache| {
+                    let version_ident = match sprache {
+                        Deutsch => "version_deutsch",
+                        Englisch => "version_english",
+                    };
+                    quote!(
+                        #item.#version_ident(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+                    )
+                })
+            }
             "version_deutsch" => {
-                erstelle_version = Some(|item| {
+                erstelle_version = Some(|item, _sprache| {
                     quote!(
                         #item.version_deutsch(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
                     )
                 })
             }
             "version_english" => {
-                erstelle_version = Some(|item| {
+                erstelle_version = Some(|item, _sprache| {
                     quote!(
                         #item.version_english(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
                     )
@@ -152,9 +174,9 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                     }
                 }
                 Some(("invertiere_prefix" | "invert_prefix", wert_string)) => {
-                    invertiere_prefix = wert_string.to_owned();
+                    invertiere_prefix = Some(wert_string.to_owned());
                 }
-                Some(("meta_var", wert_string)) => meta_var = wert_string.to_owned(),
+                Some(("meta_var", wert_string)) => meta_var = Some(wert_string.to_owned()),
                 _ => compile_error_return!("Argument nicht unterstützt: {}", arg),
             },
         }
@@ -213,6 +235,14 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     }
     // TODO Flag für booleans erzeugen
     // TODO Attribute, z.B. standard, meta_var, Flatten, FromStr-Werte, ...
+    let invertiere_prefix = invertiere_prefix.unwrap_or(match sprache {
+        Deutsch => "kein".to_owned(),
+        Englisch => "no".to_owned(),
+    });
+    let meta_var = meta_var.unwrap_or(match sprache {
+        Deutsch => "WERT".to_owned(),
+        Englisch => "VALUE".to_owned(),
+    });
     let kombiniere = quote!(
         #(
             let beschreibung = #crate_name::Beschreibung {
@@ -230,7 +260,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*} => #(#idents),*)
     );
     let nach_version = if let Some(version_hinzufügen) = erstelle_version {
-        version_hinzufügen(kombiniere)
+        version_hinzufügen(kombiniere, sprache)
     } else {
         kombiniere
     };
