@@ -1,15 +1,44 @@
 //! Trait für Typen, die aus Kommandozeilen-Argumenten geparsed werden können.
 
-use std::ffi::OsString;
+use std::{ffi::OsString, fmt::Display};
 
 use nonempty::NonEmpty;
 
 use crate::{
-    arg::Arg,
+    arg::{wert::ArgEnum, Arg},
+    beschreibung::Beschreibung,
     ergebnis::{ParseErgebnis, ParseFehler},
 };
 
 pub use kommandozeilen_argumente_derive::Parse;
+
+pub trait ArgumentArt: Sized {
+    fn erstelle_arg(
+        beschreibung: Beschreibung<Self>,
+        invertiere_prefix: &'static str,
+        meta_var: &str,
+    ) -> Arg<Self, OsString>;
+}
+
+impl ArgumentArt for bool {
+    fn erstelle_arg(
+        beschreibung: Beschreibung<Self>,
+        invertiere_prefix: &'static str,
+        _meta_var: &str,
+    ) -> Arg<Self, OsString> {
+        Arg::flag(beschreibung, invertiere_prefix)
+    }
+}
+
+impl<T: 'static + ArgEnum + Display + Clone> ArgumentArt for T {
+    fn erstelle_arg(
+        beschreibung: Beschreibung<Self>,
+        _invertiere_prefix: &'static str,
+        meta_var: &str,
+    ) -> Arg<Self, OsString> {
+        Arg::wert_enum(beschreibung, meta_var.to_owned())
+    }
+}
 
 pub trait Parse: Sized {
     type Fehler;

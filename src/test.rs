@@ -68,8 +68,8 @@ fn arg_enum_derive() {
 struct Test {
     /// bla
     bla: Bla,
-    /// meh
-    meh: Bla,
+    /// flag
+    flag: bool,
 }
 
 #[test]

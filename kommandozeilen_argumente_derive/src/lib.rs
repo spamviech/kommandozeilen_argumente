@@ -111,6 +111,8 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     let mut erstelle_version: Option<fn(TokenStream2) -> TokenStream2> = None;
     let mut erstelle_hilfe: Option<fn(TokenStream2, usize) -> TokenStream2> = None;
     let mut name_regex_breite: usize = 40;
+    let mut invertiere_prefix = "kein".to_owned();
+    let mut meta_var = "Wert".to_owned();
     for arg in args {
         match arg.as_str() {
             "version_deutsch" => {
@@ -149,6 +151,10 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                         compile_error_return!("Argument nicht unterstützt: {}", arg);
                     }
                 }
+                Some(("invertiere_prefix" | "invert_prefix", wert_string)) => {
+                    invertiere_prefix = wert_string.to_owned();
+                }
+                Some(("meta_var", wert_string)) => meta_var = wert_string.to_owned(),
                 _ => compile_error_return!("Argument nicht unterstützt: {}", arg),
             },
         }
@@ -215,8 +221,11 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                 hilfe: #hilfen,
                 standard: None,
             };
-            let meta_var = "WERT".to_owned();
-            let #idents = #crate_name::Arg::wert_enum(beschreibung, meta_var);
+            let #idents = #crate_name::parse::ArgumentArt::erstelle_arg(
+                beschreibung,
+                #invertiere_prefix,
+                #meta_var
+            );
         )*
         #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*} => #(#idents),*)
     );
