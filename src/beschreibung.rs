@@ -32,4 +32,10 @@ impl<T> Beschreibung<T> {
         let standard_string = standard.as_ref().map(anzeige);
         (Beschreibung { lang, kurz, hilfe, standard: standard_string }, standard)
     }
+
+    /// Konvertiere eine Beschreibung zu einem anderen Typ.
+    pub fn konvertiere<S>(self, konvertiere: impl FnOnce(T) -> S) -> Beschreibung<S> {
+        let Beschreibung { lang, kurz, hilfe, standard } = self;
+        Beschreibung { lang, kurz, hilfe, standard: standard.map(konvertiere) }
+    }
 }
