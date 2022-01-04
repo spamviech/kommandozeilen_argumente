@@ -2,6 +2,19 @@
 
 Parser für Kommandozeilen-Argumente mit optionaler, potentiell deutscher, automatischer Hilfe-Generierung.
 
+## Flags
+
+Aktiviert über `--flag` oder `-f`
+Können (explizit) über `--kein-flag`, bzw. `--no-flag` deaktiviert werden
+Präfix kann konfiguriert werden.
+
+Aktivieren mehrerer Flags auf einmal möglich `-fgh`
+
+## Werte
+
+Langformen: `--arg <Wert>` oder `--arg=<Wert>`
+Kurzformen: `-a <Wert>` oder `-a<Wert>`
+
 ## derive-Attribute
 
 trait ArgEnum ohne Attribute
