@@ -32,6 +32,7 @@
     variant_size_differences
 )]
 
+use itertools::Itertools;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro_crate::{crate_name, FoundCrate};
@@ -184,11 +185,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         }
     }
     let crate_name = unwrap_result_or_compile_error!(base_name());
-    let mut idents = Vec::new();
-    let mut lange = Vec::new();
-    let mut kurze = Vec::new();
-    let mut hilfen = Vec::new();
-    let mut standards = Vec::new();
+    let mut tuples = Vec::new();
     for field in item_struct.fields {
         let Field { attrs, ident, .. } = field;
         let mut hilfe_lits = Vec::new();
@@ -255,9 +252,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         } else {
             quote!(None)
         };
-        idents.push(format_ident!("{}", lang));
-        lange.push(lang);
-        kurze.push(kurz);
+        let ident = format_ident!("{}", lang);
         let mut hilfe_string = String::new();
         for teil_string in hilfe_lits {
             if !hilfe_string.is_empty() {
@@ -270,9 +265,10 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         } else {
             quote!(Some(#hilfe_string.to_owned()))
         };
-        hilfen.push(hilfe);
-        standards.push(standard);
+        tuples.push((ident, lang, kurz, hilfe, standard));
     }
+    let (idents, lange, kurze, hilfen, standards): (Vec<_>, Vec<_>, Vec<_>, Vec<_>, Vec<_>) =
+        tuples.into_iter().multiunzip();
     // TODO Attribute, z.B. standard, meta_var, Flatten, FromStr-Werte, ...
     let invertiere_prefix = invertiere_prefix.unwrap_or(match sprache {
         Deutsch => "kein".to_owned(),
