@@ -69,15 +69,18 @@ struct Test {
     /// bla
     bla: Bla,
     /// flag
+    #[kommandozeilen_argumente(standard(true))]
     flag: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(english, version, help)]
 struct Test2 {
+    #[kommandozeilen_argumente(default(Bla::Meh))]
     /// bla
     bla: Bla,
     /// flag
+    #[kommandozeilen_argumente(required)]
     flag: bool,
 }
 

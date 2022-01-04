@@ -37,7 +37,8 @@ use proc_macro2::TokenStream as TokenStream2;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
 use syn::{
-    parse_macro_input, Field, Fields, Ident, ItemEnum, ItemStruct, Lit, Meta, MetaNameValue,
+    parse_macro_input, Field, Fields, Ident, ItemEnum, ItemStruct, Lit, Meta, MetaList,
+    MetaNameValue, NestedMeta,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -187,10 +188,11 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     let mut lange = Vec::new();
     let mut kurze = Vec::new();
     let mut hilfen = Vec::new();
-    let mut typen = Vec::new();
+    let mut standards = Vec::new();
     for field in item_struct.fields {
-        let Field { attrs, ident, ty, .. } = field;
+        let Field { attrs, ident, .. } = field;
         let mut hilfe_lits = Vec::new();
+        let mut standard = quote!(#crate_name::parse::ArgumentArt::standard());
         for attr in attrs {
             match attr.parse_meta() {
                 Ok(Meta::NameValue(MetaNameValue {
@@ -201,6 +203,43 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                     let trimmed = lit_str.value().trim().to_owned();
                     if !trimmed.is_empty() {
                         hilfe_lits.push(trimmed);
+                    }
+                }
+                Ok(Meta::List(MetaList { path, paren_token: _, nested }))
+                    if path.is_ident("kommandozeilen_argumente") =>
+                {
+                    for nested_meta in nested {
+                        match nested_meta {
+                            NestedMeta::Meta(Meta::Path(path)) => {
+                                if let Some(ident) = path.get_ident() {
+                                    let arg = ident.to_string().trim().to_owned();
+                                    match arg.as_str() {
+                                        "flatten" => todo!(),
+                                        "benötigt" | "required" => standard = quote!(None),
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            NestedMeta::Meta(Meta::List(MetaList {
+                                path,
+                                paren_token: _,
+                                nested,
+                            })) => {
+                                if let Some(ident) = path.get_ident() {
+                                    let arg_name = ident.to_string().trim().to_owned();
+                                    // TODO standard, meta_var, invertiere_prefix, ...
+                                    match arg_name.as_str() {
+                                        "standard" | "default" if nested.len() == 1 => {
+                                            if let Some(nested_meta) = nested.first() {
+                                                standard = quote!(Some(#nested_meta));
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
                     }
                 }
                 _ => {}
@@ -232,9 +271,8 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
             quote!(Some(#hilfe_string.to_owned()))
         };
         hilfen.push(hilfe);
-        typen.push(ty);
+        standards.push(standard);
     }
-    // TODO Flag für booleans erzeugen
     // TODO Attribute, z.B. standard, meta_var, Flatten, FromStr-Werte, ...
     let invertiere_prefix = invertiere_prefix.unwrap_or(match sprache {
         Deutsch => "kein".to_owned(),
@@ -250,7 +288,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                 lang: #lange.to_owned(),
                 kurz: #kurze,
                 hilfe: #hilfen,
-                standard: None,
+                standard: #standards,
             };
             let #idents = #crate_name::parse::ArgumentArt::erstelle_arg(
                 beschreibung,

@@ -18,6 +18,8 @@ pub trait ArgumentArt: Sized {
         invertiere_prefix: &'static str,
         meta_var: &str,
     ) -> Arg<Self, OsString>;
+
+    fn standard() -> Option<Self>;
 }
 
 impl ArgumentArt for bool {
@@ -28,6 +30,10 @@ impl ArgumentArt for bool {
     ) -> Arg<Self, OsString> {
         Arg::flag(beschreibung, invertiere_prefix)
     }
+
+    fn standard() -> Option<Self> {
+        Some(false)
+    }
 }
 
 impl<T: 'static + ArgEnum + Display + Clone> ArgumentArt for T {
@@ -37,6 +43,10 @@ impl<T: 'static + ArgEnum + Display + Clone> ArgumentArt for T {
         meta_var: &str,
     ) -> Arg<Self, OsString> {
         Arg::wert_enum(beschreibung, meta_var.to_owned())
+    }
+
+    fn standard() -> Option<Self> {
+        None
     }
 }
 
