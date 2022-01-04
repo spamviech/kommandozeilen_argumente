@@ -49,6 +49,48 @@ impl ArgumentArt for bool {
 }
 
 #[cfg(feature = "derive")]
+impl ArgumentArt for String {
+    fn erstelle_arg(
+        beschreibung: Beschreibung<Self>,
+        _invertiere_prefix: &'static str,
+        meta_var: &str,
+    ) -> Arg<Self, OsString> {
+        Arg::wert(beschreibung, meta_var.to_owned(), None, |os_str| {
+            if let Some(string) = os_str.to_str() {
+                Ok(string.to_owned())
+            } else {
+                Err(os_str.to_owned())
+            }
+        })
+    }
+
+    fn standard() -> Option<Self> {
+        None
+    }
+}
+
+#[cfg(feature = "derive")]
+impl<T: 'static + ArgumentArt> ArgumentArt for Option<T> {
+    fn erstelle_arg(
+        beschreibung: Beschreibung<Self>,
+        invertiere_prefix: &'static str,
+        meta_var: &str,
+    ) -> Arg<Self, OsString> {
+        let Beschreibung { lang, kurz, hilfe, standard } = beschreibung;
+        let arg = T::erstelle_arg(
+            Beschreibung { lang, kurz, hilfe, standard: standard.flatten() },
+            invertiere_prefix,
+            meta_var,
+        );
+        Arg::konvertiere(Some, arg)
+    }
+
+    fn standard() -> Option<Self> {
+        Some(None)
+    }
+}
+
+#[cfg(feature = "derive")]
 impl<T: 'static + ArgEnum + Display + Clone> ArgumentArt for T {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
