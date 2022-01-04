@@ -169,7 +169,10 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                     eq_token: _,
                     lit: Lit::Str(lit_str),
                 })) if path.is_ident("doc") => {
-                    hilfe_lits.push(lit_str);
+                    let trimmed = lit_str.value().trim().to_owned();
+                    if !trimmed.is_empty() {
+                        hilfe_lits.push(trimmed);
+                    }
                 }
                 _ => {}
             }
@@ -187,10 +190,17 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         idents.push(format_ident!("{}", lang));
         lange.push(lang);
         kurze.push(kurz);
-        let hilfe = if hilfe_lits.is_empty() {
+        let mut hilfe_string = String::new();
+        for teil_string in hilfe_lits {
+            if !hilfe_string.is_empty() {
+                hilfe_string.push(' ');
+            }
+            hilfe_string.push_str(&teil_string);
+        }
+        let hilfe = if hilfe_string.is_empty() {
             quote!(None)
         } else {
-            quote!(Some(concat!(#(#hilfe_lits),*).to_owned()))
+            quote!(Some(#hilfe_string.to_owned()))
         };
         hilfen.push(hilfe);
         typen.push(ty);
