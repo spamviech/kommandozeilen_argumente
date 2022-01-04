@@ -18,18 +18,32 @@ use crate::{
 #[cfg(feature = "derive")]
 pub use kommandozeilen_argumente_derive::ArgEnum;
 
-impl<T: 'static + Display + Clone, E: 'static + Clone> Arg<T, E> {
+impl<T: 'static + Clone + Display, E: 'static + Clone> Arg<T, E> {
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    #[inline(always)]
     pub fn wert(
         beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, E>,
     ) -> Arg<T, E> {
+        Arg::wert_allgemein(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
+    }
+}
+
+impl<T: 'static + Clone, E: 'static + Clone> Arg<T, E> {
+    /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    pub fn wert_allgemein(
+        beschreibung: Beschreibung<T>,
+        meta_var: String,
+        mögliche_werte: Option<NonEmpty<T>>,
+        parse: impl 'static + Fn(&OsStr) -> Result<T, E>,
+        anzeige: impl Fn(&T) -> String,
+    ) -> Arg<T, E> {
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
         let meta_var_clone = meta_var.clone();
-        let (beschreibung, standard) = beschreibung.als_string_beschreibung();
+        let (beschreibung, standard) = beschreibung.als_string_beschreibung_allgemein(&anzeige);
         let fehler_kein_wert = ParseFehler::FehlenderWert {
             lang: name_lang.clone(),
             kurz: name_kurz.clone(),
@@ -39,9 +53,8 @@ impl<T: 'static + Display + Clone, E: 'static + Clone> Arg<T, E> {
             beschreibungen: vec![ArgString::Wert {
                 beschreibung,
                 meta_var,
-                mögliche_werte: mögliche_werte.and_then(|werte| {
-                    NonEmpty::from_vec(werte.iter().map(ToString::to_string).collect())
-                }),
+                mögliche_werte: mögliche_werte
+                    .and_then(|werte| NonEmpty::from_vec(werte.iter().map(anzeige).collect())),
             }],
             flag_kurzformen: Vec::new(),
             parse: Box::new(move |args| {

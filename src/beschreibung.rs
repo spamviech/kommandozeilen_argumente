@@ -17,9 +17,19 @@ pub struct Beschreibung<T> {
 }
 
 impl<T: Display> Beschreibung<T> {
+    #[inline(always)]
     pub(crate) fn als_string_beschreibung(self) -> (Beschreibung<String>, Option<T>) {
+        self.als_string_beschreibung_allgemein(ToString::to_string)
+    }
+}
+
+impl<T> Beschreibung<T> {
+    pub(crate) fn als_string_beschreibung_allgemein(
+        self,
+        anzeige: impl Fn(&T) -> String,
+    ) -> (Beschreibung<String>, Option<T>) {
         let Beschreibung { lang, kurz, hilfe, standard } = self;
-        let standard_string = standard.as_ref().map(ToString::to_string);
+        let standard_string = standard.as_ref().map(anzeige);
         (Beschreibung { lang, kurz, hilfe, standard: standard_string }, standard)
     }
 }

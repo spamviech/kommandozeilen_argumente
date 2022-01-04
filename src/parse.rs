@@ -96,19 +96,41 @@ macro_rules! impl_parse_types {
 impl_parse_types! {i8,u8,i16,u16,i32,u32,i64,u64,i128,u128,isize,usize,f32,f64}
 
 #[cfg(feature = "derive")]
-impl<T: 'static + ArgumentArt> ArgumentArt for Option<T> {
+impl<T: 'static + ArgumentArt + Clone + Display> ArgumentArt for Option<T> {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
         invertiere_prefix: &'static str,
         meta_var: &str,
     ) -> Arg<Self, OsString> {
-        let Beschreibung { lang, kurz, hilfe, standard } = beschreibung;
-        let arg = T::erstelle_arg(
-            Beschreibung { lang, kurz, hilfe, standard: standard.flatten() },
+        let Beschreibung { lang, kurz, .. } = &beschreibung;
+        let Arg { parse, .. } = T::erstelle_arg(
+            Beschreibung { lang: lang.clone(), kurz: kurz.clone(), hilfe: None, standard: None },
             invertiere_prefix,
             meta_var,
         );
-        Arg::konvertiere(Some, arg)
+        let name: OsString = format!("--{}", lang).into();
+        Arg::wert_allgemein(
+            beschreibung,
+            meta_var.to_owned(),
+            None,
+            move |arg| {
+                let (ergebnis, _nicht_verwendet) = parse(vec![Some(name.as_os_str()), Some(arg)]);
+                match ergebnis {
+                    ParseErgebnis::Wert(wert) => Ok(Some(wert)),
+                    _ergebnis => Err(arg.to_owned()),
+                }
+            },
+            |opt| {
+                if let Some(t) = opt {
+                    let mut string = "Some(".to_owned();
+                    string.push_str(&t.to_string());
+                    string.push(')');
+                    string
+                } else {
+                    "None".to_owned()
+                }
+            },
+        )
     }
 
     fn standard() -> Option<Self> {

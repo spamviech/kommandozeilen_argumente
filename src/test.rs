@@ -63,6 +63,8 @@ fn arg_enum_derive() {
 struct Test {
     /// bla
     bla: Bla,
+    /// opt
+    opt: Option<Bla>,
     /// flag
     #[kommandozeilen_argumente(standard(true))]
     flag: bool,
