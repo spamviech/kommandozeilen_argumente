@@ -15,7 +15,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use void::Void;
 
 use crate::{
-    beschreibung::ArgBeschreibung,
+    beschreibung::Beschreibung,
     ergebnis::{ParseErgebnis, ParseFehler},
 };
 
@@ -25,11 +25,11 @@ pub mod wert;
 #[derive(Debug)]
 pub enum ArgString {
     Flag {
-        beschreibung: ArgBeschreibung<String>,
+        beschreibung: Beschreibung<String>,
         invertiere_prefix: Option<String>,
     },
     Wert {
-        beschreibung: ArgBeschreibung<String>,
+        beschreibung: Beschreibung<String>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<String>>,
     },
@@ -125,7 +125,7 @@ impl<T, E> Arg<T, E> {
 
 impl<T: 'static, E: 'static> Arg<T, E> {
     pub fn version_deutsch(self, programm_name: &str, version: &str) -> Arg<T, E> {
-        let beschreibung = ArgBeschreibung {
+        let beschreibung = Beschreibung {
             lang: "version".to_owned(),
             kurz: Some("v".to_owned()),
             hilfe: Some("Zeigt die aktuelle Version an.".to_owned()),
@@ -135,7 +135,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
     }
 
     pub fn version_english(self, program_name: &str, version: &str) -> Arg<T, E> {
-        let beschreibung = ArgBeschreibung {
+        let beschreibung = Beschreibung {
             lang: "version".to_owned(),
             kurz: Some("v".to_owned()),
             hilfe: Some("Show the current version.".to_owned()),
@@ -146,7 +146,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
 
     pub fn zeige_version(
         self,
-        beschreibung: ArgBeschreibung<Void>,
+        beschreibung: Beschreibung<Void>,
         programm_name: &str,
         version: &str,
     ) -> Arg<T, E> {
@@ -159,7 +159,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         version: Option<&str>,
         name_regex_breite: usize,
     ) -> Arg<T, E> {
-        let beschreibung = ArgBeschreibung {
+        let beschreibung = Beschreibung {
             lang: "hilfe".to_owned(),
             kurz: Some("h".to_owned()),
             hilfe: Some("Zeigt diesen Text an.".to_owned()),
@@ -195,7 +195,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         version: Option<&str>,
         name_regex_width: usize,
     ) -> Arg<T, E> {
-        let beschreibung = ArgBeschreibung {
+        let beschreibung = Beschreibung {
             lang: "help".to_owned(),
             kurz: Some("h".to_owned()),
             hilfe: Some("Show this text.".to_owned()),
@@ -227,7 +227,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
 
     pub fn erstelle_hilfe(
         self,
-        eigene_beschreibung: ArgBeschreibung<Void>,
+        eigene_beschreibung: Beschreibung<Void>,
         programm_name: &str,
         version: Option<&str>,
         optionen: &str,
@@ -258,7 +258,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             name_regex_breite: usize,
             hilfe_text: &mut String,
             name_regex: &String,
-            beschreibung: &ArgBeschreibung<String>,
+            beschreibung: &Beschreibung<String>,
             mögliche_werte: &Option<NonEmpty<String>>,
         ) {
             hilfe_text.push_str("  ");
@@ -351,11 +351,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         self.frühes_beenden(eigene_beschreibung, hilfe_text)
     }
 
-    pub fn frühes_beenden(
-        self,
-        beschreibung: ArgBeschreibung<Void>,
-        nachricht: String,
-    ) -> Arg<T, E> {
+    pub fn frühes_beenden(self, beschreibung: Beschreibung<Void>, nachricht: String) -> Arg<T, E> {
         let Arg { mut beschreibungen, mut flag_kurzformen, parse } = self;
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();

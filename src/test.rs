@@ -13,7 +13,7 @@ use crate::*;
 #[test]
 fn hilfe_test() {
     let arg: Arg<bool, Void> = Arg::hilfe_und_version(
-        Arg::flag_deutsch(ArgBeschreibung {
+        Arg::flag_deutsch(Beschreibung {
             lang: "test".to_owned(),
             kurz: None,
             hilfe: Some("hilfe".to_owned()),

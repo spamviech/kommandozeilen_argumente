@@ -45,6 +45,6 @@ mod test;
 
 pub use self::{
     arg::{wert::ArgEnum, Arg},
-    beschreibung::ArgBeschreibung,
+    beschreibung::Beschreibung,
     ergebnis::{ParseErgebnis, ParseFehler},
 };

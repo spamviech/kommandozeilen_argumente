@@ -8,26 +8,23 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     arg::{Arg, ArgString},
-    beschreibung::ArgBeschreibung,
+    beschreibung::Beschreibung,
     ergebnis::{ParseErgebnis, ParseFehler},
 };
 
 impl<E> Arg<bool, E> {
     #[inline(always)]
-    pub fn flag_deutsch(beschreibung: ArgBeschreibung<bool>) -> Arg<bool, E> {
+    pub fn flag_deutsch(beschreibung: Beschreibung<bool>) -> Arg<bool, E> {
         Arg::flag(beschreibung, "kein")
     }
 
     #[inline(always)]
-    pub fn flag_english(beschreibung: ArgBeschreibung<bool>) -> Arg<bool, E> {
+    pub fn flag_english(beschreibung: Beschreibung<bool>) -> Arg<bool, E> {
         Arg::flag(beschreibung, "no")
     }
 
     #[inline(always)]
-    pub fn flag(
-        beschreibung: ArgBeschreibung<bool>,
-        invertiere_prefix: &'static str,
-    ) -> Arg<bool, E> {
+    pub fn flag(beschreibung: Beschreibung<bool>, invertiere_prefix: &'static str) -> Arg<bool, E> {
         Arg::flag_allgemein(beschreibung, identity, invertiere_prefix)
     }
 }
@@ -35,7 +32,7 @@ impl<E> Arg<bool, E> {
 impl<T: 'static + Display + Clone, E> Arg<T, E> {
     #[inline(always)]
     pub fn flag_deutsch_allgemein(
-        beschreibung: ArgBeschreibung<T>,
+        beschreibung: Beschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
     ) -> Arg<T, E> {
         Arg::flag_allgemein(beschreibung, konvertiere, "kein")
@@ -43,14 +40,14 @@ impl<T: 'static + Display + Clone, E> Arg<T, E> {
 
     #[inline(always)]
     pub fn flag_english_general(
-        beschreibung: ArgBeschreibung<T>,
+        beschreibung: Beschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
     ) -> Arg<T, E> {
         Arg::flag_allgemein(beschreibung, konvertiere, "no")
     }
 
     pub fn flag_allgemein(
-        beschreibung: ArgBeschreibung<T>,
+        beschreibung: Beschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
         invertiere_prefix: &'static str,
     ) -> Arg<T, E> {

@@ -195,7 +195,7 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
     // TODO Attribute, z.B. standard, meta_var, Flatten, FromStr-Werte, ...
     let kombiniere = quote!(
         #(
-            let beschreibung = #crate_name::ArgBeschreibung {
+            let beschreibung = #crate_name::Beschreibung {
                 lang: #lange.to_owned(),
                 kurz: #kurze,
                 hilfe: #hilfen,

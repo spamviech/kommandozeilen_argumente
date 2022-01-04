@@ -11,7 +11,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     arg::{Arg, ArgString},
-    beschreibung::ArgBeschreibung,
+    beschreibung::Beschreibung,
     ergebnis::{ParseErgebnis, ParseFehler},
 };
 
@@ -19,7 +19,7 @@ pub use kommandozeilen_argumente_derive::ArgEnum;
 
 impl<T: 'static + Display + Clone, E: 'static + Clone> Arg<T, E> {
     pub fn wert(
-        beschreibung: ArgBeschreibung<T>,
+        beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, E>,
@@ -125,7 +125,7 @@ pub trait ArgEnum: Sized {
 }
 
 impl<T: 'static + Display + Clone + ArgEnum> Arg<T, OsString> {
-    pub fn wert_enum(beschreibung: ArgBeschreibung<T>, meta_var: String) -> Arg<T, OsString> {
+    pub fn wert_enum(beschreibung: Beschreibung<T>, meta_var: String) -> Arg<T, OsString> {
         let mögliche_werte = NonEmpty::from_vec(T::varianten());
         Arg::wert(beschreibung, meta_var, mögliche_werte, T::parse_enum)
     }
@@ -143,7 +143,7 @@ where
     T::Err: 'static + Clone,
 {
     pub fn wert_from_str(
-        beschreibung: ArgBeschreibung<T>,
+        beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
     ) -> Arg<T, FromStrFehler<T::Err>> {
