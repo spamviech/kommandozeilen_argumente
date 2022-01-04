@@ -32,11 +32,10 @@
     variant_size_differences
 )]
 
-pub use kommandozeilen_argumente_derive::{kommandozeilen_argumente, ArgEnum};
+pub use kommandozeilen_argumente_derive::kommandozeilen_argumente;
 pub use nonempty::NonEmpty;
 #[cfg(feature = "derive")]
 pub use unicase::eq as unicase_eq;
-pub use void::Void;
 
 pub mod arg;
 pub mod beschreibung;
@@ -45,7 +44,7 @@ pub mod ergebnis;
 mod test;
 
 pub use self::{
-    arg::{Arg, ArgEnum},
+    arg::{wert::ArgEnum, Arg},
     beschreibung::ArgBeschreibung,
     ergebnis::{ParseErgebnis, ParseFehler},
 };

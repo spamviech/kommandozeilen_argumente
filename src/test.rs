@@ -6,6 +6,8 @@ use std::{
     iter,
 };
 
+use void::Void;
+
 use crate::*;
 
 #[test]
