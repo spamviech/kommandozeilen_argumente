@@ -19,5 +19,5 @@ unicode-segmentation = "1.8.0"
 
 [dependencies.syn]
 version = "1.0.84"
-features = ["full", "extra-traits", "parsing"]
+features = ["full", "parsing"]
 default_features = false

@@ -49,41 +49,48 @@ fn base_name() -> Result<Ident, proc_macro_crate::Error> {
 }
 
 macro_rules! compile_error_return {
-    ($item: expr, $format_string: tt$(, $($format_args: expr),+$(,)?)?) => {{
+    ($format_string: tt$(, $($format_args: expr),+$(,)?)?) => {{
         let fehlermeldung = format!($format_string$(, $($format_args),+)?);
         let compile_error: TokenStream = quote!(compile_error! {#fehlermeldung }).into();
-        $item.extend(compile_error);
-        return $item;
+        return compile_error;
     }};
 }
 
 macro_rules! unwrap_result_or_compile_error {
-    ($item: expr, $result: expr) => {
+    ($result: expr) => {
         match $result {
             Ok(wert) => wert,
-            Err(fehler) => compile_error_return!($item, "{:?}", fehler),
+            Err(fehler) => compile_error_return!("{:?}", fehler),
         }
     };
 }
 
 macro_rules! unwrap_option_or_compile_error {
-    ($item: expr, $option: expr, $fehler: tt) => {
+    ($option: expr, $fehler: tt) => {
         match $option {
             Some(wert) => wert,
-            None => compile_error_return!($item, "{:?}", $fehler),
+            None => compile_error_return!("{:?}", $fehler),
         }
     };
 }
 
 /// Erstelle Methoden `kommandozeilen_argumente`, `parse[_aus_env][_frühes_beenden]`
 /// zum parsen aus Kommandozeilen-Argumenten.
-#[proc_macro_attribute]
-pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> TokenStream {
-    let args_str = args_ts.to_string();
+#[proc_macro_derive(Parse, attributes(kommandozeilen_argumente))]
+pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
+    let item_struct = parse_macro_input!(item as ItemStruct);
+    if !item_struct.generics.params.is_empty() {
+        compile_error_return!("Nur Structs ohne Generics unterstützt.");
+    }
+    let item_ty = &item_struct.ident;
+    for attr in &item_struct.attrs {
+        todo!()
+    }
+    let args_str: String = todo!(); //args_ts.to_string();
     let args: Vec<_> = args_str
         .split(',')
-        .filter_map(|s| {
-            let trimmed = s.trim_start().trim_end();
+        .flat_map(|s| {
+            let trimmed = s.trim();
             if trimmed.is_empty() {
                 None
             } else {
@@ -136,20 +143,14 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
                     if let Ok(wert) = wert_string.parse() {
                         name_regex_breite = wert;
                     } else {
-                        compile_error_return!(item, "Argument nicht unterstützt: {}", arg);
+                        compile_error_return!("Argument nicht unterstützt: {}", arg);
                     }
                 }
-                _ => compile_error_return!(item, "Argument nicht unterstützt: {}", arg),
+                _ => compile_error_return!("Argument nicht unterstützt: {}", arg),
             },
         }
     }
-    let crate_name = unwrap_result_or_compile_error!(item, base_name());
-    let item_clone = item.clone();
-    let item_struct = parse_macro_input!(item_clone as ItemStruct);
-    if !item_struct.generics.params.is_empty() {
-        compile_error_return!(item, "Nur Structs ohne Generics unterstützt.");
-    }
-    let item_ty = &item_struct.ident;
+    let crate_name = unwrap_result_or_compile_error!(base_name());
     let mut idents = Vec::new();
     let mut lange = Vec::new();
     let mut kurze = Vec::new();
@@ -170,10 +171,10 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
                 _ => {}
             }
         }
-        let lang = unwrap_option_or_compile_error!(item, ident, "Nur benannte Felder unterstützt.")
-            .to_string();
+        let lang =
+            unwrap_option_or_compile_error!(ident, "Nur benannte Felder unterstützt.").to_string();
         if lang.is_empty() {
-            compile_error_return!(item, "Benanntes Feld mit leerem Namen: {}", lang)
+            compile_error_return!("Benanntes Feld mit leerem Namen: {}", lang)
         }
         let kurz = if let Some(kurz) = lang.graphemes(true).next() {
             quote!(Some(#kurz.to_owned()))
@@ -216,33 +217,31 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
     } else {
         nach_version
     };
-    let methoden: TokenStream = quote! {
-        impl #item_ty {
+    let impl_parse: TokenStream = quote! {
+        impl #crate_name::Parse for #item_ty {
             fn kommandozeilen_argumente() -> #crate_name::Arg<Self, std::ffi::OsString> {
                 #nach_hilfe
             }
         }
     }
     .into();
-    item.extend(methoden);
-    item
+    impl_parse
 }
 
 /// Derive-Macro für das ArgEnum-Trait.
 #[proc_macro_derive(ArgEnum)]
 pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
-    let mut dummy = TokenStream::new();
-    let crate_name = unwrap_result_or_compile_error!(dummy, base_name());
+    let crate_name = unwrap_result_or_compile_error!(base_name());
     let item_enum = parse_macro_input!(item as ItemEnum);
     if !item_enum.generics.params.is_empty() {
-        compile_error_return!(dummy, "Nur Enums ohne Generics unterstützt.");
+        compile_error_return!("Nur Enums ohne Generics unterstützt.");
     }
     let ident = &item_enum.ident;
     let mut varianten = Vec::new();
     for variant in item_enum.variants {
-        if variant.fields != Fields::Unit {
+        if let Fields::Unit = variant.fields {
+        } else {
             compile_error_return!(
-                dummy,
                 "Nur Enums mit Unit-Varianten unterstützt, aber {} hält Daten.",
                 variant.ident
             );

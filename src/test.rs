@@ -63,7 +63,7 @@ fn arg_enum_derive() {
     assert_eq!(parse_res, Ok(Bla::Meh));
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(version_deutsch, hilfe)]
 struct Test {
     /// bla
