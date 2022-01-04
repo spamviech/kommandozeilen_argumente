@@ -185,11 +185,20 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         }
     }
     let crate_name = unwrap_result_or_compile_error!(base_name());
+    let invertiere_prefix = invertiere_prefix.unwrap_or(match sprache {
+        Deutsch => "kein".to_owned(),
+        Englisch => "no".to_owned(),
+    });
+    let meta_var = meta_var.unwrap_or(match sprache {
+        Deutsch => "WERT".to_owned(),
+        Englisch => "VALUE".to_owned(),
+    });
     let mut tuples = Vec::new();
     for field in item_struct.fields {
         let Field { attrs, ident, .. } = field;
         let mut hilfe_lits = Vec::new();
         let mut standard = quote!(#crate_name::parse::ArgumentArt::standard());
+        let mut glätten = false;
         for attr in attrs {
             match attr.parse_meta() {
                 Ok(Meta::NameValue(MetaNameValue {
@@ -211,7 +220,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                                 if let Some(ident) = path.get_ident() {
                                     let arg = ident.to_string().trim().to_owned();
                                     match arg.as_str() {
-                                        "flatten" => todo!(),
+                                        "glätten" | "flatten" => glätten = true,
                                         "benötigt" | "required" => standard = quote!(None),
                                         _ => {}
                                     }
@@ -265,32 +274,30 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         } else {
             quote!(Some(#hilfe_string.to_owned()))
         };
-        tuples.push((ident, lang, kurz, hilfe, standard));
+        let erstelle_args = if glätten {
+            quote!(#crate_name::parse::Parse::kommandozeilen_argumente())
+        } else {
+            quote!({
+                let beschreibung = #crate_name::Beschreibung {
+                    lang: #lang.to_owned(),
+                    kurz: #kurz,
+                    hilfe: #hilfe,
+                    standard: #standard,
+                };
+                #crate_name::parse::ArgumentArt::erstelle_arg(
+                    beschreibung,
+                    #invertiere_prefix,
+                    #meta_var
+                )
+            })
+        };
+        tuples.push((ident, erstelle_args));
     }
-    let (idents, lange, kurze, hilfen, standards): (Vec<_>, Vec<_>, Vec<_>, Vec<_>, Vec<_>) =
-        tuples.into_iter().multiunzip();
+    let (idents, erstelle_args): (Vec<_>, Vec<_>) = tuples.into_iter().multiunzip();
     // TODO Attribute, z.B. standard, meta_var, Flatten, FromStr-Werte, ...
-    let invertiere_prefix = invertiere_prefix.unwrap_or(match sprache {
-        Deutsch => "kein".to_owned(),
-        Englisch => "no".to_owned(),
-    });
-    let meta_var = meta_var.unwrap_or(match sprache {
-        Deutsch => "WERT".to_owned(),
-        Englisch => "VALUE".to_owned(),
-    });
     let kombiniere = quote!(
         #(
-            let beschreibung = #crate_name::Beschreibung {
-                lang: #lange.to_owned(),
-                kurz: #kurze,
-                hilfe: #hilfen,
-                standard: #standards,
-            };
-            let #idents = #crate_name::parse::ArgumentArt::erstelle_arg(
-                beschreibung,
-                #invertiere_prefix,
-                #meta_var
-            );
+            let #idents = #erstelle_args;
         )*
         #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*} => #(#idents),*)
     );
