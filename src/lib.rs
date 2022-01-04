@@ -596,6 +596,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             .unwrap_or(programm_name);
         let mut name = programm_name.to_owned();
         if let Some(version) = version {
+            name.push(' ');
             name.push_str(version);
         }
         let mut hilfe_text = format!("{}\n\n{} [{}]\n\n{}:\n", name, exe_name, optionen, optionen);
