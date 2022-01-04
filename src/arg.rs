@@ -66,7 +66,7 @@ impl<T, E> Arg<T, E> {
     /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
     #[inline(always)]
     pub fn parse_aus_env(&self) -> (ParseErgebnis<T, E>, Vec<OsString>) {
-        Arg::parse(&self, env::args_os())
+        Arg::parse(&self, env::args_os().skip(1))
     }
 
     /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
@@ -77,7 +77,7 @@ impl<T, E> Arg<T, E> {
     pub fn parse_aus_env_mit_frühen_beenden(
         &self,
     ) -> (Result<T, NonEmpty<ParseFehler<E>>>, Vec<OsString>) {
-        self.parse_mit_frühen_beenden(env::args_os())
+        self.parse_mit_frühen_beenden(env::args_os().skip(1))
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
