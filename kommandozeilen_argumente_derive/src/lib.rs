@@ -159,6 +159,7 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
         hilfen.push(hilfe);
         typen.push(ty);
     }
+    // TODO Flag für booleans erzeugen
     // TODO Attribute, z.B. standard, meta_var, Flatten, FromStr-Werte, ...
     let kombiniere = quote!(
         #(
