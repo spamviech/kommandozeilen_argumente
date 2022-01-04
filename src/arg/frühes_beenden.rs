@@ -279,7 +279,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             parse: Box::new(move |args| {
                 let name_kurz_str = name_kurz.as_ref().map(String::as_str);
                 let name_kurz_existiert = name_kurz_str.is_some();
-                let mut nicht_verwendet = Vec::new();
+                let mut nicht_selbst_verwendet = Vec::new();
                 let mut nachrichten = Vec::new();
                 let mut zeige_nachricht = || nachrichten.push(nachricht.clone());
                 for arg in args {
@@ -287,26 +287,36 @@ impl<T: 'static, E: 'static> Arg<T, E> {
                         if let Some(lang) = string.strip_prefix("--") {
                             if lang == name_lang {
                                 zeige_nachricht();
-                                nicht_verwendet.push(None);
+                                nicht_selbst_verwendet.push(None);
                                 continue;
                             }
                         } else if name_kurz_existiert {
                             if let Some(kurz) = string.strip_prefix('-') {
                                 if kurz.graphemes(true).exactly_one().ok() == name_kurz_str {
                                     zeige_nachricht();
-                                    nicht_verwendet.push(None);
+                                    nicht_selbst_verwendet.push(None);
                                     continue;
                                 }
                             }
                         }
                     }
-                    nicht_verwendet.push(arg);
+                    nicht_selbst_verwendet.push(arg);
                 }
-                if let Some(frühes_beenden) = NonEmpty::from_vec(nachrichten) {
-                    (ParseErgebnis::FrühesBeenden(frühes_beenden), nicht_verwendet)
-                } else {
-                    parse(nicht_verwendet)
-                }
+                let (ergebnis, nicht_verwendet) = parse(nicht_selbst_verwendet);
+                let finales_ergebnis = match ergebnis {
+                    ParseErgebnis::FrühesBeenden(mut frühes_beenden) => {
+                        frühes_beenden.tail.extend(nachrichten);
+                        ParseErgebnis::FrühesBeenden(frühes_beenden)
+                    }
+                    _ => {
+                        if let Some(frühes_beenden) = NonEmpty::from_vec(nachrichten) {
+                            ParseErgebnis::FrühesBeenden(frühes_beenden)
+                        } else {
+                            ergebnis
+                        }
+                    }
+                };
+                (finales_ergebnis, nicht_verwendet)
             }),
         }
     }

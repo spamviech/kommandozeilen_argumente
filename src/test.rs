@@ -73,6 +73,7 @@ struct Test {
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(english)]
 struct Inner {
+    #[kommandozeilen_argumente(default(false))]
     empty: bool,
 }
 
@@ -146,6 +147,62 @@ fn derive_test() {
         res => {
             eprintln!("Unerwartetes Ergebnis: {:?}", res);
             process::exit(5);
+        }
+    }
+}
+
+#[test]
+fn verschmelze_kurzformen() {
+    let arg = Test::kommandozeilen_argumente();
+    match arg.parse(iter::once(OsString::from("-vh".to_owned()))) {
+        (ParseErgebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+            let übrige = nicht_verwendet.iter().count();
+            if übrige > 0 {
+                eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
+                process::exit(1);
+            } else if nachrichten.len() != 2 {
+                eprintln!("Unerwartete Anzahl an Nachrichten: {:?}", nachrichten);
+                process::exit(2);
+            } else {
+                for nachricht in nachrichten {
+                    println!("{}", nachricht);
+                }
+            }
+        }
+        (ParseErgebnis::Fehler(fehler), nicht_verwendet) => {
+            for f in fehler {
+                match f.als_string() {
+                    Ok(f_str) => eprintln!("{}", f_str.error_message()),
+                    Err(f_os_str) => eprintln!("{:?}", f_os_str),
+                }
+            }
+            eprintln!("{:?}", nicht_verwendet);
+            process::exit(3);
+        }
+        res => {
+            eprintln!("Unerwartetes Ergebnis: {:?}", res);
+            process::exit(4);
+        }
+    }
+    println!("--------------");
+    let arg2 = Test2::kommandozeilen_argumente();
+    match arg2.parse(iter::once(OsString::from("-fe".to_owned()))) {
+        (ParseErgebnis::Wert(test2), nicht_verwendet) => {
+            let übrige = nicht_verwendet.iter().count();
+            let erwartet = Test2 { bla: Bla::Meh, inner: Inner { empty: true }, flag: true };
+            if übrige > 0 {
+                eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
+                process::exit(5);
+            } else if test2 != erwartet {
+                eprintln!("Unerwarteter Wert: {:?} != {:?}", test2, erwartet);
+                process::exit(6);
+            } else {
+                println!("{:?}", test2)
+            }
+        }
+        res => {
+            eprintln!("Unerwartetes Ergebnis: {:?}", res);
+            process::exit(7);
         }
     }
 }
