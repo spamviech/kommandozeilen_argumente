@@ -64,8 +64,17 @@ fn arg_enum_derive() {
 }
 
 #[derive(Debug, PartialEq, Eq, Parse)]
-#[kommandozeilen_argumente(version_deutsch, hilfe)]
+#[kommandozeilen_argumente(version, hilfe)]
 struct Test {
+    /// bla
+    bla: Bla,
+    /// flag
+    flag: bool,
+}
+
+#[derive(Debug, PartialEq, Eq, Parse)]
+#[kommandozeilen_argumente(english, version, help)]
+struct Test2 {
     /// bla
     bla: Bla,
     /// flag
@@ -85,12 +94,50 @@ fn derive_test() {
                 for nachricht in nachrichten {
                     println!("{}", nachricht);
                 }
-                std::process::exit(0);
             }
+        }
+        (ParseErgebnis::Fehler(fehler), nicht_verwendet) => {
+            for f in fehler {
+                match f.als_string() {
+                    Ok(f_str) => eprintln!("{}", f_str.fehlermeldung()),
+                    Err(f_os_str) => eprintln!("{:?}", f_os_str),
+                }
+            }
+            eprintln!("{:?}", nicht_verwendet);
+            std::process::exit(2);
         }
         res => {
             eprintln!("Unerwartetes Ergebnis: {:?}", res);
-            std::process::exit(2);
+            std::process::exit(3);
+        }
+    }
+    println!("--------------");
+    let arg2 = Test2::kommandozeilen_argumente();
+    match arg2.parse(iter::once(OsString::from("--help".to_owned()))) {
+        (ParseErgebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+            let übrige = nicht_verwendet.iter().count();
+            if übrige > 0 {
+                eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
+                std::process::exit(1);
+            } else {
+                for nachricht in nachrichten {
+                    println!("{}", nachricht);
+                }
+            }
+        }
+        (ParseErgebnis::Fehler(fehler), nicht_verwendet) => {
+            for f in fehler {
+                match f.als_string() {
+                    Ok(f_str) => eprintln!("{}", f_str.error_message()),
+                    Err(f_os_str) => eprintln!("{:?}", f_os_str),
+                }
+            }
+            eprintln!("{:?}", nicht_verwendet);
+            std::process::exit(4);
+        }
+        res => {
+            eprintln!("Unerwartetes Ergebnis: {:?}", res);
+            std::process::exit(5);
         }
     }
 }
