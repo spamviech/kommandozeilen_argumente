@@ -4,10 +4,16 @@ use std::{ffi::OsString, iter};
 
 use crate::*;
 
-#[derive(Debug, PartialEq, Eq, ArgEnum)]
+#[derive(Debug, Clone, PartialEq, Eq, ArgEnum)]
 enum Bla {
     Meh,
     Muh,
+}
+
+impl Display for Bla {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 #[derive(Debug)]
@@ -15,6 +21,8 @@ enum Bla {
 struct Test {
     /// bla
     bla: Bla,
+    /// meh
+    meh: Bla,
 }
 
 #[test]

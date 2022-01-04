@@ -73,24 +73,32 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
         match arg {
             "version_deutsch" => {
                 erstelle_version = Some(|item| {
-                    quote!({
-                        let name = env!("CARGO_PKG_NAME");
-                        let version = env!("CARGO_PKG_VERSION");
-                        #item.version_deutsch(name, version)
-                    })
+                    quote!(
+                        #item.version_deutsch(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+                    )
                 })
             }
             "version_english" => {
                 erstelle_version = Some(|item| {
-                    quote!({
-                        let name = env!("CARGO_PKG_NAME");
-                        let version = env!("CARGO_PKG_VERSION");
-                        #item.version_english(name, version)
-                    })
+                    quote!(
+                        #item.version_english(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
+                    )
                 })
             }
-            "hilfe" => erstelle_hilfe = Some(|item, breite| quote!(#item.hilfe(name, #breite))),
-            "help" => erstelle_hilfe = Some(|item, width| quote!(#item.help(name, #width))),
+            "hilfe" => {
+                erstelle_hilfe = Some(|item, breite| {
+                    quote!(
+                        #item.hilfe(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), #breite)
+                    )
+                })
+            }
+            "help" => {
+                erstelle_hilfe = Some(|item, width| {
+                    quote!(
+                        #item.help(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), #width)
+                    )
+                })
+            }
             string => match string.split_once(':') {
                 Some(("name_regex_breite" | "name_regex_width", wert_string)) => {
                     if let Ok(wert) = wert_string.parse() {
@@ -110,6 +118,7 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
         compile_error_return!(item, "Nur Structs ohne Generics unterstützt.");
     }
     let item_ty = &item_struct.ident;
+    let mut idents = Vec::new();
     let mut lange = Vec::new();
     let mut kurze = Vec::new();
     let mut hilfen = Vec::new();
@@ -135,15 +144,22 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
             compile_error_return!(item, "Benanntes Feld mit leerem Namen: {}", lang)
         }
         let kurz = lang.graphemes(true).next().map(str::to_owned);
+        idents.push(format_ident!("{}", lang));
         lange.push(lang);
         kurze.push(kurz);
         hilfen.push(hilfe);
         typen.push(ty);
     }
+    // TODO Attribute, z.B. Flatten, FromStr-Werte, ...
     let methoden: TokenStream = quote! {
         impl #item_ty {
             fn kommandozeilen_argumente() -> #crate_name::Arg<Self, std::ffi::OsString> {
-                todo!()
+                #(
+                    let beschreibung = todo!();//#crate_name::ArgBeschreibung {};
+                    let meta_var = todo!("meta_var");
+                    let #idents = #crate_name::Arg::wert_enum(beschreibung, meta_var);
+                )*
+                #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*} => #(#idents),*)
             }
         }
     }
