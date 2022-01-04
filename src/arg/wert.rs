@@ -15,6 +15,7 @@ use crate::{
     ergebnis::{ParseErgebnis, ParseFehler},
 };
 
+#[cfg(feature = "derive")]
 pub use kommandozeilen_argumente_derive::ArgEnum;
 
 impl<T: 'static + Display + Clone, E: 'static + Clone> Arg<T, E> {

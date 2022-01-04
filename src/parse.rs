@@ -1,17 +1,22 @@
 //! Trait für Typen, die aus Kommandozeilen-Argumenten geparsed werden können.
 
+#[cfg(feature = "derive")]
 use std::{ffi::OsString, fmt::Display};
 
+#[cfg(feature = "derive")]
 use nonempty::NonEmpty;
 
+#[cfg(feature = "derive")]
 use crate::{
     arg::{wert::ArgEnum, Arg},
     beschreibung::Beschreibung,
     ergebnis::{ParseErgebnis, ParseFehler},
 };
 
+#[cfg(feature = "derive")]
 pub use kommandozeilen_argumente_derive::Parse;
 
+#[cfg(feature = "derive")]
 pub trait ArgumentArt: Sized {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
@@ -22,6 +27,7 @@ pub trait ArgumentArt: Sized {
     fn standard() -> Option<Self>;
 }
 
+#[cfg(feature = "derive")]
 impl ArgumentArt for bool {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
@@ -36,6 +42,7 @@ impl ArgumentArt for bool {
     }
 }
 
+#[cfg(feature = "derive")]
 impl<T: 'static + ArgEnum + Display + Clone> ArgumentArt for T {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
