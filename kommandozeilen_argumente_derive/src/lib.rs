@@ -128,10 +128,11 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
             "englisch" => sprache = Englisch,
             "version" => {
                 erstelle_version = Some(|item, sprache| {
-                    let version_ident = match sprache {
+                    let version_methode = match sprache {
                         Deutsch => "version_deutsch",
                         Englisch => "version_english",
                     };
+                    let version_ident = format_ident!("{}", version_methode);
                     quote!(
                         #item.#version_ident(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
                     )
