@@ -10,6 +10,13 @@ enum Bla {
     Muh,
 }
 
+#[derive(Debug)]
+#[kommandozeilen_argumente(hilfe, version_deutsch)]
+struct Test {
+    /// bla
+    bla: Bla,
+}
+
 #[test]
 fn arg_enum_derive() {
     assert_eq!(Bla::varianten(), vec![Bla::Meh, Bla::Muh]);

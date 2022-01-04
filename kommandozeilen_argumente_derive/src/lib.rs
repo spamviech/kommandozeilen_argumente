@@ -17,7 +17,7 @@ fn base_name() -> Result<Ident, proc_macro_crate::Error> {
 }
 
 macro_rules! compile_error_return {
-    ($item: expr, $format_string: tt$(, $($format_args: expr)+)?) => {{
+    ($item: expr, $format_string: tt$(, $($format_args: expr),+$(,)?)?) => {{
         let fehlermeldung = format!($format_string$(, $($format_args),+)?);
         let compile_error: TokenStream = quote!(compile_error! {#fehlermeldung }).into();
         $item.extend(compile_error);
@@ -48,7 +48,17 @@ macro_rules! unwrap_option_or_compile_error {
 #[proc_macro_attribute]
 pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> TokenStream {
     let args_str = args_ts.to_string();
-    let args: Vec<_> = args_str.split(',').collect();
+    let args: Vec<_> = args_str
+        .split(',')
+        .filter_map(|s| {
+            let trimmed = s.trim_start().trim_end();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed)
+            }
+        })
+        .collect();
     // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
     // let version = env!("CARGO_PKG_VERSION");
     // CARGO_PKG_NAME — The name of your package.
@@ -132,7 +142,7 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
     }
     let methoden: TokenStream = quote! {
         impl #item_ty {
-            fn kommandozeilen_argumente() -> #crate_name::Arg<Self> {
+            fn kommandozeilen_argumente() -> #crate_name::Arg<Self, std::ffi::OsString> {
                 todo!()
             }
         }
