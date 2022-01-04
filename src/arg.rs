@@ -35,6 +35,8 @@ pub enum ArgString {
 }
 
 // TODO derive-Macro zum automatischen erstellen aus Struktur-Definition?
+// Parse-Trait, dass alle Methoden bis auf erstellen von Arg<Self, E> bereits implementiert
+// derive-Macro muss sich nur noch darum kümmern
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
 
