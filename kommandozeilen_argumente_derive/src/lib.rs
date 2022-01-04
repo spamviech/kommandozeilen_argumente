@@ -96,11 +96,18 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
     let crate_name = unwrap_result_or_compile_error!(item, base_name());
     let item_clone = item.clone();
     let item_struct = parse_macro_input!(item_clone as ItemStruct);
-    let mut fields = Vec::new();
+    if !item_struct.generics.params.is_empty() {
+        compile_error_return!(item, "Nur Structs ohne Generics unterstützt.");
+    }
+    let item_ty = &item_struct.ident;
+    let mut lange = Vec::new();
+    let mut kurze = Vec::new();
+    let mut hilfen = Vec::new();
+    let mut typen = Vec::new();
     for field in item_struct.fields {
         let Field { attrs, ident, ty, .. } = field;
+        let mut hilfe = Vec::new();
         for attr in attrs {
-            let mut hilfe = Vec::new();
             match attr.parse_meta() {
                 Ok(Meta::NameValue(MetaNameValue {
                     path,
@@ -118,9 +125,21 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
             compile_error_return!(item, "Benanntes Feld mit leerem Namen: {}", lang)
         }
         let kurz = lang.graphemes(true).next().map(str::to_owned);
-        fields.push((lang, kurz, ty));
+        lange.push(lang);
+        kurze.push(kurz);
+        hilfen.push(hilfe);
+        typen.push(ty);
     }
-    todo!()
+    let methoden: TokenStream = quote! {
+        impl #item_ty {
+            fn kommandozeilen_argumente() -> #crate_name::Arg<Self> {
+                todo!()
+            }
+        }
+    }
+    .into();
+    item.extend(methoden);
+    item
 }
 
 /// Derive-Macro für das ArgEnum-Trait.
