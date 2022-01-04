@@ -115,7 +115,7 @@ impl<T, E> Arg<T, E> {
                         let mut gefundene_kurzformen = Vec::new();
                         for grapheme in kurz.graphemes(true) {
                             if flag_kurzformen.iter().any(|string| string == grapheme) {
-                                gefundene_kurzformen.push(grapheme.to_owned().into())
+                                gefundene_kurzformen.push(format!("-{}", grapheme).into())
                             } else {
                                 return vec![arg];
                             }
