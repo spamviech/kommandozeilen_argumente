@@ -15,8 +15,9 @@ proc-macro = true
 quote = "1.0.9"
 proc-macro2 = "1.0.36"
 proc-macro-crate = "1.1.0"
+unicode-segmentation = "1.8.0"
 
 [dependencies.syn]
 version = "1.0.84"
-features = ["full", "extra-traits"]
+features = ["full", "extra-traits", "parsing"]
 default_features = false

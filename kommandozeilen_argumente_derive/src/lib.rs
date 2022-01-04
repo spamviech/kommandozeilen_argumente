@@ -4,7 +4,10 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, Field, Fields, Ident, ItemEnum, ItemStruct};
+use syn::{
+    parse_macro_input, Field, Fields, Ident, ItemEnum, ItemStruct, Lit, Meta, MetaNameValue,
+};
+use unicode_segmentation::UnicodeSegmentation;
 
 fn base_name() -> Result<Ident, proc_macro_crate::Error> {
     Ok(match crate_name("kommandozeilen_argumente")? {
@@ -27,6 +30,15 @@ macro_rules! unwrap_result_or_compile_error {
         match $result {
             Ok(wert) => wert,
             Err(fehler) => compile_error_return!($item, "{:?}", fehler),
+        }
+    };
+}
+
+macro_rules! unwrap_option_or_compile_error {
+    ($item: expr, $option: expr, $fehler: tt) => {
+        match $option {
+            Some(wert) => wert,
+            None => compile_error_return!($item, "{:?}", $fehler),
         }
     };
 }
@@ -82,10 +94,31 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
         }
     }
     let crate_name = unwrap_result_or_compile_error!(item, base_name());
-    let item_struct = parse_macro_input!(item as ItemStruct);
+    let item_clone = item.clone();
+    let item_struct = parse_macro_input!(item_clone as ItemStruct);
+    let mut fields = Vec::new();
     for field in item_struct.fields {
         let Field { attrs, ident, ty, .. } = field;
-        todo!()
+        for attr in attrs {
+            let mut hilfe = Vec::new();
+            match attr.parse_meta() {
+                Ok(Meta::NameValue(MetaNameValue {
+                    path,
+                    eq_token: _,
+                    lit: Lit::Str(lit_str),
+                })) if path.is_ident("doc") => {
+                    hilfe.push(lit_str);
+                }
+                _ => {}
+            }
+        }
+        let lang = unwrap_option_or_compile_error!(item, ident, "Nur benannte Felder unterstützt.")
+            .to_string();
+        if lang.is_empty() {
+            compile_error_return!(item, "Benanntes Feld mit leerem Namen: {}", lang)
+        }
+        let kurz = lang.graphemes(true).next().map(str::to_owned);
+        fields.push((lang, kurz, ty));
     }
     todo!()
 }
