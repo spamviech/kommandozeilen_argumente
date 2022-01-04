@@ -1,6 +1,10 @@
 //! Tests zum Parsen von Kommandozeilen-Argumenten
 
-use std::{ffi::OsString, iter};
+use std::{
+    ffi::{OsStr, OsString},
+    fmt::Display,
+    iter,
+};
 
 use crate::*;
 
