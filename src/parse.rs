@@ -69,6 +69,32 @@ impl ArgumentArt for String {
     }
 }
 
+macro_rules! impl_parse_types {
+    ($($type:ty),*$(,)?) => {$(
+        #[cfg(feature = "derive")]
+        impl ArgumentArt for $type {
+            fn erstelle_arg(
+                beschreibung: Beschreibung<Self>,
+                _invertiere_prefix: &'static str,
+                meta_var: &str,
+            ) -> Arg<Self, OsString> {
+                Arg::wert(beschreibung, meta_var.to_owned(), None, |os_str| {
+                    if let Some(u) = os_str.to_str().and_then(|s| s.parse().ok()) {
+                        Ok(u)
+                    } else {
+                        Err(os_str.to_owned())
+                    }
+                })
+            }
+
+            fn standard() -> Option<Self> {
+                None
+            }
+        }
+    )*};
+}
+impl_parse_types! {i8,u8,i16,u16,i32,u32,i64,u64,i128,u128,isize,usize,f32,f64}
+
 #[cfg(feature = "derive")]
 impl<T: 'static + ArgumentArt> ArgumentArt for Option<T> {
     fn erstelle_arg(
