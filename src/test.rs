@@ -3,7 +3,7 @@
 use std::{
     ffi::{OsStr, OsString},
     fmt::Display,
-    iter,
+    iter, process,
 };
 
 use void::Void;
@@ -28,17 +28,16 @@ fn hilfe_test() {
             let übrige = nicht_verwendet.iter().count();
             if übrige > 0 {
                 eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
-                std::process::exit(1);
+                process::exit(1);
             } else {
                 for nachricht in nachrichten {
                     println!("{}", nachricht);
                 }
-                std::process::exit(0);
             }
         }
         res => {
             eprintln!("Unerwartetes Ergebnis: {:?}", res);
-            std::process::exit(2);
+            process::exit(2);
         }
     }
 }
@@ -100,7 +99,7 @@ fn derive_test() {
             let übrige = nicht_verwendet.iter().count();
             if übrige > 0 {
                 eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
-                std::process::exit(1);
+                process::exit(1);
             } else {
                 for nachricht in nachrichten {
                     println!("{}", nachricht);
@@ -115,11 +114,11 @@ fn derive_test() {
                 }
             }
             eprintln!("{:?}", nicht_verwendet);
-            std::process::exit(2);
+            process::exit(2);
         }
         res => {
             eprintln!("Unerwartetes Ergebnis: {:?}", res);
-            std::process::exit(3);
+            process::exit(3);
         }
     }
     println!("--------------");
@@ -129,7 +128,7 @@ fn derive_test() {
             let übrige = nicht_verwendet.iter().count();
             if übrige > 0 {
                 eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
-                std::process::exit(1);
+                process::exit(1);
             } else {
                 for nachricht in nachrichten {
                     println!("{}", nachricht);
@@ -144,11 +143,11 @@ fn derive_test() {
                 }
             }
             eprintln!("{:?}", nicht_verwendet);
-            std::process::exit(4);
+            process::exit(4);
         }
         res => {
             eprintln!("Unerwartetes Ergebnis: {:?}", res);
-            std::process::exit(5);
+            process::exit(5);
         }
     }
 }
