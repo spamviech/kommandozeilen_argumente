@@ -57,8 +57,8 @@ fn arg_enum_derive() {
     assert_eq!(parse_res, Ok(Bla::Meh));
 }
 
-#[derive(Debug)]
-#[kommandozeilen_argumente(hilfe, version_deutsch)]
+#[derive(Debug, PartialEq, Eq)]
+#[kommandozeilen_argumente(version_deutsch, hilfe)]
 struct Test {
     /// bla
     bla: Bla,

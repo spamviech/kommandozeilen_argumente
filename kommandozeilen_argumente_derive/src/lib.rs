@@ -88,14 +88,14 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
             "hilfe" => {
                 erstelle_hilfe = Some(|item, breite| {
                     quote!(
-                        #item.hilfe(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), #breite)
+                        #item.hilfe(env!("CARGO_PKG_NAME"), Some(env!("CARGO_PKG_VERSION")), #breite)
                     )
                 })
             }
             "help" => {
                 erstelle_hilfe = Some(|item, width| {
                     quote!(
-                        #item.help(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), #width)
+                        #item.help(env!("CARGO_PKG_NAME"), Some(env!("CARGO_PKG_VERSION")), #width)
                     )
                 })
             }
@@ -160,20 +160,33 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
         typen.push(ty);
     }
     // TODO Attribute, z.B. standard, meta_var, Flatten, FromStr-Werte, ...
+    let kombiniere = quote!(
+        #(
+            let beschreibung = #crate_name::ArgBeschreibung {
+                lang: #lange.to_owned(),
+                kurz: #kurze,
+                hilfe: #hilfen,
+                standard: None,
+            };
+            let meta_var = "WERT".to_owned();
+            let #idents = #crate_name::Arg::wert_enum(beschreibung, meta_var);
+        )*
+        #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*} => #(#idents),*)
+    );
+    let nach_version = if let Some(version_hinzufügen) = erstelle_version {
+        version_hinzufügen(kombiniere)
+    } else {
+        kombiniere
+    };
+    let nach_hilfe = if let Some(hilfe_hinzufügen) = erstelle_hilfe {
+        hilfe_hinzufügen(nach_version, name_regex_breite)
+    } else {
+        nach_version
+    };
     let methoden: TokenStream = quote! {
         impl #item_ty {
             fn kommandozeilen_argumente() -> #crate_name::Arg<Self, std::ffi::OsString> {
-                #(
-                    let beschreibung = #crate_name::ArgBeschreibung {
-                        lang: #lange.to_owned(),
-                        kurz: #kurze,
-                        hilfe: #hilfen,
-                        standard: None,
-                    };
-                    let meta_var = "WERT".to_owned();
-                    let #idents = #crate_name::Arg::wert_enum(beschreibung, meta_var);
-                )*
-                #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*} => #(#idents),*)
+                #nach_hilfe
             }
         }
     }
