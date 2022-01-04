@@ -346,7 +346,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     };
     let impl_parse: TokenStream = quote! {
         impl #crate_name::Parse for #item_ty {
-            type Fehler = OsString;
+            type Fehler = std::ffi::OsString;
 
             fn kommandozeilen_argumente() -> #crate_name::Arg<Self, Self::Fehler> {
                 #nach_hilfe
@@ -384,7 +384,7 @@ pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
                 vec![#(Self::#varianten),*]
             }
 
-            fn parse_enum(arg: &OsStr) -> Result<Self, OsString> {
+            fn parse_enum(arg: &OsStr) -> Result<Self, std::ffi::OsString> {
                 if let Some(string) = arg.to_str() {
                     #(
                         if #crate_name::unicase_eq(string, #varianten_str) {
