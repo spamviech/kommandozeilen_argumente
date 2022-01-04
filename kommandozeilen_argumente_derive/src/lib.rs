@@ -125,7 +125,7 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
     let mut typen = Vec::new();
     for field in item_struct.fields {
         let Field { attrs, ident, ty, .. } = field;
-        let mut hilfe = Vec::new();
+        let mut hilfe_lits = Vec::new();
         for attr in attrs {
             match attr.parse_meta() {
                 Ok(Meta::NameValue(MetaNameValue {
@@ -133,7 +133,7 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
                     eq_token: _,
                     lit: Lit::Str(lit_str),
                 })) if path.is_ident("doc") => {
-                    hilfe.push(lit_str);
+                    hilfe_lits.push(lit_str);
                 }
                 _ => {}
             }
@@ -143,20 +143,34 @@ pub fn kommandozeilen_argumente(args_ts: TokenStream, mut item: TokenStream) -> 
         if lang.is_empty() {
             compile_error_return!(item, "Benanntes Feld mit leerem Namen: {}", lang)
         }
-        let kurz = lang.graphemes(true).next().map(str::to_owned);
+        let kurz = if let Some(kurz) = lang.graphemes(true).next() {
+            quote!(Some(#kurz.to_owned()))
+        } else {
+            quote!(None)
+        };
         idents.push(format_ident!("{}", lang));
         lange.push(lang);
         kurze.push(kurz);
+        let hilfe = if hilfe_lits.is_empty() {
+            quote!(None)
+        } else {
+            quote!(Some(concat!(#(#hilfe_lits),*).to_owned()))
+        };
         hilfen.push(hilfe);
         typen.push(ty);
     }
-    // TODO Attribute, z.B. Flatten, FromStr-Werte, ...
+    // TODO Attribute, z.B. standard, meta_var, Flatten, FromStr-Werte, ...
     let methoden: TokenStream = quote! {
         impl #item_ty {
             fn kommandozeilen_argumente() -> #crate_name::Arg<Self, std::ffi::OsString> {
                 #(
-                    let beschreibung = todo!();//#crate_name::ArgBeschreibung {};
-                    let meta_var = todo!("meta_var");
+                    let beschreibung = #crate_name::ArgBeschreibung {
+                        lang: #lange.to_owned(),
+                        kurz: #kurze,
+                        hilfe: #hilfen,
+                        standard: None,
+                    };
+                    let meta_var = "WERT".to_owned();
                     let #idents = #crate_name::Arg::wert_enum(beschreibung, meta_var);
                 )*
                 #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*} => #(#idents),*)
