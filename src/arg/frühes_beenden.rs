@@ -19,6 +19,8 @@ use crate::{
 };
 
 impl<T: 'static, E: 'static> Arg<T, E> {
+    /// Erzeuge eine `--version`-Flag, die zu vorzeitigem Beenden führt.
+    /// Zeige dabei die konfigurierte Programm-Version.
     pub fn version_deutsch(self, programm_name: &str, version: &str) -> Arg<T, E> {
         let beschreibung = Beschreibung {
             lang: "version".to_owned(),
@@ -29,6 +31,8 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         self.zeige_version(beschreibung, programm_name, version)
     }
 
+    /// Create a `--version` flag, causing an early exit.
+    /// Shows the configured program version.
     pub fn version_english(self, program_name: &str, version: &str) -> Arg<T, E> {
         let beschreibung = Beschreibung {
             lang: "version".to_owned(),
@@ -39,6 +43,8 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         self.zeige_version(beschreibung, program_name, version)
     }
 
+    /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt.
+    /// Gedacht zum anzeigen der aktuellen Programm-Version.
     pub fn zeige_version(
         self,
         beschreibung: Beschreibung<Void>,
@@ -48,6 +54,8 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         self.frühes_beenden(beschreibung, format!("{} {}", programm_name, version))
     }
 
+    /// Erzeuge eine `--hilfe`-Flag, die zu vorzeitigem Beenden führt.
+    /// Zeige dabei eine automatisch generierte Hilfe.
     pub fn hilfe(
         self,
         programm_name: &str,
@@ -71,6 +79,8 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         )
     }
 
+    /// Erzeuge `--version`- und `--hilfe`-Flags, die zu vorzeitigem Beenden führen.
+    /// Wie [version_deutsch] und [hilfe] mit synchronisiertem Programmnamen.
     pub fn hilfe_und_version(
         self,
         programm_name: &str,
@@ -84,6 +94,8 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         )
     }
 
+    /// Create a `--help` flag, causing an early exit.
+    /// Shows an automatically created help text.
     pub fn help(
         self,
         program_name: &str,
@@ -107,6 +119,8 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         )
     }
 
+    /// Create `--version` and `--help` flags causing an early exit.
+    /// Similar to using [version_english] and [help] with a synchronised program name.
     pub fn help_and_version(
         self,
         program_name: &str,
@@ -120,6 +134,8 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         )
     }
 
+    /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
+    /// Zeige dabei eine automatisch konfigurierte Hilfe an.
     pub fn erstelle_hilfe(
         self,
         eigene_beschreibung: Beschreibung<Void>,
@@ -246,6 +262,8 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         self.frühes_beenden(eigene_beschreibung, hilfe_text)
     }
 
+    /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
+    /// Zeige dabei die übergebene Nachricht an.
     pub fn frühes_beenden(self, beschreibung: Beschreibung<Void>, nachricht: String) -> Arg<T, E> {
         let Arg { mut beschreibungen, mut flag_kurzformen, parse } = self;
         let name_kurz = beschreibung.kurz.clone();

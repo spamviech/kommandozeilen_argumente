@@ -3,10 +3,16 @@
 use std::fmt::Display;
 
 #[derive(Debug, Clone)]
+/// Beschreibung eines Kommandozeilen-Arguments.
 pub struct Beschreibung<T> {
+    /// Voller Name, wird nach zwei Minus angegeben "--<lang>".
     pub lang: String,
+    /// Kurzer Name, wird nach einem Minus angegeben "-<kurz>".
+    /// Falls der Name länger wie ein [unicode_segmentation::grapheme] ist wird parsen nie erfolgreich sein.
     pub kurz: Option<String>,
+    /// Im automatischen Hilfetext angezeigte Beschreibung.
     pub hilfe: Option<String>,
+    /// Standard-Wert falls kein passendes Kommandozeilen-Argument verwendet wurde.
     pub standard: Option<T>,
 }
 

@@ -5,6 +5,7 @@ use nonempty::NonEmpty;
 use crate::{arg::Arg, ergebnis::ParseErgebnis};
 
 #[macro_export]
+/// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
 macro_rules! kombiniere {
     ($funktion: expr => $($args: ident),*) => {{
         #[allow(unused_mut)]
@@ -50,6 +51,7 @@ pub use crate::kombiniere;
 
 macro_rules! impl_kombiniere_n {
     ($name: ident ($($var: ident: $ty_var: ident),*)) => {
+        /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
         pub fn $name<$($ty_var: 'static),*>(
             f: impl 'static + Fn($($ty_var),*) -> T,
             $($var: Arg<$ty_var, Error>),*
