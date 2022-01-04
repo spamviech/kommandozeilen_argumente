@@ -21,12 +21,12 @@ pub mod frühes_beenden;
 pub mod kombiniere;
 pub mod wert;
 
+/// Interner Typ, wird für das [kombiniere]-Macro benötigt.
 #[derive(Debug)]
 pub enum ArgString {
-    Flag {
-        beschreibung: Beschreibung<String>,
-        invertiere_prefix: Option<String>,
-    },
+    #[allow(missing_docs)]
+    Flag { beschreibung: Beschreibung<String>, invertiere_prefix: Option<String> },
+    #[allow(missing_docs)]
     Wert {
         beschreibung: Beschreibung<String>,
         meta_var: String,
@@ -45,8 +45,11 @@ pub enum ArgString {
 /// Felder sind public, damit das [kombiniere]-Macro funktioniert, ein Verwenden ist nicht vorgesehen.
 /// Stattdessen werden die jeweiligen Methoden [flag], [wert], [frühes_beenden], [parse], etc. empfohlen.
 pub struct Arg<T, E> {
+    #[allow(missing_docs)]
     pub beschreibungen: Vec<ArgString>,
+    #[allow(missing_docs)]
     pub flag_kurzformen: Vec<String>,
+    #[allow(missing_docs)]
     pub parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (ParseErgebnis<T, E>, Vec<Option<&OsStr>>)>,
 }
 
@@ -60,11 +63,16 @@ impl<T, E> Debug for Arg<T, E> {
 }
 
 impl<T, E> Arg<T, E> {
+    /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
     #[inline(always)]
     pub fn parse_aus_env(&self) -> (ParseErgebnis<T, E>, Vec<OsString>) {
         Arg::parse(&self, env::args_os())
     }
 
+    /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [std::process::exit] mit exit code `0` beendet.
     #[inline(always)]
     pub fn parse_aus_env_mit_frühen_beenden(
         &self,
@@ -72,6 +80,10 @@ impl<T, E> Arg<T, E> {
         self.parse_mit_frühen_beenden(env::args_os())
     }
 
+    /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [std::process::exit] mit exit code `0` beendet.
     pub fn parse_mit_frühen_beenden(
         &self,
         args: impl Iterator<Item = OsString>,
@@ -90,6 +102,7 @@ impl<T, E> Arg<T, E> {
         (result, nicht_verwendet)
     }
 
+    /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     pub fn parse(
         &self,
         args: impl Iterator<Item = OsString>,
