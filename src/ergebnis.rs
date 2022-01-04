@@ -1,6 +1,6 @@
 //! Ergebnis- und Fehler-Typ für parsen von Kommandozeilen-Argumenten.
 
-use std::fmt::Display;
+use std::{ffi::OsString, fmt::Display};
 
 use nonempty::NonEmpty;
 
@@ -16,6 +16,25 @@ pub enum ParseFehler<E> {
     FehlendeFlag { lang: String, kurz: Option<String>, invertiere_prefix: String },
     FehlenderWert { lang: String, kurz: Option<String>, meta_var: String },
     ParseFehler { lang: String, kurz: Option<String>, meta_var: String, fehler: E },
+}
+
+impl ParseFehler<OsString> {
+    pub fn als_string(self) -> Result<ParseFehler<String>, ParseFehler<OsString>> {
+        match self {
+            ParseFehler::FehlendeFlag { lang, kurz, invertiere_prefix } => {
+                Ok(ParseFehler::FehlendeFlag { lang, kurz, invertiere_prefix })
+            }
+            ParseFehler::FehlenderWert { lang, kurz, meta_var } => {
+                Ok(ParseFehler::FehlenderWert { lang, kurz, meta_var })
+            }
+            ParseFehler::ParseFehler { lang, kurz, meta_var, fehler } => {
+                match fehler.into_string() {
+                    Ok(fehler) => Ok(ParseFehler::ParseFehler { lang, kurz, meta_var, fehler }),
+                    Err(fehler) => Err(ParseFehler::ParseFehler { lang, kurz, meta_var, fehler }),
+                }
+            }
+        }
+    }
 }
 
 impl<E: Display> ParseFehler<E> {
