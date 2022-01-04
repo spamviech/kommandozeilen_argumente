@@ -384,7 +384,7 @@ pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
                 vec![#(Self::#varianten),*]
             }
 
-            fn parse_enum(arg: &OsStr) -> Result<Self, std::ffi::OsString> {
+            fn parse_enum(arg: &std::ffi::OsStr) -> Result<Self, std::ffi::OsString> {
                 if let Some(string) = arg.to_str() {
                     #(
                         if #crate_name::unicase_eq(string, #varianten_str) {
