@@ -1,8 +1,6 @@
 //! Kombiniere mehrere [Arg] zu einem neuen, basierend auf einer Funktion.
 
-use nonempty::NonEmpty;
-
-use crate::{arg::Arg, ergebnis::ParseErgebnis};
+use crate::arg::Arg;
 
 #[macro_export]
 /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
@@ -14,7 +12,7 @@ macro_rules! kombiniere {
         #[allow(unused_mut)]
         let mut flag_kurzformen = Vec::new();
         $(flag_kurzformen.extend($args.flag_kurzformen);)*
-        Arg {
+        $crate::Arg {
             beschreibungen,
             flag_kurzformen,
             parse: Box::new(move |args| {
@@ -25,23 +23,23 @@ macro_rules! kombiniere {
                 $(
                     let (ergebnis, args) = ($args.parse)(args);
                     let $args = match ergebnis {
-                        ParseErgebnis::Wert(wert) => Some(wert),
-                        ParseErgebnis::FrühesBeenden(nachrichten) => {
+                        $crate::ParseErgebnis::Wert(wert) => Some(wert),
+                        $crate::ParseErgebnis::FrühesBeenden(nachrichten) => {
                             frühes_beenden.extend(nachrichten);
                             None
                         }
-                        ParseErgebnis::Fehler(parse_fehler) => {
+                        $crate::ParseErgebnis::Fehler(parse_fehler) => {
                             fehler.extend(parse_fehler);
                             None
                         }
                     };
                 )*
-                if let Some(fehler) = NonEmpty::from_vec(fehler) {
-                    (ParseErgebnis::Fehler(fehler), args)
-                } else if let Some(nachrichten) = NonEmpty::from_vec(frühes_beenden) {
-                    (ParseErgebnis::FrühesBeenden(nachrichten), args)
+                if let Some(fehler) = $crate::NonEmpty::from_vec(fehler) {
+                    ($crate::ParseErgebnis::Fehler(fehler), args)
+                } else if let Some(nachrichten) = $crate::NonEmpty::from_vec(frühes_beenden) {
+                    ($crate::ParseErgebnis::FrühesBeenden(nachrichten), args)
                 } else {
-                    (ParseErgebnis::Wert($funktion($($args.unwrap()),*)), args)
+                    ($crate::ParseErgebnis::Wert($funktion($($args.unwrap()),*)), args)
                 }
             }),
         }
