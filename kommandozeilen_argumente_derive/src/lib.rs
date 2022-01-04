@@ -83,21 +83,24 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         compile_error_return!("Nur Structs ohne Generics unterstützt.");
     }
     let item_ty = &item_struct.ident;
+    let mut args = Vec::new();
     for attr in &item_struct.attrs {
-        todo!()
-    }
-    let args_str: String = todo!(); //args_ts.to_string();
-    let args: Vec<_> = args_str
-        .split(',')
-        .flat_map(|s| {
-            let trimmed = s.trim();
-            if trimmed.is_empty() {
-                None
+        if attr.path.is_ident("kommandozeilen_argumente") {
+            let args_str = attr.tokens.to_string();
+            if let Some(stripped) = args_str.strip_prefix('(').and_then(|s| s.strip_suffix(')')) {
+                args.extend(stripped.split(',').flat_map(|s| {
+                    let trimmed = s.trim();
+                    if trimmed.is_empty() {
+                        None
+                    } else {
+                        Some(trimmed.to_owned())
+                    }
+                }));
             } else {
-                Some(trimmed)
+                compile_error_return!("Args nicht in Klammern eingeschlossen: {}", args_str);
             }
-        })
-        .collect();
+        }
+    }
     // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
     // let version = env!("CARGO_PKG_VERSION");
     // CARGO_PKG_NAME — The name of your package.
@@ -107,9 +110,9 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     // CARGO_BIN_NAME — The name of the binary that is currently being compiled (if it is a binary). This name does not include any file extension, such as .exe
     let mut erstelle_version: Option<fn(TokenStream2) -> TokenStream2> = None;
     let mut erstelle_hilfe: Option<fn(TokenStream2, usize) -> TokenStream2> = None;
-    let mut name_regex_breite: usize = 20;
+    let mut name_regex_breite: usize = 40;
     for arg in args {
-        match arg {
+        match arg.as_str() {
             "version_deutsch" => {
                 erstelle_version = Some(|item| {
                     quote!(
@@ -219,7 +222,9 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     };
     let impl_parse: TokenStream = quote! {
         impl #crate_name::Parse for #item_ty {
-            fn kommandozeilen_argumente() -> #crate_name::Arg<Self, std::ffi::OsString> {
+            type Fehler = OsString;
+
+            fn kommandozeilen_argumente() -> #crate_name::Arg<Self, Self::Fehler> {
                 #nach_hilfe
             }
         }
