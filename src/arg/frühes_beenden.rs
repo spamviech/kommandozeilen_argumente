@@ -206,7 +206,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             hilfe_text.push_str("  ");
             hilfe_text.push_str(&name_regex);
             let bisherige_breite = 2 + name_regex.graphemes(true).count();
-            let einrücken = " ".repeat(name_regex_breite.saturating_sub(bisherige_breite));
+            let einrücken = " ".repeat(name_regex_breite.saturating_sub(bisherige_breite).max(1));
             hilfe_text.push_str(&einrücken);
             if let Some(hilfe) = &beschreibung.hilfe {
                 hilfe_text.push_str(hilfe);
