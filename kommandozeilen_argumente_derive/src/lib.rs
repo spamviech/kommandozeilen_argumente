@@ -200,6 +200,9 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         let mut glätten = false;
         let mut field_invertiere_prefix = quote!(#invertiere_prefix);
         let mut field_meta_var = quote!(#meta_var);
+        // TODO Kurzform nur, sofern gewünscht
+        // kurz|short alleine für erstes Grapheme
+        // alternative kurz|short = "<kurz>" zum expliziten überschreiben
         for attr in attrs {
             match attr.parse_meta() {
                 Ok(Meta::NameValue(MetaNameValue {

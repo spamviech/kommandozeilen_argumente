@@ -16,6 +16,7 @@ use crate::{
 #[cfg(feature = "derive")]
 pub use kommandozeilen_argumente_derive::Parse;
 
+// TODO besseren Namen finden
 #[cfg(feature = "derive")]
 /// Trait für Typen, die direkt mit dem derive-Macro für [Parse] verwendet werden können.
 pub trait ArgumentArt: Sized {

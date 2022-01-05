@@ -142,6 +142,7 @@ pub trait ArgEnum: Sized {
     /// Alle Varianten des Typs.
     fn varianten() -> Vec<Self>;
 
+    // TODO FromStrFehler, z.B. als ParseWertFehler verwenden
     /// Versuche einen Wert ausgehend vom übergebenen [OsStr] zu erzeugen.
     fn parse_enum(arg: &OsStr) -> Result<Self, OsString>;
 }

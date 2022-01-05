@@ -163,6 +163,8 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             beschreibung: eigene_beschreibung.clone().als_string_beschreibung().0,
             invertiere_prefix: None,
         };
+        // TODO Kurzform zuerst anzeigen, Langform einrücken?
+        // Name in hilfe_zeile-Funktion erstellen (invertiere_prefix, meta_var als Option)
         fn hilfe_zeile(
             standard: &str,
             erlaubte_werte: &str,
