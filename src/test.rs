@@ -73,7 +73,7 @@ struct Test {
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(english)]
 struct Inner {
-    #[kommandozeilen_argumente(default(false))]
+    #[kommandozeilen_argumente(default(false), short)]
     empty: bool,
 }
 
@@ -84,7 +84,7 @@ struct Test2 {
     /// bla
     bla: Bla,
     /// flag
-    #[kommandozeilen_argumente(required)]
+    #[kommandozeilen_argumente(required, short)]
     flag: bool,
     #[kommandozeilen_argumente(flatten)]
     inner: Inner,

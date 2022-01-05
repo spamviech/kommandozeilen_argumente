@@ -196,6 +196,12 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     for field in item_struct.fields {
         let Field { attrs, ident, .. } = field;
         let mut hilfe_lits = Vec::new();
+        let lang =
+            unwrap_option_or_compile_error!(ident, "Nur benannte Felder unterstützt.").to_string();
+        if lang.is_empty() {
+            compile_error_return!("Benanntes Feld mit leerem Namen: {}", lang)
+        }
+        let mut kurz = quote!(None);
         let mut standard = quote!(#crate_name::parse::ArgumentArt::standard());
         let mut glätten = false;
         let mut field_invertiere_prefix = quote!(#invertiere_prefix);
@@ -227,6 +233,11 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                                     match arg.as_str() {
                                         "glätten" | "flatten" => glätten = true,
                                         "benötigt" | "required" => standard = quote!(None),
+                                        "kurz" | "short" => {
+                                            if let Some(kurz_str) = lang.graphemes(true).next() {
+                                                kurz = quote!(Some(#kurz_str.to_owned()));
+                                            }
+                                        }
                                         _ => {
                                             compile_error_return!("Unbekanntes Attribut: {}", arg)
                                         }
@@ -262,7 +273,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                                         }
                                         _ => {
                                             compile_error_return!(
-                                                "Unbekanntes Attribut mit Wert: {}:{}",
+                                                "Unbekanntes Attribut mit Wert: {}({})",
                                                 arg_name,
                                                 quote!(#nested)
                                             )
@@ -273,6 +284,34 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                                     compile_error_return!(
                                         "Unbekanntes Attribut: {}",
                                         quote!(#meta_list)
+                                    )
+                                }
+                            }
+                            NestedMeta::Meta(Meta::NameValue(MetaNameValue {
+                                path,
+                                eq_token,
+                                lit: Lit::Str(lit_str),
+                            })) => {
+                                if let Some(ident) = path.get_ident() {
+                                    let arg_name = ident.to_string().trim().to_owned();
+                                    match arg_name.as_str() {
+                                        "kurz" | "short" => {
+                                            kurz = quote!(Some(#lit_str.to_owned()));
+                                        }
+                                        _ => {
+                                            compile_error_return!(
+                                                "Unbekanntes Attribut mit Wert: {} = {}",
+                                                arg_name,
+                                                quote!(#lit_str)
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    let meta_name_value =
+                                        MetaNameValue { path, eq_token, lit: Lit::Str(lit_str) };
+                                    compile_error_return!(
+                                        "Unbekanntes Attribut: {}",
+                                        quote!(#meta_name_value)
                                     )
                                 }
                             }
@@ -288,16 +327,6 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                 _ => {}
             }
         }
-        let lang =
-            unwrap_option_or_compile_error!(ident, "Nur benannte Felder unterstützt.").to_string();
-        if lang.is_empty() {
-            compile_error_return!("Benanntes Feld mit leerem Namen: {}", lang)
-        }
-        let kurz = if let Some(kurz) = lang.graphemes(true).next() {
-            quote!(Some(#kurz.to_owned()))
-        } else {
-            quote!(None)
-        };
         let ident = format_ident!("{}", lang);
         let mut hilfe_string = String::new();
         for teil_string in hilfe_lits {

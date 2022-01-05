@@ -36,6 +36,8 @@ Vor Feldern
     ansonsten wird eine Implementierung über das ArgEnum-Trait verwendet
 - `glätten`/`flatten`: verwende das Parse-Trait (übernehmen der konfigurierten Argumente)
 - `benötigt`/`required`: entferne den konfigurierten Standard-Wert
-- `standard: <wert>` | `default: <value>`: setzte den Standard-Wert
-- `meta_var: <string>`: setzte die in der Hilfe angezeigt Meta-Variable
-- `invertiere_prefix: <string>` | `invert_prefix: <string>`: setze Präfix zum invertieren einer Flag
+- `kurz`/`short`: Verwende eine Kurzform, bestehend aus dem ersten Grapheme der Langform
+- `kurz = "<wert>"`/`short = "<value>"`: Verwende die spezifizierte Kurzform
+- `standard(<wert>)` | `default(<value>)`: setzte den Standard-Wert
+- `meta_var(<string>)`: setzte die in der Hilfe angezeigt Meta-Variable
+- `invertiere_prefix(<string>)` | `invert_prefix(<string>)`: setze Präfix zum invertieren einer Flag
