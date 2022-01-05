@@ -36,6 +36,9 @@ pub enum ArgString {
 
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
+// TODO Standard-Wert, sofern nur der Name gegeben ist (unterschiedlich zu Name kommt nicht vor)
+//      z.B. -O, -O2 bei compilern
+// TODO case sensitive Argumente/alles case sensitive
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 ///
