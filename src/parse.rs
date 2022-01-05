@@ -123,10 +123,7 @@ impl<T: 'static + ArgumentArt + Clone + Display> ArgumentArt for Option<T> {
             },
             |opt| {
                 if let Some(t) = opt {
-                    let mut string = "Some(".to_owned();
-                    string.push_str(&t.to_string());
-                    string.push(')');
-                    string
+                    t.to_string()
                 } else {
                     "None".to_owned()
                 }
