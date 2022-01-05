@@ -7,6 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use either::Either;
 use itertools::Itertools;
 use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
@@ -170,12 +171,40 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             erlaubte_werte: &str,
             name_regex_breite: usize,
             hilfe_text: &mut String,
-            name_regex: &String,
             beschreibung: &Beschreibung<String>,
+            invertiere_prefix_oder_meta_var: Either<&Option<String>, &String>,
             mögliche_werte: &Option<NonEmpty<String>>,
         ) {
+            let mut name_regex = String::new();
+            if let Some(kurz) = &beschreibung.kurz {
+                name_regex.push_str("-");
+                name_regex.push_str(kurz);
+                if let Either::Right(meta_var) = invertiere_prefix_oder_meta_var {
+                    name_regex.push_str("[=| ]");
+                    name_regex.push_str(meta_var);
+                }
+                name_regex.push_str(" |");
+            } else {
+                name_regex.push_str("    ");
+            }
+            name_regex.push_str(" --");
+            match invertiere_prefix_oder_meta_var {
+                Either::Left(invertiere_prefix) => {
+                    if let Some(prefix) = invertiere_prefix {
+                        name_regex.push('[');
+                        name_regex.push_str(prefix);
+                        name_regex.push_str("]-");
+                    }
+                    name_regex.push_str(&beschreibung.lang);
+                }
+                Either::Right(meta_var) => {
+                    name_regex.push_str(&beschreibung.lang);
+                    name_regex.push_str("(=| )");
+                    name_regex.push_str(meta_var);
+                }
+            }
             hilfe_text.push_str("  ");
-            hilfe_text.push_str(name_regex);
+            hilfe_text.push_str(&name_regex);
             let bisherige_breite = 2 + name_regex.graphemes(true).count();
             let einrücken = " ".repeat(name_regex_breite.saturating_sub(bisherige_breite));
             hilfe_text.push_str(&einrücken);
@@ -217,45 +246,24 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         for beschreibung in self.beschreibungen.iter().chain(iter::once(&eigener_arg_string)) {
             match beschreibung {
                 ArgString::Flag { beschreibung, invertiere_prefix } => {
-                    let mut name_regex = "--".to_owned();
-                    if let Some(prefix) = invertiere_prefix {
-                        name_regex.push('[');
-                        name_regex.push_str(prefix);
-                        name_regex.push_str("]-");
-                    }
-                    name_regex.push_str(&beschreibung.lang);
-                    if let Some(kurz) = &beschreibung.kurz {
-                        name_regex.push_str(" | -");
-                        name_regex.push_str(kurz);
-                    }
                     hilfe_zeile(
                         standard,
                         erlaubte_werte,
                         name_regex_breite,
                         &mut hilfe_text,
-                        &name_regex,
                         beschreibung,
+                        Either::Left(invertiere_prefix),
                         &None,
                     );
                 }
                 ArgString::Wert { beschreibung, meta_var, mögliche_werte } => {
-                    let mut name_regex = "--".to_owned();
-                    name_regex.push_str(&beschreibung.lang);
-                    name_regex.push_str("(=| )");
-                    name_regex.push_str(meta_var);
-                    if let Some(kurz) = &beschreibung.kurz {
-                        name_regex.push_str(" | -");
-                        name_regex.push_str(kurz);
-                        name_regex.push_str("[=| ]");
-                        name_regex.push_str(meta_var);
-                    }
                     hilfe_zeile(
                         standard,
                         erlaubte_werte,
                         name_regex_breite,
                         &mut hilfe_text,
-                        &name_regex,
                         beschreibung,
+                        Either::Right(meta_var),
                         mögliche_werte,
                     );
                 }
