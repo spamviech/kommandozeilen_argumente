@@ -18,6 +18,6 @@ proc-macro-crate = "1.1.0"
 unicode-segmentation = "1.8.0"
 
 [dependencies.syn]
-version = "1.0.84"
+version = "1.0.85"
 features = ["full", "parsing", "extra-traits"]
 default_features = false
