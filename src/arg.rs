@@ -59,7 +59,58 @@ impl<T, E> Debug for Arg<T, E> {
     }
 }
 
+#[inline(always)]
+fn args_aus_env() -> impl Iterator<Item = OsString> {
+    env::args_os().skip(1)
+}
+
 impl<T, E: Display> Arg<T, E> {
+    /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [std::process::exit] mit exit code `0` beendet.
+    /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
+    /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
+    #[inline(always)]
+    pub fn parse_mit_fehlermeldung_aus_env(&self, fehler_code: NonZeroI32) -> T {
+        self.parse_mit_fehlermeldung(args_aus_env(), fehler_code)
+    }
+
+    /// Parse [std::env::args_os] to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [std::process::exit] with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [std::process::exit] with exit code `error_code`.
+    #[inline(always)]
+    pub fn parse_with_error_message_from_env(&self, error_code: NonZeroI32) -> T {
+        self.parse_with_error_message(args_aus_env(), error_code)
+    }
+
+    /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [std::process::exit] mit exit code `0` beendet.
+    /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
+    /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
+    #[inline(always)]
+    pub fn parse_vollständig_aus_env(
+        &self,
+        fehler_code: NonZeroI32,
+        fehlende_flag: &str,
+        fehlender_wert: &str,
+        parse_fehler: &str,
+        arg_nicht_verwendet: &str,
+    ) -> T {
+        self.parse_vollständig(
+            args_aus_env(),
+            fehler_code,
+            fehlende_flag,
+            fehlender_wert,
+            parse_fehler,
+            arg_nicht_verwendet,
+        )
+    }
+
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
@@ -148,7 +199,7 @@ impl<T, E> Arg<T, E> {
     /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
     #[inline(always)]
     pub fn parse_aus_env(&self) -> (ParseErgebnis<T, E>, Vec<OsString>) {
-        Arg::parse(&self, env::args_os().skip(1))
+        Arg::parse(&self, args_aus_env())
     }
 
     /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
@@ -159,7 +210,7 @@ impl<T, E> Arg<T, E> {
     pub fn parse_aus_env_mit_frühen_beenden(
         &self,
     ) -> (Result<T, NonEmpty<ParseFehler<E>>>, Vec<OsString>) {
-        self.parse_mit_frühen_beenden(env::args_os().skip(1))
+        self.parse_mit_frühen_beenden(args_aus_env())
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
