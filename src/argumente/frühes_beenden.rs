@@ -181,25 +181,31 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             beschreibung: beschreibung.clone().als_string_beschreibung().0,
             invertiere_präfix: None,
         });
-        fn kurz_regex(
-            kurz: &Option<String>,
+        fn lang_regex(
+            lang: &String,
             invertiere_präfix_oder_meta_var: Either<&Option<String>, &String>,
-        ) -> Option<String> {
-            if let Some(kurz) = &kurz {
-                let mut kurz_regex = format!("-{}", kurz);
-                if let Either::Right(meta_var) = invertiere_präfix_oder_meta_var {
-                    kurz_regex.push_str("[=| ]");
-                    kurz_regex.push_str(meta_var);
+        ) -> String {
+            let mut lang_regex = "--".to_owned();
+            match invertiere_präfix_oder_meta_var {
+                Either::Left(invertiere_präfix) => {
+                    if let Some(präfix) = invertiere_präfix {
+                        lang_regex.push('[');
+                        lang_regex.push_str(präfix);
+                        lang_regex.push_str("]-");
+                    }
+                    lang_regex.push_str(lang);
                 }
-                kurz_regex.push_str(" |");
-                Some(kurz_regex)
-            } else {
-                None
+                Either::Right(meta_var) => {
+                    lang_regex.push_str(lang);
+                    lang_regex.push_str("(=| )");
+                    lang_regex.push_str(meta_var);
+                }
             }
+            lang_regex
         }
         let none = None;
-        let mut max_kurz_regex_breite = 0;
-        let mut kurz_regex_vec = Vec::new();
+        let mut max_lang_regex_breite = 0;
+        let mut lang_regex_vec = Vec::new();
         for arg_string in self.beschreibungen.iter().chain(eigener_arg_string.iter()) {
             let (beschreibung, invertiere_präfix_oder_meta_var, mögliche_werte) = match arg_string {
                 ArgString::Flag { beschreibung, invertiere_präfix } => {
@@ -209,42 +215,31 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                     (beschreibung, Either::Right(meta_var), mögliche_werte)
                 }
             };
-            let kurz_regex = kurz_regex(&beschreibung.kurz, invertiere_präfix_oder_meta_var);
-            let kurz_regex_breite =
-                kurz_regex.as_ref().map(|kurz| kurz.graphemes(true).count()).unwrap_or(0);
-            max_kurz_regex_breite = max_kurz_regex_breite.max(kurz_regex_breite);
-            kurz_regex_vec.push((
-                kurz_regex,
+            let lang_regex = lang_regex(&beschreibung.lang, invertiere_präfix_oder_meta_var);
+            let lang_regex_breite = lang_regex.graphemes(true).count();
+            max_lang_regex_breite = max_lang_regex_breite.max(lang_regex_breite);
+            lang_regex_vec.push((
+                lang_regex,
+                lang_regex_breite,
                 beschreibung,
                 invertiere_präfix_oder_meta_var,
                 mögliche_werte,
             ))
         }
         fn name_regex(
-            kurz_regex: Option<String>,
-            max_kurz_regex_breite: usize,
-            lang: &String,
+            max_lang_regex_breite: usize,
+            mut name_regex: String,
+            lang_regex_breite: usize,
+            kurz: &Option<String>,
             invertiere_präfix_oder_meta_var: Either<&Option<String>, &String>,
         ) -> String {
-            let mut name_regex = String::new();
-            if let Some(kurz) = kurz_regex {
-                name_regex.push_str(&kurz);
-            } else {
-                name_regex.push_str(&" ".repeat(max_kurz_regex_breite));
-            }
-            name_regex.push_str(" --");
-            match invertiere_präfix_oder_meta_var {
-                Either::Left(invertiere_präfix) => {
-                    if let Some(präfix) = invertiere_präfix {
-                        name_regex.push('[');
-                        name_regex.push_str(präfix);
-                        name_regex.push_str("]-");
-                    }
-                    name_regex.push_str(lang);
-                }
-                Either::Right(meta_var) => {
-                    name_regex.push_str(lang);
-                    name_regex.push_str("(=| )");
+            if let Some(kurz) = &kurz {
+                let einrücken = " ".repeat(max_lang_regex_breite - lang_regex_breite);
+                name_regex.push_str(&einrücken);
+                name_regex.push_str(" | -");
+                name_regex.push_str(kurz);
+                if let Either::Right(meta_var) = invertiere_präfix_oder_meta_var {
+                    name_regex.push_str("[=| ]");
                     name_regex.push_str(meta_var);
                 }
             }
@@ -252,31 +247,37 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         }
         let mut max_name_regex_breite = 0;
         let mut name_regex_vec = Vec::new();
-        for (kurz_regex, beschreibung, invertiere_präfix_oder_meta_var, mögliche_werte) in
-            kurz_regex_vec
+        for (
+            lang_regex,
+            lang_regex_breite,
+            beschreibung,
+            invertiere_präfix_oder_meta_var,
+            mögliche_werte,
+        ) in lang_regex_vec
         {
             let name_regex = name_regex(
-                kurz_regex,
-                max_kurz_regex_breite,
-                &beschreibung.lang,
+                max_lang_regex_breite,
+                lang_regex,
+                lang_regex_breite,
+                &beschreibung.kurz,
                 invertiere_präfix_oder_meta_var,
             );
             let name_regex_breite = name_regex.graphemes(true).count();
             max_name_regex_breite = max_name_regex_breite.max(name_regex_breite);
-            name_regex_vec.push((name_regex, beschreibung, mögliche_werte))
+            name_regex_vec.push((name_regex, name_regex_breite, beschreibung, mögliche_werte))
         }
         fn hilfe_zeile(
             standard: &str,
             erlaubte_werte: &str,
+            max_name_regex_breite: usize,
             hilfe_text: &mut String,
             name_regex: String,
-            max_name_regex_breite: usize,
+            name_regex_breite: usize,
             beschreibung: &Beschreibung<String>,
             mögliche_werte: &Option<NonEmpty<String>>,
         ) {
             hilfe_text.push_str("  ");
             hilfe_text.push_str(&name_regex);
-            let name_regex_breite = name_regex.graphemes(true).count();
             let einrücken = " ".repeat(2 + max_name_regex_breite - name_regex_breite);
             hilfe_text.push_str(&einrücken);
             if let Some(hilfe) = &beschreibung.hilfe {
@@ -314,13 +315,14 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             }
             hilfe_text.push('\n');
         }
-        for (name_regex, beschreibung, mögliche_werte) in name_regex_vec {
+        for (name_regex, name_regex_breite, beschreibung, mögliche_werte) in name_regex_vec {
             hilfe_zeile(
                 standard,
                 erlaubte_werte,
+                max_name_regex_breite,
                 &mut hilfe_text,
                 name_regex,
-                max_name_regex_breite,
+                name_regex_breite,
                 beschreibung,
                 mögliche_werte,
             )
