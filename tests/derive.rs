@@ -36,7 +36,7 @@ struct Test {
     /// opt
     opt: Option<Bla>,
     /// flag
-    #[kommandozeilen_argumente(standard(true))]
+    #[kommandozeilen_argumente(standard: true)]
     flag: bool,
 }
 
@@ -47,14 +47,14 @@ struct Empty {}
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(english)]
 struct Inner {
-    #[kommandozeilen_argumente(default(false), short)]
-    empty: bool,
+    #[kommandozeilen_argumente(default: false, short, invertiere_präfix: möp)]
+    inner_flag: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(english, version, help)]
 struct Test2 {
-    #[kommandozeilen_argumente(default(Bla::Meh))]
+    #[kommandozeilen_argumente(default: Bla::Meh)]
     /// bla
     bla: Bla,
     /// flag
@@ -151,10 +151,10 @@ fn verschmelze_kurzformen() {
     }
     println!("--------------");
     let arg2 = Test2::kommandozeilen_argumente();
-    match arg2.parse(iter::once(OsString::from("-fe".to_owned()))) {
+    match arg2.parse(iter::once(OsString::from("-fi".to_owned()))) {
         (Ergebnis::Wert(test2), nicht_verwendet) => {
             let übrige = nicht_verwendet.iter().count();
-            let erwartet = Test2 { bla: Bla::Meh, inner: Inner { empty: true }, flag: true };
+            let erwartet = Test2 { bla: Bla::Meh, inner: Inner { inner_flag: true }, flag: true };
             if übrige > 0 {
                 eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
                 process::exit(5);

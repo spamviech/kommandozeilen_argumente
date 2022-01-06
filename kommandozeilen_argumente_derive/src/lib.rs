@@ -36,10 +36,7 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
-use syn::{
-    parse_macro_input, Field, Fields, Ident, ItemEnum, ItemStruct, Lit, Meta, MetaList,
-    MetaNameValue, NestedMeta,
-};
+use syn::{parse_macro_input, Field, Fields, Ident, ItemEnum, ItemStruct};
 use unicode_segmentation::UnicodeSegmentation;
 
 fn base_name() -> Result<Ident, proc_macro_crate::Error> {
@@ -167,10 +164,15 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                 })
             }
             string => match string.split_once(':') {
-                Some(("invertiere_präfix" | "invert_prefix", wert_string)) => {
-                    invertiere_präfix = Some(wert_string.to_owned());
-                }
-                Some(("meta_var", wert_string)) => meta_var = Some(wert_string.to_owned()),
+                Some((arg_name, wert_string)) => match arg_name.trim() {
+                    "invertiere_präfix" | "invert_prefix" => {
+                        invertiere_präfix = Some(wert_string.to_owned())
+                    }
+                    "meta_var" => meta_var = Some(wert_string.to_owned()),
+                    trimmed => {
+                        compile_error_return!("Benanntes Argument nicht unterstützt: {}", trimmed)
+                    }
+                },
                 _ => compile_error_return!("Argument nicht unterstützt: {}", arg),
             },
         }
@@ -199,121 +201,69 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         let mut field_invertiere_präfix = quote!(#invertiere_präfix);
         let mut field_meta_var = quote!(#meta_var);
         for attr in attrs {
-            match attr.parse_meta() {
-                Ok(Meta::NameValue(MetaNameValue {
-                    path,
-                    eq_token: _,
-                    lit: Lit::Str(lit_str),
-                })) if path.is_ident("doc") => {
-                    let trimmed = lit_str.value().trim().to_owned();
+            if attr.path.is_ident("doc") {
+                let args_str = attr.tokens.to_string();
+                if let Some(stripped) =
+                    args_str.strip_prefix("= \"").and_then(|s| s.strip_suffix('"'))
+                {
+                    let trimmed = stripped.trim().to_owned();
                     if !trimmed.is_empty() {
                         hilfe_lits.push(trimmed);
                     }
                 }
-                Ok(Meta::List(MetaList { path, paren_token: _, nested }))
-                    if path.is_ident("kommandozeilen_argumente") =>
+            } else if attr.path.is_ident("kommandozeilen_argumente") {
+                let args_str = attr.tokens.to_string();
+                if let Some(stripped) = args_str.strip_prefix('(').and_then(|s| s.strip_suffix(')'))
                 {
-                    for nested_meta in nested {
-                        match nested_meta {
-                            NestedMeta::Meta(Meta::Path(path)) => {
-                                if let Some(ident) = path.get_ident() {
-                                    // TODO FromStr-Werte
-                                    let arg = ident.to_string().trim().to_owned();
-                                    match arg.as_str() {
-                                        "glätten" | "flatten" => glätten = true,
-                                        "benötigt" | "required" => standard = quote!(None),
-                                        "kurz" | "short" => {
-                                            if let Some(kurz_str) = lang.graphemes(true).next() {
-                                                kurz = quote!(Some(#kurz_str.to_owned()));
-                                            }
-                                        }
-                                        _ => {
-                                            compile_error_return!("Unbekanntes Attribut: {}", arg)
-                                        }
-                                    }
-                                } else {
-                                    compile_error_return!("Unbekanntes Attribut: {}", quote!(#path))
+                    let args = stripped.split(',').flat_map(|s| {
+                        let trimmed = s.trim();
+                        if trimmed.is_empty() {
+                            None
+                        } else {
+                            Some(trimmed)
+                        }
+                    });
+                    for arg in args {
+                        match arg {
+                            "glätten" | "flatten" => glätten = true,
+                            "benötigt" | "required" => standard = quote!(None),
+                            "kurz" | "short" => {
+                                if let Some(kurz_str) = lang.graphemes(true).next() {
+                                    kurz = quote!(Some(#kurz_str.to_owned()));
                                 }
                             }
-                            NestedMeta::Meta(Meta::List(MetaList {
-                                path,
-                                paren_token,
-                                nested,
-                            })) => {
-                                if let Some(ident) = path.get_ident() {
-                                    let arg_name = ident.to_string().trim().to_owned();
-                                    match arg_name.as_str() {
-                                        "standard" | "default" if nested.len() == 1 => {
-                                            if let Some(nested_meta) = nested.first() {
-                                                standard = quote!(Some(#nested_meta));
-                                            }
-                                        }
-                                        "meta_var" if nested.len() == 1 => {
-                                            if let Some(nested_meta) = nested.first() {
-                                                field_meta_var = quote!(#nested_meta)
-                                            }
-                                        }
-                                        "invertiere_präfix" | "invert_prefix"
-                                            if nested.len() == 1 =>
-                                        {
-                                            if let Some(nested_meta) = nested.first() {
-                                                field_invertiere_präfix = quote!(#nested_meta)
-                                            }
-                                        }
-                                        _ => {
-                                            compile_error_return!(
-                                                "Unbekanntes Attribut mit Wert: {}({})",
-                                                arg_name,
-                                                quote!(#nested)
-                                            )
-                                        }
+                            string => match string.split_once(':') {
+                                Some((arg_name, wert_string)) => match arg_name.trim() {
+                                    "standard" | "default" => {
+                                        let ts: TokenStream2 =
+                                            unwrap_result_or_compile_error!(wert_string.parse());
+                                        standard = quote!(Some(#ts));
                                     }
-                                } else {
-                                    let meta_list = MetaList { path, paren_token, nested };
-                                    compile_error_return!(
-                                        "Unbekanntes Attribut: {}",
-                                        quote!(#meta_list)
-                                    )
-                                }
-                            }
-                            NestedMeta::Meta(Meta::NameValue(MetaNameValue {
-                                path,
-                                eq_token,
-                                lit: Lit::Str(lit_str),
-                            })) => {
-                                if let Some(ident) = path.get_ident() {
-                                    let arg_name = ident.to_string().trim().to_owned();
-                                    match arg_name.as_str() {
-                                        "kurz" | "short" => {
-                                            kurz = quote!(Some(#lit_str.to_owned()));
-                                        }
-                                        _ => {
-                                            compile_error_return!(
-                                                "Unbekanntes Attribut mit Wert: {} = {}",
-                                                arg_name,
-                                                quote!(#lit_str)
-                                            )
-                                        }
+                                    "kurz" | "short" => {
+                                        let ts: TokenStream2 =
+                                            unwrap_result_or_compile_error!(wert_string.parse());
+                                        kurz = quote!(Some(#ts.to_owned()))
                                     }
-                                } else {
-                                    let meta_name_value =
-                                        MetaNameValue { path, eq_token, lit: Lit::Str(lit_str) };
-                                    compile_error_return!(
-                                        "Unbekanntes Attribut: {}",
-                                        quote!(#meta_name_value)
-                                    )
-                                }
-                            }
-                            _ => {
-                                compile_error_return!(
-                                    "Unbekanntes Attribut: {}",
-                                    quote!(#nested_meta)
-                                )
-                            }
+                                    "invertiere_präfix" | "invert_prefix" => {
+                                        let trimmed = wert_string.trim();
+                                        field_invertiere_präfix = quote!(#trimmed)
+                                    }
+                                    "meta_var" => {
+                                        let trimmed = wert_string.trim();
+                                        field_meta_var = quote!(#trimmed)
+                                    }
+                                    trimmed => compile_error_return!(
+                                        "Benanntes Argument nicht unterstützt: {}",
+                                        trimmed
+                                    ),
+                                },
+                                _ => compile_error_return!("Argument nicht unterstützt: {}", arg,),
+                            },
                         }
                     }
+                } else {
+                    compile_error_return!("Args nicht in Klammern eingeschlossen: {}", args_str);
                 }
-                _ => {}
             }
         }
         let ident = format_ident!("{}", lang);
