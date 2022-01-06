@@ -27,6 +27,16 @@ pub trait ParseArgument: Sized {
 
     /// Sollen Argumente dieses Typs normalerweise einen Standard-Wert haben?
     fn standard() -> Option<Self>;
+
+    /// Erstelle ein [Arg] für die übergebene [Beschreibung].
+    fn neu(beschreibung: Beschreibung<Self>) -> Arg<Self, OsString> {
+        Self::erstelle_arg(beschreibung, "kein", "WERT")
+    }
+
+    /// Create an [Arg] for the [Beschreibung].
+    fn new(beschreibung: Beschreibung<Self>) -> Arg<Self, OsString> {
+        Self::erstelle_arg(beschreibung, "no", "VALUE")
+    }
 }
 
 impl ParseArgument for bool {
