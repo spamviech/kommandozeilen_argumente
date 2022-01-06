@@ -23,10 +23,11 @@ pub mod wert;
 
 /// Interner Typ, wird für das [kombiniere]-Macro benötigt.
 #[derive(Debug)]
-pub enum ArgString {
-    #[allow(missing_docs)]
-    Flag { beschreibung: Beschreibung<String>, invertiere_prefix: Option<String> },
-    #[allow(missing_docs)]
+pub(crate) enum ArgString {
+    Flag {
+        beschreibung: Beschreibung<String>,
+        invertiere_prefix: Option<String>,
+    },
     Wert {
         beschreibung: Beschreibung<String>,
         meta_var: String,
