@@ -19,14 +19,34 @@ pub enum ParseErgebnis<T, E> {
 #[derive(Debug, Clone)]
 pub enum ParseFehler<E> {
     /// Ein benötigtes Flag-Argument wurde nicht genannt.
-    #[allow(missing_docs)]
-    FehlendeFlag { lang: String, kurz: Option<String>, invertiere_prefix: String },
+    FehlendeFlag {
+        /// Vollständiger Name.
+        lang: String,
+        /// Kurzform des Namen.
+        kurz: Option<String>,
+        /// Präfix zum invertieren.
+        invertiere_prefix: String,
+    },
     /// Ein benötigtes Wert-Argument wurde nicht genannt.
-    #[allow(missing_docs)]
-    FehlenderWert { lang: String, kurz: Option<String>, meta_var: String },
+    FehlenderWert {
+        /// Vollständiger Name.
+        lang: String,
+        /// Kurzform des Namen.
+        kurz: Option<String>,
+        /// Verwendete Meta-Variable für den Wert.
+        meta_var: String,
+    },
     /// Fehler beim Parsen des genannten Wertes.
-    #[allow(missing_docs)]
-    ParseFehler { lang: String, kurz: Option<String>, meta_var: String, fehler: E },
+    ParseFehler {
+        /// Vollständiger Name.
+        lang: String,
+        /// Kurzform des Namen.
+        kurz: Option<String>,
+        /// Verwendete Meta-Variable für den Wert.
+        meta_var: String,
+        /// Beim Parsen aufgetretener Fehler.
+        fehler: E,
+    },
 }
 
 impl ParseFehler<OsString> {
