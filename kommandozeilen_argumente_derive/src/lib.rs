@@ -202,7 +202,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
             compile_error_return!("Benanntes Feld mit leerem Namen: {}", lang)
         }
         let mut kurz = quote!(None);
-        let mut standard = quote!(#crate_name::parse::ArgumentArt::standard());
+        let mut standard = quote!(#crate_name::parse::ParseArgument::standard());
         let mut glätten = false;
         let mut field_invertiere_präfix = quote!(#invertiere_präfix);
         let mut field_meta_var = quote!(#meta_var);
@@ -347,7 +347,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                     hilfe: #hilfe,
                     standard: #standard,
                 };
-                #crate_name::parse::ArgumentArt::erstelle_arg(
+                #crate_name::parse::ParseArgument::erstelle_arg(
                     beschreibung,
                     #field_invertiere_präfix,
                     #field_meta_var

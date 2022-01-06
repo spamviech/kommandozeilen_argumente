@@ -16,10 +16,9 @@ use crate::{
 #[cfg(feature = "derive")]
 pub use kommandozeilen_argumente_derive::Parse;
 
-// TODO besseren Namen finden
 #[cfg(feature = "derive")]
 /// Trait für Typen, die direkt mit dem derive-Macro für [Parse] verwendet werden können.
-pub trait ArgumentArt: Sized {
+pub trait ParseArgument: Sized {
     /// Erstelle ein [Arg] mit den konfigurierten Eigenschaften.
     ///
     /// `invertiere_präfix` ist für Flag-Argumente gedacht,
@@ -35,7 +34,7 @@ pub trait ArgumentArt: Sized {
 }
 
 #[cfg(feature = "derive")]
-impl ArgumentArt for bool {
+impl ParseArgument for bool {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
         invertiere_präfix: &'static str,
@@ -50,7 +49,7 @@ impl ArgumentArt for bool {
 }
 
 #[cfg(feature = "derive")]
-impl ArgumentArt for String {
+impl ParseArgument for String {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
         _invertiere_präfix: &'static str,
@@ -70,10 +69,10 @@ impl ArgumentArt for String {
     }
 }
 
-macro_rules! impl_parse_types {
+macro_rules! impl_parse_argument {
     ($($type:ty),*$(,)?) => {$(
         #[cfg(feature = "derive")]
-        impl ArgumentArt for $type {
+        impl ParseArgument for $type {
             fn erstelle_arg(
                 beschreibung: Beschreibung<Self>,
                 _invertiere_präfix: &'static str,
@@ -94,10 +93,10 @@ macro_rules! impl_parse_types {
         }
     )*};
 }
-impl_parse_types! {i8,u8,i16,u16,i32,u32,i64,u64,i128,u128,isize,usize,f32,f64}
+impl_parse_argument! {i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize, f32, f64}
 
 #[cfg(feature = "derive")]
-impl<T: 'static + ArgumentArt + Clone + Display> ArgumentArt for Option<T> {
+impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
         invertiere_präfix: &'static str,
@@ -137,7 +136,7 @@ impl<T: 'static + ArgumentArt + Clone + Display> ArgumentArt for Option<T> {
 }
 
 #[cfg(feature = "derive")]
-impl<T: 'static + ArgEnum + Display + Clone> ArgumentArt for T {
+impl<T: 'static + ArgEnum + Display + Clone> ParseArgument for T {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
         _invertiere_präfix: &'static str,
