@@ -3,7 +3,8 @@
 use std::{
     env,
     ffi::{OsStr, OsString},
-    fmt::Debug,
+    fmt::{Debug, Display},
+    num::NonZeroI32,
     process,
 };
 
@@ -55,6 +56,91 @@ impl<T, E> Debug for Arg<T, E> {
             .field("beschreibungen", &self.beschreibungen)
             .field("parse", &"<function>")
             .finish()
+    }
+}
+
+impl<T, E: Display> Arg<T, E> {
+    /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [std::process::exit] mit exit code `0` beendet.
+    /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
+    /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
+    #[inline(always)]
+    pub fn parse_mit_fehlermeldung(
+        &self,
+        args: impl Iterator<Item = OsString>,
+        fehler_code: NonZeroI32,
+    ) -> T {
+        self.parse_vollständig(
+            args,
+            fehler_code,
+            "Fehlende Flag",
+            "Fehlender Wert",
+            "Parse-Fehler",
+            "Nicht alle Argumente verwendet",
+        )
+    }
+
+    /// Parse command line arguments to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [std::process::exit] with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [std::process::exit] with exit code `error_code`.
+    #[inline(always)]
+    pub fn parse_with_error_message(
+        &self,
+        args: impl Iterator<Item = OsString>,
+        error_code: NonZeroI32,
+    ) -> T {
+        self.parse_vollständig(
+            args,
+            error_code,
+            "Missing Flag",
+            "Missing Value",
+            "Parse Error",
+            "Unused arguments",
+        )
+    }
+
+    /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [std::process::exit] mit exit code `0` beendet.
+    /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
+    /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
+    pub fn parse_vollständig(
+        &self,
+        args: impl Iterator<Item = OsString>,
+        fehler_code: NonZeroI32,
+        fehlende_flag: &str,
+        fehlender_wert: &str,
+        parse_fehler: &str,
+        arg_nicht_verwendet: &str,
+    ) -> T {
+        let (ergebnis, nicht_verwendet) = self.parse(args);
+        match ergebnis {
+            ParseErgebnis::Wert(wert) if nicht_verwendet.is_empty() => wert,
+            ParseErgebnis::Wert(_wert) => {
+                eprintln!("{}: {:?}", arg_nicht_verwendet, nicht_verwendet);
+                process::exit(fehler_code.get())
+            }
+            ParseErgebnis::FrühesBeenden(nachrichten) => {
+                for nachricht in nachrichten {
+                    println!("{}", nachricht);
+                }
+                process::exit(0)
+            }
+            ParseErgebnis::Fehler(fehler_sammlung) => {
+                for fehler in fehler_sammlung {
+                    eprintln!(
+                        "{}",
+                        fehler.erstelle_fehlermeldung(fehlende_flag, fehlender_wert, parse_fehler)
+                    )
+                }
+                process::exit(fehler_code.get())
+            }
+        }
     }
 }
 
