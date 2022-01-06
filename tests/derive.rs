@@ -7,7 +7,7 @@ use void::Void;
 use kommandozeilen_argumente::{Arg, ArgEnum, Beschreibung, Parse, ParseErgebnis};
 
 #[allow(unused_imports)]
-// Derive-Macro nimmt an,
+// Derive-Macro kommt mit integration test nicht zurecht, daher muss crate::kombiniere existieren.
 use kommandozeilen_argumente::kombiniere;
 
 #[test]

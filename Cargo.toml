@@ -15,7 +15,6 @@ derive = ["kommandozeilen_argumente_derive", "unicase"]
 
 [[test]]
 name = "derive"
-path = "test/derive.rs"
 required-features = ["derive"]
 
 [dependencies]
