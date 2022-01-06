@@ -3,7 +3,6 @@
 use std::{
     env,
     ffi::OsStr,
-    iter,
     path::{Path, PathBuf},
 };
 
@@ -147,6 +146,83 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         erlaubte_werte: &str,
         name_regex_breite: usize,
     ) -> Arg<T, E> {
+        let hilfe_text = self.erstelle_hilfe_text_intern(
+            Some(&eigene_beschreibung),
+            programm_name,
+            version,
+            optionen,
+            standard,
+            erlaubte_werte,
+            name_regex_breite,
+        );
+        self.frühes_beenden(eigene_beschreibung, hilfe_text)
+    }
+
+    /// Erstelle den Hilfe-Text für alle konfigurierten Argumente.
+    pub fn hilfe_text(
+        &self,
+        programm_name: &str,
+        version: Option<&str>,
+        name_regex_breite: usize,
+    ) -> String {
+        self.erstelle_hilfe_text(
+            programm_name,
+            version,
+            "OPTIONEN",
+            "standard",
+            "Erlaubte Werte",
+            name_regex_breite,
+        )
+    }
+
+    /// Create the help-text for all configured arguments.
+    pub fn help_text(
+        &self,
+        programm_name: &str,
+        version: Option<&str>,
+        name_regex_breite: usize,
+    ) -> String {
+        self.erstelle_hilfe_text(
+            programm_name,
+            version,
+            "OPTIONS",
+            "default",
+            "Possible values",
+            name_regex_breite,
+        )
+    }
+
+    /// Erstelle den Hilfe-Text für alle konfigurierten Argumente.
+    pub fn erstelle_hilfe_text(
+        &self,
+        programm_name: &str,
+        version: Option<&str>,
+        optionen: &str,
+        standard: &str,
+        erlaubte_werte: &str,
+        name_regex_breite: usize,
+    ) -> String {
+        self.erstelle_hilfe_text_intern(
+            None,
+            programm_name,
+            version,
+            optionen,
+            standard,
+            erlaubte_werte,
+            name_regex_breite,
+        )
+    }
+
+    fn erstelle_hilfe_text_intern(
+        &self,
+        eigene_beschreibung: Option<&Beschreibung<Void>>,
+        programm_name: &str,
+        version: Option<&str>,
+        optionen: &str,
+        standard: &str,
+        erlaubte_werte: &str,
+        name_regex_breite: usize,
+    ) -> String {
         let current_exe = env::current_exe().ok();
         let exe_name = current_exe
             .as_ref()
@@ -160,10 +236,10 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             name.push_str(version);
         }
         let mut hilfe_text = format!("{}\n\n{} [{}]\n\n{}:\n", name, exe_name, optionen, optionen);
-        let eigener_arg_string = ArgString::Flag {
-            beschreibung: eigene_beschreibung.clone().als_string_beschreibung().0,
+        let eigener_arg_string = eigene_beschreibung.map(|beschreibung| ArgString::Flag {
+            beschreibung: beschreibung.clone().als_string_beschreibung().0,
             invertiere_präfix: None,
-        };
+        });
         fn hilfe_zeile(
             standard: &str,
             erlaubte_werte: &str,
@@ -241,7 +317,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             }
             hilfe_text.push('\n');
         }
-        for beschreibung in self.beschreibungen.iter().chain(iter::once(&eigener_arg_string)) {
+        for beschreibung in self.beschreibungen.iter().chain(eigener_arg_string.iter()) {
             match beschreibung {
                 ArgString::Flag { beschreibung, invertiere_präfix } => {
                     hilfe_zeile(
@@ -267,7 +343,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
                 }
             }
         }
-        self.frühes_beenden(eigene_beschreibung, hilfe_text)
+        hilfe_text
     }
 
     /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
