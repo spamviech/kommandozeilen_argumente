@@ -1,22 +1,18 @@
 //! Trait für Typen, die aus Kommandozeilen-Argumenten geparst werden können.
 
-use std::ffi::OsString;
-#[cfg(feature = "derive")]
-use std::fmt::Display;
+use std::{ffi::OsString, fmt::Display};
 
 use nonempty::NonEmpty;
 
-#[cfg(feature = "derive")]
-use crate::{arg::wert::ArgEnum, beschreibung::Beschreibung};
 use crate::{
-    arg::Arg,
+    arg::{wert::ArgEnum, Arg},
+    beschreibung::Beschreibung,
     ergebnis::{ParseErgebnis, ParseFehler},
 };
 
 #[cfg(feature = "derive")]
 pub use kommandozeilen_argumente_derive::Parse;
 
-#[cfg(feature = "derive")]
 /// Trait für Typen, die direkt mit dem derive-Macro für [Parse] verwendet werden können.
 pub trait ParseArgument: Sized {
     /// Erstelle ein [Arg] mit den konfigurierten Eigenschaften.
@@ -33,7 +29,6 @@ pub trait ParseArgument: Sized {
     fn standard() -> Option<Self>;
 }
 
-#[cfg(feature = "derive")]
 impl ParseArgument for bool {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
@@ -48,7 +43,6 @@ impl ParseArgument for bool {
     }
 }
 
-#[cfg(feature = "derive")]
 impl ParseArgument for String {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
@@ -71,7 +65,6 @@ impl ParseArgument for String {
 
 macro_rules! impl_parse_argument {
     ($($type:ty),*$(,)?) => {$(
-        #[cfg(feature = "derive")]
         impl ParseArgument for $type {
             fn erstelle_arg(
                 beschreibung: Beschreibung<Self>,
@@ -95,7 +88,6 @@ macro_rules! impl_parse_argument {
 }
 impl_parse_argument! {i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize, f32, f64}
 
-#[cfg(feature = "derive")]
 impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
@@ -135,7 +127,6 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
     }
 }
 
-#[cfg(feature = "derive")]
 impl<T: 'static + ArgEnum + Display + Clone> ParseArgument for T {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
