@@ -68,7 +68,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             programm_name,
             version,
             "OPTIONEN",
-            "standard",
+            "Standard",
             "Erlaubte Werte",
         )
     }
@@ -93,7 +93,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             program_name,
             version,
             "OPTIONS",
-            "default",
+            "Default",
             "Possible values",
         )
     }
