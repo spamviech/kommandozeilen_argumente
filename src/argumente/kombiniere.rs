@@ -8,16 +8,16 @@ use crate::{argumente::Argumente, ergebnis::Ergebnis};
 /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
 macro_rules! kombiniere {
     ($funktion: expr => ) => {
-        Argumente::konstant($funktion)
+        $crate::Argumente::konstant($funktion)
     };
     ($funktion: expr => $a: ident $(,)?) => {
-        Argumente::konvertiere($funktion, $a)
+        $crate::Argumente::konvertiere($funktion, $a)
     };
     ($funktion: expr => $a: ident, $b:ident $(,)?) => {
-        Argumente::kombiniere2($funktion, $a, $b)
+        $crate::Argumente::kombiniere2($funktion, $a, $b)
     };
     ($funktion: expr => $a: ident, $b:ident, $($args: ident),+ $(,)?) => {{
-        let tuple_arg = Argumente::kombiniere2(|a,b| (a,b), $a, $b);
+        let tuple_arg = $crate::Argumente::kombiniere2(|a,b| (a,b), $a, $b);
         let uncurry_first_two = move |(a,b), $($args),+| $funktion(a, b, $($args),+);
         $crate::kombiniere!(uncurry_first_two => tuple_arg, $($args),+)
     }};
