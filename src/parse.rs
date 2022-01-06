@@ -1,15 +1,15 @@
 //! Trait für Typen, die aus Kommandozeilen-Argumenten geparst werden können.
 
+use std::ffi::OsString;
 #[cfg(feature = "derive")]
-use std::{ffi::OsString, fmt::Display};
+use std::fmt::Display;
 
-#[cfg(feature = "derive")]
 use nonempty::NonEmpty;
 
 #[cfg(feature = "derive")]
+use crate::{arg::wert::ArgEnum, beschreibung::Beschreibung};
 use crate::{
-    arg::{wert::ArgEnum, Arg},
-    beschreibung::Beschreibung,
+    arg::Arg,
     ergebnis::{ParseErgebnis, ParseFehler},
 };
 
