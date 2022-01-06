@@ -13,6 +13,11 @@ resolver = "2"
 default = ["derive"]
 derive = ["kommandozeilen_argumente_derive", "unicase"]
 
+[[test]]
+name = "derive"
+path = "test/derive.rs"
+required-features = ["derive"]
+
 [dependencies]
 either = "1.6.1"
 itertools = "0.10.3"

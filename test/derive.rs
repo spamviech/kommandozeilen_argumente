@@ -4,7 +4,11 @@ use std::{ffi::OsString, fmt::Display, iter, process};
 
 use void::Void;
 
-use crate::{Arg, ArgEnum, Beschreibung, Parse, ParseErgebnis};
+use kommandozeilen_argumente::{Arg, ArgEnum, Beschreibung, Parse, ParseErgebnis};
+
+#[allow(unused_imports)]
+// Derive-Macro nimmt an,
+use kommandozeilen_argumente::kombiniere;
 
 #[test]
 fn hilfe_test() {

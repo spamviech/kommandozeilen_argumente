@@ -41,8 +41,6 @@ pub mod arg;
 pub mod beschreibung;
 pub mod ergebnis;
 pub mod parse;
-#[cfg(test)]
-pub mod test;
 
 pub use self::{
     arg::{wert::ArgEnum, Arg},
