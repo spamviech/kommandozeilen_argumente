@@ -2,7 +2,7 @@
 
 use nonempty::NonEmpty;
 
-use crate::{arg::Argumente, ergebnis::Ergebnis};
+use crate::{argumente::Argumente, ergebnis::Ergebnis};
 
 #[macro_export]
 /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.

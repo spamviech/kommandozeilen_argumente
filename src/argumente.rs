@@ -17,7 +17,7 @@ use crate::{
 };
 
 pub mod flag;
-#[path = "arg/frühes_beenden.rs"]
+#[path = "argumente/frühes_beenden.rs"]
 pub mod frühes_beenden;
 pub mod kombiniere;
 pub mod wert;

@@ -13,7 +13,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use void::Void;
 
 use crate::{
-    arg::{ArgString, Argumente},
+    argumente::{ArgString, Argumente},
     beschreibung::Beschreibung,
     ergebnis::Ergebnis,
 };

@@ -5,7 +5,7 @@ use std::{ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
 use nonempty::NonEmpty;
 
 use crate::{
-    arg::{wert::ArgEnum, Argumente},
+    argumente::{wert::ArgEnum, Argumente},
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Fehler, ParseFehler},
 };

@@ -37,13 +37,13 @@ pub use nonempty::NonEmpty;
 #[cfg(feature = "derive")]
 pub use unicase::eq as unicase_eq;
 
-pub mod arg;
+pub mod argumente;
 pub mod beschreibung;
 pub mod ergebnis;
 pub mod parse;
 
 pub use self::{
-    arg::{wert::ArgEnum, Argumente},
+    argumente::{wert::ArgEnum, Argumente},
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Fehler, ParseFehler},
     parse::{Parse, ParseArgument},
