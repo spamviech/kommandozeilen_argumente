@@ -116,8 +116,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     // CARGO_PKG_DESCRIPTION — The description from the manifest of your package.
     // CARGO_BIN_NAME — The name of the binary that is currently being compiled (if it is a binary). This name does not include any file extension, such as .exe
     let mut erstelle_version: Option<fn(TokenStream2, Sprache) -> TokenStream2> = None;
-    let mut erstelle_hilfe: Option<fn(TokenStream2, usize) -> TokenStream2> = None;
-    let mut name_regex_breite: usize = 40;
+    let mut erstelle_hilfe: Option<fn(TokenStream2) -> TokenStream2> = None;
     let mut sprache = Deutsch;
     let mut invertiere_präfix = None;
     let mut meta_var = None;
@@ -154,27 +153,20 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                 })
             }
             "hilfe" => {
-                erstelle_hilfe = Some(|item, breite| {
+                erstelle_hilfe = Some(|item| {
                     quote!(
-                        #item.hilfe(env!("CARGO_PKG_NAME"), Some(env!("CARGO_PKG_VERSION")), #breite)
+                        #item.hilfe(env!("CARGO_PKG_NAME"), Some(env!("CARGO_PKG_VERSION")))
                     )
                 })
             }
             "help" => {
-                erstelle_hilfe = Some(|item, width| {
+                erstelle_hilfe = Some(|item| {
                     quote!(
-                        #item.help(env!("CARGO_PKG_NAME"), Some(env!("CARGO_PKG_VERSION")), #width)
+                        #item.help(env!("CARGO_PKG_NAME"), Some(env!("CARGO_PKG_VERSION")))
                     )
                 })
             }
             string => match string.split_once(':') {
-                Some(("name_regex_breite" | "name_regex_width", wert_string)) => {
-                    if let Ok(wert) = wert_string.parse() {
-                        name_regex_breite = wert;
-                    } else {
-                        compile_error_return!("Argument nicht unterstützt: {}", arg);
-                    }
-                }
                 Some(("invertiere_präfix" | "invert_prefix", wert_string)) => {
                     invertiere_präfix = Some(wert_string.to_owned());
                 }
@@ -369,7 +361,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         kombiniere
     };
     let nach_hilfe = if let Some(hilfe_hinzufügen) = erstelle_hilfe {
-        hilfe_hinzufügen(nach_version, name_regex_breite)
+        hilfe_hinzufügen(nach_version)
     } else {
         nach_version
     };

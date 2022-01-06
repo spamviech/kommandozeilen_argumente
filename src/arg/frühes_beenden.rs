@@ -56,12 +56,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
 
     /// Erzeuge eine `--hilfe`-Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei eine automatisch generierte Hilfe.
-    pub fn hilfe(
-        self,
-        programm_name: &str,
-        version: Option<&str>,
-        name_regex_breite: usize,
-    ) -> Arg<T, E> {
+    pub fn hilfe(self, programm_name: &str, version: Option<&str>) -> Arg<T, E> {
         let beschreibung = Beschreibung {
             lang: "hilfe".to_owned(),
             kurz: Some("h".to_owned()),
@@ -75,33 +70,18 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             "OPTIONEN",
             "standard",
             "Erlaubte Werte",
-            name_regex_breite,
         )
     }
 
     /// Erzeuge `--version`- und `--hilfe`-Flags, die zu vorzeitigem Beenden führen.
     /// Wie [version_deutsch] und [hilfe] mit synchronisiertem Programmnamen.
-    pub fn hilfe_und_version(
-        self,
-        programm_name: &str,
-        version: &str,
-        name_regex_breite: usize,
-    ) -> Arg<T, E> {
-        self.version_deutsch(programm_name, version).hilfe(
-            programm_name,
-            Some(version),
-            name_regex_breite,
-        )
+    pub fn hilfe_und_version(self, programm_name: &str, version: &str) -> Arg<T, E> {
+        self.version_deutsch(programm_name, version).hilfe(programm_name, Some(version))
     }
 
     /// Create a `--help` flag, causing an early exit.
     /// Shows an automatically created help text.
-    pub fn help(
-        self,
-        program_name: &str,
-        version: Option<&str>,
-        name_regex_width: usize,
-    ) -> Arg<T, E> {
+    pub fn help(self, program_name: &str, version: Option<&str>) -> Arg<T, E> {
         let beschreibung = Beschreibung {
             lang: "help".to_owned(),
             kurz: Some("h".to_owned()),
@@ -115,23 +95,13 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             "OPTIONS",
             "default",
             "Possible values",
-            name_regex_width,
         )
     }
 
     /// Create `--version` and `--help` flags causing an early exit.
     /// Similar to using [version_english] and [help] with a synchronised program name.
-    pub fn help_and_version(
-        self,
-        program_name: &str,
-        version: &str,
-        name_regex_breite: usize,
-    ) -> Arg<T, E> {
-        self.version_english(program_name, version).help(
-            program_name,
-            Some(version),
-            name_regex_breite,
-        )
+    pub fn help_and_version(self, program_name: &str, version: &str) -> Arg<T, E> {
+        self.version_english(program_name, version).help(program_name, Some(version))
     }
 
     /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
@@ -144,7 +114,6 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         optionen: &str,
         standard: &str,
         erlaubte_werte: &str,
-        name_regex_breite: usize,
     ) -> Arg<T, E> {
         let hilfe_text = self.erstelle_hilfe_text_intern(
             Some(&eigene_beschreibung),
@@ -153,43 +122,18 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             optionen,
             standard,
             erlaubte_werte,
-            name_regex_breite,
         );
         self.frühes_beenden(eigene_beschreibung, hilfe_text)
     }
 
     /// Erstelle den Hilfe-Text für alle konfigurierten Argumente.
-    pub fn hilfe_text(
-        &self,
-        programm_name: &str,
-        version: Option<&str>,
-        name_regex_breite: usize,
-    ) -> String {
-        self.erstelle_hilfe_text(
-            programm_name,
-            version,
-            "OPTIONEN",
-            "standard",
-            "Erlaubte Werte",
-            name_regex_breite,
-        )
+    pub fn hilfe_text(&self, programm_name: &str, version: Option<&str>) -> String {
+        self.erstelle_hilfe_text(programm_name, version, "OPTIONEN", "standard", "Erlaubte Werte")
     }
 
     /// Create the help-text for all configured arguments.
-    pub fn help_text(
-        &self,
-        programm_name: &str,
-        version: Option<&str>,
-        name_regex_breite: usize,
-    ) -> String {
-        self.erstelle_hilfe_text(
-            programm_name,
-            version,
-            "OPTIONS",
-            "default",
-            "Possible values",
-            name_regex_breite,
-        )
+    pub fn help_text(&self, programm_name: &str, version: Option<&str>) -> String {
+        self.erstelle_hilfe_text(programm_name, version, "OPTIONS", "default", "Possible values")
     }
 
     /// Erstelle den Hilfe-Text für alle konfigurierten Argumente.
@@ -200,7 +144,6 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         optionen: &str,
         standard: &str,
         erlaubte_werte: &str,
-        name_regex_breite: usize,
     ) -> String {
         self.erstelle_hilfe_text_intern(
             None,
@@ -209,7 +152,6 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             optionen,
             standard,
             erlaubte_werte,
-            name_regex_breite,
         )
     }
 
@@ -221,7 +163,6 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         optionen: &str,
         standard: &str,
         erlaubte_werte: &str,
-        name_regex_breite: usize,
     ) -> String {
         let current_exe = env::current_exe().ok();
         let exe_name = current_exe
@@ -240,26 +181,56 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             beschreibung: beschreibung.clone().als_string_beschreibung().0,
             invertiere_präfix: None,
         });
-        fn hilfe_zeile(
-            standard: &str,
-            erlaubte_werte: &str,
-            name_regex_breite: usize,
-            hilfe_text: &mut String,
-            beschreibung: &Beschreibung<String>,
+        fn kurz_regex(
+            kurz: &Option<String>,
             invertiere_präfix_oder_meta_var: Either<&Option<String>, &String>,
-            mögliche_werte: &Option<NonEmpty<String>>,
-        ) {
-            let mut name_regex = String::new();
-            if let Some(kurz) = &beschreibung.kurz {
-                name_regex.push_str("-");
-                name_regex.push_str(kurz);
+        ) -> Option<String> {
+            if let Some(kurz) = &kurz {
+                let mut kurz_regex = format!("-{}", kurz);
                 if let Either::Right(meta_var) = invertiere_präfix_oder_meta_var {
-                    name_regex.push_str("[=| ]");
-                    name_regex.push_str(meta_var);
+                    kurz_regex.push_str("[=| ]");
+                    kurz_regex.push_str(meta_var);
                 }
-                name_regex.push_str(" |");
+                kurz_regex.push_str(" |");
+                Some(kurz_regex)
             } else {
-                name_regex.push_str("    ");
+                None
+            }
+        }
+        let none = None;
+        let mut max_kurz_regex_breite = 0;
+        let mut kurz_regex_vec = Vec::new();
+        for arg_string in self.beschreibungen.iter().chain(eigener_arg_string.iter()) {
+            let (beschreibung, invertiere_präfix_oder_meta_var, mögliche_werte) = match arg_string {
+                ArgString::Flag { beschreibung, invertiere_präfix } => {
+                    (beschreibung, Either::Left(invertiere_präfix), &none)
+                }
+                ArgString::Wert { beschreibung, meta_var, mögliche_werte } => {
+                    (beschreibung, Either::Right(meta_var), mögliche_werte)
+                }
+            };
+            let kurz_regex = kurz_regex(&beschreibung.kurz, invertiere_präfix_oder_meta_var);
+            let kurz_regex_breite =
+                kurz_regex.as_ref().map(|kurz| kurz.graphemes(true).count()).unwrap_or(0);
+            max_kurz_regex_breite = max_kurz_regex_breite.max(kurz_regex_breite);
+            kurz_regex_vec.push((
+                kurz_regex,
+                beschreibung,
+                invertiere_präfix_oder_meta_var,
+                mögliche_werte,
+            ))
+        }
+        fn name_regex(
+            kurz_regex: Option<String>,
+            max_kurz_regex_breite: usize,
+            lang: &String,
+            invertiere_präfix_oder_meta_var: Either<&Option<String>, &String>,
+        ) -> String {
+            let mut name_regex = String::new();
+            if let Some(kurz) = kurz_regex {
+                name_regex.push_str(&kurz);
+            } else {
+                name_regex.push_str(&" ".repeat(max_kurz_regex_breite));
             }
             name_regex.push_str(" --");
             match invertiere_präfix_oder_meta_var {
@@ -269,18 +240,44 @@ impl<T: 'static, E: 'static> Arg<T, E> {
                         name_regex.push_str(präfix);
                         name_regex.push_str("]-");
                     }
-                    name_regex.push_str(&beschreibung.lang);
+                    name_regex.push_str(lang);
                 }
                 Either::Right(meta_var) => {
-                    name_regex.push_str(&beschreibung.lang);
+                    name_regex.push_str(lang);
                     name_regex.push_str("(=| )");
                     name_regex.push_str(meta_var);
                 }
             }
+            name_regex
+        }
+        let mut max_name_regex_breite = 0;
+        let mut name_regex_vec = Vec::new();
+        for (kurz_regex, beschreibung, invertiere_präfix_oder_meta_var, mögliche_werte) in
+            kurz_regex_vec
+        {
+            let name_regex = name_regex(
+                kurz_regex,
+                max_kurz_regex_breite,
+                &beschreibung.lang,
+                invertiere_präfix_oder_meta_var,
+            );
+            let name_regex_breite = name_regex.graphemes(true).count();
+            max_name_regex_breite = max_name_regex_breite.max(name_regex_breite);
+            name_regex_vec.push((name_regex, beschreibung, mögliche_werte))
+        }
+        fn hilfe_zeile(
+            standard: &str,
+            erlaubte_werte: &str,
+            hilfe_text: &mut String,
+            name_regex: String,
+            max_name_regex_breite: usize,
+            beschreibung: &Beschreibung<String>,
+            mögliche_werte: &Option<NonEmpty<String>>,
+        ) {
             hilfe_text.push_str("  ");
             hilfe_text.push_str(&name_regex);
-            let bisherige_breite = 2 + name_regex.graphemes(true).count();
-            let einrücken = " ".repeat(name_regex_breite.saturating_sub(bisherige_breite).max(1));
+            let name_regex_breite = name_regex.graphemes(true).count();
+            let einrücken = " ".repeat(2 + max_name_regex_breite - name_regex_breite);
             hilfe_text.push_str(&einrücken);
             if let Some(hilfe) = &beschreibung.hilfe {
                 hilfe_text.push_str(hilfe);
@@ -317,31 +314,16 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             }
             hilfe_text.push('\n');
         }
-        for beschreibung in self.beschreibungen.iter().chain(eigener_arg_string.iter()) {
-            match beschreibung {
-                ArgString::Flag { beschreibung, invertiere_präfix } => {
-                    hilfe_zeile(
-                        standard,
-                        erlaubte_werte,
-                        name_regex_breite,
-                        &mut hilfe_text,
-                        beschreibung,
-                        Either::Left(invertiere_präfix),
-                        &None,
-                    );
-                }
-                ArgString::Wert { beschreibung, meta_var, mögliche_werte } => {
-                    hilfe_zeile(
-                        standard,
-                        erlaubte_werte,
-                        name_regex_breite,
-                        &mut hilfe_text,
-                        beschreibung,
-                        Either::Right(meta_var),
-                        mögliche_werte,
-                    );
-                }
-            }
+        for (name_regex, beschreibung, mögliche_werte) in name_regex_vec {
+            hilfe_zeile(
+                standard,
+                erlaubte_werte,
+                &mut hilfe_text,
+                name_regex,
+                max_name_regex_breite,
+                beschreibung,
+                mögliche_werte,
+            )
         }
         hilfe_text
     }

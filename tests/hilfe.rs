@@ -21,7 +21,6 @@ fn hilfe_test() {
         }),
         "programm",
         "0.test",
-        20,
     );
     match arg.parse(iter::once(OsString::from("--hilfe".to_owned()))) {
         (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
