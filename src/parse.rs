@@ -5,7 +5,7 @@ use std::{ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
 use nonempty::NonEmpty;
 
 use crate::{
-    arg::{wert::ArgEnum, Arg},
+    arg::{wert::ArgEnum, Argumente},
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Fehler, ParseFehler},
 };
@@ -15,7 +15,7 @@ pub use kommandozeilen_argumente_derive::Parse;
 
 /// Trait für Typen, die direkt mit dem derive-Macro für [Parse] verwendet werden können.
 pub trait ParseArgument: Sized {
-    /// Erstelle ein [Arg] mit den konfigurierten Eigenschaften.
+    /// Erstelle ein [Argumente] mit den konfigurierten Eigenschaften.
     ///
     /// `invertiere_präfix` ist für Flag-Argumente gedacht,
     /// `meta_var` für Wert-Argumente.
@@ -23,18 +23,18 @@ pub trait ParseArgument: Sized {
         beschreibung: Beschreibung<Self>,
         invertiere_präfix: &'static str,
         meta_var: &str,
-    ) -> Arg<Self, String>;
+    ) -> Argumente<Self, String>;
 
     /// Sollen Argumente dieses Typs normalerweise einen Standard-Wert haben?
     fn standard() -> Option<Self>;
 
-    /// Erstelle ein [Arg] für die übergebene [Beschreibung].
-    fn neu(beschreibung: Beschreibung<Self>) -> Arg<Self, String> {
+    /// Erstelle ein [Argumente] für die übergebene [Beschreibung].
+    fn neu(beschreibung: Beschreibung<Self>) -> Argumente<Self, String> {
         Self::erstelle_arg(beschreibung, "kein", "WERT")
     }
 
-    /// Create an [Arg] for the [Beschreibung].
-    fn new(beschreibung: Beschreibung<Self>) -> Arg<Self, String> {
+    /// Create an [Argumente] for the [Beschreibung].
+    fn new(beschreibung: Beschreibung<Self>) -> Argumente<Self, String> {
         Self::erstelle_arg(beschreibung, "no", "VALUE")
     }
 }
@@ -44,8 +44,8 @@ impl ParseArgument for bool {
         beschreibung: Beschreibung<Self>,
         invertiere_präfix: &'static str,
         _meta_var: &str,
-    ) -> Arg<Self, String> {
-        Arg::flag(beschreibung, invertiere_präfix)
+    ) -> Argumente<Self, String> {
+        Argumente::flag(beschreibung, invertiere_präfix)
     }
 
     fn standard() -> Option<Self> {
@@ -58,8 +58,8 @@ impl ParseArgument for String {
         beschreibung: Beschreibung<Self>,
         _invertiere_präfix: &'static str,
         meta_var: &str,
-    ) -> Arg<Self, String> {
-        Arg::wert_display(beschreibung, meta_var.to_owned(), None, |os_str| {
+    ) -> Argumente<Self, String> {
+        Argumente::wert_display(beschreibung, meta_var.to_owned(), None, |os_str| {
             if let Some(string) = os_str.to_str() {
                 Ok(string.to_owned())
             } else {
@@ -80,8 +80,8 @@ macro_rules! impl_parse_argument {
                 beschreibung: Beschreibung<Self>,
                 _invertiere_präfix: &'static str,
                 meta_var: &str,
-            ) -> Arg<Self, String> {
-                Arg::wert_display(beschreibung, meta_var.to_owned(), None, |os_str| {
+            ) -> Argumente<Self, String> {
+                Argumente::wert_display(beschreibung, meta_var.to_owned(), None, |os_str| {
                     if let Some(string) = os_str.to_str() {
                         string.parse().map_err(
                             |err: <$type as FromStr>::Err| ParseFehler::ParseFehler(err.to_string())
@@ -105,15 +105,15 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         beschreibung: Beschreibung<Self>,
         invertiere_präfix: &'static str,
         meta_var: &str,
-    ) -> Arg<Self, String> {
+    ) -> Argumente<Self, String> {
         let Beschreibung { lang, kurz, .. } = &beschreibung;
-        let Arg { parse, .. } = T::erstelle_arg(
+        let Argumente { parse, .. } = T::erstelle_arg(
             Beschreibung { lang: lang.clone(), kurz: kurz.clone(), hilfe: None, standard: None },
             invertiere_präfix,
             meta_var,
         );
         let name: OsString = format!("--{}", lang).into();
-        Arg::wert(
+        Argumente::wert(
             beschreibung,
             meta_var.to_owned(),
             None,
@@ -144,8 +144,8 @@ impl<T: 'static + ArgEnum + Display + Clone> ParseArgument for T {
         beschreibung: Beschreibung<Self>,
         _invertiere_präfix: &'static str,
         meta_var: &str,
-    ) -> Arg<Self, String> {
-        Arg::wert_enum_display(beschreibung, meta_var.to_owned())
+    ) -> Argumente<Self, String> {
+        Argumente::wert_enum_display(beschreibung, meta_var.to_owned())
     }
 
     fn standard() -> Option<Self> {
@@ -161,7 +161,7 @@ pub trait Parse: Sized {
     type Fehler;
 
     /// Erzeuge eine Beschreibung, wie Kommandozeilen-Argumente geparst werden sollen.
-    fn kommandozeilen_argumente() -> Arg<Self, Self::Fehler>;
+    fn kommandozeilen_argumente() -> Argumente<Self, Self::Fehler>;
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     fn parse(

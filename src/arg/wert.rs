@@ -10,7 +10,7 @@ use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    arg::{Arg, ArgString},
+    arg::{ArgString, Argumente},
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Fehler, ParseFehler},
 };
@@ -18,7 +18,7 @@ use crate::{
 #[cfg(feature = "derive")]
 pub use kommandozeilen_argumente_derive::ArgEnum;
 
-impl<T: 'static + Clone + Display, E: 'static + Clone> Arg<T, E> {
+impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
     #[inline(always)]
     pub fn wert_display(
@@ -26,12 +26,12 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Arg<T, E> {
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
-    ) -> Arg<T, E> {
-        Arg::wert(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
+    ) -> Argumente<T, E> {
+        Argumente::wert(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
     }
 }
 
-impl<T: 'static + Clone, E: 'static + Clone> Arg<T, E> {
+impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
     pub fn wert(
         beschreibung: Beschreibung<T>,
@@ -39,7 +39,7 @@ impl<T: 'static + Clone, E: 'static + Clone> Arg<T, E> {
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
         anzeige: impl Fn(&T) -> String,
-    ) -> Arg<T, E> {
+    ) -> Argumente<T, E> {
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
         let meta_var_clone = meta_var.clone();
@@ -49,7 +49,7 @@ impl<T: 'static + Clone, E: 'static + Clone> Arg<T, E> {
             kurz: name_kurz.clone(),
             meta_var: meta_var_clone.clone(),
         };
-        Arg {
+        Argumente {
             beschreibungen: vec![ArgString::Wert {
                 beschreibung,
                 meta_var,
@@ -146,26 +146,29 @@ pub trait ArgEnum: Sized {
     fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>>;
 }
 
-impl<T: 'static + Display + Clone + ArgEnum> Arg<T, OsString> {
+impl<T: 'static + Display + Clone + ArgEnum> Argumente<T, OsString> {
     /// Erzeuge ein Wert-Argument für ein [ArgEnum].
-    pub fn wert_enum_display(beschreibung: Beschreibung<T>, meta_var: String) -> Arg<T, String> {
-        Arg::wert_enum(beschreibung, meta_var, T::to_string)
+    pub fn wert_enum_display(
+        beschreibung: Beschreibung<T>,
+        meta_var: String,
+    ) -> Argumente<T, String> {
+        Argumente::wert_enum(beschreibung, meta_var, T::to_string)
     }
 }
 
-impl<T: 'static + Display + Clone + ArgEnum> Arg<T, OsString> {
+impl<T: 'static + Display + Clone + ArgEnum> Argumente<T, OsString> {
     /// Erzeuge ein Wert-Argument für ein [ArgEnum].
     pub fn wert_enum(
         beschreibung: Beschreibung<T>,
         meta_var: String,
         anzeige: impl Fn(&T) -> String,
-    ) -> Arg<T, String> {
+    ) -> Argumente<T, String> {
         let mögliche_werte = NonEmpty::from_vec(T::varianten());
-        Arg::wert(beschreibung, meta_var, mögliche_werte, T::parse_enum, anzeige)
+        Argumente::wert(beschreibung, meta_var, mögliche_werte, T::parse_enum, anzeige)
     }
 }
 
-impl<T> Arg<T, ParseFehler<T::Err>>
+impl<T> Argumente<T, ParseFehler<T::Err>>
 where
     T: 'static + Display + Clone + FromStr,
     T::Err: 'static + Clone,
@@ -175,8 +178,8 @@ where
         beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
-    ) -> Arg<T, T::Err> {
-        Arg::wert_display(beschreibung, meta_var, mögliche_werte, |os_str| {
+    ) -> Argumente<T, T::Err> {
+        Argumente::wert_display(beschreibung, meta_var, mögliche_werte, |os_str| {
             os_str
                 .to_str()
                 .ok_or_else(|| ParseFehler::InvaliderString(os_str.to_owned()))

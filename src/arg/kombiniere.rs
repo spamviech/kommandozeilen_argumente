@@ -1,23 +1,23 @@
-//! Kombiniere mehrere [Arg] zu einem neuen, basierend auf einer Funktion.
+//! Kombiniere mehrere [Argumente] zu einem neuen, basierend auf einer Funktion.
 
 use nonempty::NonEmpty;
 
-use crate::{arg::Arg, ergebnis::Ergebnis};
+use crate::{arg::Argumente, ergebnis::Ergebnis};
 
 #[macro_export]
 /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
 macro_rules! kombiniere {
     ($funktion: expr => ) => {
-        Arg::konstant($funktion)
+        Argumente::konstant($funktion)
     };
     ($funktion: expr => $a: ident $(,)?) => {
-        Arg::konvertiere($funktion, $a)
+        Argumente::konvertiere($funktion, $a)
     };
     ($funktion: expr => $a: ident, $b:ident $(,)?) => {
-        Arg::kombiniere2($funktion, $a, $b)
+        Argumente::kombiniere2($funktion, $a, $b)
     };
     ($funktion: expr => $a: ident, $b:ident, $($args: ident),+ $(,)?) => {{
-        let tuple_arg = Arg::kombiniere2(|a,b| (a,b), $a, $b);
+        let tuple_arg = Argumente::kombiniere2(|a,b| (a,b), $a, $b);
         let uncurry_first_two = move |(a,b), $($args),+| $funktion(a, b, $($args),+);
         $crate::kombiniere!(uncurry_first_two => tuple_arg, $($args),+)
     }};
@@ -29,18 +29,18 @@ macro_rules! impl_kombiniere_n {
         /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
         pub fn $name<$($ty_var: 'static),*>(
             f: impl 'static + Fn($($ty_var),*) -> T,
-            $($var: Arg<$ty_var, Error>),*
-        ) -> Arg<T, Error> {
+            $($var: Argumente<$ty_var, Error>),*
+        ) -> Argumente<T, Error> {
             kombiniere!(f=>$($var),*)
         }
 
     };
 }
 
-impl<T, Error: 'static> Arg<T, Error> {
+impl<T, Error: 'static> Argumente<T, Error> {
     /// Parse keine Kommandozeilen-Argumente und erzeuge das Ergebnis mit der übergebenen Funktion.
-    pub fn konstant(f: impl 'static + Fn() -> T) -> Arg<T, Error> {
-        Arg {
+    pub fn konstant(f: impl 'static + Fn() -> T) -> Argumente<T, Error> {
+        Argumente {
             beschreibungen: Vec::new(),
             flag_kurzformen: Vec::new(),
             parse: Box::new(move |args| (Ergebnis::Wert(f()), args)),
@@ -50,9 +50,9 @@ impl<T, Error: 'static> Arg<T, Error> {
     /// Parse Kommandozeilen-Argumente und konvertiere das Ergebnis mit der übergebenen Funktion.
     pub fn konvertiere<A: 'static>(
         f: impl 'static + Fn(A) -> T,
-        Arg { beschreibungen, flag_kurzformen, parse }: Arg<A, Error>,
-    ) -> Arg<T, Error> {
-        Arg {
+        Argumente { beschreibungen, flag_kurzformen, parse }: Argumente<A, Error>,
+    ) -> Argumente<T, Error> {
+        Argumente {
             beschreibungen,
             flag_kurzformen,
             parse: Box::new(move |args| {
@@ -70,14 +70,14 @@ impl<T, Error: 'static> Arg<T, Error> {
     /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
     pub fn kombiniere2<A: 'static, B: 'static>(
         f: impl 'static + Fn(A, B) -> T,
-        a: Arg<A, Error>,
-        b: Arg<B, Error>,
-    ) -> Arg<T, Error> {
+        a: Argumente<A, Error>,
+        b: Argumente<B, Error>,
+    ) -> Argumente<T, Error> {
         let mut beschreibungen = a.beschreibungen;
         beschreibungen.extend(b.beschreibungen);
         let mut flag_kurzformen = a.flag_kurzformen;
         flag_kurzformen.extend(b.flag_kurzformen);
-        Arg {
+        Argumente {
             beschreibungen,
             flag_kurzformen,
             parse: Box::new(move |args| {

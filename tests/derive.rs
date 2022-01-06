@@ -2,7 +2,7 @@
 
 use std::{ffi::OsString, fmt::Display, iter, process};
 
-use kommandozeilen_argumente::{Arg, ArgEnum, Ergebnis, Parse};
+use kommandozeilen_argumente::{ArgEnum, Argumente, Ergebnis, Parse};
 
 #[allow(unused_imports)]
 // Derive-Macro kommt mit integration test nicht zurecht, daher muss crate::kombiniere existieren.

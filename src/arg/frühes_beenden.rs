@@ -13,15 +13,15 @@ use unicode_segmentation::UnicodeSegmentation;
 use void::Void;
 
 use crate::{
-    arg::{Arg, ArgString},
+    arg::{ArgString, Argumente},
     beschreibung::Beschreibung,
     ergebnis::Ergebnis,
 };
 
-impl<T: 'static, E: 'static> Arg<T, E> {
+impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Erzeuge eine `--version`-Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei die konfigurierte Programm-Version.
-    pub fn version_deutsch(self, programm_name: &str, version: &str) -> Arg<T, E> {
+    pub fn version_deutsch(self, programm_name: &str, version: &str) -> Argumente<T, E> {
         let beschreibung = Beschreibung {
             lang: "version".to_owned(),
             kurz: Some("v".to_owned()),
@@ -33,7 +33,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
 
     /// Create a `--version` flag, causing an early exit.
     /// Shows the configured program version.
-    pub fn version_english(self, program_name: &str, version: &str) -> Arg<T, E> {
+    pub fn version_english(self, program_name: &str, version: &str) -> Argumente<T, E> {
         let beschreibung = Beschreibung {
             lang: "version".to_owned(),
             kurz: Some("v".to_owned()),
@@ -50,13 +50,13 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         beschreibung: Beschreibung<Void>,
         programm_name: &str,
         version: &str,
-    ) -> Arg<T, E> {
+    ) -> Argumente<T, E> {
         self.frühes_beenden(beschreibung, format!("{} {}", programm_name, version))
     }
 
     /// Erzeuge eine `--hilfe`-Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei eine automatisch generierte Hilfe.
-    pub fn hilfe(self, programm_name: &str, version: Option<&str>) -> Arg<T, E> {
+    pub fn hilfe(self, programm_name: &str, version: Option<&str>) -> Argumente<T, E> {
         let beschreibung = Beschreibung {
             lang: "hilfe".to_owned(),
             kurz: Some("h".to_owned()),
@@ -75,13 +75,13 @@ impl<T: 'static, E: 'static> Arg<T, E> {
 
     /// Erzeuge `--version`- und `--hilfe`-Flags, die zu vorzeitigem Beenden führen.
     /// Wie [version_deutsch] und [hilfe] mit synchronisiertem Programmnamen.
-    pub fn hilfe_und_version(self, programm_name: &str, version: &str) -> Arg<T, E> {
+    pub fn hilfe_und_version(self, programm_name: &str, version: &str) -> Argumente<T, E> {
         self.version_deutsch(programm_name, version).hilfe(programm_name, Some(version))
     }
 
     /// Create a `--help` flag, causing an early exit.
     /// Shows an automatically created help text.
-    pub fn help(self, program_name: &str, version: Option<&str>) -> Arg<T, E> {
+    pub fn help(self, program_name: &str, version: Option<&str>) -> Argumente<T, E> {
         let beschreibung = Beschreibung {
             lang: "help".to_owned(),
             kurz: Some("h".to_owned()),
@@ -100,7 +100,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
 
     /// Create `--version` and `--help` flags causing an early exit.
     /// Similar to using [version_english] and [help] with a synchronised program name.
-    pub fn help_and_version(self, program_name: &str, version: &str) -> Arg<T, E> {
+    pub fn help_and_version(self, program_name: &str, version: &str) -> Argumente<T, E> {
         self.version_english(program_name, version).help(program_name, Some(version))
     }
 
@@ -114,7 +114,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         optionen: &str,
         standard: &str,
         erlaubte_werte: &str,
-    ) -> Arg<T, E> {
+    ) -> Argumente<T, E> {
         let hilfe_text = self.erstelle_hilfe_text_intern(
             Some(&eigene_beschreibung),
             programm_name,
@@ -330,8 +330,12 @@ impl<T: 'static, E: 'static> Arg<T, E> {
 
     /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei die übergebene Nachricht an.
-    pub fn frühes_beenden(self, beschreibung: Beschreibung<Void>, nachricht: String) -> Arg<T, E> {
-        let Arg { mut beschreibungen, mut flag_kurzformen, parse } = self;
+    pub fn frühes_beenden(
+        self,
+        beschreibung: Beschreibung<Void>,
+        nachricht: String,
+    ) -> Argumente<T, E> {
+        let Argumente { mut beschreibungen, mut flag_kurzformen, parse } = self;
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
         let (beschreibung, _standard) = beschreibung.als_string_beschreibung();
@@ -339,7 +343,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             flag_kurzformen.push(kurz.clone())
         }
         beschreibungen.push(ArgString::Flag { beschreibung, invertiere_präfix: None });
-        Arg {
+        Argumente {
             beschreibungen,
             flag_kurzformen,
             parse: Box::new(move |args| {

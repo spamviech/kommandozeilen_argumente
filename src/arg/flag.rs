@@ -7,41 +7,42 @@ use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    arg::{Arg, ArgString},
+    arg::{ArgString, Argumente},
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Fehler},
 };
 
-impl<E> Arg<bool, E> {
+impl<E> Argumente<bool, E> {
     #[inline(always)]
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
-    pub fn flag_deutsch(beschreibung: Beschreibung<bool>) -> Arg<bool, E> {
-        Arg::flag(beschreibung, "kein")
+    pub fn flag_deutsch(beschreibung: Beschreibung<bool>) -> Argumente<bool, E> {
+        Argumente::flag(beschreibung, "kein")
     }
 
     #[inline(always)]
     /// Create a flag-argument which can be deactivated with a "no" prefix.
-    pub fn flag_english(beschreibung: Beschreibung<bool>) -> Arg<bool, E> {
-        Arg::flag(beschreibung, "no")
+    pub fn flag_english(beschreibung: Beschreibung<bool>) -> Argumente<bool, E> {
+        Argumente::flag(beschreibung, "no")
     }
 
     #[inline(always)]
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
     pub fn flag(
-        beschreibung: Beschreibung<bool>, invertiere_präfix: &'static str
-    ) -> Arg<bool, E> {
-        Arg::flag_allgemein(beschreibung, identity, invertiere_präfix)
+        beschreibung: Beschreibung<bool>,
+        invertiere_präfix: &'static str,
+    ) -> Argumente<bool, E> {
+        Argumente::flag_allgemein(beschreibung, identity, invertiere_präfix)
     }
 }
 
-impl<T: 'static + Display + Clone, E> Arg<T, E> {
+impl<T: 'static + Display + Clone, E> Argumente<T, E> {
     #[inline(always)]
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
     pub fn flag_deutsch_allgemein(
         beschreibung: Beschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
-    ) -> Arg<T, E> {
-        Arg::flag_allgemein(beschreibung, konvertiere, "kein")
+    ) -> Argumente<T, E> {
+        Argumente::flag_allgemein(beschreibung, konvertiere, "kein")
     }
 
     #[inline(always)]
@@ -49,8 +50,8 @@ impl<T: 'static + Display + Clone, E> Arg<T, E> {
     pub fn flag_english_general(
         beschreibung: Beschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
-    ) -> Arg<T, E> {
-        Arg::flag_allgemein(beschreibung, konvertiere, "no")
+    ) -> Argumente<T, E> {
+        Argumente::flag_allgemein(beschreibung, konvertiere, "no")
     }
 
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
@@ -58,12 +59,12 @@ impl<T: 'static + Display + Clone, E> Arg<T, E> {
         beschreibung: Beschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
         invertiere_präfix: &'static str,
-    ) -> Arg<T, E> {
+    ) -> Argumente<T, E> {
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
         let invertiere_präfix_minus = format!("{}-", invertiere_präfix);
         let (beschreibung, standard) = beschreibung.als_string_beschreibung();
-        Arg {
+        Argumente {
             beschreibungen: vec![ArgString::Flag {
                 beschreibung,
                 invertiere_präfix: Some(invertiere_präfix.to_owned()),

@@ -319,7 +319,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         impl #crate_name::Parse for #item_ty {
             type Fehler = String;
 
-            fn kommandozeilen_argumente() -> #crate_name::Arg<Self, Self::Fehler> {
+            fn kommandozeilen_argumente() -> #crate_name::Argumente<Self, Self::Fehler> {
                 #nach_hilfe
             }
         }

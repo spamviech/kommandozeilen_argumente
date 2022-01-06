@@ -43,7 +43,7 @@ pub mod ergebnis;
 pub mod parse;
 
 pub use self::{
-    arg::{wert::ArgEnum, Arg},
+    arg::{wert::ArgEnum, Argumente},
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Fehler, ParseFehler},
     parse::{Parse, ParseArgument},

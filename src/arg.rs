@@ -43,15 +43,15 @@ pub(crate) enum ArgString {
 // TODO case sensitive Argumente/alles case sensitive
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
-pub struct Arg<T, E> {
+pub struct Argumente<T, E> {
     pub(crate) beschreibungen: Vec<ArgString>,
     pub(crate) flag_kurzformen: Vec<String>,
     pub(crate) parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (Ergebnis<T, E>, Vec<Option<&OsStr>>)>,
 }
 
-impl<T, E> Debug for Arg<T, E> {
+impl<T, E> Debug for Argumente<T, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Arg")
+        f.debug_struct("Argumente")
             .field("beschreibungen", &self.beschreibungen)
             .field("parse", &"<function>")
             .finish()
@@ -63,7 +63,7 @@ fn args_aus_env() -> impl Iterator<Item = OsString> {
     env::args_os().skip(1)
 }
 
-impl<T, E: Display> Arg<T, E> {
+impl<T, E: Display> Argumente<T, E> {
     /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
@@ -204,11 +204,11 @@ impl<T, E: Display> Arg<T, E> {
     }
 }
 
-impl<T, E> Arg<T, E> {
+impl<T, E> Argumente<T, E> {
     /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
     #[inline(always)]
     pub fn parse_aus_env(&self) -> (Ergebnis<T, E>, Vec<OsString>) {
-        Arg::parse(&self, args_aus_env())
+        Argumente::parse(&self, args_aus_env())
     }
 
     /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
@@ -246,7 +246,7 @@ impl<T, E> Arg<T, E> {
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     pub fn parse(&self, args: impl Iterator<Item = OsString>) -> (Ergebnis<T, E>, Vec<OsString>) {
-        let Arg { beschreibungen: _, flag_kurzformen, parse } = self;
+        let Argumente { beschreibungen: _, flag_kurzformen, parse } = self;
         let angepasste_args: Vec<OsString> = args
             .flat_map(|arg| {
                 if let Some(string) = arg.to_str() {
