@@ -25,7 +25,7 @@ pub enum ParseFehler<E> {
         /// Kurzform des Namen.
         kurz: Option<String>,
         /// Präfix zum invertieren.
-        invertiere_prefix: String,
+        invertiere_präfix: String,
     },
     /// Ein benötigtes Wert-Argument wurde nicht genannt.
     FehlenderWert {
@@ -54,8 +54,8 @@ impl ParseFehler<OsString> {
     /// Dadurch kann der [ParseFehler] über [fehlermeldung] und [error_message] angezeigt werden.
     pub fn als_string(self) -> Result<ParseFehler<String>, ParseFehler<OsString>> {
         match self {
-            ParseFehler::FehlendeFlag { lang, kurz, invertiere_prefix } => {
-                Ok(ParseFehler::FehlendeFlag { lang, kurz, invertiere_prefix })
+            ParseFehler::FehlendeFlag { lang, kurz, invertiere_präfix } => {
+                Ok(ParseFehler::FehlendeFlag { lang, kurz, invertiere_präfix })
             }
             ParseFehler::FehlenderWert { lang, kurz, meta_var } => {
                 Ok(ParseFehler::FehlenderWert { lang, kurz, meta_var })
@@ -91,9 +91,9 @@ impl<E: Display> ParseFehler<E> {
         parse_fehler: &str,
     ) -> String {
         match self {
-            ParseFehler::FehlendeFlag { lang, kurz, invertiere_prefix } => {
+            ParseFehler::FehlendeFlag { lang, kurz, invertiere_präfix } => {
                 let mut fehlermeldung =
-                    format!("{}: --[{}-]{}", fehlende_flag, invertiere_prefix, lang);
+                    format!("{}: --[{}-]{}", fehlende_flag, invertiere_präfix, lang);
                 if let Some(kurz) = kurz {
                     fehlermeldung.push_str(" | -");
                     fehlermeldung.push_str(kurz);

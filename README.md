@@ -40,4 +40,4 @@ Vor Feldern
 - `kurz = "<wert>"`/`short = "<value>"`: Verwende die spezifizierte Kurzform
 - `standard(<wert>)` | `default(<value>)`: setzte den Standard-Wert
 - `meta_var(<string>)`: setzte die in der Hilfe angezeigt Meta-Variable
-- `invertiere_prefix(<string>)` | `invert_prefix(<string>)`: setze Präfix zum invertieren einer Flag
+- `invertiere_präfix(<string>)` | `invert_prefix(<string>)`: setze Präfix zum invertieren einer Flag

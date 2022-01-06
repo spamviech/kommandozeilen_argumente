@@ -22,11 +22,11 @@ pub use kommandozeilen_argumente_derive::Parse;
 pub trait ArgumentArt: Sized {
     /// Erstelle ein [Arg] mit den konfigurierten Eigenschaften.
     ///
-    /// `invertiere_prefix` ist für Flag-Argumente gedacht,
+    /// `invertiere_präfix` ist für Flag-Argumente gedacht,
     /// `meta_var` für Wert-Argumente.
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
-        invertiere_prefix: &'static str,
+        invertiere_präfix: &'static str,
         meta_var: &str,
     ) -> Arg<Self, OsString>;
 
@@ -38,10 +38,10 @@ pub trait ArgumentArt: Sized {
 impl ArgumentArt for bool {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
-        invertiere_prefix: &'static str,
+        invertiere_präfix: &'static str,
         _meta_var: &str,
     ) -> Arg<Self, OsString> {
-        Arg::flag(beschreibung, invertiere_prefix)
+        Arg::flag(beschreibung, invertiere_präfix)
     }
 
     fn standard() -> Option<Self> {
@@ -53,7 +53,7 @@ impl ArgumentArt for bool {
 impl ArgumentArt for String {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
-        _invertiere_prefix: &'static str,
+        _invertiere_präfix: &'static str,
         meta_var: &str,
     ) -> Arg<Self, OsString> {
         Arg::wert(beschreibung, meta_var.to_owned(), None, |os_str| {
@@ -76,7 +76,7 @@ macro_rules! impl_parse_types {
         impl ArgumentArt for $type {
             fn erstelle_arg(
                 beschreibung: Beschreibung<Self>,
-                _invertiere_prefix: &'static str,
+                _invertiere_präfix: &'static str,
                 meta_var: &str,
             ) -> Arg<Self, OsString> {
                 Arg::wert(beschreibung, meta_var.to_owned(), None, |os_str| {
@@ -100,13 +100,13 @@ impl_parse_types! {i8,u8,i16,u16,i32,u32,i64,u64,i128,u128,isize,usize,f32,f64}
 impl<T: 'static + ArgumentArt + Clone + Display> ArgumentArt for Option<T> {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
-        invertiere_prefix: &'static str,
+        invertiere_präfix: &'static str,
         meta_var: &str,
     ) -> Arg<Self, OsString> {
         let Beschreibung { lang, kurz, .. } = &beschreibung;
         let Arg { parse, .. } = T::erstelle_arg(
             Beschreibung { lang: lang.clone(), kurz: kurz.clone(), hilfe: None, standard: None },
-            invertiere_prefix,
+            invertiere_präfix,
             meta_var,
         );
         let name: OsString = format!("--{}", lang).into();
@@ -140,7 +140,7 @@ impl<T: 'static + ArgumentArt + Clone + Display> ArgumentArt for Option<T> {
 impl<T: 'static + ArgEnum + Display + Clone> ArgumentArt for T {
     fn erstelle_arg(
         beschreibung: Beschreibung<Self>,
-        _invertiere_prefix: &'static str,
+        _invertiere_präfix: &'static str,
         meta_var: &str,
     ) -> Arg<Self, OsString> {
         Arg::wert_enum(beschreibung, meta_var.to_owned())

@@ -26,7 +26,7 @@ pub mod wert;
 pub(crate) enum ArgString {
     Flag {
         beschreibung: Beschreibung<String>,
-        invertiere_prefix: Option<String>,
+        invertiere_präfix: Option<String>,
     },
     Wert {
         beschreibung: Beschreibung<String>,

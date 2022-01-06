@@ -27,8 +27,10 @@ impl<E> Arg<bool, E> {
 
     #[inline(always)]
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
-    pub fn flag(beschreibung: Beschreibung<bool>, invertiere_prefix: &'static str) -> Arg<bool, E> {
-        Arg::flag_allgemein(beschreibung, identity, invertiere_prefix)
+    pub fn flag(
+        beschreibung: Beschreibung<bool>, invertiere_präfix: &'static str
+    ) -> Arg<bool, E> {
+        Arg::flag_allgemein(beschreibung, identity, invertiere_präfix)
     }
 }
 
@@ -55,16 +57,16 @@ impl<T: 'static + Display + Clone, E> Arg<T, E> {
     pub fn flag_allgemein(
         beschreibung: Beschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
-        invertiere_prefix: &'static str,
+        invertiere_präfix: &'static str,
     ) -> Arg<T, E> {
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
-        let invertiere_prefix_minus = format!("{}-", invertiere_prefix);
+        let invertiere_präfix_minus = format!("{}-", invertiere_präfix);
         let (beschreibung, standard) = beschreibung.als_string_beschreibung();
         Arg {
             beschreibungen: vec![ArgString::Flag {
                 beschreibung,
-                invertiere_prefix: Some(invertiere_prefix.to_owned()),
+                invertiere_präfix: Some(invertiere_präfix.to_owned()),
             }],
             flag_kurzformen: name_kurz.iter().cloned().collect(),
             parse: Box::new(move |args| {
@@ -80,7 +82,7 @@ impl<T: 'static + Display + Clone, E> Arg<T, E> {
                                 nicht_verwendet.push(None);
                                 continue;
                             } else if let Some(negiert) =
-                                lang.strip_prefix(&invertiere_prefix_minus)
+                                lang.strip_prefix(&invertiere_präfix_minus)
                             {
                                 if negiert == name_lang {
                                     ergebnis = Some(konvertiere(false));
@@ -108,7 +110,7 @@ impl<T: 'static + Display + Clone, E> Arg<T, E> {
                     let fehler = ParseFehler::FehlendeFlag {
                         lang: name_lang.clone(),
                         kurz: name_kurz.clone(),
-                        invertiere_prefix: invertiere_prefix.to_owned(),
+                        invertiere_präfix: invertiere_präfix.to_owned(),
                     };
                     ParseErgebnis::Fehler(NonEmpty::singleton(fehler))
                 };

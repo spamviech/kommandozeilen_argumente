@@ -119,7 +119,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     let mut erstelle_hilfe: Option<fn(TokenStream2, usize) -> TokenStream2> = None;
     let mut name_regex_breite: usize = 40;
     let mut sprache = Deutsch;
-    let mut invertiere_prefix = None;
+    let mut invertiere_präfix = None;
     let mut meta_var = None;
     for arg in args {
         match arg.as_str() {
@@ -175,8 +175,8 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                         compile_error_return!("Argument nicht unterstützt: {}", arg);
                     }
                 }
-                Some(("invertiere_prefix" | "invert_prefix", wert_string)) => {
-                    invertiere_prefix = Some(wert_string.to_owned());
+                Some(("invertiere_präfix" | "invert_prefix", wert_string)) => {
+                    invertiere_präfix = Some(wert_string.to_owned());
                 }
                 Some(("meta_var", wert_string)) => meta_var = Some(wert_string.to_owned()),
                 _ => compile_error_return!("Argument nicht unterstützt: {}", arg),
@@ -184,7 +184,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         }
     }
     let crate_name = unwrap_result_or_compile_error!(base_name());
-    let invertiere_prefix = invertiere_prefix.unwrap_or(match sprache {
+    let invertiere_präfix = invertiere_präfix.unwrap_or(match sprache {
         Deutsch => "kein".to_owned(),
         Englisch => "no".to_owned(),
     });
@@ -204,7 +204,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         let mut kurz = quote!(None);
         let mut standard = quote!(#crate_name::parse::ArgumentArt::standard());
         let mut glätten = false;
-        let mut field_invertiere_prefix = quote!(#invertiere_prefix);
+        let mut field_invertiere_präfix = quote!(#invertiere_präfix);
         let mut field_meta_var = quote!(#meta_var);
         for attr in attrs {
             match attr.parse_meta() {
@@ -261,11 +261,11 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                                                 field_meta_var = quote!(#nested_meta)
                                             }
                                         }
-                                        "invertiere_prefix" | "invert_prefix"
+                                        "invertiere_präfix" | "invert_prefix"
                                             if nested.len() == 1 =>
                                         {
                                             if let Some(nested_meta) = nested.first() {
-                                                field_invertiere_prefix = quote!(#nested_meta)
+                                                field_invertiere_präfix = quote!(#nested_meta)
                                             }
                                         }
                                         _ => {
@@ -349,7 +349,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                 };
                 #crate_name::parse::ArgumentArt::erstelle_arg(
                     beschreibung,
-                    #field_invertiere_prefix,
+                    #field_invertiere_präfix,
                     #field_meta_var
                 )
             })

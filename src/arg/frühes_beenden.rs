@@ -162,7 +162,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         let mut hilfe_text = format!("{}\n\n{} [{}]\n\n{}:\n", name, exe_name, optionen, optionen);
         let eigener_arg_string = ArgString::Flag {
             beschreibung: eigene_beschreibung.clone().als_string_beschreibung().0,
-            invertiere_prefix: None,
+            invertiere_präfix: None,
         };
         fn hilfe_zeile(
             standard: &str,
@@ -170,14 +170,14 @@ impl<T: 'static, E: 'static> Arg<T, E> {
             name_regex_breite: usize,
             hilfe_text: &mut String,
             beschreibung: &Beschreibung<String>,
-            invertiere_prefix_oder_meta_var: Either<&Option<String>, &String>,
+            invertiere_präfix_oder_meta_var: Either<&Option<String>, &String>,
             mögliche_werte: &Option<NonEmpty<String>>,
         ) {
             let mut name_regex = String::new();
             if let Some(kurz) = &beschreibung.kurz {
                 name_regex.push_str("-");
                 name_regex.push_str(kurz);
-                if let Either::Right(meta_var) = invertiere_prefix_oder_meta_var {
+                if let Either::Right(meta_var) = invertiere_präfix_oder_meta_var {
                     name_regex.push_str("[=| ]");
                     name_regex.push_str(meta_var);
                 }
@@ -186,11 +186,11 @@ impl<T: 'static, E: 'static> Arg<T, E> {
                 name_regex.push_str("    ");
             }
             name_regex.push_str(" --");
-            match invertiere_prefix_oder_meta_var {
-                Either::Left(invertiere_prefix) => {
-                    if let Some(prefix) = invertiere_prefix {
+            match invertiere_präfix_oder_meta_var {
+                Either::Left(invertiere_präfix) => {
+                    if let Some(präfix) = invertiere_präfix {
                         name_regex.push('[');
-                        name_regex.push_str(prefix);
+                        name_regex.push_str(präfix);
                         name_regex.push_str("]-");
                     }
                     name_regex.push_str(&beschreibung.lang);
@@ -243,14 +243,14 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         }
         for beschreibung in self.beschreibungen.iter().chain(iter::once(&eigener_arg_string)) {
             match beschreibung {
-                ArgString::Flag { beschreibung, invertiere_prefix } => {
+                ArgString::Flag { beschreibung, invertiere_präfix } => {
                     hilfe_zeile(
                         standard,
                         erlaubte_werte,
                         name_regex_breite,
                         &mut hilfe_text,
                         beschreibung,
-                        Either::Left(invertiere_prefix),
+                        Either::Left(invertiere_präfix),
                         &None,
                     );
                 }
@@ -280,7 +280,7 @@ impl<T: 'static, E: 'static> Arg<T, E> {
         if let Some(kurz) = &beschreibung.kurz {
             flag_kurzformen.push(kurz.clone())
         }
-        beschreibungen.push(ArgString::Flag { beschreibung, invertiere_prefix: None });
+        beschreibungen.push(ArgString::Flag { beschreibung, invertiere_präfix: None });
         Arg {
             beschreibungen,
             flag_kurzformen,
