@@ -21,19 +21,19 @@ pub use kommandozeilen_argumente_derive::ArgEnum;
 impl<T: 'static + Clone + Display, E: 'static + Clone> Arg<T, E> {
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
     #[inline(always)]
-    pub fn wert(
+    pub fn wert_display(
         beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, E>,
     ) -> Arg<T, E> {
-        Arg::wert_allgemein(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
+        Arg::wert(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
     }
 }
 
 impl<T: 'static + Clone, E: 'static + Clone> Arg<T, E> {
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
-    pub fn wert_allgemein(
+    pub fn wert(
         beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
@@ -151,7 +151,7 @@ impl<T: 'static + Display + Clone + ArgEnum> Arg<T, OsString> {
     /// Erzeuge ein Wert-Argument für ein [ArgEnum].
     pub fn wert_enum(beschreibung: Beschreibung<T>, meta_var: String) -> Arg<T, OsString> {
         let mögliche_werte = NonEmpty::from_vec(T::varianten());
-        Arg::wert(beschreibung, meta_var, mögliche_werte, T::parse_enum)
+        Arg::wert_display(beschreibung, meta_var, mögliche_werte, T::parse_enum)
     }
 }
 
@@ -175,7 +175,7 @@ where
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
     ) -> Arg<T, FromStrFehler<T::Err>> {
-        Arg::wert(beschreibung, meta_var, mögliche_werte, |os_str| {
+        Arg::wert_display(beschreibung, meta_var, mögliche_werte, |os_str| {
             os_str
                 .to_str()
                 .ok_or_else(|| FromStrFehler::InvaliderString(os_str.to_owned()))

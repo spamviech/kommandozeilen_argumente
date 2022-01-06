@@ -59,7 +59,7 @@ impl ParseArgument for String {
         _invertiere_präfix: &'static str,
         meta_var: &str,
     ) -> Arg<Self, OsString> {
-        Arg::wert(beschreibung, meta_var.to_owned(), None, |os_str| {
+        Arg::wert_display(beschreibung, meta_var.to_owned(), None, |os_str| {
             if let Some(string) = os_str.to_str() {
                 Ok(string.to_owned())
             } else {
@@ -81,7 +81,7 @@ macro_rules! impl_parse_argument {
                 _invertiere_präfix: &'static str,
                 meta_var: &str,
             ) -> Arg<Self, OsString> {
-                Arg::wert(beschreibung, meta_var.to_owned(), None, |os_str| {
+                Arg::wert_display(beschreibung, meta_var.to_owned(), None, |os_str| {
                     if let Some(u) = os_str.to_str().and_then(|s| s.parse().ok()) {
                         Ok(u)
                     } else {
@@ -111,7 +111,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
             meta_var,
         );
         let name: OsString = format!("--{}", lang).into();
-        Arg::wert_allgemein(
+        Arg::wert(
             beschreibung,
             meta_var.to_owned(),
             None,
