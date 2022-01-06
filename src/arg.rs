@@ -41,16 +41,11 @@ pub enum ArgString {
 // TODO case sensitive Argumente/alles case sensitive
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
-///
-/// Felder sind public, damit das [kombiniere]-Macro funktioniert, ein Verwenden ist nicht vorgesehen.
-/// Stattdessen werden die jeweiligen Methoden [flag], [wert], [frühes_beenden], [parse], etc. empfohlen.
 pub struct Arg<T, E> {
-    #[allow(missing_docs)]
-    pub beschreibungen: Vec<ArgString>,
-    #[allow(missing_docs)]
-    pub flag_kurzformen: Vec<String>,
-    #[allow(missing_docs)]
-    pub parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (ParseErgebnis<T, E>, Vec<Option<&OsStr>>)>,
+    pub(crate) beschreibungen: Vec<ArgString>,
+    pub(crate) flag_kurzformen: Vec<String>,
+    pub(crate) parse:
+        Box<dyn Fn(Vec<Option<&OsStr>>) -> (ParseErgebnis<T, E>, Vec<Option<&OsStr>>)>,
 }
 
 impl<T, E> Debug for Arg<T, E> {

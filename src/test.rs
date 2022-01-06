@@ -4,7 +4,7 @@ use std::{ffi::OsString, fmt::Display, iter, process};
 
 use void::Void;
 
-use crate::*;
+use crate::{Arg, ArgEnum, Beschreibung, Parse, ParseErgebnis};
 
 #[test]
 fn hilfe_test() {
@@ -69,6 +69,10 @@ struct Test {
     #[kommandozeilen_argumente(standard(true))]
     flag: bool,
 }
+
+#[derive(Debug, PartialEq, Eq, Parse)]
+#[kommandozeilen_argumente(english)]
+struct Empty {}
 
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(english)]
