@@ -1,10 +1,10 @@
 //! Tests zur automatisch erzeugen Hilfe.
 
-use std::{ffi::OsString, fmt::Display, iter, process};
+use std::{ffi::OsString, iter, process};
 
 use void::Void;
 
-use kommandozeilen_argumente::{Arg, ArgEnum, Beschreibung, Parse, Ergebnis};
+use kommandozeilen_argumente::{Arg, Beschreibung, Ergebnis};
 
 #[allow(unused_imports)]
 // Derive-Macro kommt mit integration test nicht zurecht, daher muss crate::kombiniere existieren.
