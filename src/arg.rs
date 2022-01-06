@@ -13,7 +13,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     beschreibung::Beschreibung,
-    ergebnis::{ParseErgebnis, ParseFehler},
+    ergebnis::{Ergebnis, Fehler},
 };
 
 pub mod flag;
@@ -46,8 +46,7 @@ pub(crate) enum ArgString {
 pub struct Arg<T, E> {
     pub(crate) beschreibungen: Vec<ArgString>,
     pub(crate) flag_kurzformen: Vec<String>,
-    pub(crate) parse:
-        Box<dyn Fn(Vec<Option<&OsStr>>) -> (ParseErgebnis<T, E>, Vec<Option<&OsStr>>)>,
+    pub(crate) parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (Ergebnis<T, E>, Vec<Option<&OsStr>>)>,
 }
 
 impl<T, E> Debug for Arg<T, E> {
@@ -99,6 +98,7 @@ impl<T, E: Display> Arg<T, E> {
         fehlende_flag: &str,
         fehlender_wert: &str,
         parse_fehler: &str,
+        invalider_string: &str,
         arg_nicht_verwendet: &str,
     ) -> T {
         self.parse_vollständig(
@@ -107,6 +107,7 @@ impl<T, E: Display> Arg<T, E> {
             fehlende_flag,
             fehlender_wert,
             parse_fehler,
+            invalider_string,
             arg_nicht_verwendet,
         )
     }
@@ -129,6 +130,7 @@ impl<T, E: Display> Arg<T, E> {
             "Fehlende Flag",
             "Fehlender Wert",
             "Parse-Fehler",
+            "Invalider String",
             "Nicht alle Argumente verwendet",
         )
     }
@@ -150,6 +152,7 @@ impl<T, E: Display> Arg<T, E> {
             "Missing Flag",
             "Missing Value",
             "Parse Error",
+            "Invalid String",
             "Unused arguments",
         )
     }
@@ -167,26 +170,32 @@ impl<T, E: Display> Arg<T, E> {
         fehlende_flag: &str,
         fehlender_wert: &str,
         parse_fehler: &str,
+        invalider_string: &str,
         arg_nicht_verwendet: &str,
     ) -> T {
         let (ergebnis, nicht_verwendet) = self.parse(args);
         match ergebnis {
-            ParseErgebnis::Wert(wert) if nicht_verwendet.is_empty() => wert,
-            ParseErgebnis::Wert(_wert) => {
+            Ergebnis::Wert(wert) if nicht_verwendet.is_empty() => wert,
+            Ergebnis::Wert(_wert) => {
                 eprintln!("{}: {:?}", arg_nicht_verwendet, nicht_verwendet);
                 process::exit(fehler_code.get())
             }
-            ParseErgebnis::FrühesBeenden(nachrichten) => {
+            Ergebnis::FrühesBeenden(nachrichten) => {
                 for nachricht in nachrichten {
                     println!("{}", nachricht);
                 }
                 process::exit(0)
             }
-            ParseErgebnis::Fehler(fehler_sammlung) => {
+            Ergebnis::Fehler(fehler_sammlung) => {
                 for fehler in fehler_sammlung {
                     eprintln!(
                         "{}",
-                        fehler.erstelle_fehlermeldung(fehlende_flag, fehlender_wert, parse_fehler)
+                        fehler.erstelle_fehlermeldung(
+                            fehlende_flag,
+                            fehlender_wert,
+                            parse_fehler,
+                            invalider_string
+                        )
                     )
                 }
                 process::exit(fehler_code.get())
@@ -198,7 +207,7 @@ impl<T, E: Display> Arg<T, E> {
 impl<T, E> Arg<T, E> {
     /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
     #[inline(always)]
-    pub fn parse_aus_env(&self) -> (ParseErgebnis<T, E>, Vec<OsString>) {
+    pub fn parse_aus_env(&self) -> (Ergebnis<T, E>, Vec<OsString>) {
         Arg::parse(&self, args_aus_env())
     }
 
@@ -209,7 +218,7 @@ impl<T, E> Arg<T, E> {
     #[inline(always)]
     pub fn parse_aus_env_mit_frühen_beenden(
         &self,
-    ) -> (Result<T, NonEmpty<ParseFehler<E>>>, Vec<OsString>) {
+    ) -> (Result<T, NonEmpty<Fehler<E>>>, Vec<OsString>) {
         self.parse_mit_frühen_beenden(args_aus_env())
     }
 
@@ -220,26 +229,23 @@ impl<T, E> Arg<T, E> {
     pub fn parse_mit_frühen_beenden(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> (Result<T, NonEmpty<ParseFehler<E>>>, Vec<OsString>) {
+    ) -> (Result<T, NonEmpty<Fehler<E>>>, Vec<OsString>) {
         let (ergebnis, nicht_verwendet) = self.parse(args);
         let result = match ergebnis {
-            ParseErgebnis::Wert(wert) => Ok(wert),
-            ParseErgebnis::FrühesBeenden(nachrichten) => {
+            Ergebnis::Wert(wert) => Ok(wert),
+            Ergebnis::FrühesBeenden(nachrichten) => {
                 for nachricht in nachrichten {
                     println!("{}", nachricht);
                 }
                 process::exit(0)
             }
-            ParseErgebnis::Fehler(fehler) => Err(fehler),
+            Ergebnis::Fehler(fehler) => Err(fehler),
         };
         (result, nicht_verwendet)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
-    pub fn parse(
-        &self,
-        args: impl Iterator<Item = OsString>,
-    ) -> (ParseErgebnis<T, E>, Vec<OsString>) {
+    pub fn parse(&self, args: impl Iterator<Item = OsString>) -> (Ergebnis<T, E>, Vec<OsString>) {
         let Arg { beschreibungen: _, flag_kurzformen, parse } = self;
         let angepasste_args: Vec<OsString> = args
             .flat_map(|arg| {

@@ -9,7 +9,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::{
     arg::{Arg, ArgString},
     beschreibung::Beschreibung,
-    ergebnis::{ParseErgebnis, ParseFehler},
+    ergebnis::{Ergebnis, Fehler},
 };
 
 impl<E> Arg<bool, E> {
@@ -103,16 +103,16 @@ impl<T: 'static + Display + Clone, E> Arg<T, E> {
                     nicht_verwendet.push(arg);
                 }
                 let ergebnis = if let Some(wert) = ergebnis {
-                    ParseErgebnis::Wert(wert)
+                    Ergebnis::Wert(wert)
                 } else if let Some(wert) = &standard {
-                    ParseErgebnis::Wert(wert.clone())
+                    Ergebnis::Wert(wert.clone())
                 } else {
-                    let fehler = ParseFehler::FehlendeFlag {
+                    let fehler = Fehler::FehlendeFlag {
                         lang: name_lang.clone(),
                         kurz: name_kurz.clone(),
                         invertiere_präfix: invertiere_präfix.to_owned(),
                     };
-                    ParseErgebnis::Fehler(NonEmpty::singleton(fehler))
+                    Ergebnis::Fehler(NonEmpty::singleton(fehler))
                 };
                 (ergebnis, nicht_verwendet)
             }),

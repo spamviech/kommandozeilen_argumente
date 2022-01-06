@@ -2,7 +2,7 @@
 
 use std::{
     ffi::{OsStr, OsString},
-    fmt::{Debug, Display},
+    fmt::Display,
     str::FromStr,
 };
 
@@ -12,7 +12,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::{
     arg::{Arg, ArgString},
     beschreibung::Beschreibung,
-    ergebnis::{ParseErgebnis, ParseFehler},
+    ergebnis::{Ergebnis, Fehler, ParseFehler},
 };
 
 #[cfg(feature = "derive")]
@@ -25,7 +25,7 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Arg<T, E> {
         beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 'static + Fn(&OsStr) -> Result<T, E>,
+        parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
     ) -> Arg<T, E> {
         Arg::wert(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
     }
@@ -37,14 +37,14 @@ impl<T: 'static + Clone, E: 'static + Clone> Arg<T, E> {
         beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 'static + Fn(&OsStr) -> Result<T, E>,
+        parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
         anzeige: impl Fn(&T) -> String,
     ) -> Arg<T, E> {
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
         let meta_var_clone = meta_var.clone();
         let (beschreibung, standard) = beschreibung.als_string_beschreibung_allgemein(&anzeige);
-        let fehler_kein_wert = ParseFehler::FehlenderWert {
+        let fehler_kein_wert = Fehler::FehlenderWert {
             lang: name_lang.clone(),
             kurz: name_kurz.clone(),
             meta_var: meta_var_clone.clone(),
@@ -68,7 +68,7 @@ impl<T: 'static + Clone, E: 'static + Clone> Arg<T, E> {
                     if let Some(wert_os_str) = arg {
                         match parse(wert_os_str) {
                             Ok(wert) => ergebnis = Some(wert),
-                            Err(parse_fehler) => fehler.push(ParseFehler::ParseFehler {
+                            Err(parse_fehler) => fehler.push(Fehler::Fehler {
                                 lang: name_lang.clone(),
                                 kurz: name_kurz.clone(),
                                 meta_var: meta_var_clone.clone(),
@@ -118,14 +118,14 @@ impl<T: 'static + Clone, E: 'static + Clone> Arg<T, E> {
                     nicht_verwendet.push(arg);
                 }
                 if let Some(fehler) = NonEmpty::from_vec(fehler) {
-                    (ParseErgebnis::Fehler(fehler), nicht_verwendet)
+                    (Ergebnis::Fehler(fehler), nicht_verwendet)
                 } else if let Some(wert) = ergebnis {
-                    (ParseErgebnis::Wert(wert), nicht_verwendet)
+                    (Ergebnis::Wert(wert), nicht_verwendet)
                 } else if let Some(wert) = &standard {
-                    (ParseErgebnis::Wert(wert.clone()), nicht_verwendet)
+                    (Ergebnis::Wert(wert.clone()), nicht_verwendet)
                 } else {
                     (
-                        ParseErgebnis::Fehler(NonEmpty::singleton(fehler_kein_wert.clone())),
+                        Ergebnis::Fehler(NonEmpty::singleton(fehler_kein_wert.clone())),
                         nicht_verwendet,
                     )
                 }
@@ -142,29 +142,30 @@ pub trait ArgEnum: Sized {
     /// Alle Varianten des Typs.
     fn varianten() -> Vec<Self>;
 
-    // TODO FromStrFehler, z.B. als ParseWertFehler verwenden
     /// Versuche einen Wert ausgehend vom übergebenen [OsStr] zu erzeugen.
-    fn parse_enum(arg: &OsStr) -> Result<Self, OsString>;
+    fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>>;
 }
 
 impl<T: 'static + Display + Clone + ArgEnum> Arg<T, OsString> {
     /// Erzeuge ein Wert-Argument für ein [ArgEnum].
-    pub fn wert_enum(beschreibung: Beschreibung<T>, meta_var: String) -> Arg<T, OsString> {
-        let mögliche_werte = NonEmpty::from_vec(T::varianten());
-        Arg::wert_display(beschreibung, meta_var, mögliche_werte, T::parse_enum)
+    pub fn wert_enum_display(beschreibung: Beschreibung<T>, meta_var: String) -> Arg<T, String> {
+        Arg::wert_enum(beschreibung, meta_var, T::to_string)
     }
 }
 
-/// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr].
-#[derive(Debug, Clone)]
-pub enum FromStrFehler<E> {
-    /// Die Konvertierung in ein &[str] ist fehlgeschlagen.
-    InvaliderString(OsString),
-    /// Fehler beim Parsen des Strings.
-    ParseFehler(E),
+impl<T: 'static + Display + Clone + ArgEnum> Arg<T, OsString> {
+    /// Erzeuge ein Wert-Argument für ein [ArgEnum].
+    pub fn wert_enum(
+        beschreibung: Beschreibung<T>,
+        meta_var: String,
+        anzeige: impl Fn(&T) -> String,
+    ) -> Arg<T, String> {
+        let mögliche_werte = NonEmpty::from_vec(T::varianten());
+        Arg::wert(beschreibung, meta_var, mögliche_werte, T::parse_enum, anzeige)
+    }
 }
 
-impl<T> Arg<T, FromStrFehler<T::Err>>
+impl<T> Arg<T, ParseFehler<T::Err>>
 where
     T: 'static + Display + Clone + FromStr,
     T::Err: 'static + Clone,
@@ -174,12 +175,12 @@ where
         beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
-    ) -> Arg<T, FromStrFehler<T::Err>> {
+    ) -> Arg<T, T::Err> {
         Arg::wert_display(beschreibung, meta_var, mögliche_werte, |os_str| {
             os_str
                 .to_str()
-                .ok_or_else(|| FromStrFehler::InvaliderString(os_str.to_owned()))
-                .and_then(|string| T::from_str(string).map_err(FromStrFehler::ParseFehler))
+                .ok_or_else(|| ParseFehler::InvaliderString(os_str.to_owned()))
+                .and_then(|string| T::from_str(string).map_err(ParseFehler::ParseFehler))
         })
     }
 }

@@ -2,7 +2,7 @@
 
 use nonempty::NonEmpty;
 
-use crate::{arg::Arg, ergebnis::ParseErgebnis};
+use crate::{arg::Arg, ergebnis::Ergebnis};
 
 #[macro_export]
 /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
@@ -43,7 +43,7 @@ impl<T, Error: 'static> Arg<T, Error> {
         Arg {
             beschreibungen: Vec::new(),
             flag_kurzformen: Vec::new(),
-            parse: Box::new(move |args| (ParseErgebnis::Wert(f()), args)),
+            parse: Box::new(move |args| (Ergebnis::Wert(f()), args)),
         }
     }
 
@@ -58,11 +58,9 @@ impl<T, Error: 'static> Arg<T, Error> {
             parse: Box::new(move |args| {
                 let (ergebnis, nicht_verwendet) = parse(args);
                 let konvertiert = match ergebnis {
-                    ParseErgebnis::Wert(wert) => ParseErgebnis::Wert(f(wert)),
-                    ParseErgebnis::FrühesBeenden(nachrichten) => {
-                        ParseErgebnis::FrühesBeenden(nachrichten)
-                    }
-                    ParseErgebnis::Fehler(fehler) => ParseErgebnis::Fehler(fehler),
+                    Ergebnis::Wert(wert) => Ergebnis::Wert(f(wert)),
+                    Ergebnis::FrühesBeenden(nachrichten) => Ergebnis::FrühesBeenden(nachrichten),
+                    Ergebnis::Fehler(fehler) => Ergebnis::Fehler(fehler),
                 };
                 (konvertiert, nicht_verwendet)
             }),
@@ -87,34 +85,34 @@ impl<T, Error: 'static> Arg<T, Error> {
                 let mut frühes_beenden = Vec::new();
                 let (a_ergebnis, a_nicht_verwendet) = (a.parse)(args);
                 let a = match a_ergebnis {
-                    ParseErgebnis::Wert(wert) => Some(wert),
-                    ParseErgebnis::FrühesBeenden(nachrichten) => {
+                    Ergebnis::Wert(wert) => Some(wert),
+                    Ergebnis::FrühesBeenden(nachrichten) => {
                         frühes_beenden.extend(nachrichten);
                         None
                     }
-                    ParseErgebnis::Fehler(parse_fehler) => {
+                    Ergebnis::Fehler(parse_fehler) => {
                         fehler.extend(parse_fehler);
                         None
                     }
                 };
                 let (b_ergebnis, b_nicht_verwendet) = (b.parse)(a_nicht_verwendet);
                 let b = match b_ergebnis {
-                    ParseErgebnis::Wert(wert) => Some(wert),
-                    ParseErgebnis::FrühesBeenden(nachrichten) => {
+                    Ergebnis::Wert(wert) => Some(wert),
+                    Ergebnis::FrühesBeenden(nachrichten) => {
                         frühes_beenden.extend(nachrichten);
                         None
                     }
-                    ParseErgebnis::Fehler(parse_fehler) => {
+                    Ergebnis::Fehler(parse_fehler) => {
                         fehler.extend(parse_fehler);
                         None
                     }
                 };
                 let ergebnis = if let Some(fehler) = NonEmpty::from_vec(fehler) {
-                    ParseErgebnis::Fehler(fehler)
+                    Ergebnis::Fehler(fehler)
                 } else if let Some(nachrichten) = NonEmpty::from_vec(frühes_beenden) {
-                    ParseErgebnis::FrühesBeenden(nachrichten)
+                    Ergebnis::FrühesBeenden(nachrichten)
                 } else {
-                    ParseErgebnis::Wert(f(a.unwrap(), b.unwrap()))
+                    Ergebnis::Wert(f(a.unwrap(), b.unwrap()))
                 };
                 (ergebnis, b_nicht_verwendet)
             }),

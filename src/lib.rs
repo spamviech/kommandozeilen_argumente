@@ -45,6 +45,6 @@ pub mod parse;
 pub use self::{
     arg::{wert::ArgEnum, Arg},
     beschreibung::Beschreibung,
-    ergebnis::{ParseErgebnis, ParseFehler},
-    parse::Parse,
+    ergebnis::{Ergebnis, Fehler, ParseFehler},
+    parse::{Parse, ParseArgument},
 };

@@ -338,7 +338,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
             quote!(Some(#hilfe_string.to_owned()))
         };
         let erstelle_args = if glätten {
-            quote!(#crate_name::parse::Parse::kommandozeilen_argumente())
+            quote!(#crate_name::Parse::kommandozeilen_argumente())
         } else {
             quote!({
                 let beschreibung = #crate_name::Beschreibung {
@@ -347,7 +347,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                     hilfe: #hilfe,
                     standard: #standard,
                 };
-                #crate_name::parse::ParseArgument::erstelle_arg(
+                #crate_name::ParseArgument::erstelle_arg(
                     beschreibung,
                     #field_invertiere_präfix,
                     #field_meta_var
@@ -375,7 +375,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     };
     let impl_parse: TokenStream = quote! {
         impl #crate_name::Parse for #item_ty {
-            type Fehler = std::ffi::OsString;
+            type Fehler = String;
 
             fn kommandozeilen_argumente() -> #crate_name::Arg<Self, Self::Fehler> {
                 #nach_hilfe
@@ -413,7 +413,7 @@ pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
                 vec![#(Self::#varianten),*]
             }
 
-            fn parse_enum(arg: &std::ffi::OsStr) -> Result<Self, std::ffi::OsString> {
+            fn parse_enum(arg: &std::ffi::OsStr) -> Result<Self, #crate_name::ParseFehler<String>> {
                 if let Some(string) = arg.to_str() {
                     #(
                         if #crate_name::unicase_eq(string, #varianten_str) {
@@ -421,10 +421,12 @@ pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
                         } else
                     )*
                     {
-                        Err(arg.to_owned())
+                        Err(#crate_name::ParseFehler::ParseFehler(
+                            format!("Unbekannte Variante: {}", string))
+                        )
                     }
                 } else {
-                    Err(arg.to_owned())
+                    Err(#crate_name::ParseFehler::InvaliderString(arg.to_owned()))
                 }
             }
         }

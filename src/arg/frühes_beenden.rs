@@ -16,7 +16,7 @@ use void::Void;
 use crate::{
     arg::{Arg, ArgString},
     beschreibung::Beschreibung,
-    ergebnis::ParseErgebnis,
+    ergebnis::Ergebnis,
 };
 
 impl<T: 'static, E: 'static> Arg<T, E> {
@@ -312,13 +312,13 @@ impl<T: 'static, E: 'static> Arg<T, E> {
                 }
                 let (ergebnis, nicht_verwendet) = parse(nicht_selbst_verwendet);
                 let finales_ergebnis = match ergebnis {
-                    ParseErgebnis::FrühesBeenden(mut frühes_beenden) => {
+                    Ergebnis::FrühesBeenden(mut frühes_beenden) => {
                         frühes_beenden.tail.extend(nachrichten);
-                        ParseErgebnis::FrühesBeenden(frühes_beenden)
+                        Ergebnis::FrühesBeenden(frühes_beenden)
                     }
                     _ => {
                         if let Some(frühes_beenden) = NonEmpty::from_vec(nachrichten) {
-                            ParseErgebnis::FrühesBeenden(frühes_beenden)
+                            Ergebnis::FrühesBeenden(frühes_beenden)
                         } else {
                             ergebnis
                         }

@@ -2,7 +2,7 @@
 
 use std::{ffi::OsString, fmt::Display, iter, process};
 
-use kommandozeilen_argumente::{Arg, ArgEnum, Parse, ParseErgebnis};
+use kommandozeilen_argumente::{Arg, ArgEnum, Ergebnis, Parse};
 
 #[allow(unused_imports)]
 // Derive-Macro kommt mit integration test nicht zurecht, daher muss crate::kombiniere existieren.
@@ -68,7 +68,7 @@ struct Test2 {
 fn derive_test() {
     let arg = Test::kommandozeilen_argumente();
     match arg.parse(iter::once(OsString::from("--hilfe".to_owned()))) {
-        (ParseErgebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
             let übrige = nicht_verwendet.iter().count();
             if übrige > 0 {
                 eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
@@ -79,12 +79,9 @@ fn derive_test() {
                 }
             }
         }
-        (ParseErgebnis::Fehler(fehler), nicht_verwendet) => {
-            for f in fehler {
-                match f.als_string() {
-                    Ok(f_str) => eprintln!("{}", f_str.fehlermeldung()),
-                    Err(f_os_str) => eprintln!("{:?}", f_os_str),
-                }
+        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
+            for fehler in fehler_sammlung {
+                eprintln!("{}", fehler.fehlermeldung())
             }
             eprintln!("{:?}", nicht_verwendet);
             process::exit(2);
@@ -97,7 +94,7 @@ fn derive_test() {
     println!("--------------");
     let arg2 = Test2::kommandozeilen_argumente();
     match arg2.parse(iter::once(OsString::from("--help".to_owned()))) {
-        (ParseErgebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
             let übrige = nicht_verwendet.iter().count();
             if übrige > 0 {
                 eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
@@ -108,12 +105,9 @@ fn derive_test() {
                 }
             }
         }
-        (ParseErgebnis::Fehler(fehler), nicht_verwendet) => {
-            for f in fehler {
-                match f.als_string() {
-                    Ok(f_str) => eprintln!("{}", f_str.error_message()),
-                    Err(f_os_str) => eprintln!("{:?}", f_os_str),
-                }
+        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
+            for fehler in fehler_sammlung {
+                eprintln!("{}", fehler.fehlermeldung())
             }
             eprintln!("{:?}", nicht_verwendet);
             process::exit(4);
@@ -129,7 +123,7 @@ fn derive_test() {
 fn verschmelze_kurzformen() {
     let arg = Test::kommandozeilen_argumente();
     match arg.parse(iter::once(OsString::from("-vh".to_owned()))) {
-        (ParseErgebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
             let übrige = nicht_verwendet.iter().count();
             if übrige > 0 {
                 eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
@@ -143,12 +137,9 @@ fn verschmelze_kurzformen() {
                 }
             }
         }
-        (ParseErgebnis::Fehler(fehler), nicht_verwendet) => {
-            for f in fehler {
-                match f.als_string() {
-                    Ok(f_str) => eprintln!("{}", f_str.error_message()),
-                    Err(f_os_str) => eprintln!("{:?}", f_os_str),
-                }
+        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
+            for fehler in fehler_sammlung {
+                eprintln!("{}", fehler.fehlermeldung())
             }
             eprintln!("{:?}", nicht_verwendet);
             process::exit(3);
@@ -161,7 +152,7 @@ fn verschmelze_kurzformen() {
     println!("--------------");
     let arg2 = Test2::kommandozeilen_argumente();
     match arg2.parse(iter::once(OsString::from("-fe".to_owned()))) {
-        (ParseErgebnis::Wert(test2), nicht_verwendet) => {
+        (Ergebnis::Wert(test2), nicht_verwendet) => {
             let übrige = nicht_verwendet.iter().count();
             let erwartet = Test2 { bla: Bla::Meh, inner: Inner { empty: true }, flag: true };
             if übrige > 0 {

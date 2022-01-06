@@ -4,7 +4,7 @@ use std::{ffi::OsString, fmt::Display, iter, process};
 
 use void::Void;
 
-use kommandozeilen_argumente::{Arg, ArgEnum, Beschreibung, Parse, ParseErgebnis};
+use kommandozeilen_argumente::{Arg, ArgEnum, Beschreibung, Parse, Ergebnis};
 
 #[allow(unused_imports)]
 // Derive-Macro kommt mit integration test nicht zurecht, daher muss crate::kombiniere existieren.
@@ -24,7 +24,7 @@ fn hilfe_test() {
         20,
     );
     match arg.parse(iter::once(OsString::from("--hilfe".to_owned()))) {
-        (ParseErgebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
             let übrige = nicht_verwendet.iter().count();
             if übrige > 0 {
                 eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);

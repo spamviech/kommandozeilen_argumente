@@ -6,18 +6,18 @@ use nonempty::NonEmpty;
 
 /// Ergebnis des Parsen von Kommandozeilen-Argumenten.
 #[derive(Debug)]
-pub enum ParseErgebnis<T, E> {
+pub enum Ergebnis<T, E> {
     /// Erfolgreiches Parsen.
     Wert(T),
     /// Frühes Beenden durch zeigen der Nachrichten gewünscht.
     FrühesBeenden(NonEmpty<String>),
     /// Fehler beim Parsen der Kommandozeilen-Argumente.
-    Fehler(NonEmpty<ParseFehler<E>>),
+    Fehler(NonEmpty<Fehler<E>>),
 }
 
 /// Fehlerquellen beim Parsen von Kommandozeilen-Argumenten
 #[derive(Debug, Clone)]
-pub enum ParseFehler<E> {
+pub enum Fehler<E> {
     /// Ein benötigtes Flag-Argument wurde nicht genannt.
     FehlendeFlag {
         /// Vollständiger Name.
@@ -37,7 +37,7 @@ pub enum ParseFehler<E> {
         meta_var: String,
     },
     /// Fehler beim Parsen des genannten Wertes.
-    ParseFehler {
+    Fehler {
         /// Vollständiger Name.
         lang: String,
         /// Kurzform des Namen.
@@ -45,42 +45,40 @@ pub enum ParseFehler<E> {
         /// Verwendete Meta-Variable für den Wert.
         meta_var: String,
         /// Beim Parsen aufgetretener Fehler.
-        fehler: E,
+        fehler: ParseFehler<E>,
     },
 }
 
-impl ParseFehler<OsString> {
-    /// Versuche [ParseFehler::ParseFehler] von [OsString] nach [String] zu konvertieren.
-    /// Dadurch kann der [ParseFehler] über [fehlermeldung] und [error_message] angezeigt werden.
-    pub fn als_string(self) -> Result<ParseFehler<String>, ParseFehler<OsString>> {
-        match self {
-            ParseFehler::FehlendeFlag { lang, kurz, invertiere_präfix } => {
-                Ok(ParseFehler::FehlendeFlag { lang, kurz, invertiere_präfix })
-            }
-            ParseFehler::FehlenderWert { lang, kurz, meta_var } => {
-                Ok(ParseFehler::FehlenderWert { lang, kurz, meta_var })
-            }
-            ParseFehler::ParseFehler { lang, kurz, meta_var, fehler } => {
-                match fehler.into_string() {
-                    Ok(fehler) => Ok(ParseFehler::ParseFehler { lang, kurz, meta_var, fehler }),
-                    Err(fehler) => Err(ParseFehler::ParseFehler { lang, kurz, meta_var, fehler }),
-                }
-            }
-        }
-    }
+/// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ParseFehler<E> {
+    /// Die Konvertierung in ein &[str] ist fehlgeschlagen.
+    InvaliderString(OsString),
+    /// Fehler beim Parsen des Strings.
+    ParseFehler(E),
 }
 
-impl<E: Display> ParseFehler<E> {
+impl<E: Display> Fehler<E> {
     /// Zeige den Fehler in Menschen-lesbarer Form an.
     #[inline(always)]
     pub fn fehlermeldung(&self) -> String {
-        self.erstelle_fehlermeldung("Fehlende Flag", "Fehlender Wert", "Parse-Fehler")
+        self.erstelle_fehlermeldung(
+            "Fehlende Flag",
+            "Fehlender Wert",
+            "Parse-Fehler",
+            "Invalider String",
+        )
     }
 
     /// Show the error in a human readable form.
     #[inline(always)]
     pub fn error_message(&self) -> String {
-        self.erstelle_fehlermeldung("Missing Flag", "Missing Value", "Parse Error")
+        self.erstelle_fehlermeldung(
+            "Missing Flag",
+            "Missing Value",
+            "Parse Error",
+            "Invalid String",
+        )
     }
 
     /// Zeige den Fehler in Menschen-lesbarer Form an.
@@ -89,9 +87,10 @@ impl<E: Display> ParseFehler<E> {
         fehlende_flag: &str,
         fehlender_wert: &str,
         parse_fehler: &str,
+        invalider_string: &str,
     ) -> String {
         match self {
-            ParseFehler::FehlendeFlag { lang, kurz, invertiere_präfix } => {
+            Fehler::FehlendeFlag { lang, kurz, invertiere_präfix } => {
                 let mut fehlermeldung =
                     format!("{}: --[{}-]{}", fehlende_flag, invertiere_präfix, lang);
                 if let Some(kurz) = kurz {
@@ -100,7 +99,7 @@ impl<E: Display> ParseFehler<E> {
                 }
                 fehlermeldung
             }
-            ParseFehler::FehlenderWert { lang, kurz, meta_var } => {
+            Fehler::FehlenderWert { lang, kurz, meta_var } => {
                 let mut fehlermeldung = format!("{}: --{} {}", fehlender_wert, lang, meta_var);
                 if let Some(kurz) = kurz {
                     fehlermeldung.push_str(" | -");
@@ -110,8 +109,14 @@ impl<E: Display> ParseFehler<E> {
                 }
                 fehlermeldung
             }
-            ParseFehler::ParseFehler { lang, kurz, meta_var, fehler } => {
-                let mut fehlermeldung = format!("{}: --{} {}", parse_fehler, lang, meta_var);
+            Fehler::Fehler { lang, kurz, meta_var, fehler } => {
+                let (fehler_art, fehler_anzeige) = match fehler {
+                    ParseFehler::InvaliderString(os_string) => {
+                        (invalider_string, format!("{:?}", os_string))
+                    }
+                    ParseFehler::ParseFehler(fehler) => (parse_fehler, fehler.to_string()),
+                };
+                let mut fehlermeldung = format!("{}: --{} {}", fehler_art, lang, meta_var);
                 if let Some(kurz) = kurz {
                     fehlermeldung.push_str(" | -");
                     fehlermeldung.push_str(kurz);
@@ -119,7 +124,7 @@ impl<E: Display> ParseFehler<E> {
                     fehlermeldung.push_str(meta_var);
                 }
                 fehlermeldung.push('\n');
-                fehlermeldung.push_str(&fehler.to_string());
+                fehlermeldung.push_str(&fehler_anzeige);
                 fehlermeldung
             }
         }

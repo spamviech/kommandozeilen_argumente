@@ -1,13 +1,13 @@
 //! Trait für Typen, die aus Kommandozeilen-Argumenten geparst werden können.
 
-use std::{ffi::OsString, fmt::Display, num::NonZeroI32};
+use std::{ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
 
 use nonempty::NonEmpty;
 
 use crate::{
     arg::{wert::ArgEnum, Arg},
     beschreibung::Beschreibung,
-    ergebnis::{ParseErgebnis, ParseFehler},
+    ergebnis::{Ergebnis, Fehler, ParseFehler},
 };
 
 #[cfg(feature = "derive")]
@@ -23,18 +23,18 @@ pub trait ParseArgument: Sized {
         beschreibung: Beschreibung<Self>,
         invertiere_präfix: &'static str,
         meta_var: &str,
-    ) -> Arg<Self, OsString>;
+    ) -> Arg<Self, String>;
 
     /// Sollen Argumente dieses Typs normalerweise einen Standard-Wert haben?
     fn standard() -> Option<Self>;
 
     /// Erstelle ein [Arg] für die übergebene [Beschreibung].
-    fn neu(beschreibung: Beschreibung<Self>) -> Arg<Self, OsString> {
+    fn neu(beschreibung: Beschreibung<Self>) -> Arg<Self, String> {
         Self::erstelle_arg(beschreibung, "kein", "WERT")
     }
 
     /// Create an [Arg] for the [Beschreibung].
-    fn new(beschreibung: Beschreibung<Self>) -> Arg<Self, OsString> {
+    fn new(beschreibung: Beschreibung<Self>) -> Arg<Self, String> {
         Self::erstelle_arg(beschreibung, "no", "VALUE")
     }
 }
@@ -44,7 +44,7 @@ impl ParseArgument for bool {
         beschreibung: Beschreibung<Self>,
         invertiere_präfix: &'static str,
         _meta_var: &str,
-    ) -> Arg<Self, OsString> {
+    ) -> Arg<Self, String> {
         Arg::flag(beschreibung, invertiere_präfix)
     }
 
@@ -58,12 +58,12 @@ impl ParseArgument for String {
         beschreibung: Beschreibung<Self>,
         _invertiere_präfix: &'static str,
         meta_var: &str,
-    ) -> Arg<Self, OsString> {
+    ) -> Arg<Self, String> {
         Arg::wert_display(beschreibung, meta_var.to_owned(), None, |os_str| {
             if let Some(string) = os_str.to_str() {
                 Ok(string.to_owned())
             } else {
-                Err(os_str.to_owned())
+                Err(ParseFehler::InvaliderString(os_str.to_owned()))
             }
         })
     }
@@ -80,12 +80,14 @@ macro_rules! impl_parse_argument {
                 beschreibung: Beschreibung<Self>,
                 _invertiere_präfix: &'static str,
                 meta_var: &str,
-            ) -> Arg<Self, OsString> {
+            ) -> Arg<Self, String> {
                 Arg::wert_display(beschreibung, meta_var.to_owned(), None, |os_str| {
-                    if let Some(u) = os_str.to_str().and_then(|s| s.parse().ok()) {
-                        Ok(u)
+                    if let Some(string) = os_str.to_str() {
+                        string.parse().map_err(
+                            |err: <$type as FromStr>::Err| ParseFehler::ParseFehler(err.to_string())
+                        )
                     } else {
-                        Err(os_str.to_owned())
+                        Err(ParseFehler::InvaliderString(os_str.to_owned()))
                     }
                 })
             }
@@ -103,7 +105,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         beschreibung: Beschreibung<Self>,
         invertiere_präfix: &'static str,
         meta_var: &str,
-    ) -> Arg<Self, OsString> {
+    ) -> Arg<Self, String> {
         let Beschreibung { lang, kurz, .. } = &beschreibung;
         let Arg { parse, .. } = T::erstelle_arg(
             Beschreibung { lang: lang.clone(), kurz: kurz.clone(), hilfe: None, standard: None },
@@ -118,8 +120,8 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
             move |arg| {
                 let (ergebnis, _nicht_verwendet) = parse(vec![Some(name.as_os_str()), Some(arg)]);
                 match ergebnis {
-                    ParseErgebnis::Wert(wert) => Ok(Some(wert)),
-                    _ergebnis => Err(arg.to_owned()),
+                    Ergebnis::Wert(wert) => Ok(Some(wert)),
+                    _ergebnis => Err(ParseFehler::InvaliderString(arg.to_owned())),
                 }
             },
             |opt| {
@@ -142,8 +144,8 @@ impl<T: 'static + ArgEnum + Display + Clone> ParseArgument for T {
         beschreibung: Beschreibung<Self>,
         _invertiere_präfix: &'static str,
         meta_var: &str,
-    ) -> Arg<Self, OsString> {
-        Arg::wert_enum(beschreibung, meta_var.to_owned())
+    ) -> Arg<Self, String> {
+        Arg::wert_enum_display(beschreibung, meta_var.to_owned())
     }
 
     fn standard() -> Option<Self> {
@@ -155,7 +157,7 @@ impl<T: 'static + ArgEnum + Display + Clone> ParseArgument for T {
 ///
 /// Mit aktiviertem `derive`-Feature kann diese automatisch erzeugt werden.
 pub trait Parse: Sized {
-    /// Möglicher Parse-Fehler, die automatisch erzeugte Implementierung verwendet [OsString].
+    /// Möglicher Parse-Fehler, die automatisch erzeugte Implementierung verwendet [String].
     type Fehler;
 
     /// Erzeuge eine Beschreibung, wie Kommandozeilen-Argumente geparst werden sollen.
@@ -164,12 +166,12 @@ pub trait Parse: Sized {
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     fn parse(
         args: impl Iterator<Item = OsString>,
-    ) -> (ParseErgebnis<Self, Self::Fehler>, Vec<OsString>) {
+    ) -> (Ergebnis<Self, Self::Fehler>, Vec<OsString>) {
         Self::kommandozeilen_argumente().parse(args)
     }
 
     /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
-    fn parse_aus_env() -> (ParseErgebnis<Self, Self::Fehler>, Vec<OsString>) {
+    fn parse_aus_env() -> (Ergebnis<Self, Self::Fehler>, Vec<OsString>) {
         Self::kommandozeilen_argumente().parse_aus_env()
     }
 
@@ -178,7 +180,7 @@ pub trait Parse: Sized {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [std::process::exit] mit exit code `0` beendet.
     fn parse_aus_env_mit_frühen_beenden(
-    ) -> (Result<Self, NonEmpty<ParseFehler<Self::Fehler>>>, Vec<OsString>) {
+    ) -> (Result<Self, NonEmpty<Fehler<Self::Fehler>>>, Vec<OsString>) {
         Self::kommandozeilen_argumente().parse_aus_env_mit_frühen_beenden()
     }
 
@@ -188,7 +190,7 @@ pub trait Parse: Sized {
     /// [std::process::exit] mit exit code `0` beendet.
     fn parse_mit_frühen_beenden(
         args: impl Iterator<Item = OsString>,
-    ) -> (Result<Self, NonEmpty<ParseFehler<Self::Fehler>>>, Vec<OsString>) {
+    ) -> (Result<Self, NonEmpty<Fehler<Self::Fehler>>>, Vec<OsString>) {
         Self::kommandozeilen_argumente().parse_mit_frühen_beenden(args)
     }
 
@@ -205,6 +207,7 @@ pub trait Parse: Sized {
         fehlende_flag: &str,
         fehlender_wert: &str,
         parse_fehler: &str,
+        invalider_string: &str,
         arg_nicht_verwendet: &str,
     ) -> Self
     where
@@ -216,6 +219,7 @@ pub trait Parse: Sized {
             fehlende_flag,
             fehlender_wert,
             parse_fehler,
+            invalider_string,
             arg_nicht_verwendet,
         )
     }
@@ -265,6 +269,7 @@ pub trait Parse: Sized {
         fehlende_flag: &str,
         fehlender_wert: &str,
         parse_fehler: &str,
+        invalider_string: &str,
         arg_nicht_verwendet: &str,
     ) -> Self
     where
@@ -275,6 +280,7 @@ pub trait Parse: Sized {
             fehlende_flag,
             fehlender_wert,
             parse_fehler,
+            invalider_string,
             arg_nicht_verwendet,
         )
     }
