@@ -240,9 +240,8 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                                         standard = quote!(Some(#ts));
                                     }
                                     "kurz" | "short" => {
-                                        let ts: TokenStream2 =
-                                            unwrap_result_or_compile_error!(wert_string.parse());
-                                        kurz = quote!(Some(#ts.to_owned()))
+                                        let trimmed = wert_string.trim();
+                                        kurz = quote!(Some(#trimmed.to_owned()))
                                     }
                                     "invertiere_präfix" | "invert_prefix" => {
                                         let trimmed = wert_string.trim();
