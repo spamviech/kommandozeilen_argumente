@@ -36,12 +36,13 @@ pub(crate) enum ArgString {
     },
 }
 
+// TODO FromStr-basierte Werte in derive-Variante
 // TODO alias/synonym, mit Möglichkeit bei derive für z.B. help
 //  z.B. implementiert über ersetzen aller Vorkommen?
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
 // TODO Standard-Wert, sofern nur der Name gegeben ist (unterschiedlich zu Name kommt nicht vor)
-//      z.B. -O, -O2 bei compilern
+//      z.B. nichts: -O0, -O: -O1, -O=N für explizite Angabe
 // TODO case sensitive Argumente/alles case sensitive
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
