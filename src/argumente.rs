@@ -38,7 +38,14 @@ pub(crate) enum ArgString {
 
 // TODO FromStr-basierte Werte in derive-Variante
 // TODO alias/synonym, mit Möglichkeit bei derive für z.B. help
-//  z.B. implementiert über ersetzen aller Vorkommen?
+//  - implementiert über ersetzen aller Vorkommen?
+//      enum BehandeltArgument<'t> {Rein(&'t OsStr), Alias {neu:&'t OsStr /* von gespeichertem Wert? */, original: &'t OsStr}, Verwendet}
+//      Bei Alias muss das Original mitgespeichert werden, z.B. für eine Verwendung als Wert
+//  - implementiert über NonEmpty/Vec für Lang-/Kurz-Namen?
+//      kein schönes API (meistens wird nur ein Wert verwendet)
+//      Über eigene Traits
+//          LangName<T> {Fn(Self)->NonEmpty{T>} mit impl für T und NonEmpty<T>
+//          KurzName<T> {Fn(Self)->Vec<T>} mit impl für Option<T> und Vec<T>, impl Iterator<Item=T>?
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
 // TODO Standard-Wert, sofern nur der Name gegeben ist (unterschiedlich zu Name kommt nicht vor)
