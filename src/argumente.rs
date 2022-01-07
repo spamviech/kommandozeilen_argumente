@@ -36,6 +36,8 @@ pub(crate) enum ArgString {
     },
 }
 
+// TODO alias/synonym, mit Möglichkeit bei derive für z.B. help
+//  z.B. implementiert über ersetzen aller Vorkommen?
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
 // TODO Standard-Wert, sofern nur der Name gegeben ist (unterschiedlich zu Name kommt nicht vor)
