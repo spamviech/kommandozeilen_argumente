@@ -19,7 +19,7 @@ pub trait ParseArgument: Sized {
     ///
     /// `invertiere_präfix` ist für Flag-Argumente gedacht,
     /// `meta_var` für Wert-Argumente.
-    fn erstelle_arg(
+    fn argumente(
         beschreibung: Beschreibung<Self>,
         invertiere_präfix: &'static str,
         meta_var: &str,
@@ -30,17 +30,17 @@ pub trait ParseArgument: Sized {
 
     /// Erstelle ein [Argumente] für die übergebene [Beschreibung].
     fn neu(beschreibung: Beschreibung<Self>) -> Argumente<Self, String> {
-        Self::erstelle_arg(beschreibung, "kein", "WERT")
+        Self::argumente(beschreibung, "kein", "WERT")
     }
 
     /// Create an [Argumente] for the [Beschreibung].
     fn new(beschreibung: Beschreibung<Self>) -> Argumente<Self, String> {
-        Self::erstelle_arg(beschreibung, "no", "VALUE")
+        Self::argumente(beschreibung, "no", "VALUE")
     }
 }
 
 impl ParseArgument for bool {
-    fn erstelle_arg(
+    fn argumente(
         beschreibung: Beschreibung<Self>,
         invertiere_präfix: &'static str,
         _meta_var: &str,
@@ -54,7 +54,7 @@ impl ParseArgument for bool {
 }
 
 impl ParseArgument for String {
-    fn erstelle_arg(
+    fn argumente(
         beschreibung: Beschreibung<Self>,
         _invertiere_präfix: &'static str,
         meta_var: &str,
@@ -76,7 +76,7 @@ impl ParseArgument for String {
 macro_rules! impl_parse_argument {
     ($($type:ty),*$(,)?) => {$(
         impl ParseArgument for $type {
-            fn erstelle_arg(
+            fn argumente(
                 beschreibung: Beschreibung<Self>,
                 _invertiere_präfix: &'static str,
                 meta_var: &str,
@@ -101,13 +101,13 @@ macro_rules! impl_parse_argument {
 impl_parse_argument! {i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize, f32, f64}
 
 impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
-    fn erstelle_arg(
+    fn argumente(
         beschreibung: Beschreibung<Self>,
         invertiere_präfix: &'static str,
         meta_var: &str,
     ) -> Argumente<Self, String> {
         let Beschreibung { lang, kurz, .. } = &beschreibung;
-        let Argumente { parse, .. } = T::erstelle_arg(
+        let Argumente { parse, .. } = T::argumente(
             Beschreibung { lang: lang.clone(), kurz: kurz.clone(), hilfe: None, standard: None },
             invertiere_präfix,
             meta_var,
@@ -140,7 +140,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
 }
 
 impl<T: 'static + ArgEnum + Display + Clone> ParseArgument for T {
-    fn erstelle_arg(
+    fn argumente(
         beschreibung: Beschreibung<Self>,
         _invertiere_präfix: &'static str,
         meta_var: &str,

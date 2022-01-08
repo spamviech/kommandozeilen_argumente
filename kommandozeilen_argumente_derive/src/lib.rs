@@ -288,7 +288,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                     hilfe: #hilfe,
                     standard: #standard,
                 };
-                #crate_name::ParseArgument::erstelle_arg(
+                #crate_name::ParseArgument::argumente(
                     beschreibung,
                     #field_invertiere_präfix,
                     #field_meta_var
