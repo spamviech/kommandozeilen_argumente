@@ -42,7 +42,16 @@ impl<T> Beschreibung<T> {
     }
 }
 
+macro_rules! contains_str {
+    ($collection: expr, $gesucht: expr) => {
+        $collection.iter().any(|element| element == $gesucht)
+    };
+}
+pub(crate) use contains_str;
+
+/// Mindestens ein String als Definition für den vollen Namen.
 pub trait LangNamen {
+    /// Konvertiere in ein [NonEmpty].
     fn lang_namen(self) -> NonEmpty<String>;
 }
 
@@ -58,7 +67,9 @@ impl LangNamen for NonEmpty<String> {
     }
 }
 
+/// Beliebige Anzahl an Strings für den kurzen Namen.
 pub trait KurzNamen {
+    /// Konvertiere in einen [Vec].
     fn kurz_namen(self) -> Vec<String>;
 }
 
@@ -81,6 +92,7 @@ impl KurzNamen for Vec<String> {
 }
 
 impl<T> Beschreibung<T> {
+    /// Erzeuge eine neue Beschreibung.
     pub fn neu(
         lang: impl LangNamen,
         kurz: impl KurzNamen,

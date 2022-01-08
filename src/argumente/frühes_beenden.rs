@@ -3,7 +3,6 @@
 use std::{
     env,
     ffi::OsStr,
-    iter,
     path::{Path, PathBuf},
 };
 
@@ -15,8 +14,8 @@ use void::Void;
 
 use crate::{
     argumente::{ArgString, Argumente},
-    beschreibung::Beschreibung,
-    ergebnis::Ergebnis,
+    beschreibung::{contains_str, Beschreibung},
+    ergebnis::{namen_regex_hinzufügen, Ergebnis},
 };
 
 impl<T: 'static, E: 'static> Argumente<T, E> {
@@ -182,22 +181,6 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             beschreibung: beschreibung.clone().als_string_beschreibung().0,
             invertiere_präfix: None,
         });
-        fn name_regex_hinzufügen(string: &mut String, head: &String, tail: &[String]) {
-            if !tail.is_empty() {
-                string.push('(')
-            }
-            let mut first = true;
-            for name in iter::once(head).chain(tail) {
-                if first {
-                    string.push_str("|");
-                    first = false;
-                }
-                string.push_str(name);
-            }
-            if !tail.is_empty() {
-                string.push(')')
-            }
-        }
         fn lang_regex(
             lang_namen: &NonEmpty<String>,
             invertiere_präfix_oder_meta_var: Either<&Option<String>, &String>,
@@ -210,10 +193,10 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                         lang_regex.push_str(präfix);
                         lang_regex.push_str("]-");
                     }
-                    name_regex_hinzufügen(&mut lang_regex, &lang_namen.head, &lang_namen.tail);
+                    namen_regex_hinzufügen(&mut lang_regex, &lang_namen.head, &lang_namen.tail);
                 }
                 Either::Right(meta_var) => {
-                    name_regex_hinzufügen(&mut lang_regex, &lang_namen.head, &lang_namen.tail);
+                    namen_regex_hinzufügen(&mut lang_regex, &lang_namen.head, &lang_namen.tail);
                     lang_regex.push_str("(=| )");
                     lang_regex.push_str(meta_var);
                 }
@@ -254,7 +237,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                 let einrücken = " ".repeat(max_lang_regex_breite - lang_regex_breite);
                 name_regex.push_str(&einrücken);
                 name_regex.push_str(" | -");
-                name_regex_hinzufügen(&mut name_regex, head, tail);
+                namen_regex_hinzufügen(&mut name_regex, head, tail);
                 if let Either::Right(meta_var) = invertiere_präfix_oder_meta_var {
                     name_regex.push_str("[=| ]");
                     name_regex.push_str(meta_var);
@@ -371,7 +354,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
-                            if name_lang.iter().any(|konfiguriert| konfiguriert == lang) {
+                            if contains_str!(&name_lang, lang) {
                                 zeige_nachricht();
                                 nicht_selbst_verwendet.push(None);
                                 continue;
@@ -381,9 +364,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                                 if kurz
                                     .graphemes(true)
                                     .exactly_one()
-                                    .map(|name| {
-                                        name_kurz.iter().any(|konfiguriert| konfiguriert == name)
-                                    })
+                                    .map(|name| contains_str!(&name_kurz, name))
                                     .unwrap_or(false)
                                 {
                                     zeige_nachricht();

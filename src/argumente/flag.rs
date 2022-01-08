@@ -8,7 +8,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     argumente::{ArgString, Argumente},
-    beschreibung::Beschreibung,
+    beschreibung::{contains_str, Beschreibung},
     ergebnis::{Ergebnis, Fehler},
 };
 
@@ -77,14 +77,14 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
-                            if name_lang.iter().any(|konfiguriert| konfiguriert == lang) {
+                            if contains_str!(&name_lang, lang) {
                                 ergebnis = Some(konvertiere(true));
                                 nicht_verwendet.push(None);
                                 continue;
                             } else if let Some(negiert) =
                                 lang.strip_prefix(&invertiere_präfix_minus)
                             {
-                                if name_lang.iter().any(|konfiguriert| konfiguriert == negiert) {
+                                if contains_str!(&name_lang, negiert) {
                                     ergebnis = Some(konvertiere(false));
                                     nicht_verwendet.push(None);
                                     continue;
@@ -95,9 +95,7 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
                                 if kurz
                                     .graphemes(true)
                                     .exactly_one()
-                                    .map(|kurz| {
-                                        name_kurz.iter().any(|konfiguriert| konfiguriert == kurz)
-                                    })
+                                    .map(|name| contains_str!(&name_kurz, name))
                                     .unwrap_or(false)
                                 {
                                     ergebnis = Some(konvertiere(true));

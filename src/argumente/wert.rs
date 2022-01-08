@@ -11,7 +11,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     argumente::{ArgString, Argumente},
-    beschreibung::Beschreibung,
+    beschreibung::{contains_str, Beschreibung},
     ergebnis::{Ergebnis, Fehler, ParseFehler},
 };
 
@@ -86,11 +86,11 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
                     } else if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
                             if let Some((name, wert_str)) = lang.split_once('=') {
-                                if name_lang.iter().any(|konfiguriert| konfiguriert == name) {
+                                if contains_str!(&name_lang, name) {
                                     parse_auswerten(Some(wert_str.as_ref()));
                                     continue;
                                 }
-                            } else if name_lang.iter().any(|konfiguriert| konfiguriert == lang) {
+                            } else if contains_str!(&name_lang, lang) {
                                 name_ohne_wert = true;
                                 nicht_verwendet.push(None);
                                 continue;
@@ -100,9 +100,7 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
                                 let mut graphemes = kurz.graphemes(true);
                                 if graphemes
                                     .next()
-                                    .map(|name| {
-                                        name_kurz.iter().any(|konfiguriert| konfiguriert == name)
-                                    })
+                                    .map(|name| contains_str!(&name_kurz, name))
                                     .unwrap_or(false)
                                 {
                                     let rest = graphemes.as_str();
