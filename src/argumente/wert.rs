@@ -86,11 +86,11 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
                     } else if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
                             if let Some((name, wert_str)) = lang.split_once('=') {
-                                if name_lang.contains(todo!("{}", name)) {
+                                if name_lang.iter().any(|konfiguriert| konfiguriert == name) {
                                     parse_auswerten(Some(wert_str.as_ref()));
                                     continue;
                                 }
-                            } else if name_lang.contains(todo!("{}", lang)) {
+                            } else if name_lang.iter().any(|konfiguriert| konfiguriert == lang) {
                                 name_ohne_wert = true;
                                 nicht_verwendet.push(None);
                                 continue;
@@ -100,7 +100,9 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
                                 let mut graphemes = kurz.graphemes(true);
                                 if graphemes
                                     .next()
-                                    .map(|name| name_kurz.contains(todo!("{}", name)))
+                                    .map(|name| {
+                                        name_kurz.iter().any(|konfiguriert| konfiguriert == name)
+                                    })
                                     .unwrap_or(false)
                                 {
                                     let rest = graphemes.as_str();

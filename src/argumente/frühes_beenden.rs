@@ -3,6 +3,7 @@
 use std::{
     env,
     ffi::OsStr,
+    iter,
     path::{Path, PathBuf},
 };
 
@@ -181,6 +182,22 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             beschreibung: beschreibung.clone().als_string_beschreibung().0,
             invertiere_präfix: None,
         });
+        fn name_regex_hinzufügen(string: &mut String, head: &String, tail: &[String]) {
+            if !tail.is_empty() {
+                string.push('(')
+            }
+            let mut first = true;
+            for name in iter::once(head).chain(tail) {
+                if first {
+                    string.push_str("|");
+                    first = false;
+                }
+                string.push_str(name);
+            }
+            if !tail.is_empty() {
+                string.push(')')
+            }
+        }
         fn lang_regex(
             lang_namen: &NonEmpty<String>,
             invertiere_präfix_oder_meta_var: Either<&Option<String>, &String>,
@@ -193,10 +210,10 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                         lang_regex.push_str(präfix);
                         lang_regex.push_str("]-");
                     }
-                    lang_regex.push_str(todo!("{:?}", lang_namen));
+                    name_regex_hinzufügen(&mut lang_regex, &lang_namen.head, &lang_namen.tail);
                 }
                 Either::Right(meta_var) => {
-                    lang_regex.push_str(todo!("{:?}", lang_namen));
+                    name_regex_hinzufügen(&mut lang_regex, &lang_namen.head, &lang_namen.tail);
                     lang_regex.push_str("(=| )");
                     lang_regex.push_str(meta_var);
                 }
@@ -226,18 +243,18 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                 mögliche_werte,
             ))
         }
-        fn name_regex(
+        fn kurz_regex_hinzufügen(
             max_lang_regex_breite: usize,
             mut name_regex: String,
             lang_regex_breite: usize,
             kurz_namen: &Vec<String>,
             invertiere_präfix_oder_meta_var: Either<&Option<String>, &String>,
         ) -> String {
-            for kurz in kurz_namen.iter() {
+            if let Some((head, tail)) = kurz_namen.split_first() {
                 let einrücken = " ".repeat(max_lang_regex_breite - lang_regex_breite);
                 name_regex.push_str(&einrücken);
                 name_regex.push_str(" | -");
-                name_regex.push_str(kurz);
+                name_regex_hinzufügen(&mut name_regex, head, tail);
                 if let Either::Right(meta_var) = invertiere_präfix_oder_meta_var {
                     name_regex.push_str("[=| ]");
                     name_regex.push_str(meta_var);
@@ -255,7 +272,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             mögliche_werte,
         ) in lang_regex_vec
         {
-            let name_regex = name_regex(
+            let name_regex = kurz_regex_hinzufügen(
                 max_lang_regex_breite,
                 lang_regex,
                 lang_regex_breite,
@@ -354,7 +371,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
-                            if name_lang.contains(todo!("{}", lang)) {
+                            if name_lang.iter().any(|konfiguriert| konfiguriert == lang) {
                                 zeige_nachricht();
                                 nicht_selbst_verwendet.push(None);
                                 continue;
@@ -364,7 +381,9 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                                 if kurz
                                     .graphemes(true)
                                     .exactly_one()
-                                    .map(|kurz| name_kurz.contains(todo!("{}", kurz)))
+                                    .map(|name| {
+                                        name_kurz.iter().any(|konfiguriert| konfiguriert == name)
+                                    })
                                     .unwrap_or(false)
                                 {
                                     zeige_nachricht();
