@@ -57,8 +57,9 @@ pub(crate) fn namen_regex_hinzufügen(string: &mut String, head: &String, tail: 
     let mut first = true;
     for name in iter::once(head).chain(tail) {
         if first {
-            string.push_str("|");
             first = false;
+        } else {
+            string.push_str("|");
         }
         string.push_str(name);
     }
