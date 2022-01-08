@@ -61,6 +61,12 @@ impl LangNamen for String {
     }
 }
 
+impl LangNamen for &str {
+    fn lang_namen(self) -> NonEmpty<String> {
+        NonEmpty::singleton(self.to_owned())
+    }
+}
+
 impl LangNamen for NonEmpty<String> {
     fn lang_namen(self) -> NonEmpty<String> {
         self
@@ -82,6 +88,12 @@ impl KurzNamen for Option<String> {
 impl KurzNamen for String {
     fn kurz_namen(self) -> Vec<String> {
         vec![self]
+    }
+}
+
+impl KurzNamen for &str {
+    fn kurz_namen(self) -> Vec<String> {
+        vec![self.to_owned()]
     }
 }
 
