@@ -156,6 +156,12 @@ fn parse_paren_arg(string: &str) -> Option<(&str, &str)> {
     string.split_once('(').and_then(|(name, wert)| wert.strip_suffix(')').map(|wert| (name, wert)))
 }
 
+enum FeldArgument {
+    ArgEnum,
+    FromStr,
+    Parse,
+}
+
 /// Erstelle Methoden `kommandozeilen_argumente`, `parse[_aus_env][_frühes_beenden]`
 /// zum parsen aus Kommandozeilen-Argumenten.
 #[proc_macro_derive(Parse, attributes(kommandozeilen_argumente))]
@@ -363,9 +369,9 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         let mut lang = quote!(#ident_str.to_owned());
         let mut kurz = quote!(None);
         let mut standard = quote!(#crate_name::parse::ParseArgument::standard());
-        let mut glätten = false;
-        let mut field_invertiere_präfix = quote!(#invertiere_präfix);
-        let mut field_meta_var = quote!(#meta_var);
+        let mut feld_argument = FeldArgument::ArgEnum;
+        let mut feld_invertiere_präfix = quote!(#invertiere_präfix);
+        let mut feld_meta_var = quote!(#meta_var);
         for attr in attrs {
             if attr.path.is_ident("doc") {
                 let args_str = attr.tokens.to_string();
@@ -383,7 +389,8 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                 split_argumente!(args, &args_str);
                 for arg in args {
                     match arg {
-                        "glätten" | "flatten" => glätten = true,
+                        "glätten" | "flatten" => feld_argument = FeldArgument::Parse,
+                        "FromStr" => feld_argument = FeldArgument::FromStr,
                         "benötigt" | "required" => standard = quote!(None),
                         "kurz" | "short" => {
                             if let Some(kurz_str) = ident_str.graphemes(true).next() {
@@ -404,11 +411,11 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                                     }
                                     "invertiere_präfix" | "invert_prefix" => {
                                         let trimmed = wert_string.trim();
-                                        field_invertiere_präfix = quote!(#trimmed)
+                                        feld_invertiere_präfix = quote!(#trimmed)
                                     }
                                     "meta_var" => {
                                         let trimmed = wert_string.trim();
-                                        field_meta_var = quote!(#trimmed)
+                                        feld_meta_var = quote!(#trimmed)
                                     }
                                     trimmed => compile_error_return!(
                                         "Benanntes Argument nicht unterstützt: {}",
@@ -464,22 +471,40 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         } else {
             quote!(Some(#hilfe_string.to_owned()))
         };
-        let erstelle_args = if glätten {
-            quote!(#crate_name::Parse::kommandozeilen_argumente())
-        } else {
-            quote!({
-                let beschreibung = #crate_name::Beschreibung::neu(
-                    #lang.to_owned(),
-                    #kurz,
-                    #hilfe,
-                    #standard,
-                );
-                #crate_name::ParseArgument::argumente(
-                    beschreibung,
-                    #field_invertiere_präfix,
-                    #field_meta_var
-                )
-            })
+        let erstelle_args = match feld_argument {
+            FeldArgument::ArgEnum => {
+                quote!({
+                    let beschreibung = #crate_name::Beschreibung::neu(
+                        #lang.to_owned(),
+                        #kurz,
+                        #hilfe,
+                        #standard,
+                    );
+                    #crate_name::ParseArgument::argumente(
+                        beschreibung,
+                        #feld_invertiere_präfix,
+                        #feld_meta_var
+                    )
+                })
+            }
+            FeldArgument::FromStr => {
+                quote!({
+                    let beschreibung = #crate_name::Beschreibung::neu(
+                        #lang.to_owned(),
+                        #kurz,
+                        #hilfe,
+                        #standard,
+                    );
+                    #crate_name::Argumente::wert_from_str_display(
+                        beschreibung,
+                        #feld_meta_var.to_owned(),
+                        None,
+                    )
+                })
+            }
+            FeldArgument::Parse => {
+                quote!(#crate_name::Parse::kommandozeilen_argumente())
+            }
         };
         tuples.push((ident, erstelle_args));
     }

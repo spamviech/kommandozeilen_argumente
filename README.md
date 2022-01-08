@@ -40,11 +40,14 @@ Vor Feldern
 - hilfe aus docstring
 - name wird langer name
 - erstes grapheme wird kurzer name
-- Es wird eine Implementierung über das ArgEnum-Trait verwendet
-  - flags (bool-Werte) sind standardmäßig deaktiviert
+- Es wird eine Implementierung über das ParseArgument-Trait verwendet
+  - Flags (bool-Werte) sind standardmäßig deaktiviert
   - Option-Werte sind standardmäßig None
   - Strings und Zahlentypen (u8, i8, f32, ...) haben keinen Standardwert (notwendiges Argument)
+  - ArgEnum-Werte haben keinen Standardwert (notwendiges Argument), benötigt Display.
+        Derive-Macro für Summen-Typen ohne Daten wird bereitgestellt.
 - `glätten`/`flatten`: verwende das Parse-Trait (übernehmen der konfigurierten Argumente)
+- `FromStr`: verwende das FromStr-Trait (benötigt Display für Wert und Fehler-Typ)
 - `benötigt`/`required`: entferne den konfigurierten Standard-Wert
 - `kurz`/`short`: Verwende eine Kurzform, bestehend aus dem ersten Grapheme der Langform
 - `kurz: <wert>"`/`short: <value>"`: Verwende die spezifizierte Kurzform

@@ -36,6 +36,9 @@ struct Test {
     /// opt
     #[kommandozeilen_argumente(lang(alternativ), kurz(p, q, r))]
     opt: Option<Bla>,
+    /// from_str
+    #[kommandozeilen_argumente(FromStr, standard: 42)]
+    from_str: i32,
     /// flag
     #[kommandozeilen_argumente(standard: true)]
     flag: bool,

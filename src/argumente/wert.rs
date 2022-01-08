@@ -1,10 +1,6 @@
 //! Wert-Argument basierend auf seiner [FromStr]-Implementierung.
 
-use std::{
-    ffi::{OsStr, OsString},
-    fmt::Display,
-    str::FromStr,
-};
+use std::{ffi::OsStr, fmt::Display, str::FromStr};
 
 use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
@@ -149,7 +145,7 @@ pub trait ArgEnum: Sized {
     fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>>;
 }
 
-impl<T: 'static + Display + Clone + ArgEnum> Argumente<T, OsString> {
+impl<T: 'static + Display + Clone + ArgEnum> Argumente<T, String> {
     /// Erzeuge ein Wert-Argument für ein [ArgEnum].
     pub fn wert_enum_display(
         beschreibung: Beschreibung<T>,
@@ -159,7 +155,7 @@ impl<T: 'static + Display + Clone + ArgEnum> Argumente<T, OsString> {
     }
 }
 
-impl<T: 'static + Display + Clone + ArgEnum> Argumente<T, OsString> {
+impl<T: 'static + Display + Clone + ArgEnum> Argumente<T, String> {
     /// Erzeuge ein Wert-Argument für ein [ArgEnum].
     pub fn wert_enum(
         beschreibung: Beschreibung<T>,
@@ -171,22 +167,52 @@ impl<T: 'static + Display + Clone + ArgEnum> Argumente<T, OsString> {
     }
 }
 
-impl<T> Argumente<T, ParseFehler<T::Err>>
+impl<T> Argumente<T, String>
 where
     T: 'static + Display + Clone + FromStr,
-    T::Err: 'static + Clone,
+    T::Err: Display,
+{
+    /// Erzeuge ein Wert-Argument anhand der [FromStr]-Implementierung.
+    #[inline(always)]
+    pub fn wert_from_str_display(
+        beschreibung: Beschreibung<T>,
+        meta_var: String,
+        mögliche_werte: Option<NonEmpty<T>>,
+    ) -> Argumente<T, String> {
+        Argumente::wert_from_str(beschreibung, meta_var, mögliche_werte, T::to_string, |fehler| {
+            fehler.to_string()
+        })
+    }
+}
+
+impl<T, E> Argumente<T, E>
+where
+    T: 'static + Clone + FromStr,
+    E: 'static + Clone,
 {
     /// Erzeuge ein Wert-Argument anhand der [FromStr]-Implementierung.
     pub fn wert_from_str(
         beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
-    ) -> Argumente<T, T::Err> {
-        Argumente::wert_display(beschreibung, meta_var, mögliche_werte, |os_str| {
-            os_str
-                .to_str()
-                .ok_or_else(|| ParseFehler::InvaliderString(os_str.to_owned()))
-                .and_then(|string| T::from_str(string).map_err(ParseFehler::ParseFehler))
-        })
+        anzeige: impl Fn(&T) -> String,
+        konvertiere_fehler: impl 'static + Fn(T::Err) -> E,
+    ) -> Argumente<T, E> {
+        Argumente::wert(
+            beschreibung,
+            meta_var,
+            mögliche_werte,
+            move |os_str| {
+                os_str
+                    .to_str()
+                    .ok_or_else(|| ParseFehler::InvaliderString(os_str.to_owned()))
+                    .and_then(|string| {
+                        T::from_str(string)
+                            .map_err(&konvertiere_fehler)
+                            .map_err(ParseFehler::ParseFehler)
+                    })
+            },
+            anzeige,
+        )
     }
 }
