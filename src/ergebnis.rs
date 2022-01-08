@@ -1,6 +1,6 @@
 //! Ergebnis- und Fehler-Typ für parsen von Kommandozeilen-Argumenten.
 
-use std::{ffi::OsString, fmt::Display};
+use std::{ffi::OsString, fmt::Display, iter};
 
 use either::Either;
 use nonempty::NonEmpty;
@@ -97,28 +97,39 @@ impl<E: Display> Fehler<E> {
             meta_var_oder_invertiere_präfix: Either<&String, &String>,
         ) -> String {
             let mut fehlermeldung = format!("{}: ", fehler_beschreibung);
-            for lang in lang.iter() {
-                if !fehlermeldung.is_empty() {
-                    fehlermeldung.push_str(" | ");
+            fehlermeldung.push_str("--");
+            fn namen_regex(fehlermeldung: &mut String, head: &String, tail: &[String]) {
+                if !tail.is_empty() {
+                    fehlermeldung.push('(')
                 }
-                fehlermeldung.push_str("--");
-                match meta_var_oder_invertiere_präfix {
-                    Either::Left(invertiere_präfix) => {
-                        fehlermeldung.push('[');
-                        fehlermeldung.push_str(invertiere_präfix);
-                        fehlermeldung.push_str("-]");
-                        fehlermeldung.push_str(lang);
+                let mut first = true;
+                for name in iter::once(head).chain(tail) {
+                    if first {
+                        fehlermeldung.push_str("|");
+                        first = false;
                     }
-                    Either::Right(meta_var) => {
-                        fehlermeldung.push_str(lang);
-                        fehlermeldung.push_str("( |=)");
-                        fehlermeldung.push_str(meta_var);
-                    }
+                    fehlermeldung.push_str(name);
+                }
+                if !tail.is_empty() {
+                    fehlermeldung.push(')')
                 }
             }
-            for kurz in kurz.iter() {
+            match meta_var_oder_invertiere_präfix {
+                Either::Left(invertiere_präfix) => {
+                    fehlermeldung.push('[');
+                    fehlermeldung.push_str(invertiere_präfix);
+                    fehlermeldung.push_str("-]");
+                    namen_regex(&mut fehlermeldung, &lang.head, &lang.tail);
+                }
+                Either::Right(meta_var) => {
+                    namen_regex(&mut fehlermeldung, &lang.head, &lang.tail);
+                    fehlermeldung.push_str("( |=)");
+                    fehlermeldung.push_str(meta_var);
+                }
+            }
+            if let Some((head, tail)) = kurz.split_first() {
                 fehlermeldung.push_str(" | -");
-                fehlermeldung.push_str(kurz);
+                namen_regex(&mut fehlermeldung, head, tail);
                 if let Either::Right(meta_var) = meta_var_oder_invertiere_präfix {
                     fehlermeldung.push_str("[ |=]");
                     fehlermeldung.push_str(meta_var);
