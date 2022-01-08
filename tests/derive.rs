@@ -52,7 +52,7 @@ struct Inner {
 }
 
 #[derive(Debug, PartialEq, Eq, Parse)]
-#[kommandozeilen_argumente(english, version, help)]
+#[kommandozeilen_argumente(english, version, help(hilfe, help; h))]
 struct Test2 {
     #[kommandozeilen_argumente(default: Bla::Meh)]
     /// bla

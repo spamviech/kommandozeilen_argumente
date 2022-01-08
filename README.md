@@ -30,6 +30,10 @@ Global an struct
     setze Standardwert für in der Hilfe angezeigte Meta-Variable
 - `invertiere_präfix: <string>` | `invert_prefix: <string>`:
     setze Standardwert für Präfix zum invertieren einer Flag
+- `hilfe(<lang namen>[;<kurz namen>])` | `help(<long names>[;<short names>])`:
+    erzeuge einen Hilfe-Test für alle Konfigurierten Namen (Komma-getrennte Liste)
+- `version[_(deutsch|english)](<lang namen>[;<kurz namen>])`:
+    erzeuge eine Flag zum Anzeigen der Version für alle Konfigurierten Namen (Komma-getrennte Liste)
 
 Vor Feldern
 

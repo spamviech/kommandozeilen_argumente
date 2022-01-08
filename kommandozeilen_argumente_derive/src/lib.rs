@@ -92,14 +92,31 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         if attr.path.is_ident("kommandozeilen_argumente") {
             let args_str = attr.tokens.to_string();
             if let Some(stripped) = args_str.strip_prefix('(').and_then(|s| s.strip_suffix(')')) {
-                args.extend(stripped.split(',').flat_map(|s| {
-                    let trimmed = s.trim();
-                    if trimmed.is_empty() {
-                        None
-                    } else {
-                        Some(trimmed.to_owned())
+                // Argumente getrennt durch Kommas, Unterargumente mit () angegeben,
+                // kann ebenfalls Kommas enthalten. Bisher erste eine Ebene.
+                let mut rest = stripped;
+                while !rest.is_empty() {
+                    let rest_länge = rest.len();
+                    macro_rules! arg_speichern {
+                        ($ix: expr) => {
+                            args.push(rest[0..$ix].trim().to_owned());
+                            rest = if $ix < rest_länge { &rest[$ix + 1..] } else { "" };
+                        };
                     }
-                }));
+                    let nächstes_komma = rest.find(',').unwrap_or(rest_länge);
+                    let nächste_klammer = rest.find('(').unwrap_or(rest_länge);
+                    if nächste_klammer < nächstes_komma {
+                        if let Some(schließende_klammer) = rest.find(')') {
+                            let nächstes_komma =
+                                rest[schließende_klammer + 1..].find(',').unwrap_or(rest_länge);
+                            arg_speichern!(nächstes_komma);
+                        } else {
+                            compile_error_return!("Nicht geschlossene Klammer: {}", rest);
+                        }
+                    } else {
+                        arg_speichern!(nächstes_komma);
+                    }
+                }
             } else {
                 compile_error_return!("Args nicht in Klammern eingeschlossen: {}", args_str);
             }
@@ -112,11 +129,12 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     // CARGO_PKG_AUTHORS — Colon separated list of authors from the manifest of your package.
     // CARGO_PKG_DESCRIPTION — The description from the manifest of your package.
     // CARGO_BIN_NAME — The name of the binary that is currently being compiled (if it is a binary). This name does not include any file extension, such as .exe
-    let mut erstelle_version: Option<fn(TokenStream2, Sprache) -> TokenStream2> = None;
-    let mut erstelle_hilfe: Option<fn(TokenStream2) -> TokenStream2> = None;
+    let mut erstelle_version: Option<Box<dyn Fn(TokenStream2, Sprache) -> TokenStream2>> = None;
+    let mut erstelle_hilfe: Option<Box<dyn Fn(TokenStream2) -> TokenStream2>> = None;
     let mut sprache = Deutsch;
     let mut invertiere_präfix = None;
     let mut meta_var = None;
+    let crate_name = unwrap_result_or_compile_error!(base_name());
     for arg in args {
         match arg.as_str() {
             "deutsch" => sprache = Deutsch,
@@ -124,7 +142,7 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
             "english" => sprache = Englisch,
             "englisch" => sprache = Englisch,
             "version" => {
-                erstelle_version = Some(|item, sprache| {
+                erstelle_version = Some(Box::new(|item, sprache| {
                     let version_methode = match sprache {
                         Deutsch => "version_deutsch",
                         Englisch => "version_english",
@@ -133,51 +151,154 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                     quote!(
                         #item.#version_ident(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
                     )
-                })
+                }))
             }
             "version_deutsch" => {
-                erstelle_version = Some(|item, _sprache| {
+                erstelle_version = Some(Box::new(|item, _sprache| {
                     quote!(
                         #item.version_deutsch(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
                     )
-                })
+                }))
             }
             "version_english" => {
-                erstelle_version = Some(|item, _sprache| {
+                erstelle_version = Some(Box::new(|item, _sprache| {
                     quote!(
                         #item.version_english(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
                     )
-                })
+                }))
             }
             "hilfe" => {
-                erstelle_hilfe = Some(|item| {
+                erstelle_hilfe = Some(Box::new(|item| {
                     quote!(
                         #item.hilfe(env!("CARGO_PKG_NAME"), Some(env!("CARGO_PKG_VERSION")))
                     )
-                })
+                }))
             }
             "help" => {
-                erstelle_hilfe = Some(|item| {
+                erstelle_hilfe = Some(Box::new(|item| {
                     quote!(
                         #item.help(env!("CARGO_PKG_NAME"), Some(env!("CARGO_PKG_VERSION")))
                     )
-                })
+                }))
             }
-            string => match string.split_once(':') {
-                Some((arg_name, wert_string)) => match arg_name.trim() {
-                    "invertiere_präfix" | "invert_prefix" => {
-                        invertiere_präfix = Some(wert_string.to_owned())
+            string => {
+                if let Some((arg_name, wert_string)) = string.split_once(':') {
+                    match arg_name.trim() {
+                        "invertiere_präfix" | "invert_prefix" => {
+                            invertiere_präfix = Some(wert_string.to_owned())
+                        }
+                        "meta_var" => meta_var = Some(wert_string.to_owned()),
+                        trimmed => {
+                            compile_error_return!(
+                                "Benanntes Argument nicht unterstützt: {}",
+                                trimmed
+                            )
+                        }
                     }
-                    "meta_var" => meta_var = Some(wert_string.to_owned()),
-                    trimmed => {
-                        compile_error_return!("Benanntes Argument nicht unterstützt: {}", trimmed)
+                } else if let Some((arg_name, lang_namen_str, kurz_namen_str)) =
+                    string.split_once('(').and_then(|(name, wert)| {
+                        wert.strip_suffix(')').map(|wert| {
+                            let (lang_namen, kurz_namen) =
+                                wert.split_once(';').unwrap_or((wert, ""));
+                            (name, lang_namen, kurz_namen)
+                        })
+                    })
+                {
+                    let mut werte =
+                        lang_namen_str.split(',').map(str::trim).filter(|s| !s.is_empty());
+                    let (head, tail) = if let Some(head) = werte.next() {
+                        (head, werte)
+                    } else {
+                        compile_error_return!("Kein LangName für {}!", arg_name)
+                    };
+                    let lang_namen = quote!(
+                        #crate_name::NonEmpty {
+                            head: #head.to_owned(),
+                            tail: vec![#(#tail.to_owned()),*]
+                        }
+                    );
+                    let kurz_namen_iter =
+                        kurz_namen_str.split(',').map(str::trim).filter(|s| !s.is_empty());
+                    let kurz_namen = quote!(vec![#(#kurz_namen_iter.to_owned()),*]);
+                    match arg_name.trim() {
+                        "hilfe" => {
+                            erstelle_hilfe = Some(Box::new(move |item| {
+                                quote!(
+                                    #item.hilfe_mit_namen(
+                                        #lang_namen,
+                                        #kurz_namen,
+                                        env!("CARGO_PKG_NAME"),
+                                        Some(env!("CARGO_PKG_VERSION"))
+                                    )
+                                )
+                            }));
+                        }
+                        "help" => {
+                            erstelle_hilfe = Some(Box::new(move |item| {
+                                quote!(
+                                    #item.help_with_names(
+                                        #lang_namen,
+                                        #kurz_namen,
+                                        env!("CARGO_PKG_NAME"),
+                                        Some(env!("CARGO_PKG_VERSION"))
+                                    )
+                                )
+                            }));
+                        }
+                        "version" => {
+                            erstelle_version = Some(Box::new(move |item, sprache| {
+                                let version_methode = match sprache {
+                                    Deutsch => "version_mit_namen",
+                                    Englisch => "version_with_names",
+                                };
+                                let version_ident = format_ident!("{}", version_methode);
+                                quote!(
+                                    #item.#version_ident(
+                                        #lang_namen,
+                                        #kurz_namen,
+                                        env!("CARGO_PKG_NAME"),
+                                        env!("CARGO_PKG_VERSION")
+                                    )
+                                )
+                            }))
+                        }
+                        "version_deutsch" => {
+                            erstelle_version = Some(Box::new(move |item, _sprache| {
+                                quote!(
+                                    #item.version_mit_namen(
+                                        #lang_namen,
+                                        #kurz_namen,
+                                        env!("CARGO_PKG_NAME"),
+                                        env!("CARGO_PKG_VERSION")
+                                    )
+                                )
+                            }))
+                        }
+                        "version_english" => {
+                            erstelle_version = Some(Box::new(move |item, _sprache| {
+                                quote!(
+                                    #item.version_with_names(
+                                        #lang_namen,
+                                        #kurz_namen,
+                                        env!("CARGO_PKG_NAME"),
+                                        env!("CARGO_PKG_VERSION")
+                                    )
+                                )
+                            }))
+                        }
+                        trimmed => {
+                            compile_error_return!(
+                                "Benanntes Argument nicht unterstützt: {}",
+                                trimmed
+                            )
+                        }
                     }
-                },
-                _ => compile_error_return!("Argument nicht unterstützt: {}", arg),
-            },
+                } else {
+                    compile_error_return!("Argument nicht unterstützt: {}", arg)
+                }
+            }
         }
     }
-    let crate_name = unwrap_result_or_compile_error!(base_name());
     let invertiere_präfix = invertiere_präfix.unwrap_or(match sprache {
         Deutsch => "kein".to_owned(),
         Englisch => "no".to_owned(),
