@@ -112,13 +112,14 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
             invertiere_präfix,
             meta_var,
         );
-        let name: OsString = format!("--{}", lang).into();
+        let name: OsString = format!("--{}", lang.head).into();
         Argumente::wert(
             beschreibung,
             meta_var.to_owned(),
             None,
             move |arg| {
                 let (ergebnis, _nicht_verwendet) = parse(vec![Some(name.as_os_str()), Some(arg)]);
+                // FIXME Fehlerbehandlung erscheint mir nicht richtig
                 match ergebnis {
                     Ergebnis::Wert(wert) => Ok(Some(wert)),
                     _ergebnis => Err(ParseFehler::InvaliderString(arg.to_owned())),

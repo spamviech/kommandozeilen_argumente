@@ -282,12 +282,12 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
             quote!(#crate_name::Parse::kommandozeilen_argumente())
         } else {
             quote!({
-                let beschreibung = #crate_name::Beschreibung {
-                    lang: #lang.to_owned(),
-                    kurz: #kurz,
-                    hilfe: #hilfe,
-                    standard: #standard,
-                };
+                let beschreibung = #crate_name::Beschreibung::neu(
+                    #lang.to_owned(),
+                    #kurz,
+                    #hilfe,
+                    #standard,
+                );
                 #crate_name::ParseArgument::argumente(
                     beschreibung,
                     #field_invertiere_präfix,

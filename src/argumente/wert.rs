@@ -58,8 +58,7 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
             }],
             flag_kurzformen: Vec::new(),
             parse: Box::new(move |args| {
-                let name_kurz_str = name_kurz.as_ref().map(String::as_str);
-                let name_kurz_existiert = name_kurz_str.is_some();
+                let name_kurz_existiert = !name_kurz.is_empty();
                 let mut ergebnis = None;
                 let mut fehler = Vec::new();
                 let mut name_ohne_wert = false;
@@ -87,11 +86,11 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
                     } else if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
                             if let Some((name, wert_str)) = lang.split_once('=') {
-                                if name == name_lang {
+                                if name_lang.contains(todo!("{}", name)) {
                                     parse_auswerten(Some(wert_str.as_ref()));
                                     continue;
                                 }
-                            } else if lang == name_lang {
+                            } else if name_lang.contains(todo!("{}", lang)) {
                                 name_ohne_wert = true;
                                 nicht_verwendet.push(None);
                                 continue;
@@ -99,7 +98,11 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
                         } else if name_kurz_existiert {
                             if let Some(kurz) = string.strip_prefix('-') {
                                 let mut graphemes = kurz.graphemes(true);
-                                if graphemes.next() == name_kurz_str {
+                                if graphemes
+                                    .next()
+                                    .map(|name| name_kurz.contains(todo!("{}", name)))
+                                    .unwrap_or(false)
+                                {
                                     let rest = graphemes.as_str();
                                     let wert_str = if let Some(wert_str) = rest.strip_prefix('=') {
                                         wert_str

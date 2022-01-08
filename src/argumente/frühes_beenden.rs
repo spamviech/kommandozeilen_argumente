@@ -22,12 +22,12 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Erzeuge eine `--version`-Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei die konfigurierte Programm-Version.
     pub fn version_deutsch(self, programm_name: &str, version: &str) -> Argumente<T, E> {
-        let beschreibung = Beschreibung {
-            lang: "version".to_owned(),
-            kurz: Some("v".to_owned()),
-            hilfe: Some("Zeigt die aktuelle Version an.".to_owned()),
-            standard: None,
-        };
+        let beschreibung = Beschreibung::neu(
+            "version".to_owned(),
+            "v".to_owned(),
+            Some("Zeigt die aktuelle Version an.".to_owned()),
+            None,
+        );
         self.zeige_version(beschreibung, programm_name, version)
     }
 
@@ -35,8 +35,8 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Shows the configured program version.
     pub fn version_english(self, program_name: &str, version: &str) -> Argumente<T, E> {
         let beschreibung = Beschreibung {
-            lang: "version".to_owned(),
-            kurz: Some("v".to_owned()),
+            lang: NonEmpty::singleton("version".to_owned()),
+            kurz: vec!["v".to_owned()],
             hilfe: Some("Show the current version.".to_owned()),
             standard: None,
         };
@@ -58,8 +58,8 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Zeige dabei eine automatisch generierte Hilfe.
     pub fn hilfe(self, programm_name: &str, version: Option<&str>) -> Argumente<T, E> {
         let beschreibung = Beschreibung {
-            lang: "hilfe".to_owned(),
-            kurz: Some("h".to_owned()),
+            lang: NonEmpty::singleton("hilfe".to_owned()),
+            kurz: vec!["h".to_owned()],
             hilfe: Some("Zeigt diesen Text an.".to_owned()),
             standard: None,
         };
@@ -83,8 +83,8 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Shows an automatically created help text.
     pub fn help(self, program_name: &str, version: Option<&str>) -> Argumente<T, E> {
         let beschreibung = Beschreibung {
-            lang: "help".to_owned(),
-            kurz: Some("h".to_owned()),
+            lang: NonEmpty::singleton("help".to_owned()),
+            kurz: vec!["h".to_owned()],
             hilfe: Some("Show this text.".to_owned()),
             standard: None,
         };
@@ -182,7 +182,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             invertiere_präfix: None,
         });
         fn lang_regex(
-            lang: &String,
+            lang_namen: &NonEmpty<String>,
             invertiere_präfix_oder_meta_var: Either<&Option<String>, &String>,
         ) -> String {
             let mut lang_regex = "--".to_owned();
@@ -193,10 +193,10 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                         lang_regex.push_str(präfix);
                         lang_regex.push_str("]-");
                     }
-                    lang_regex.push_str(lang);
+                    lang_regex.push_str(todo!("{:?}", lang_namen));
                 }
                 Either::Right(meta_var) => {
-                    lang_regex.push_str(lang);
+                    lang_regex.push_str(todo!("{:?}", lang_namen));
                     lang_regex.push_str("(=| )");
                     lang_regex.push_str(meta_var);
                 }
@@ -230,10 +230,10 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             max_lang_regex_breite: usize,
             mut name_regex: String,
             lang_regex_breite: usize,
-            kurz: &Option<String>,
+            kurz_namen: &Vec<String>,
             invertiere_präfix_oder_meta_var: Either<&Option<String>, &String>,
         ) -> String {
-            if let Some(kurz) = &kurz {
+            for kurz in kurz_namen.iter() {
                 let einrücken = " ".repeat(max_lang_regex_breite - lang_regex_breite);
                 name_regex.push_str(&einrücken);
                 name_regex.push_str(" | -");
@@ -341,30 +341,32 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
         let (beschreibung, _standard) = beschreibung.als_string_beschreibung();
-        if let Some(kurz) = &beschreibung.kurz {
-            flag_kurzformen.push(kurz.clone())
-        }
+        flag_kurzformen.extend(beschreibung.kurz.iter().cloned());
         beschreibungen.push(ArgString::Flag { beschreibung, invertiere_präfix: None });
         Argumente {
             beschreibungen,
             flag_kurzformen,
             parse: Box::new(move |args| {
-                let name_kurz_str = name_kurz.as_ref().map(String::as_str);
-                let name_kurz_existiert = name_kurz_str.is_some();
+                let name_kurz_existiert = !name_kurz.is_empty();
                 let mut nicht_selbst_verwendet = Vec::new();
                 let mut nachrichten = Vec::new();
                 let mut zeige_nachricht = || nachrichten.push(nachricht.clone());
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
-                            if lang == name_lang {
+                            if name_lang.contains(todo!("{}", lang)) {
                                 zeige_nachricht();
                                 nicht_selbst_verwendet.push(None);
                                 continue;
                             }
                         } else if name_kurz_existiert {
                             if let Some(kurz) = string.strip_prefix('-') {
-                                if kurz.graphemes(true).exactly_one().ok() == name_kurz_str {
+                                if kurz
+                                    .graphemes(true)
+                                    .exactly_one()
+                                    .map(|kurz| name_kurz.contains(todo!("{}", kurz)))
+                                    .unwrap_or(false)
+                                {
                                     zeige_nachricht();
                                     nicht_selbst_verwendet.push(None);
                                     continue;

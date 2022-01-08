@@ -2,6 +2,7 @@
 
 use std::{ffi::OsString, fmt::Display};
 
+use either::Either;
 use nonempty::NonEmpty;
 
 /// Ergebnis des Parsen von Kommandozeilen-Argumenten.
@@ -21,27 +22,27 @@ pub enum Fehler<E> {
     /// Ein benötigtes Flag-Argument wurde nicht genannt.
     FehlendeFlag {
         /// Vollständiger Name.
-        lang: String,
+        lang: NonEmpty<String>,
         /// Kurzform des Namen.
-        kurz: Option<String>,
+        kurz: Vec<String>,
         /// Präfix zum invertieren.
         invertiere_präfix: String,
     },
     /// Ein benötigtes Wert-Argument wurde nicht genannt.
     FehlenderWert {
         /// Vollständiger Name.
-        lang: String,
+        lang: NonEmpty<String>,
         /// Kurzform des Namen.
-        kurz: Option<String>,
+        kurz: Vec<String>,
         /// Verwendete Meta-Variable für den Wert.
         meta_var: String,
     },
     /// Fehler beim Parsen des genannten Wertes.
     Fehler {
         /// Vollständiger Name.
-        lang: String,
+        lang: NonEmpty<String>,
         /// Kurzform des Namen.
-        kurz: Option<String>,
+        kurz: Vec<String>,
         /// Verwendete Meta-Variable für den Wert.
         meta_var: String,
         /// Beim Parsen aufgetretener Fehler.
@@ -89,25 +90,48 @@ impl<E: Display> Fehler<E> {
         parse_fehler: &str,
         invalider_string: &str,
     ) -> String {
-        match self {
-            Fehler::FehlendeFlag { lang, kurz, invertiere_präfix } => {
-                let mut fehlermeldung =
-                    format!("{}: --[{}-]{}", fehlende_flag, invertiere_präfix, lang);
-                if let Some(kurz) = kurz {
-                    fehlermeldung.push_str(" | -");
-                    fehlermeldung.push_str(kurz);
+        fn fehlermeldung(
+            fehler_beschreibung: &str,
+            lang: &NonEmpty<String>,
+            kurz: &Vec<String>,
+            meta_var_oder_invertiere_präfix: Either<&String, &String>,
+        ) -> String {
+            let mut fehlermeldung = format!("{}: ", fehler_beschreibung);
+            for lang in lang.iter() {
+                if !fehlermeldung.is_empty() {
+                    fehlermeldung.push_str(" | ");
                 }
-                fehlermeldung
+                fehlermeldung.push_str("--");
+                match meta_var_oder_invertiere_präfix {
+                    Either::Left(invertiere_präfix) => {
+                        fehlermeldung.push('[');
+                        fehlermeldung.push_str(invertiere_präfix);
+                        fehlermeldung.push_str("-]");
+                        fehlermeldung.push_str(lang);
+                    }
+                    Either::Right(meta_var) => {
+                        fehlermeldung.push_str(lang);
+                        fehlermeldung.push_str("( |=)");
+                        fehlermeldung.push_str(meta_var);
+                    }
+                }
             }
-            Fehler::FehlenderWert { lang, kurz, meta_var } => {
-                let mut fehlermeldung = format!("{}: --{} {}", fehlender_wert, lang, meta_var);
-                if let Some(kurz) = kurz {
-                    fehlermeldung.push_str(" | -");
-                    fehlermeldung.push_str(kurz);
-                    fehlermeldung.push_str("[=| ]");
+            for kurz in kurz.iter() {
+                fehlermeldung.push_str(" | -");
+                fehlermeldung.push_str(kurz);
+                if let Either::Right(meta_var) = meta_var_oder_invertiere_präfix {
+                    fehlermeldung.push_str("[ |=]");
                     fehlermeldung.push_str(meta_var);
                 }
-                fehlermeldung
+            }
+            fehlermeldung
+        }
+        match self {
+            Fehler::FehlendeFlag { lang, kurz, invertiere_präfix } => {
+                fehlermeldung(fehlende_flag, lang, kurz, Either::Left(invertiere_präfix))
+            }
+            Fehler::FehlenderWert { lang, kurz, meta_var } => {
+                fehlermeldung(fehlender_wert, lang, kurz, Either::Right(meta_var))
             }
             Fehler::Fehler { lang, kurz, meta_var, fehler } => {
                 let (fehler_art, fehler_anzeige) = match fehler {
@@ -116,13 +140,8 @@ impl<E: Display> Fehler<E> {
                     }
                     ParseFehler::ParseFehler(fehler) => (parse_fehler, fehler.to_string()),
                 };
-                let mut fehlermeldung = format!("{}: --{} {}", fehler_art, lang, meta_var);
-                if let Some(kurz) = kurz {
-                    fehlermeldung.push_str(" | -");
-                    fehlermeldung.push_str(kurz);
-                    fehlermeldung.push_str("[=| ]");
-                    fehlermeldung.push_str(meta_var);
-                }
+                let mut fehlermeldung =
+                    fehlermeldung(fehler_art, lang, kurz, Either::Right(meta_var));
                 fehlermeldung.push('\n');
                 fehlermeldung.push_str(&fehler_anzeige);
                 fehlermeldung

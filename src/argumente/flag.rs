@@ -71,21 +71,20 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
             }],
             flag_kurzformen: name_kurz.iter().cloned().collect(),
             parse: Box::new(move |args| {
-                let name_kurz_str = name_kurz.as_ref().map(String::as_str);
-                let name_kurz_existiert = name_kurz_str.is_some();
+                let name_kurz_existiert = !name_kurz.is_empty();
                 let mut ergebnis = None;
                 let mut nicht_verwendet = Vec::new();
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
-                            if lang == name_lang {
+                            if name_lang.contains(todo!("{}", lang)) {
                                 ergebnis = Some(konvertiere(true));
                                 nicht_verwendet.push(None);
                                 continue;
                             } else if let Some(negiert) =
                                 lang.strip_prefix(&invertiere_präfix_minus)
                             {
-                                if negiert == name_lang {
+                                if name_lang.contains(todo!("{}", lang)) {
                                     ergebnis = Some(konvertiere(false));
                                     nicht_verwendet.push(None);
                                     continue;
@@ -93,7 +92,12 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
                             }
                         } else if name_kurz_existiert {
                             if let Some(kurz) = string.strip_prefix('-') {
-                                if kurz.graphemes(true).exactly_one().ok() == name_kurz_str {
+                                if kurz
+                                    .graphemes(true)
+                                    .exactly_one()
+                                    .map(|kurz| name_kurz.contains(todo!("{}", kurz)))
+                                    .unwrap_or(false)
+                                {
                                     ergebnis = Some(konvertiere(true));
                                     nicht_verwendet.push(None);
                                     continue;

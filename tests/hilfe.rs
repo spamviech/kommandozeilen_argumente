@@ -13,12 +13,12 @@ use kommandozeilen_argumente::kombiniere;
 #[test]
 fn hilfe_test() {
     let arg: Argumente<bool, Void> = Argumente::hilfe_und_version(
-        Argumente::flag_deutsch(Beschreibung {
-            lang: "test".to_owned(),
-            kurz: None,
-            hilfe: Some("hilfe".to_owned()),
-            standard: Some(false),
-        }),
+        Argumente::flag_deutsch(Beschreibung::neu(
+            "test".to_owned(),
+            None,
+            Some("hilfe".to_owned()),
+            Some(false),
+        )),
         "programm",
         "0.test",
     );
