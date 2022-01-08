@@ -14,6 +14,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::{
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Fehler},
+    sprache::Sprache,
 };
 
 pub mod flag;
@@ -94,6 +95,28 @@ impl<T, E: Display> Argumente<T, E> {
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
     #[inline(always)]
+    pub fn parse_vollständig_mit_sprache_aus_env(
+        &self,
+        fehler_code: NonZeroI32,
+        sprache: Sprache,
+    ) -> T {
+        self.parse_vollständig_aus_env(
+            fehler_code,
+            sprache.fehlende_flag,
+            sprache.fehlender_wert,
+            sprache.parse_fehler,
+            sprache.invalider_string,
+            sprache.arg_nicht_verwendet,
+        )
+    }
+
+    /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [std::process::exit] mit exit code `0` beendet.
+    /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
+    /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
+    #[inline(always)]
     pub fn parse_vollständig_aus_env(
         &self,
         fehler_code: NonZeroI32,
@@ -126,15 +149,7 @@ impl<T, E: Display> Argumente<T, E> {
         args: impl Iterator<Item = OsString>,
         fehler_code: NonZeroI32,
     ) -> T {
-        self.parse_vollständig(
-            args,
-            fehler_code,
-            "Fehlende Flag",
-            "Fehlender Wert",
-            "Parse-Fehler",
-            "Invalider String",
-            "Nicht alle Argumente verwendet",
-        )
+        self.parse_vollständig_mit_sprache(args, fehler_code, Sprache::DEUTSCH)
     }
 
     /// Parse command line arguments to create the requested type.
@@ -148,14 +163,30 @@ impl<T, E: Display> Argumente<T, E> {
         args: impl Iterator<Item = OsString>,
         error_code: NonZeroI32,
     ) -> T {
+        self.parse_vollständig_mit_sprache(args, error_code, Sprache::ENGLISH)
+    }
+
+    /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [std::process::exit] mit exit code `0` beendet.
+    /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
+    /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
+    #[inline(always)]
+    pub fn parse_vollständig_mit_sprache(
+        &self,
+        args: impl Iterator<Item = OsString>,
+        fehler_code: NonZeroI32,
+        sprache: Sprache,
+    ) -> T {
         self.parse_vollständig(
             args,
-            error_code,
-            "Missing Flag",
-            "Missing Value",
-            "Parse Error",
-            "Invalid String",
-            "Unused arguments",
+            fehler_code,
+            sprache.fehlende_flag,
+            sprache.fehlender_wert,
+            sprache.parse_fehler,
+            sprache.invalider_string,
+            sprache.arg_nicht_verwendet,
         )
     }
 

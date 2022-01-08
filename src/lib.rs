@@ -41,10 +41,12 @@ pub mod argumente;
 pub mod beschreibung;
 pub mod ergebnis;
 pub mod parse;
+pub mod sprache;
 
 pub use self::{
     argumente::{wert::ArgEnum, Argumente},
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Fehler, ParseFehler},
     parse::{Parse, ParseArgument},
+    sprache::Sprache,
 };

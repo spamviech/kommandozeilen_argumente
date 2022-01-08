@@ -5,6 +5,8 @@ use std::{ffi::OsString, fmt::Display, iter};
 use either::Either;
 use nonempty::NonEmpty;
 
+use crate::sprache::Sprache;
+
 /// Ergebnis des Parsen von Kommandozeilen-Argumenten.
 #[derive(Debug)]
 pub enum Ergebnis<T, E> {
@@ -81,22 +83,23 @@ impl<E: Display> Fehler<E> {
     /// Zeige den Fehler in Menschen-lesbarer Form an.
     #[inline(always)]
     pub fn fehlermeldung(&self) -> String {
-        self.erstelle_fehlermeldung(
-            "Fehlende Flag",
-            "Fehlender Wert",
-            "Parse-Fehler",
-            "Invalider String",
-        )
+        self.erstelle_fehlermeldung_mit_sprache(Sprache::DEUTSCH)
     }
 
     /// Show the error in a human readable form.
     #[inline(always)]
     pub fn error_message(&self) -> String {
+        self.erstelle_fehlermeldung_mit_sprache(Sprache::ENGLISH)
+    }
+
+    /// Zeige den Fehler in Menschen-lesbarer Form an.
+    #[inline(always)]
+    pub fn erstelle_fehlermeldung_mit_sprache(&self, sprache: Sprache) -> String {
         self.erstelle_fehlermeldung(
-            "Missing Flag",
-            "Missing Value",
-            "Parse Error",
-            "Invalid String",
+            sprache.fehlende_flag,
+            sprache.fehlender_wert,
+            sprache.parse_fehler,
+            sprache.invalider_string,
         )
     }
 

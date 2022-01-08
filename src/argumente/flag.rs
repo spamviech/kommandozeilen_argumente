@@ -10,52 +10,72 @@ use crate::{
     argumente::{ArgString, Argumente},
     beschreibung::{contains_str, Beschreibung},
     ergebnis::{Ergebnis, Fehler},
+    sprache::Sprache,
 };
 
 impl<E> Argumente<bool, E> {
-    #[inline(always)]
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
-    pub fn flag_deutsch(beschreibung: Beschreibung<bool>) -> Argumente<bool, E> {
-        Argumente::flag(beschreibung, "kein")
+    #[inline(always)]
+    pub fn flag_bool_deutsch(beschreibung: Beschreibung<bool>) -> Argumente<bool, E> {
+        Argumente::flag_bool_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
 
-    #[inline(always)]
     /// Create a flag-argument which can be deactivated with a "no" prefix.
-    pub fn flag_english(beschreibung: Beschreibung<bool>) -> Argumente<bool, E> {
-        Argumente::flag(beschreibung, "no")
+    #[inline(always)]
+    pub fn flag_bool_english(beschreibung: Beschreibung<bool>) -> Argumente<bool, E> {
+        Argumente::flag_bool_mit_sprache(beschreibung, Sprache::ENGLISH)
     }
 
-    #[inline(always)]
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
-    pub fn flag(
+    #[inline(always)]
+    pub fn flag_bool_mit_sprache(
+        beschreibung: Beschreibung<bool>,
+        sprache: Sprache,
+    ) -> Argumente<bool, E> {
+        Argumente::flag_bool(beschreibung, sprache.invertiere_präfix)
+    }
+
+    /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
+    #[inline(always)]
+    pub fn flag_bool(
         beschreibung: Beschreibung<bool>,
         invertiere_präfix: &'static str,
     ) -> Argumente<bool, E> {
-        Argumente::flag_allgemein(beschreibung, identity, invertiere_präfix)
+        Argumente::flag(beschreibung, identity, invertiere_präfix)
     }
 }
 
 impl<T: 'static + Display + Clone, E> Argumente<T, E> {
-    #[inline(always)]
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
-    pub fn flag_deutsch_allgemein(
+    #[inline(always)]
+    pub fn flag_deutsch(
         beschreibung: Beschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
     ) -> Argumente<T, E> {
-        Argumente::flag_allgemein(beschreibung, konvertiere, "kein")
+        Argumente::flag_mit_sprache(beschreibung, konvertiere, Sprache::DEUTSCH)
     }
 
-    #[inline(always)]
     /// Create a flag-argument which can be deactivated with a "no" prefix.
-    pub fn flag_english_general(
+    #[inline(always)]
+    pub fn flag_english(
         beschreibung: Beschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
     ) -> Argumente<T, E> {
-        Argumente::flag_allgemein(beschreibung, konvertiere, "no")
+        Argumente::flag_mit_sprache(beschreibung, konvertiere, Sprache::ENGLISH)
     }
 
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
-    pub fn flag_allgemein(
+    #[inline(always)]
+    pub fn flag_mit_sprache(
+        beschreibung: Beschreibung<T>,
+        konvertiere: impl 'static + Fn(bool) -> T,
+        sprache: Sprache,
+    ) -> Argumente<T, E> {
+        Argumente::flag(beschreibung, konvertiere, sprache.invertiere_präfix)
+    }
+
+    /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
+    pub fn flag(
         beschreibung: Beschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
         invertiere_präfix: &'static str,

@@ -8,6 +8,7 @@ use crate::{
     argumente::{wert::ArgEnum, Argumente},
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Fehler, ParseFehler},
+    sprache::Sprache,
 };
 
 #[cfg(feature = "derive")]
@@ -29,13 +30,21 @@ pub trait ParseArgument: Sized {
     fn standard() -> Option<Self>;
 
     /// Erstelle ein [Argumente] für die übergebene [Beschreibung].
+    fn argumente_mit_sprache(
+        beschreibung: Beschreibung<Self>,
+        sprache: Sprache,
+    ) -> Argumente<Self, String> {
+        Self::argumente(beschreibung, sprache.invertiere_präfix, sprache.meta_var)
+    }
+
+    /// Erstelle ein [Argumente] für die übergebene [Beschreibung].
     fn neu(beschreibung: Beschreibung<Self>) -> Argumente<Self, String> {
-        Self::argumente(beschreibung, "kein", "WERT")
+        Self::argumente_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
 
     /// Create an [Argumente] for the [Beschreibung].
     fn new(beschreibung: Beschreibung<Self>) -> Argumente<Self, String> {
-        Self::argumente(beschreibung, "no", "VALUE")
+        Self::argumente_mit_sprache(beschreibung, Sprache::ENGLISH)
     }
 }
 
@@ -45,7 +54,7 @@ impl ParseArgument for bool {
         invertiere_präfix: &'static str,
         _meta_var: &str,
     ) -> Argumente<Self, String> {
-        Argumente::flag(beschreibung, invertiere_präfix)
+        Argumente::flag_bool(beschreibung, invertiere_präfix)
     }
 
     fn standard() -> Option<Self> {

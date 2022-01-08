@@ -16,6 +16,7 @@ use crate::{
     argumente::{ArgString, Argumente},
     beschreibung::{contains_str, Beschreibung, KurzNamen, LangNamen},
     ergebnis::{namen_regex_hinzufügen, Ergebnis},
+    sprache::Sprache,
 };
 
 impl<T: 'static, E: 'static> Argumente<T, E> {
@@ -102,14 +103,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             Some("Zeigt diesen Text an.".to_owned()),
             None,
         );
-        self.erstelle_hilfe(
-            beschreibung,
-            programm_name,
-            version,
-            "OPTIONEN",
-            "Standard",
-            "Erlaubte Werte",
-        )
+        self.erstelle_hilfe_mit_sprache(beschreibung, programm_name, version, Sprache::DEUTSCH)
     }
 
     /// Erzeuge `--version`- und `--hilfe`-Flags, die zu vorzeitigem Beenden führen.
@@ -136,14 +130,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     ) -> Argumente<T, E> {
         let beschreibung =
             Beschreibung::neu(long_names, short_names, Some("Show this text.".to_owned()), None);
-        self.erstelle_hilfe(
-            beschreibung,
-            program_name,
-            version,
-            "OPTIONS",
-            "Default",
-            "Possible values",
-        )
+        self.erstelle_hilfe_mit_sprache(beschreibung, program_name, version, Sprache::ENGLISH)
     }
 
     /// Create `--version` and `--help` flags causing an early exit.
@@ -155,6 +142,27 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
 
     /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei eine automatisch konfigurierte Hilfe an.
+    #[inline(always)]
+    pub fn erstelle_hilfe_mit_sprache(
+        self,
+        eigene_beschreibung: Beschreibung<Void>,
+        programm_name: &str,
+        version: Option<&str>,
+        sprache: Sprache,
+    ) -> Argumente<T, E> {
+        self.erstelle_hilfe(
+            eigene_beschreibung,
+            programm_name,
+            version,
+            sprache.optionen,
+            sprache.standard,
+            sprache.erlaubte_werte,
+        )
+    }
+
+    /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
+    /// Zeige dabei eine automatisch konfigurierte Hilfe an.
+    #[inline(always)]
     pub fn erstelle_hilfe(
         self,
         eigene_beschreibung: Beschreibung<Void>,
@@ -178,13 +186,30 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Erstelle den Hilfe-Text für alle konfigurierten Argumente.
     #[inline(always)]
     pub fn hilfe_text(&self, programm_name: &str, version: Option<&str>) -> String {
-        self.erstelle_hilfe_text(programm_name, version, "OPTIONEN", "standard", "Erlaubte Werte")
+        self.erstelle_hilfe_text_mit_sprache(programm_name, version, Sprache::DEUTSCH)
     }
 
     /// Create the help-text for all configured arguments.
     #[inline(always)]
     pub fn help_text(&self, programm_name: &str, version: Option<&str>) -> String {
-        self.erstelle_hilfe_text(programm_name, version, "OPTIONS", "default", "Possible values")
+        self.erstelle_hilfe_text_mit_sprache(programm_name, version, Sprache::ENGLISH)
+    }
+
+    /// Erstelle den Hilfe-Text für alle konfigurierten Argumente.
+    #[inline(always)]
+    pub fn erstelle_hilfe_text_mit_sprache(
+        &self,
+        programm_name: &str,
+        version: Option<&str>,
+        sprache: Sprache,
+    ) -> String {
+        self.erstelle_hilfe_text(
+            programm_name,
+            version,
+            sprache.optionen,
+            sprache.standard,
+            sprache.erlaubte_werte,
+        )
     }
 
     /// Erstelle den Hilfe-Text für alle konfigurierten Argumente.
