@@ -14,7 +14,7 @@ use void::Void;
 
 use crate::{
     argumente::{ArgString, Argumente},
-    beschreibung::{contains_str, Beschreibung},
+    beschreibung::{contains_str, Beschreibung, KurzNamen, LangNamen},
     ergebnis::{namen_regex_hinzufügen, Ergebnis},
 };
 
@@ -45,6 +45,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
 
     /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt.
     /// Gedacht zum anzeigen der aktuellen Programm-Version.
+    #[inline(always)]
     pub fn zeige_version(
         self,
         beschreibung: Beschreibung<Void>,
@@ -56,13 +57,26 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
 
     /// Erzeuge eine `--hilfe`-Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei eine automatisch generierte Hilfe.
+    #[inline(always)]
     pub fn hilfe(self, programm_name: &str, version: Option<&str>) -> Argumente<T, E> {
-        let beschreibung = Beschreibung {
-            lang: NonEmpty::singleton("hilfe".to_owned()),
-            kurz: vec!["h".to_owned()],
-            hilfe: Some("Zeigt diesen Text an.".to_owned()),
-            standard: None,
-        };
+        self.hilfe_mit_namen("hilfe", "h", programm_name, version)
+    }
+
+    /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt
+    /// und eine automatisch generierte Hilfe anzeigt.
+    pub fn hilfe_mit_namen(
+        self,
+        lang_namen: impl LangNamen,
+        kurz_namen: impl KurzNamen,
+        programm_name: &str,
+        version: Option<&str>,
+    ) -> Argumente<T, E> {
+        let beschreibung = Beschreibung::neu(
+            lang_namen,
+            kurz_namen,
+            Some("Zeigt diesen Text an.".to_owned()),
+            None,
+        );
         self.erstelle_hilfe(
             beschreibung,
             programm_name,
@@ -75,19 +89,28 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
 
     /// Erzeuge `--version`- und `--hilfe`-Flags, die zu vorzeitigem Beenden führen.
     /// Wie [version_deutsch] und [hilfe] mit synchronisiertem Programmnamen.
+    #[inline(always)]
     pub fn hilfe_und_version(self, programm_name: &str, version: &str) -> Argumente<T, E> {
         self.version_deutsch(programm_name, version).hilfe(programm_name, Some(version))
     }
 
     /// Create a `--help` flag, causing an early exit.
     /// Shows an automatically created help text.
+    #[inline(always)]
     pub fn help(self, program_name: &str, version: Option<&str>) -> Argumente<T, E> {
-        let beschreibung = Beschreibung {
-            lang: NonEmpty::singleton("help".to_owned()),
-            kurz: vec!["h".to_owned()],
-            hilfe: Some("Show this text.".to_owned()),
-            standard: None,
-        };
+        self.help_with_names("help", "h", program_name, version)
+    }
+
+    /// Create a flag causing an early exit which shows an automatically created help text.
+    pub fn help_with_names(
+        self,
+        long_names: impl LangNamen,
+        short_names: impl KurzNamen,
+        program_name: &str,
+        version: Option<&str>,
+    ) -> Argumente<T, E> {
+        let beschreibung =
+            Beschreibung::neu(long_names, short_names, Some("Show this text.".to_owned()), None);
         self.erstelle_hilfe(
             beschreibung,
             program_name,
@@ -100,6 +123,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
 
     /// Create `--version` and `--help` flags causing an early exit.
     /// Similar to using [version_english] and [help] with a synchronised program name.
+    #[inline(always)]
     pub fn help_and_version(self, program_name: &str, version: &str) -> Argumente<T, E> {
         self.version_english(program_name, version).help(program_name, Some(version))
     }
@@ -127,16 +151,19 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     }
 
     /// Erstelle den Hilfe-Text für alle konfigurierten Argumente.
+    #[inline(always)]
     pub fn hilfe_text(&self, programm_name: &str, version: Option<&str>) -> String {
         self.erstelle_hilfe_text(programm_name, version, "OPTIONEN", "standard", "Erlaubte Werte")
     }
 
     /// Create the help-text for all configured arguments.
+    #[inline(always)]
     pub fn help_text(&self, programm_name: &str, version: Option<&str>) -> String {
         self.erstelle_hilfe_text(programm_name, version, "OPTIONS", "default", "Possible values")
     }
 
     /// Erstelle den Hilfe-Text für alle konfigurierten Argumente.
+    #[inline(always)]
     pub fn erstelle_hilfe_text(
         &self,
         programm_name: &str,
