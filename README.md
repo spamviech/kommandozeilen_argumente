@@ -51,3 +51,5 @@ Vor Feldern
 - `standard: <wert>` | `default: <value>`: setzte den Standard-Wert
 - `meta_var: <string>`: setzte die in der Hilfe angezeigt Meta-Variable
 - `invertiere_präfix: <string>` | `invert_prefix: <string>`: setze Präfix zum invertieren einer Flag
+- `lang(<namen>)` | `long(<namen>)`: bestimme Langnamen explizit (Komma-getrennte Liste)
+- `kurz(<namen>)` | `short(<namen>)`: bestimme Kurzformen explizit (Komma-getrennte Liste)

@@ -78,6 +78,84 @@ enum Sprache {
 }
 use Sprache::*;
 
+fn string_präfix(string: &str, bis: usize) -> &str {
+    if bis < string.len() {
+        &string[0..bis]
+    } else {
+        string
+    }
+}
+
+fn string_suffix(string: &str, von: usize) -> &str {
+    if von < string.len() {
+        &string[von..]
+    } else {
+        ""
+    }
+}
+
+fn split_argumente<'t, S: From<&'t str>>(
+    args: &mut Vec<S>,
+    args_str: &'t str,
+) -> Result<(), String> {
+    let stripped = if let Some(("", stripped)) = parse_paren_arg(args_str) {
+        stripped
+    } else {
+        return Err(format!("Args nicht in Klammern eingeschlossen: {}", args_str));
+    };
+    // Argumente getrennt durch Kommas, Unterargumente mit () angegeben,
+    // kann ebenfalls Kommas enthalten.
+    // Bisher erste eine Ebene, sonst müssten Klammen gezählt werden.
+    // (Kellerautomat für Kontext-freite Grammatik)
+    let mut rest = stripped;
+    while !rest.is_empty() {
+        let rest_länge = rest.len();
+        macro_rules! arg_speichern {
+            ($ix: expr) => {
+                let trimmed = string_präfix(&rest, $ix).trim();
+                if trimmed.is_empty() {
+                    if $ix + 1 < rest_länge {
+                        return Err(format!("Leeres Argument: {}", args_str));
+                    } else {
+                        break;
+                    }
+                } else {
+                    args.push(S::from(trimmed));
+                    rest = string_suffix(&rest, $ix + 1);
+                }
+            };
+        }
+        let nächstes_komma = rest.find(',').unwrap_or(rest_länge);
+        let nächste_klammer = rest.find('(').unwrap_or(rest_länge);
+        if nächste_klammer < nächstes_komma {
+            let nach_klammer = string_suffix(&rest, nächste_klammer + 1);
+            if let Some(schließende_klammer) = nach_klammer.find(')') {
+                let ix = nächste_klammer + schließende_klammer + 1;
+                let nächstes_komma = string_suffix(&rest, ix).find(',').unwrap_or(rest_länge);
+                arg_speichern!(ix + nächstes_komma);
+            } else {
+                return Err(format!("Nicht geschlossene Klammer: {}", rest));
+            }
+        } else {
+            arg_speichern!(nächstes_komma);
+        }
+    }
+    Ok(())
+}
+
+macro_rules! split_argumente {
+    ($args: expr, $stripped: expr) => {
+        if let Err(fehler) = split_argumente(&mut $args, $stripped) {
+            let compile_error: TokenStream = quote!(compile_error! {#fehler }).into();
+            return compile_error;
+        }
+    };
+}
+
+fn parse_paren_arg(string: &str) -> Option<(&str, &str)> {
+    string.split_once('(').and_then(|(name, wert)| wert.strip_suffix(')').map(|wert| (name, wert)))
+}
+
 /// Erstelle Methoden `kommandozeilen_argumente`, `parse[_aus_env][_frühes_beenden]`
 /// zum parsen aus Kommandozeilen-Argumenten.
 #[proc_macro_derive(Parse, attributes(kommandozeilen_argumente))]
@@ -87,39 +165,11 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
         compile_error_return!("Nur Structs ohne Generics unterstützt.");
     }
     let item_ty = &item_struct.ident;
-    let mut args = Vec::new();
+    let mut args: Vec<String> = Vec::new();
     for attr in &item_struct.attrs {
         if attr.path.is_ident("kommandozeilen_argumente") {
             let args_str = attr.tokens.to_string();
-            if let Some(stripped) = args_str.strip_prefix('(').and_then(|s| s.strip_suffix(')')) {
-                // Argumente getrennt durch Kommas, Unterargumente mit () angegeben,
-                // kann ebenfalls Kommas enthalten. Bisher erste eine Ebene.
-                let mut rest = stripped;
-                while !rest.is_empty() {
-                    let rest_länge = rest.len();
-                    macro_rules! arg_speichern {
-                        ($ix: expr) => {
-                            args.push(rest[0..$ix].trim().to_owned());
-                            rest = if $ix < rest_länge { &rest[$ix + 1..] } else { "" };
-                        };
-                    }
-                    let nächstes_komma = rest.find(',').unwrap_or(rest_länge);
-                    let nächste_klammer = rest.find('(').unwrap_or(rest_länge);
-                    if nächste_klammer < nächstes_komma {
-                        if let Some(schließende_klammer) = rest.find(')') {
-                            let nächstes_komma =
-                                rest[schließende_klammer + 1..].find(',').unwrap_or(rest_länge);
-                            arg_speichern!(nächstes_komma);
-                        } else {
-                            compile_error_return!("Nicht geschlossene Klammer: {}", rest);
-                        }
-                    } else {
-                        arg_speichern!(nächstes_komma);
-                    }
-                }
-            } else {
-                compile_error_return!("Args nicht in Klammern eingeschlossen: {}", args_str);
-            }
+            split_argumente!(args, &args_str);
         }
     }
     // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
@@ -195,15 +245,9 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                             )
                         }
                     }
-                } else if let Some((arg_name, lang_namen_str, kurz_namen_str)) =
-                    string.split_once('(').and_then(|(name, wert)| {
-                        wert.strip_suffix(')').map(|wert| {
-                            let (lang_namen, kurz_namen) =
-                                wert.split_once(';').unwrap_or((wert, ""));
-                            (name, lang_namen, kurz_namen)
-                        })
-                    })
-                {
+                } else if let Some((arg_name, namen_str)) = parse_paren_arg(string) {
+                    let (lang_namen_str, kurz_namen_str) =
+                        namen_str.split_once(';').unwrap_or((namen_str, ""));
                     let mut werte =
                         lang_namen_str.split(',').map(str::trim).filter(|s| !s.is_empty());
                     let (head, tail) = if let Some(head) = werte.next() {
@@ -311,11 +355,12 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
     for field in item_struct.fields {
         let Field { attrs, ident, .. } = field;
         let mut hilfe_lits = Vec::new();
-        let lang =
-            unwrap_option_or_compile_error!(ident, "Nur benannte Felder unterstützt.").to_string();
-        if lang.is_empty() {
-            compile_error_return!("Benanntes Feld mit leerem Namen: {}", lang)
+        let ident = unwrap_option_or_compile_error!(ident, "Nur benannte Felder unterstützt.");
+        let ident_str = ident.to_string();
+        if ident_str.is_empty() {
+            compile_error_return!("Benanntes Feld mit leerem Namen: {}", ident_str)
         }
+        let mut lang = quote!(#ident_str.to_owned());
         let mut kurz = quote!(None);
         let mut standard = quote!(#crate_name::parse::ParseArgument::standard());
         let mut glätten = false;
@@ -334,27 +379,20 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                 }
             } else if attr.path.is_ident("kommandozeilen_argumente") {
                 let args_str = attr.tokens.to_string();
-                if let Some(stripped) = args_str.strip_prefix('(').and_then(|s| s.strip_suffix(')'))
-                {
-                    let args = stripped.split(',').flat_map(|s| {
-                        let trimmed = s.trim();
-                        if trimmed.is_empty() {
-                            None
-                        } else {
-                            Some(trimmed)
-                        }
-                    });
-                    for arg in args {
-                        match arg {
-                            "glätten" | "flatten" => glätten = true,
-                            "benötigt" | "required" => standard = quote!(None),
-                            "kurz" | "short" => {
-                                if let Some(kurz_str) = lang.graphemes(true).next() {
-                                    kurz = quote!(Some(#kurz_str.to_owned()));
-                                }
+                let mut args = Vec::new();
+                split_argumente!(args, &args_str);
+                for arg in args {
+                    match arg {
+                        "glätten" | "flatten" => glätten = true,
+                        "benötigt" | "required" => standard = quote!(None),
+                        "kurz" | "short" => {
+                            if let Some(kurz_str) = ident_str.graphemes(true).next() {
+                                kurz = quote!(Some(#kurz_str.to_owned()));
                             }
-                            string => match string.split_once(':') {
-                                Some((arg_name, wert_string)) => match arg_name.trim() {
+                        }
+                        string => {
+                            if let Some((arg_name, wert_string)) = string.split_once(':') {
+                                match arg_name.trim() {
                                     "standard" | "default" => {
                                         let ts: TokenStream2 =
                                             unwrap_result_or_compile_error!(wert_string.parse());
@@ -376,17 +414,44 @@ pub fn kommandozeilen_argumente(item: TokenStream) -> TokenStream {
                                         "Benanntes Argument nicht unterstützt: {}",
                                         trimmed
                                     ),
-                                },
-                                _ => compile_error_return!("Argument nicht unterstützt: {}", arg,),
-                            },
+                                }
+                            } else if let Some((arg_name, namen_str)) = parse_paren_arg(string) {
+                                let mut werte =
+                                    namen_str.split(',').map(str::trim).filter(|s| !s.is_empty());
+                                match arg_name.trim() {
+                                    "lang" | "long" => {
+                                        let (head, tail) = if let Some(head) = werte.next() {
+                                            (head, werte)
+                                        } else {
+                                            compile_error_return!("Kein LangName für {}!", arg_name)
+                                        };
+                                        lang = quote!(
+                                            #crate_name::NonEmpty {
+                                                head: #head.to_owned(),
+                                                tail: vec![#(#tail.to_owned()),*]
+                                            }
+                                        );
+                                    }
+                                    "kurz" | "short" => {
+                                        let kurz_namen_iter = namen_str
+                                            .split(',')
+                                            .map(str::trim)
+                                            .filter(|s| !s.is_empty());
+                                        kurz = quote!(vec![#(#kurz_namen_iter.to_owned()),*]);
+                                    }
+                                    trimmed => compile_error_return!(
+                                        "Benanntes Argument nicht unterstützt: {}",
+                                        trimmed
+                                    ),
+                                }
+                            } else {
+                                compile_error_return!("Argument nicht unterstützt: {}", arg,)
+                            }
                         }
                     }
-                } else {
-                    compile_error_return!("Args nicht in Klammern eingeschlossen: {}", args_str);
                 }
             }
         }
-        let ident = format_ident!("{}", lang);
         let mut hilfe_string = String::new();
         for teil_string in hilfe_lits {
             if !hilfe_string.is_empty() {
