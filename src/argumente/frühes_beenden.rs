@@ -21,10 +21,23 @@ use crate::{
 impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Erzeuge eine `--version`-Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei die konfigurierte Programm-Version.
+    #[inline(always)]
     pub fn version_deutsch(self, programm_name: &str, version: &str) -> Argumente<T, E> {
+        self.version_mit_namen("version", "v", programm_name, version)
+    }
+
+    /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt
+    /// und die konfigurierte Programm-Version anzeigt.
+    pub fn version_mit_namen(
+        self,
+        lang_namen: impl LangNamen,
+        kurz_namen: impl KurzNamen,
+        programm_name: &str,
+        version: &str,
+    ) -> Argumente<T, E> {
         let beschreibung = Beschreibung::neu(
-            "version".to_owned(),
-            "v".to_owned(),
+            lang_namen,
+            kurz_namen,
             Some("Zeigt die aktuelle Version an.".to_owned()),
             None,
         );
@@ -33,13 +46,25 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
 
     /// Create a `--version` flag, causing an early exit.
     /// Shows the configured program version.
+    #[inline(always)]
     pub fn version_english(self, program_name: &str, version: &str) -> Argumente<T, E> {
-        let beschreibung = Beschreibung {
-            lang: NonEmpty::singleton("version".to_owned()),
-            kurz: vec!["v".to_owned()],
-            hilfe: Some("Show the current version.".to_owned()),
-            standard: None,
-        };
+        self.version_with_names("version", "v", program_name, version)
+    }
+
+    /// Create a flag causing an early exit which shows the configured program version.
+    pub fn version_with_names(
+        self,
+        long_names: impl LangNamen,
+        short_names: impl KurzNamen,
+        program_name: &str,
+        version: &str,
+    ) -> Argumente<T, E> {
+        let beschreibung = Beschreibung::neu(
+            long_names,
+            short_names,
+            Some("Show the current version.".to_owned()),
+            None,
+        );
         self.zeige_version(beschreibung, program_name, version)
     }
 
