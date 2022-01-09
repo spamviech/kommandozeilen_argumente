@@ -37,6 +37,22 @@ pub use nonempty::NonEmpty;
 #[cfg(feature = "derive")]
 pub use unicase::eq as unicase_eq;
 
+#[macro_export]
+/// Return the crate name specified in Cargo.toml.
+macro_rules! crate_name {
+    () => {
+        env!("CARGO_PKG_NAME")
+    };
+}
+
+#[macro_export]
+/// Return the crate version specified in Cargo.toml.
+macro_rules! crate_version {
+    () => {
+        env!("CARGO_PKG_VERSION")
+    };
+}
+
 pub mod argumente;
 pub mod beschreibung;
 pub mod ergebnis;
