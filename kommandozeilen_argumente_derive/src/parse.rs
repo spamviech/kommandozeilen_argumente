@@ -31,6 +31,18 @@ fn string_suffix(string: &str, von: usize) -> &str {
     }
 }
 
+fn find_or_len(string: &str, c: char) -> usize {
+    string.find(c).unwrap_or_else(|| string.len())
+}
+
+#[test]
+fn test_split_argumente() {
+    let mut args: Vec<&str> = Vec::new();
+    let args_str = "(hello(hi), world: [it's, a, big, world!])";
+    split_argumente(&mut args, args_str).expect("Argumente sind wohlgeformt");
+    assert_eq!(args, vec!["hello(hi)", "world: [it's, a, big, world!]"])
+}
+
 fn split_argumente<'t, S: From<&'t str>>(
     args: &mut Vec<S>,
     args_str: &'t str,
@@ -40,41 +52,77 @@ fn split_argumente<'t, S: From<&'t str>>(
     } else {
         return Err(format!("Args nicht in Klammern eingeschlossen: {}", args_str));
     };
-    // Argumente getrennt durch Kommas, Unterargumente mit () angegeben,
-    // kann ebenfalls Kommas enthalten.
-    // Bisher erste eine Ebene, sonst müssten Klammen gezählt werden.
-    // (Kellerautomat für Kontext-freite Grammatik)
+    // Argumente getrennt durch Kommas, Unterargumente mit () angegeben, potentiell mit Kommas.
+    // Argumente können Listen (angegeben durch [], potentiell mit Kommas) sein.
+    // In einem Argument müssen alle Klammern geschlossen sein.
+    // Zusätzliche schließende Klammern werden ignoriert.
+    // Argumente werden nicht weiter behandelt.
+    // Implementiert als Kellerautomat für simple, Kontext-freie Grammatik
     let mut rest = stripped;
-    while !rest.is_empty() {
-        let rest_länge = rest.len();
+    'arg_suche: while !rest.is_empty() {
+        let mut suffix_start = 0;
+        let mut suffix = rest;
+        macro_rules! verkürze_suffix {
+            ($sub_start: expr) => {
+                suffix_start += $sub_start;
+                suffix = string_suffix(suffix, $sub_start);
+            };
+        }
         macro_rules! arg_speichern {
             ($ix: expr) => {
-                let trimmed = string_präfix(&rest, $ix).trim();
+                let ix = suffix_start + $ix;
+                let trimmed = string_präfix(&rest, ix).trim();
                 if trimmed.is_empty() {
-                    if $ix + 1 < rest_länge {
-                        return Err(format!("Leeres Argument: {}", args_str));
+                    if rest.trim() == "," {
+                        // Ignoriere extra Komma am Ende
+                        rest = "";
                     } else {
-                        break;
+                        return Err(format!("Leeres Argument: {}", args_str));
                     }
                 } else {
                     args.push(S::from(trimmed));
-                    rest = string_suffix(&rest, $ix + 1);
+                    rest = string_suffix(&rest, ix + 1);
                 }
+                continue 'arg_suche
             };
         }
-        let nächstes_komma = rest.find(',').unwrap_or(rest_länge);
-        let nächste_klammer = rest.find('(').unwrap_or(rest_länge);
-        if nächste_klammer < nächstes_komma {
-            let nach_klammer = string_suffix(&rest, nächste_klammer + 1);
-            if let Some(schließende_klammer) = nach_klammer.find(')') {
-                let ix = nächste_klammer + schließende_klammer + 1;
-                let nächstes_komma = string_suffix(&rest, ix).find(',').unwrap_or(rest_länge);
-                arg_speichern!(ix + nächstes_komma);
+        loop {
+            let nächstes_komma = find_or_len(suffix, ',');
+            let nächste_runde_klammer = find_or_len(suffix, '(');
+            let nächste_eckige_klammer = find_or_len(suffix, '[');
+            let nächste_klammer = nächste_runde_klammer.min(nächste_eckige_klammer);
+            if nächste_klammer < nächstes_komma {
+                let schließende_klammer =
+                    if nächste_runde_klammer < nächste_eckige_klammer { ')' } else { ']' };
+                let mut zu_schließende_klammern = vec![schließende_klammer];
+                verkürze_suffix!(nächste_klammer + 1);
+                while !zu_schließende_klammern.is_empty() {
+                    if suffix.is_empty() {
+                        return Err(format!("Nicht geschlossene Klammer: {}", rest));
+                    }
+                    let öffnende_runde_klammer = find_or_len(suffix, '(');
+                    let öffnende_eckige_klammer = find_or_len(suffix, '[');
+                    let öffnende_klammer = öffnende_runde_klammer.min(öffnende_eckige_klammer);
+                    let erwartete_klammer =
+                        zu_schließende_klammern.pop().expect("!zu_schließende_klammern.is_empty()");
+                    let schließende_klammer = find_or_len(suffix, erwartete_klammer);
+                    if schließende_klammer < öffnende_klammer {
+                        verkürze_suffix!(schließende_klammer + 1);
+                    } else {
+                        zu_schließende_klammern.push(erwartete_klammer);
+                        let schließende_klammer =
+                            if öffnende_runde_klammer < öffnende_eckige_klammer {
+                                ')'
+                            } else {
+                                ']'
+                            };
+                        zu_schließende_klammern.push(schließende_klammer);
+                        verkürze_suffix!(öffnende_klammer + 1);
+                    }
+                }
             } else {
-                return Err(format!("Nicht geschlossene Klammer: {}", rest));
+                arg_speichern!(nächstes_komma);
             }
-        } else {
-            arg_speichern!(nächstes_komma);
         }
     }
     Ok(())
