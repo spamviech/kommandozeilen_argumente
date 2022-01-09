@@ -29,7 +29,7 @@ Global an struct
 - `hilfe(<opts>)`, `help(<opts>)`, `version(<opts>)`:
     Wie die Variante ohne opts, nur Kurzname ist standardmäßig deaktiviert. Mögliche Opts:
   - `lang: <name>`, `long [<namen>]`: Setze Langnamen explizit
-  - `kurz`: Setze Kurznamen als erstes Grapheme des (ersten) Langnamen
+  - `kurz`: Setze Kurznamen als erstes Grapheme des originalen Langnamen
   - `kurz: <name>`, `kurz: [<namen>]`: Setze Kurznamen explizit
   - `deutsch` | `englisch` | `english`: Sprache von Hilfe-Text und Standard-Namen
 - `meta_var: <string>` | `meta_var: <string>`:

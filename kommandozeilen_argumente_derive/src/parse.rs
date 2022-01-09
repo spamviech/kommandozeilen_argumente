@@ -9,11 +9,30 @@ use crate::{
     base_name, compile_error_return, unwrap_option_or_compile_error, unwrap_result_or_compile_error,
 };
 
+#[derive(Debug, Clone, Copy)]
 enum Sprache {
     Deutsch,
     English,
 }
 use Sprache::*;
+
+fn parse_klammer_arg(string: &str) -> Option<(&str, &str)> {
+    parse_allgemeines_klammer_arg(string, '(', ')')
+}
+
+fn parse_eckige_klammer_arg(string: &str) -> Option<(&str, &str)> {
+    parse_allgemeines_klammer_arg(string, '[', ']')
+}
+
+fn parse_allgemeines_klammer_arg(
+    string: &str,
+    öffnen: char,
+    schließen: char,
+) -> Option<(&str, &str)> {
+    string
+        .split_once(öffnen)
+        .and_then(|(name, wert)| wert.strip_suffix(schließen).map(|wert| (name, wert)))
+}
 
 fn string_präfix(string: &str, bis: usize) -> &str {
     if bis < string.len() {
@@ -47,18 +66,13 @@ fn split_argumente<'t, S: From<&'t str>>(
     args: &mut Vec<S>,
     args_str: &'t str,
 ) -> Result<(), String> {
-    let stripped = if let Some(("", stripped)) = parse_paren_arg(args_str) {
-        stripped
-    } else {
-        return Err(format!("Args nicht in Klammern eingeschlossen: {}", args_str));
-    };
     // Argumente getrennt durch Kommas, Unterargumente mit () angegeben, potentiell mit Kommas.
     // Argumente können Listen (angegeben durch [], potentiell mit Kommas) sein.
     // In einem Argument müssen alle Klammern geschlossen sein.
     // Zusätzliche schließende Klammern werden ignoriert.
     // Argumente werden nicht weiter behandelt.
     // Implementiert als Kellerautomat für simple, Kontext-freie Grammatik
-    let mut rest = stripped;
+    let mut rest = args_str;
     'arg_suche: while !rest.is_empty() {
         let mut suffix_start = 0;
         let mut suffix = rest;
@@ -73,7 +87,7 @@ fn split_argumente<'t, S: From<&'t str>>(
                 let ix = suffix_start + $ix;
                 let trimmed = string_präfix(&rest, ix).trim();
                 if trimmed.is_empty() {
-                    if rest.trim() == "," {
+                    if let "" | "," = rest.trim() {
                         // Ignoriere extra Komma am Ende
                         rest = "";
                     } else {
@@ -137,14 +151,49 @@ macro_rules! split_argumente {
     };
 }
 
-fn parse_paren_arg(string: &str) -> Option<(&str, &str)> {
-    string.split_once('(').and_then(|(name, wert)| wert.strip_suffix(')').map(|wert| (name, wert)))
+fn split_klammer_argumente<'t, S: From<&'t str>>(
+    args: &mut Vec<S>,
+    args_str: &'t str,
+) -> Result<(), String> {
+    let stripped = if let Some(("", stripped)) = parse_klammer_arg(args_str) {
+        stripped
+    } else {
+        return Err(format!("Argumente nicht in Klammern eingeschlossen: {}", args_str));
+    };
+    split_argumente(args, stripped)
+}
+
+macro_rules! split_klammer_argumente {
+    ($args: expr, $stripped: expr) => {
+        if let Err(fehler) = split_klammer_argumente(&mut $args, $stripped) {
+            let compile_error = quote!(compile_error! {#fehler });
+            return compile_error;
+        }
+    };
 }
 
 enum FeldArgument {
     ArgEnum,
     FromStr,
     Parse,
+}
+
+enum KurzNamen<'t> {
+    Keiner,
+    Auto,
+    Namen(Vec<&'t str>),
+}
+
+impl<'t> KurzNamen<'t> {
+    fn to_vec(self, lang_name: &'t str) -> Vec<&'t str> {
+        match self {
+            KurzNamen::Keiner => Vec::new(),
+            KurzNamen::Auto => {
+                vec![lang_name.graphemes(true).next().expect("Langname ohne Graphemes!")]
+            }
+            KurzNamen::Namen(namen) => namen,
+        }
+    }
 }
 
 fn erstelle_version_methode(
@@ -211,7 +260,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
     for attr in &item_struct.attrs {
         if attr.path.is_ident("kommandozeilen_argumente") {
             let args_str = attr.tokens.to_string();
-            split_argumente!(args, &args_str);
+            split_klammer_argumente!(args, &args_str);
         }
     }
     // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
@@ -234,16 +283,96 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
             "english" => sprache = English,
             "englisch" => sprache = English,
             "version" => erstelle_version = Some(Box::new(erstelle_version_methode(None, None))),
-            "version_deutsch" => {
-                erstelle_version = Some(Box::new(erstelle_version_methode(Some(Deutsch), None)))
-            }
-            "version_english" => {
-                erstelle_version = Some(Box::new(erstelle_version_methode(Some(English), None)))
-            }
             "hilfe" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(Deutsch, None))),
             "help" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(English, None))),
             string => {
-                if let Some((arg_name, wert_string)) = string.split_once(':') {
+                if let Some((arg_name, wert_str)) = parse_klammer_arg(string) {
+                    let mut sub_args = Vec::new();
+                    split_argumente!(&mut sub_args, wert_str);
+                    let mut sub_sprache = None;
+                    let mut lang_namen = None;
+                    let mut kurz_namen = KurzNamen::Keiner;
+                    for sub_arg in sub_args {
+                        match sub_arg {
+                            "deutsch" => sub_sprache = Some(Deutsch),
+                            "englisch" | "english" => sub_sprache = Some(English),
+                            "kurz" => kurz_namen = KurzNamen::Auto,
+                            string => {
+                                if let Some((s_arg_name, s_wert_string)) = string.split_once(':') {
+                                    let mut namen = Vec::new();
+                                    if let Some(("", namen_str)) =
+                                        parse_eckige_klammer_arg(s_wert_string)
+                                    {
+                                        split_argumente!(&mut namen, namen_str)
+                                    } else {
+                                        namen.push(s_wert_string)
+                                    }
+                                    match s_arg_name.trim() {
+                                        "lang" | "long" => {
+                                            let mut namen_iter = namen.into_iter();
+                                            let (head, tail) = if let Some(head) = namen_iter.next()
+                                            {
+                                                (head, namen_iter.collect())
+                                            } else {
+                                                compile_error_return!(
+                                                    "Kein LangName für {}!",
+                                                    arg_name
+                                                )
+                                            };
+                                            lang_namen = Some((head, tail))
+                                        }
+                                        "kurz" | "short" => kurz_namen = KurzNamen::Namen(namen),
+                                        trimmed => {
+                                            compile_error_return!(
+                                                "Benanntes Argument {} für {} nicht unterstützt: {}",
+                                                trimmed,
+                                                arg_name,
+                                                string
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    compile_error_return!(
+                                        "Benanntes Argument für {} nicht unterstützt: {}",
+                                        arg_name,
+                                        string
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    let (head, tail) = lang_namen.unwrap_or((arg_name, Vec::new()));
+                    let lang_namen = quote!(
+                        #crate_name::NonEmpty {
+                            head: #head.to_owned(),
+                            tail: vec![#(#tail.to_owned()),*]
+                        }
+                    );
+                    let kurz_namen_iter = kurz_namen.to_vec(head).into_iter();
+                    let kurz_namen = quote!(vec![#(#kurz_namen_iter.to_owned()),*]);
+                    match arg_name {
+                        "hilfe" | "help" => {
+                            let standard_sprache =
+                                if arg_name == "hilfe" { Deutsch } else { English };
+                            erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(
+                                sub_sprache.unwrap_or(standard_sprache),
+                                Some((lang_namen, kurz_namen)),
+                            )))
+                        }
+                        "version" => {
+                            erstelle_version = Some(Box::new(erstelle_version_methode(
+                                sub_sprache,
+                                Some((lang_namen, kurz_namen)),
+                            )))
+                        }
+                        trimmed => {
+                            compile_error_return!(
+                                "Benanntes Argument(Klammer) nicht unterstützt: {}",
+                                trimmed
+                            )
+                        }
+                    }
+                } else if let Some((arg_name, wert_string)) = string.split_once(':') {
                     match arg_name.trim() {
                         "invertiere_präfix" | "invert_prefix" => {
                             invertiere_präfix = Some(wert_string.to_owned())
@@ -251,64 +380,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                         "meta_var" => meta_var = Some(wert_string.to_owned()),
                         trimmed => {
                             compile_error_return!(
-                                "Benanntes Argument nicht unterstützt: {}",
-                                trimmed
-                            )
-                        }
-                    }
-                } else if let Some((arg_name, namen_str)) = parse_paren_arg(string) {
-                    let (lang_namen_str, kurz_namen_str) =
-                        namen_str.split_once(';').unwrap_or((namen_str, ""));
-                    let mut werte =
-                        lang_namen_str.split(',').map(str::trim).filter(|s| !s.is_empty());
-                    let (head, tail) = if let Some(head) = werte.next() {
-                        (head, werte)
-                    } else {
-                        compile_error_return!("Kein LangName für {}!", arg_name)
-                    };
-                    let lang_namen = quote!(
-                        #crate_name::NonEmpty {
-                            head: #head.to_owned(),
-                            tail: vec![#(#tail.to_owned()),*]
-                        }
-                    );
-                    let kurz_namen_iter =
-                        kurz_namen_str.split(',').map(str::trim).filter(|s| !s.is_empty());
-                    let kurz_namen = quote!(vec![#(#kurz_namen_iter.to_owned()),*]);
-                    match arg_name.trim() {
-                        "hilfe" => {
-                            erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(
-                                Deutsch,
-                                Some((lang_namen, kurz_namen)),
-                            )))
-                        }
-                        "help" => {
-                            erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(
-                                English,
-                                Some((lang_namen, kurz_namen)),
-                            )))
-                        }
-                        "version" => {
-                            erstelle_version = Some(Box::new(erstelle_version_methode(
-                                None,
-                                Some((lang_namen, kurz_namen)),
-                            )))
-                        }
-                        "version_deutsch" => {
-                            erstelle_version = Some(Box::new(erstelle_version_methode(
-                                Some(Deutsch),
-                                Some((lang_namen, kurz_namen)),
-                            )))
-                        }
-                        "version_english" => {
-                            erstelle_version = Some(Box::new(erstelle_version_methode(
-                                Some(English),
-                                Some((lang_namen, kurz_namen)),
-                            )))
-                        }
-                        trimmed => {
-                            compile_error_return!(
-                                "Benanntes Argument nicht unterstützt: {}",
+                                "Benanntes Argument(Doppelpunkt) nicht unterstützt: {}",
                                 trimmed
                             )
                         }
@@ -356,7 +428,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
             } else if attr.path.is_ident("kommandozeilen_argumente") {
                 let args_str = attr.tokens.to_string();
                 let mut args = Vec::new();
-                split_argumente!(args, &args_str);
+                split_klammer_argumente!(args, &args_str);
                 for arg in args {
                     match arg {
                         "glätten" | "flatten" => feld_argument = FeldArgument::Parse,
@@ -392,7 +464,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                                         trimmed
                                     ),
                                 }
-                            } else if let Some((arg_name, namen_str)) = parse_paren_arg(string) {
+                            } else if let Some((arg_name, namen_str)) = parse_klammer_arg(string) {
                                 let mut werte =
                                     namen_str.split(',').map(str::trim).filter(|s| !s.is_empty());
                                 match arg_name.trim() {
