@@ -7,17 +7,20 @@ Parser für Kommandozeilen-Argumente mit optionaler, potentiell deutscher, autom
 Aktiviert über `--flag` oder `-f`
 Können (explizit) über `--kein-flag`, bzw. `--no-flag` deaktiviert werden
 Präfix kann konfiguriert werden.
+Standardmäßig deaktiviert, kann angepasst werden.
 
 Aktivieren mehrerer Flags auf einmal möglich `-fgh`
 
 ## Werte
 
 Langformen: `--arg <Wert>` oder `--arg=<Wert>`
-Kurzformen: `-a <Wert>` oder `-a<Wert>`
+Kurzformen: `-a <Wert>`, `-a=<Wert>` oder `-a<Wert>`
+
+Konfigurierbarer Standardwert, potentiell Anzeige möglicher Werte im Hilfe-Text.
 
 ## derive-Attribute
 
-trait ArgEnum ohne Attribute
+trait ArgEnum ohne Attribute, derive-Macro wird für enums ohne Daten bereitgestellt.
 
 trait Parse: alles über kommandozeilen_argumente-Attribut
 
