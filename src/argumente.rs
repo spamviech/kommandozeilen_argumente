@@ -37,13 +37,12 @@ pub(crate) enum ArgString {
     },
 }
 
-// TODO FromStr-basierte Werte in derive-Variante
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
 // TODO Standard-Wert, sofern nur der Name gegeben ist (unterschiedlich zu Name kommt nicht vor)
 //      z.B. nichts: -O0, -O: -O1, -O=N für explizite Angabe
 // TODO case sensitive Argumente/alles case sensitive
-//  benötigt Unicode normalization (wird bisher von unicase übernommen), auch optional?
+//  benötigt Unicode normalization (wird bisher von unicase übernommen?), auch optional?
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<T, E> {
