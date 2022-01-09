@@ -51,7 +51,7 @@ struct Empty {}
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(english)]
 struct Inner {
-    #[kommandozeilen_argumente(default: false, short, invertiere_präfix: möp)]
+    #[kommandozeilen_argumente(default: false, short: i, invertiere_präfix: möp)]
     inner_flag: bool,
 }
 
