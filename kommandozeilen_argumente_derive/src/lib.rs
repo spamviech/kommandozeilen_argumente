@@ -53,7 +53,7 @@ macro_rules! unwrap_result_or_compile_error {
     ($result: expr) => {
         match $result {
             Ok(wert) => wert,
-            Err(fehler) => compile_error_return!("{:?}", fehler),
+            Err(fehler) => compile_error_return!("{}", fehler),
         }
     };
 }
@@ -63,7 +63,7 @@ macro_rules! unwrap_option_or_compile_error {
     ($option: expr, $fehler: tt) => {
         match $option {
             Some(wert) => wert,
-            None => compile_error_return!("{:?}", $fehler),
+            None => compile_error_return!("{}", $fehler),
         }
     };
 }

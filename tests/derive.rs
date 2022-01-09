@@ -34,7 +34,7 @@ struct Test {
     /// bla
     bla: Bla,
     /// opt
-    #[kommandozeilen_argumente(lang(alternativ), kurz(p, q, r))]
+    #[kommandozeilen_argumente(lang: alternativ, kurz: [p, q, r])]
     opt: Option<Bla>,
     /// from_str
     #[kommandozeilen_argumente(FromStr, standard: 42)]
@@ -58,7 +58,7 @@ struct Inner {
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(english, version, help(lang: [hilfe, help], kurz: h))]
 struct Test2 {
-    #[kommandozeilen_argumente(default: Bla::Meh, long(bla, meh, muh))]
+    #[kommandozeilen_argumente(default: Bla::Meh, long: [bla, meh, muh])]
     /// bla
     bla: Bla,
     /// flag
