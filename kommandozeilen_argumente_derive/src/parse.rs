@@ -11,7 +11,7 @@ use crate::{
 
 enum Sprache {
     Deutsch,
-    Englisch,
+    English,
 }
 use Sprache::*;
 
@@ -99,6 +99,61 @@ enum FeldArgument {
     Parse,
 }
 
+fn erstelle_version_methode(
+    feste_sprache: Option<Sprache>,
+    namen: Option<(TokenStream, TokenStream)>,
+) -> impl Fn(TokenStream, Sprache) -> TokenStream {
+    let version_methode = feste_sprache.map(|sprache| match sprache {
+        Deutsch => "version_mit_namen",
+        English => "version_with_names",
+    });
+    let crate_name = base_name();
+    let (lang_namen, kurz_namen) = namen.unwrap_or_else(|| (quote!("version"), quote!("v")));
+    move |item, sprache| {
+        let version_methode = version_methode.unwrap_or_else(|| match sprache {
+            Deutsch => "version_mit_namen",
+            English => "version_with_names",
+        });
+        let version_ident = format_ident!("{}", version_methode);
+        quote!(
+            #item.#version_ident(
+                #lang_namen,
+                #kurz_namen,
+                #crate_name::crate_name!(),
+                #crate_name::crate_version!(),
+            )
+        )
+    }
+}
+
+fn erstelle_hilfe_methode(
+    sprache: Sprache,
+    namen: Option<(TokenStream, TokenStream)>,
+) -> impl Fn(TokenStream) -> TokenStream {
+    let crate_name = base_name();
+    let (hilfe_methode, hilfe_ident) = match sprache {
+        Deutsch => ("hilfe", "hilfe_mit_namen"),
+        English => ("help", "help_with_names"),
+    };
+    let hilfe_ident = format_ident!("{}", hilfe_ident);
+    let kurz_standard = if let Some(kurz) = hilfe_methode.graphemes(true).next() {
+        quote!(#kurz)
+    } else {
+        quote!(None)
+    };
+    let (lang_namen, kurz_namen) = namen.unwrap_or_else(|| (quote!(#hilfe_methode), kurz_standard));
+    move |item| {
+        quote!(
+            #item.#hilfe_ident(
+                #lang_namen,
+                #kurz_namen,
+                #crate_name::crate_name!(),
+                Some(#crate_name::crate_version!()),
+            )
+        )
+    }
+}
+
 pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
     if !item_struct.generics.params.is_empty() {
         compile_error_return!("Nur Structs ohne Generics unterstützt.");
@@ -119,7 +174,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
     // CARGO_PKG_DESCRIPTION — The description from the manifest of your package.
     // CARGO_BIN_NAME — The name of the binary that is currently being compiled (if it is a binary). This name does not include any file extension, such as .exe
     let mut erstelle_version: Option<Box<dyn Fn(TokenStream, Sprache) -> TokenStream>> = None;
-    let mut erstelle_hilfe: Option<Box<dyn Fn(TokenStream) -> TokenStream>> = None;
+    let mut erstelle_hilfe: Option<Box<dyn FnOnce(TokenStream) -> TokenStream>> = None;
     let mut sprache = Deutsch;
     let mut invertiere_präfix = None;
     let mut meta_var = None;
@@ -128,48 +183,17 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
         match arg.as_str() {
             "deutsch" => sprache = Deutsch,
             "german" => sprache = Deutsch,
-            "english" => sprache = Englisch,
-            "englisch" => sprache = Englisch,
-            "version" => {
-                erstelle_version = Some(Box::new(|item, sprache| {
-                    let version_methode = match sprache {
-                        Deutsch => "version_deutsch",
-                        Englisch => "version_english",
-                    };
-                    let version_ident = format_ident!("{}", version_methode);
-                    quote!(
-                        #item.#version_ident(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
-                    )
-                }))
-            }
+            "english" => sprache = English,
+            "englisch" => sprache = English,
+            "version" => erstelle_version = Some(Box::new(erstelle_version_methode(None, None))),
             "version_deutsch" => {
-                erstelle_version = Some(Box::new(|item, _sprache| {
-                    quote!(
-                        #item.version_deutsch(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
-                    )
-                }))
+                erstelle_version = Some(Box::new(erstelle_version_methode(Some(Deutsch), None)))
             }
             "version_english" => {
-                erstelle_version = Some(Box::new(|item, _sprache| {
-                    quote!(
-                        #item.version_english(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"))
-                    )
-                }))
+                erstelle_version = Some(Box::new(erstelle_version_methode(Some(English), None)))
             }
-            "hilfe" => {
-                erstelle_hilfe = Some(Box::new(|item| {
-                    quote!(
-                        #item.hilfe(env!("CARGO_PKG_NAME"), Some(env!("CARGO_PKG_VERSION")))
-                    )
-                }))
-            }
-            "help" => {
-                erstelle_hilfe = Some(Box::new(|item| {
-                    quote!(
-                        #item.help(env!("CARGO_PKG_NAME"), Some(env!("CARGO_PKG_VERSION")))
-                    )
-                }))
-            }
+            "hilfe" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(Deutsch, None))),
+            "help" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(English, None))),
             string => {
                 if let Some((arg_name, wert_string)) = string.split_once(':') {
                     match arg_name.trim() {
@@ -205,69 +229,34 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                     let kurz_namen = quote!(vec![#(#kurz_namen_iter.to_owned()),*]);
                     match arg_name.trim() {
                         "hilfe" => {
-                            erstelle_hilfe = Some(Box::new(move |item| {
-                                quote!(
-                                    #item.hilfe_mit_namen(
-                                        #lang_namen,
-                                        #kurz_namen,
-                                        env!("CARGO_PKG_NAME"),
-                                        Some(env!("CARGO_PKG_VERSION"))
-                                    )
-                                )
-                            }));
+                            erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(
+                                Deutsch,
+                                Some((lang_namen, kurz_namen)),
+                            )))
                         }
                         "help" => {
-                            erstelle_hilfe = Some(Box::new(move |item| {
-                                quote!(
-                                    #item.help_with_names(
-                                        #lang_namen,
-                                        #kurz_namen,
-                                        env!("CARGO_PKG_NAME"),
-                                        Some(env!("CARGO_PKG_VERSION"))
-                                    )
-                                )
-                            }));
+                            erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(
+                                English,
+                                Some((lang_namen, kurz_namen)),
+                            )))
                         }
                         "version" => {
-                            erstelle_version = Some(Box::new(move |item, sprache| {
-                                let version_methode = match sprache {
-                                    Deutsch => "version_mit_namen",
-                                    Englisch => "version_with_names",
-                                };
-                                let version_ident = format_ident!("{}", version_methode);
-                                quote!(
-                                    #item.#version_ident(
-                                        #lang_namen,
-                                        #kurz_namen,
-                                        env!("CARGO_PKG_NAME"),
-                                        env!("CARGO_PKG_VERSION")
-                                    )
-                                )
-                            }))
+                            erstelle_version = Some(Box::new(erstelle_version_methode(
+                                None,
+                                Some((lang_namen, kurz_namen)),
+                            )))
                         }
                         "version_deutsch" => {
-                            erstelle_version = Some(Box::new(move |item, _sprache| {
-                                quote!(
-                                    #item.version_mit_namen(
-                                        #lang_namen,
-                                        #kurz_namen,
-                                        env!("CARGO_PKG_NAME"),
-                                        env!("CARGO_PKG_VERSION")
-                                    )
-                                )
-                            }))
+                            erstelle_version = Some(Box::new(erstelle_version_methode(
+                                Some(Deutsch),
+                                Some((lang_namen, kurz_namen)),
+                            )))
                         }
                         "version_english" => {
-                            erstelle_version = Some(Box::new(move |item, _sprache| {
-                                quote!(
-                                    #item.version_with_names(
-                                        #lang_namen,
-                                        #kurz_namen,
-                                        env!("CARGO_PKG_NAME"),
-                                        env!("CARGO_PKG_VERSION")
-                                    )
-                                )
-                            }))
+                            erstelle_version = Some(Box::new(erstelle_version_methode(
+                                Some(English),
+                                Some((lang_namen, kurz_namen)),
+                            )))
                         }
                         trimmed => {
                             compile_error_return!(
@@ -284,11 +273,11 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
     }
     let invertiere_präfix = invertiere_präfix.unwrap_or(match sprache {
         Deutsch => "kein".to_owned(),
-        Englisch => "no".to_owned(),
+        English => "no".to_owned(),
     });
     let meta_var = meta_var.unwrap_or(match sprache {
         Deutsch => "WERT".to_owned(),
-        Englisch => "VALUE".to_owned(),
+        English => "VALUE".to_owned(),
     });
     let mut tuples = Vec::new();
     for field in item_struct.fields {
