@@ -169,6 +169,7 @@ enum FeldArgument {
     Parse,
 }
 
+#[derive(Debug)]
 enum KurzNamen<'t> {
     Keiner,
     Auto,
@@ -267,8 +268,8 @@ fn parse_wert_arg(
             }
         };
     }
-    for sub_arg in sub_args {
-        match sub_arg {
+    for sub_arg in sub_args.iter() {
+        match *sub_arg {
             "deutsch" => setze_sprache(Deutsch, sub_arg)?,
             "englisch" | "english" => setze_sprache(English, sub_arg)?,
             "kurz" | "short" => kurz_namen = KurzNamen::Auto,
@@ -490,11 +491,9 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                     }
                 }
             } else if attr.path.is_ident("kommandozeilen_argumente") {
-                let args_str = attr.tokens.to_string();
-                let mut args: Vec<&str> = Vec::new();
-                split_klammer_argumente!(args, &args_str);
-                for arg in args {
-                    let trimmed = arg.trim();
+                let args_string = attr.tokens.to_string();
+                if let Some(("", args_str)) = parse_klammer_arg(&args_string) {
+                    let trimmed = args_str.trim();
                     unwrap_result_or_compile_error!(parse_wert_arg(
                         &ident_str,
                         trimmed,
@@ -510,17 +509,25 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                             Ok(())
                         },
                         |opt_wert_string, _sub_arg_name, _string| {
-                            let ts = match opt_wert_string {
+                            standard = match opt_wert_string {
                                 None => quote!(None),
                                 Some(wert_string) => {
-                                    wert_string.parse().map_err(|err: LexError| err.to_string())?
+                                    let ts: TokenStream = wert_string
+                                        .parse()
+                                        .map_err(|err: LexError| err.to_string())?;
+                                    quote!(Some(#ts))
                                 }
                             };
-                            standard = quote!(Some(#ts));
                             Ok(())
                         },
                         Some(&mut feld_argument),
                     ));
+                } else {
+                    compile_error_return!(
+                        "Argument für {} nicht in Klammern eingeschlossen: {}",
+                        ident_str,
+                        args_string
+                    )
                 }
             }
         }
@@ -540,7 +547,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
             FeldArgument::ArgEnum => {
                 quote!({
                     let beschreibung = #crate_name::Beschreibung::neu(
-                        #lang.to_owned(),
+                        #lang,
                         #kurz,
                         #hilfe,
                         #standard,
