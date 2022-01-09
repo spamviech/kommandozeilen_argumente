@@ -367,8 +367,9 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                         }
                         trimmed => {
                             compile_error_return!(
-                                "Benanntes Argument(Klammer) nicht unterstützt: {}",
-                                trimmed
+                                "Benanntes Argument {} nicht unterstützt: {}",
+                                trimmed,
+                                string,
                             )
                         }
                     }
@@ -380,8 +381,9 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                         "meta_var" => meta_var = Some(wert_string.to_owned()),
                         trimmed => {
                             compile_error_return!(
-                                "Benanntes Argument(Doppelpunkt) nicht unterstützt: {}",
-                                trimmed
+                                "Benanntes Argument {} nicht unterstützt: {}",
+                                trimmed,
+                                string,
                             )
                         }
                     }
