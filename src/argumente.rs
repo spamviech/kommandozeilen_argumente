@@ -105,7 +105,7 @@ impl<T, E: Display> Argumente<T, E> {
             sprache.fehlender_wert,
             sprache.parse_fehler,
             sprache.invalider_string,
-            sprache.arg_nicht_verwendet,
+            sprache.argument_nicht_verwendet,
         )
     }
 
@@ -185,7 +185,7 @@ impl<T, E: Display> Argumente<T, E> {
             sprache.fehlender_wert,
             sprache.parse_fehler,
             sprache.invalider_string,
-            sprache.arg_nicht_verwendet,
+            sprache.argument_nicht_verwendet,
         )
     }
 

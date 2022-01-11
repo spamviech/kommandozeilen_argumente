@@ -22,7 +22,7 @@ pub struct Sprache {
     /// Beschreibung eines invaliden Strings in einer Fehlermeldung.
     pub invalider_string: &'static str,
     /// Beschreibung für ein nicht verwendetes Argument in einer Fehlermeldung.
-    pub arg_nicht_verwendet: &'static str,
+    pub argument_nicht_verwendet: &'static str,
 }
 
 impl Sprache {
@@ -37,7 +37,7 @@ impl Sprache {
         fehlender_wert: "Fehlender Wert",
         parse_fehler: "Parse-Fehler",
         invalider_string: "Invalider String",
-        arg_nicht_verwendet: "Nicht alle Argumente verwendet",
+        argument_nicht_verwendet: "Nicht alle Argumente verwendet",
     };
 
     /// English Strings.
@@ -51,6 +51,6 @@ impl Sprache {
         fehlender_wert: "Missing Value",
         parse_fehler: "Parse Error",
         invalider_string: "Invalid String",
-        arg_nicht_verwendet: "Unused arguments",
+        argument_nicht_verwendet: "Unused argument(s)",
     };
 }
