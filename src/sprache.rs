@@ -23,6 +23,18 @@ pub struct Sprache {
     pub invalider_string: &'static str,
     /// Beschreibung für ein nicht verwendetes Argument in einer Fehlermeldung.
     pub argument_nicht_verwendet: &'static str,
+    /// Beschreibung für die Hilfe-Flag im automatisch erzeugten Hilfe-Text.
+    pub hilfe_beschreibung: &'static str,
+    /// Lang-Name für die Hilfe-Flag.
+    pub hilfe_lang: &'static str,
+    /// Kurz-Name für die Hilfe-Flag.
+    pub hilfe_kurz: &'static str,
+    /// Beschreibung für die Version-Flag im automatisch erzeugten Hilfe-Text.
+    pub version_beschreibung: &'static str,
+    /// Lang-Name für die Version-Flag.
+    pub version_lang: &'static str,
+    /// Kurz-Name für die Version-Flag.
+    pub version_kurz: &'static str,
 }
 
 impl Sprache {
@@ -38,6 +50,12 @@ impl Sprache {
         parse_fehler: "Parse-Fehler",
         invalider_string: "Invalider String",
         argument_nicht_verwendet: "Nicht alle Argumente verwendet",
+        hilfe_beschreibung: "Zeige diesen Text an.",
+        hilfe_lang: "hilfe",
+        hilfe_kurz: "h",
+        version_beschreibung: "Zeige die aktuelle Version an.",
+        version_lang: "version",
+        version_kurz: "v",
     };
 
     /// English Strings.
@@ -52,5 +70,11 @@ impl Sprache {
         parse_fehler: "Parse Error",
         invalider_string: "Invalid String",
         argument_nicht_verwendet: "Unused argument(s)",
+        hilfe_beschreibung: "Show this text.",
+        hilfe_lang: "hilfe",
+        hilfe_kurz: "h",
+        version_beschreibung: "Show the current version.",
+        version_lang: "version",
+        version_kurz: "v",
     };
 }

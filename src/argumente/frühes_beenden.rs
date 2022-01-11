@@ -20,11 +20,41 @@ use crate::{
 };
 
 impl<T: 'static, E: 'static> Argumente<T, E> {
+    /// Erzeuge `--version`- und `--hilfe`-Flags, die zu vorzeitigem Beenden führen.
+    /// Wie [version_deutsch] und [hilfe] mit synchronisiertem Programmnamen.
+    #[inline(always)]
+    pub fn hilfe_und_version(self, programm_name: &str, version: &str) -> Argumente<T, E> {
+        self.hilfe_und_version_mit_sprache(programm_name, version, Sprache::DEUTSCH)
+    }
+
+    /// Create `--version` and `--help` flags causing an early exit.
+    /// Similar to using [version_english] and [help] with a synchronised program name.
+    #[inline(always)]
+    pub fn help_and_version(self, program_name: &str, version: &str) -> Argumente<T, E> {
+        self.hilfe_und_version_mit_sprache(program_name, version, Sprache::ENGLISH)
+    }
+
+    /// Erzeuge Flags, die zu vorzeitigem Beenden führen und Version, bzw. Hilfe-Text anzeigen.
+    /// Wie [version_mit_sprache] und [hilfe_mit_sprache] mit synchronisiertem Programmnamen.
+    #[inline(always)]
+    pub fn hilfe_und_version_mit_sprache(
+        self,
+        programm_name: &str,
+        version: &str,
+        sprache: Sprache,
+    ) -> Argumente<T, E> {
+        self.version_mit_sprache(programm_name, version, sprache).hilfe_mit_sprache(
+            programm_name,
+            Some(version),
+            sprache,
+        )
+    }
+
     /// Erzeuge eine `--version`-Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei die konfigurierte Programm-Version.
     #[inline(always)]
     pub fn version_deutsch(self, programm_name: &str, version: &str) -> Argumente<T, E> {
-        self.version_mit_namen("version", "v", programm_name, version)
+        self.version_mit_sprache(programm_name, version, Sprache::DEUTSCH)
     }
 
     /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt
@@ -36,20 +66,20 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         programm_name: &str,
         version: &str,
     ) -> Argumente<T, E> {
-        let beschreibung = Beschreibung::neu(
+        self.version_mit_namen_und_sprache(
             lang_namen,
             kurz_namen,
-            Some("Zeigt die aktuelle Version an.".to_owned()),
-            None,
-        );
-        self.zeige_version(beschreibung, programm_name, version)
+            programm_name,
+            version,
+            Sprache::DEUTSCH,
+        )
     }
 
     /// Create a `--version` flag, causing an early exit.
     /// Shows the configured program version.
     #[inline(always)]
     pub fn version_english(self, program_name: &str, version: &str) -> Argumente<T, E> {
-        self.version_with_names("version", "v", program_name, version)
+        self.version_mit_sprache(program_name, version, Sprache::ENGLISH)
     }
 
     /// Create a flag causing an early exit which shows the configured program version.
@@ -60,13 +90,50 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         program_name: &str,
         version: &str,
     ) -> Argumente<T, E> {
-        let beschreibung = Beschreibung::neu(
+        self.version_mit_namen_und_sprache(
             long_names,
             short_names,
-            Some("Show the current version.".to_owned()),
+            program_name,
+            version,
+            Sprache::ENGLISH,
+        )
+    }
+
+    /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt.
+    /// Gedacht zum anzeigen der aktuellen Programm-Version.
+    #[inline(always)]
+    pub fn version_mit_sprache(
+        self,
+        programm_name: &str,
+        version: &str,
+        sprache: Sprache,
+    ) -> Argumente<T, E> {
+        self.version_mit_namen_und_sprache(
+            sprache.version_lang,
+            sprache.version_kurz,
+            programm_name,
+            version,
+            sprache,
+        )
+    }
+
+    /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt
+    /// und die konfigurierte Programm-Version anzeigt.
+    pub fn version_mit_namen_und_sprache(
+        self,
+        lang_namen: impl LangNamen,
+        kurz_namen: impl KurzNamen,
+        programm_name: &str,
+        version: &str,
+        sprache: Sprache,
+    ) -> Argumente<T, E> {
+        let beschreibung = Beschreibung::neu(
+            lang_namen,
+            kurz_namen,
+            Some(sprache.version_beschreibung.to_owned()),
             None,
         );
-        self.zeige_version(beschreibung, program_name, version)
+        self.zeige_version(beschreibung, programm_name, version)
     }
 
     /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt.
@@ -85,7 +152,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Zeige dabei eine automatisch generierte Hilfe.
     #[inline(always)]
     pub fn hilfe(self, programm_name: &str, version: Option<&str>) -> Argumente<T, E> {
-        self.hilfe_mit_namen("hilfe", "h", programm_name, version)
+        self.hilfe_mit_sprache(programm_name, version, Sprache::DEUTSCH)
     }
 
     /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt
@@ -97,27 +164,20 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         programm_name: &str,
         version: Option<&str>,
     ) -> Argumente<T, E> {
-        let beschreibung = Beschreibung::neu(
+        self.hilfe_mit_namen_und_sprache(
             lang_namen,
             kurz_namen,
-            Some("Zeigt diesen Text an.".to_owned()),
-            None,
-        );
-        self.erstelle_hilfe_mit_sprache(beschreibung, programm_name, version, Sprache::DEUTSCH)
-    }
-
-    /// Erzeuge `--version`- und `--hilfe`-Flags, die zu vorzeitigem Beenden führen.
-    /// Wie [version_deutsch] und [hilfe] mit synchronisiertem Programmnamen.
-    #[inline(always)]
-    pub fn hilfe_und_version(self, programm_name: &str, version: &str) -> Argumente<T, E> {
-        self.version_deutsch(programm_name, version).hilfe(programm_name, Some(version))
+            programm_name,
+            version,
+            Sprache::DEUTSCH,
+        )
     }
 
     /// Create a `--help` flag, causing an early exit.
     /// Shows an automatically created help text.
     #[inline(always)]
     pub fn help(self, program_name: &str, version: Option<&str>) -> Argumente<T, E> {
-        self.help_with_names("help", "h", program_name, version)
+        self.hilfe_mit_sprache(program_name, version, Sprache::ENGLISH)
     }
 
     /// Create a flag causing an early exit which shows an automatically created help text.
@@ -128,16 +188,51 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         program_name: &str,
         version: Option<&str>,
     ) -> Argumente<T, E> {
-        let beschreibung =
-            Beschreibung::neu(long_names, short_names, Some("Show this text.".to_owned()), None);
-        self.erstelle_hilfe_mit_sprache(beschreibung, program_name, version, Sprache::ENGLISH)
+        self.hilfe_mit_namen_und_sprache(
+            long_names,
+            short_names,
+            program_name,
+            version,
+            Sprache::ENGLISH,
+        )
     }
 
-    /// Create `--version` and `--help` flags causing an early exit.
-    /// Similar to using [version_english] and [help] with a synchronised program name.
+    /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
+    /// Zeige dabei eine automatisch konfigurierte Hilfe an.
     #[inline(always)]
-    pub fn help_and_version(self, program_name: &str, version: &str) -> Argumente<T, E> {
-        self.version_english(program_name, version).help(program_name, Some(version))
+    pub fn hilfe_mit_sprache(
+        self,
+        programm_name: &str,
+        version: Option<&str>,
+        sprache: Sprache,
+    ) -> Argumente<T, E> {
+        self.hilfe_mit_namen_und_sprache(
+            sprache.hilfe_lang,
+            sprache.hilfe_kurz,
+            programm_name,
+            version,
+            sprache,
+        )
+    }
+
+    /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
+    /// Zeige dabei eine automatisch konfigurierte Hilfe an.
+    #[inline(always)]
+    pub fn hilfe_mit_namen_und_sprache(
+        self,
+        lang_namen: impl LangNamen,
+        kurz_namen: impl KurzNamen,
+        programm_name: &str,
+        version: Option<&str>,
+        sprache: Sprache,
+    ) -> Argumente<T, E> {
+        let beschreibung = Beschreibung::neu(
+            lang_namen,
+            kurz_namen,
+            Some(sprache.hilfe_beschreibung.to_owned()),
+            None,
+        );
+        self.erstelle_hilfe_mit_sprache(beschreibung, programm_name, version, sprache)
     }
 
     /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
