@@ -4,10 +4,6 @@ use std::{ffi::OsString, fmt::Display, iter, process};
 
 use kommandozeilen_argumente::{ArgEnum, Ergebnis, Parse};
 
-#[allow(unused_imports)]
-// Derive-Macro kommt mit integration test nicht zurecht, daher muss crate::kombiniere existieren.
-use kommandozeilen_argumente::kombiniere;
-
 #[derive(Debug, Clone, PartialEq, Eq, ArgEnum)]
 enum Bla {
     Meh,
