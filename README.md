@@ -9,6 +9,9 @@ zu komplexeren Strukturen zusammengefasst werden.
 
 ## Flags
 
+Flags sind Argumente ohne Wert, sie können entweder aktiviert oder deaktiviert sein.
+Meistens repräsentieren sie `bool`-Argumente, andere Typen werden aber ebenfalls unterstützt.
+
 Aktiviert über `--flag` oder `-f`
 Können (explizit) über `--kein-flag`, bzw. `--no-flag` deaktiviert werden
 Präfix kann konfiguriert werden.
