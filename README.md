@@ -1,6 +1,11 @@
 # kommandozeilen_argumente
 
-Parser für Kommandozeilen-Argumente mit optionaler, potentiell deutscher, automatischer Hilfe-Generierung.
+Parser für Kommandozeilen-Argumente mit optionaler, automatischer Hilfe-Generierung.
+
+Zum erstellen eines neuen Arguments werden assoziierte Funktionen bereitgestellt,
+der Ergebnistyp wird dabei durch eine Typ-Variable festgelegt.
+Argumente können mithilfe des `kombiniere!`-Macros, bzw. dedizierten `kombiniereN`-Funktionen
+zu komplexeren Strukturen zusammengefasst werden.
 
 ## Flags
 
@@ -10,6 +15,10 @@ Präfix kann konfiguriert werden.
 Standardmäßig deaktiviert, kann angepasst werden.
 
 Aktivieren mehrerer Flags auf einmal möglich `-fgh`
+
+### Frühes Beenden
+
+TODO
 
 ## Werte
 
