@@ -7,6 +7,9 @@ der Ergebnistyp wird dabei durch eine Typ-Variable festgelegt.
 Argumente können mithilfe des `kombiniere!`-Macros, bzw. dedizierten `kombiniereN`-Funktionen
 zu komplexeren Strukturen zusammengefasst werden.
 
+Die Sprache der erzeugten Hilfe-Meldung kann konfiguriert werden.
+Sofern es relevant ist werden für Deutsch und Englisch spezialisierte Funktionen bereitgestellt.
+
 ## Flags
 
 Flags sind Argumente ohne Wert, sie können entweder aktiviert oder deaktiviert sein.
