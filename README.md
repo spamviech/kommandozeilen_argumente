@@ -4,8 +4,11 @@ Parser für Kommandozeilen-Argumente mit optionaler, automatischer Hilfe-Generie
 
 Zum erstellen eines neuen Arguments werden assoziierte Funktionen bereitgestellt,
 der Ergebnistyp wird dabei durch eine Typ-Variable festgelegt.
-Argumente können mithilfe des `kombiniere!`-Macros, bzw. dedizierten `kombiniereN`-Funktionen
-zu komplexeren Strukturen zusammengefasst werden.
+Argumente können mithilfe des `kombiniere!`-Macros, bzw. dedizierten `kombiniereN`-Funktionen,
+zu komplexeren Strukturen zusammengefasst werden,
+die zum parsen potentiell mehrere Argumente benötigen.
+
+Ein Argument wird durch seinen Langnamen oder potentiellen Kurznamen identifiziert.
 
 Die Sprache der erzeugten Hilfe-Meldung kann konfiguriert werden.
 Sofern es relevant ist werden für Deutsch und Englisch spezialisierte Funktionen bereitgestellt.
