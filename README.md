@@ -71,3 +71,11 @@ Vor Feldern
 - `standard: <wert>` | `default: <value>`: setzte den Standard-Wert
 - `meta_var: <string>`: setzte die in der Hilfe angezeigt Meta-Variable
 - `invertiere_präfix: <string>` | `invert_prefix: <string>`: setze Präfix zum invertieren einer Flag
+
+## Geplante Features
+
+- Unterargumente (subcommands)
+- Positions-basierte Argumente
+- Unterschiedlicher Standard-Wert für Name ohne Wert und Name kommt nicht vor
+- Argumente unter Berücksichtigung von Groß- und Kleinschreibung
+- Argument-Gruppen (nur eine dieser N Flags kann gleichzeitig aktiv sein)
