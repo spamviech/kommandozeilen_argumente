@@ -44,10 +44,29 @@ struct Test {
 #[kommandozeilen_argumente(language: english)]
 struct Empty {}
 
+const DUMMY: kommandozeilen_argumente::Sprache = kommandozeilen_argumente::Sprache {
+    invalider_string: "dummy",
+    invertiere_präfix: "dummy",
+    meta_var: "dummy",
+    optionen: "dummy",
+    standard: "dummy",
+    erlaubte_werte: "dummy",
+    fehlende_flag: "dummy",
+    fehlender_wert: "dummy",
+    parse_fehler: "dummy",
+    argument_nicht_verwendet: "dummy",
+    hilfe_beschreibung: "dummy",
+    hilfe_lang: "dummy",
+    hilfe_kurz: "dummy",
+    version_beschreibung: "dummy",
+    version_lang: "dummy",
+    version_kurz: "dummy",
+};
+
 #[derive(Debug, PartialEq, Eq, Parse)]
-#[kommandozeilen_argumente(language: english)]
+#[kommandozeilen_argumente(language: DUMMY)]
 struct Inner {
-    #[kommandozeilen_argumente(default: false, short, invertiere_präfix: möp)]
+    #[kommandozeilen_argumente(default: false, short)]
     inner_flag: bool,
 }
 
@@ -58,7 +77,7 @@ struct Test2 {
     /// bla
     bla: Bla,
     /// flag
-    #[kommandozeilen_argumente(required, short)]
+    #[kommandozeilen_argumente(required, short, invertiere_präfix: möp)]
     flag: bool,
     #[kommandozeilen_argumente(flatten)]
     inner: Inner,
