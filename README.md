@@ -49,23 +49,30 @@ Es ist möglich, alle erlaubten Werte im Hilfe-Text anzeigen zu lassen.
 Angenommen Langnamen `--wert` und Kurznamen `-w` für ein Zahlen-Argument,
 `--wert 3`, `--wert=3`, `-w 3`, `-w=3` und `-w3` werden alle mit Ergebnis `3` geparst.
 
-## Feature derive
+## Feature "derive"
 
 Mit aktiviertem `derive`-Feature können die akzeptieren Kommandozeilen-Argumente
 automatisch erzeugt werden.
-Dazu wird das `Parse`-Trait für ein `struct` implementiert.
-Normalerweise wird das `ParseArgument`-Trait zum parsen verwendet.
-Es ist implementiert für `String`, Zahlentypen (`i8`, `u8`, `i16`, `u16`, ..., `f32`, `f64`),
+Dazu wird das `Parse`-Trait für ein `struct` mit benannten Feldern implementiert.
+
+Die Namen werden aus den Feld-Namen erzeugt,
+der Langname ist der vollständige Feldname,
+der Kurzname das erste Grapheme des Feldnamens.
+
+Als Beschreibung im erzeugten Hilfe-Text wird der docstring des jeweiligen Feldes verwendet.
+
+Zum parsen wird das `ParseArgument`-Trait verwendet.
+Es ist implementiert für `bool`, `String`, Zahlentypen (`i8`, `u8`, `i16`, `u16`, ..., `f32`, `f64`),
 `Option<T>` und Typen, die das `ArgEnum`-Trait implementieren.
+Flag-Argumente werden für `bool`-Argumente erzeugt; diese sind standardmäßig deaktiviert.
+Alle anderen Implementierungen erzeugen Wert-Argumente; `Option<T>` sind standardmäßig `None`,
+alle anderen sind benötigte Argumente.
 Das `ArgEnum`-Trait kann automatisch für ein `enum`, das keine Daten hält abgeleitet werden.
+Für eine Verwendung als `ParseArgument` wird zusätzlich eine `Display`-Implementierung benötigt.
 
-TODO
+Das Standard-Verhalten kann über `#[kommandozeilen_argumente(<Optionen>)]`-Attribute beeinflusst werden.
 
-trait ArgEnum ohne Attribute, derive-Macro wird für enums ohne Daten bereitgestellt.
-
-trait Parse: alles über kommandozeilen_argumente-Attribut
-
-Global an struct
+Direkt am `struct` werden folgende Optionen unterstützt:
 
 - `sprache: <sprache>` | `language: <language>`:
   Standard-Einstellung für einige Strings, Standard: `english`.
@@ -83,17 +90,8 @@ Global an struct
 - `invertiere_präfix: <string>` | `invert_prefix: <string>`:
   Setze Standardwert für Präfix zum invertieren einer Flag, Standard `kein` oder `no`
 
-Vor Feldern
+Vor Feldern werden folgende Optionen unterstützt:
 
-- hilfe aus docstring
-- name wird langer name
-- erstes grapheme wird kurzer name
-- Es wird eine Implementierung über das ParseArgument-Trait verwendet
-  - Flags (bool-Werte) sind standardmäßig deaktiviert
-  - Option-Werte sind standardmäßig None
-  - Strings und Zahlentypen (u8, i8, f32, ...) haben keinen Standardwert (notwendiges Argument)
-  - ArgEnum-Werte haben keinen Standardwert (notwendiges Argument), benötigt Display.
-    Derive-Macro für Summen-Typen ohne Daten wird bereitgestellt.
 - `glätten`/`flatten`: verwende das Parse-Trait (übernehmen der konfigurierten Argumente)
 - `FromStr`: verwende das FromStr-Trait (benötigt Display für Wert und Fehler-Typ)
 - `benötigt`/`required`: entferne den konfigurierten Standard-Wert
@@ -106,7 +104,11 @@ Vor Feldern
 - `meta_var: <string>`: setzte die in der Hilfe angezeigt Meta-Variable
 - `invertiere_präfix: <string>` | `invert_prefix: <string>`: setze Präfix zum invertieren einer Flag
 
-## Geplante Features
+## Beispiel
+
+TODO
+
+## (Noch) Fehlende Features
 
 - Unterargumente (subcommands)
 - Positions-basierte Argumente
