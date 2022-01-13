@@ -9,8 +9,11 @@ zu komplexeren Strukturen zusammengefasst werden,
 die zum parsen potentiell mehrere Argumente benötigen.
 
 Ein Argument wird durch seinen Langnamen oder potentiellen Kurznamen identifiziert.
+Angabe eines Langnamens startet mit zwei Minus `--lang`.
+Angabe eines Kurznamens startet mit einem Minus `-k`.
+Für Kurznamen wird angenommen, dass sie nur ein Grapheme lang sind.
 
-Die Sprache der erzeugten Hilfe-Meldung kann konfiguriert werden.
+Alle verwendeten Strings, z.B. für die erzeugte Hilfe-Meldung, sind konfigurierbar.
 Sofern es relevant ist werden für Deutsch und Englisch spezialisierte Funktionen bereitgestellt.
 
 ## Flags
