@@ -49,7 +49,15 @@ Es ist möglich, alle erlaubten Werte im Hilfe-Text anzeigen zu lassen.
 Angenommen Langnamen `--wert` und Kurznamen `-w` für ein Zahlen-Argument,
 `--wert 3`, `--wert=3`, `-w 3`, `-w=3` und `-w3` werden alle mit Ergebnis `3` geparst.
 
-## derive-Attribute
+## Feature derive
+
+Mit aktiviertem `derive`-Feature können die akzeptieren Kommandozeilen-Argumente
+automatisch erzeugt werden.
+Dazu wird das `Parse`-Trait für ein `struct` implementiert.
+Normalerweise wird das `ParseArgument`-Trait zum parsen verwendet.
+Es ist implementiert für `String`, Zahlentypen (`i8`, `u8`, `i16`, `u16`, ..., `f32`, `f64`),
+`Option<T>` und Typen, die das `ArgEnum`-Trait implementieren.
+Das `ArgEnum`-Trait kann automatisch für ein `enum`, das keine Daten hält abgeleitet werden.
 
 TODO
 
