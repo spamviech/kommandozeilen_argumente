@@ -11,7 +11,7 @@ die zum parsen potentiell mehrere Argumente benötigen.
 Ein Argument wird durch seinen Langnamen oder potentiellen Kurznamen identifiziert.
 Angabe eines Langnamens startet mit zwei Minus `--lang`.
 Angabe eines Kurznamens startet mit einem Minus `-k`.
-Für Kurznamen wird angenommen, dass sie nur ein Grapheme lang sind.
+Für Kurznamen wird angenommen, dass sie nur ein [Grapheme](https://docs.rs/unicode-segmentation/latest/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes) lang sind.
 
 Alle verwendeten Strings, z.B. für die erzeugte Hilfe-Meldung, sind konfigurierbar.
 Sofern es relevant ist werden für Deutsch und Englisch spezialisierte Funktionen bereitgestellt.
@@ -21,12 +21,12 @@ Sofern es relevant ist werden für Deutsch und Englisch spezialisierte Funktione
 Flags sind Argumente ohne Wert, sie können entweder aktiviert oder deaktiviert sein.
 Meistens repräsentieren sie `bool`-Argumente, andere Typen werden aber ebenfalls unterstützt.
 
-Aktiviert über `--flag` oder `-f`
-Können (explizit) über `--kein-flag`, bzw. `--no-flag` deaktiviert werden
-Präfix kann konfiguriert werden.
-Standardmäßig deaktiviert, kann angepasst werden.
+Angenommen Langnamen `flag` und Kurznamen `f` und invertiere_präfix `kein`,
+eine Flag kann mit `--flag` oder `-f` aktiviert
+und mit `--kein-flag` deaktiviert werden.
 
-Aktivieren mehrerer Flags auf einmal möglich `-fgh`
+Existieren mehrere Flags mit Kurznamen `f`, `g` und `h`,
+so können alle gleichzeitig mit `-fgh` aktiviert werden.
 
 ### Frühes Beenden
 
