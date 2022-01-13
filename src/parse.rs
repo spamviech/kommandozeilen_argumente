@@ -116,16 +116,42 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         meta_var: &str,
     ) -> Argumente<Self, String> {
         let Beschreibung { lang, kurz, .. } = &beschreibung;
+        let lang_namen = lang.clone();
+        let kurz_namen = kurz.clone();
         let Argumente { parse, .. } =
             T::argumente(Beschreibung::neu(lang, kurz, None, None), invertiere_präfix, meta_var);
-        let (beschreibung_string, _standard) =
-            beschreibung.als_string_beschreibung_allgemein(|opt| {
+        let (beschreibung_string, option_standard) = beschreibung
+            .als_string_beschreibung_allgemein(|opt| {
                 if let Some(t) = opt {
                     t.to_string()
                 } else {
                     "None".to_owned()
                 }
             });
+        type F<T> = Box<dyn Fn(NonEmpty<Fehler<String>>) -> Ergebnis<Option<T>, String>>;
+        let verwende_standard: F<T> = if let Some(standard) = option_standard {
+            Box::new(move |fehler_sammlung| {
+                let mut fehler_iter =
+                    fehler_sammlung.into_iter().filter_map(|fehler| match fehler {
+                        Fehler::FehlenderWert { lang, kurz, meta_var } => {
+                            if lang == lang_namen && kurz == kurz_namen {
+                                None
+                            } else {
+                                Some(Fehler::FehlenderWert { lang, kurz, meta_var })
+                            }
+                        }
+                        fehler => Some(fehler),
+                    });
+                if let Some(head) = fehler_iter.next() {
+                    let tail = fehler_iter.collect();
+                    Ergebnis::Fehler(NonEmpty { head, tail })
+                } else {
+                    Ergebnis::Wert(standard.clone())
+                }
+            })
+        } else {
+            Box::new(Ergebnis::Fehler)
+        };
         Argumente {
             beschreibungen: vec![ArgString::Wert {
                 beschreibung: beschreibung_string,
@@ -135,7 +161,12 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
             flag_kurzformen: Vec::new(),
             parse: Box::new(move |args| {
                 let (ergebnis, nicht_verwendet) = parse(args);
-                (ergebnis.map(Some), nicht_verwendet)
+                let option_ergebnis = match ergebnis {
+                    Ergebnis::Wert(wert) => Ergebnis::Wert(Some(wert)),
+                    Ergebnis::FrühesBeenden(nachrichten) => Ergebnis::FrühesBeenden(nachrichten),
+                    Ergebnis::Fehler(fehler_sammlung) => verwende_standard(fehler_sammlung),
+                };
+                (option_ergebnis, nicht_verwendet)
             }),
         }
     }
