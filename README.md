@@ -11,7 +11,7 @@ die zum parsen potentiell mehrere Argumente benötigen.
 Ein Argument wird durch seinen Langnamen oder potentiellen Kurznamen identifiziert.
 Angabe eines Langnamens startet mit zwei Minus `--lang`.
 Angabe eines Kurznamens startet mit einem Minus `-k`.
-Für Kurznamen wird angenommen, dass sie nur ein [Grapheme](https://docs.rs/unicode-segmentation/latest/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes) lang sind.
+Für Kurznamen wird angenommen, dass sie nur ein [Grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes) lang sind.
 
 Alle verwendeten Strings, z.B. für die erzeugte Hilfe-Meldung, sind konfigurierbar.
 Sofern es relevant ist werden für Deutsch und Englisch spezialisierte Funktionen bereitgestellt.
@@ -30,9 +30,13 @@ so können alle gleichzeitig mit `-fgh` aktiviert werden.
 
 ### Frühes Beenden
 
-TODO
+Eine besondere Art von Flags führt zu frühem beenden.
+Sie können nicht deaktiviert werden und führen zu vorzeitigem Beenden unter Anzeigen einer Nachricht.
+Typische Beispiele sind Anzeigen der aktuellen Version oder des Hilfe-Textes.
 
 ## Werte
+
+TODO
 
 Langformen: `--arg <Wert>` oder `--arg=<Wert>`
 Kurzformen: `-a <Wert>`, `-a=<Wert>` oder `-a<Wert>`
@@ -40,6 +44,8 @@ Kurzformen: `-a <Wert>`, `-a=<Wert>` oder `-a<Wert>`
 Konfigurierbarer Standardwert, potentiell Anzeige möglicher Werte im Hilfe-Text.
 
 ## derive-Attribute
+
+TODO
 
 trait ArgEnum ohne Attribute, derive-Macro wird für enums ohne Daten bereitgestellt.
 
