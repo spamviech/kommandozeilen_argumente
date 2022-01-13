@@ -25,7 +25,7 @@ fn arg_enum_derive() {
 }
 
 #[derive(Debug, PartialEq, Eq, Parse)]
-#[kommandozeilen_argumente(version, hilfe)]
+#[kommandozeilen_argumente(sprache: deutsch, version, hilfe)]
 struct Test {
     /// bla
     bla: Bla,
@@ -41,18 +41,18 @@ struct Test {
 }
 
 #[derive(Debug, PartialEq, Eq, Parse)]
-#[kommandozeilen_argumente(english)]
+#[kommandozeilen_argumente(language: english)]
 struct Empty {}
 
 #[derive(Debug, PartialEq, Eq, Parse)]
-#[kommandozeilen_argumente(english)]
+#[kommandozeilen_argumente(language: english)]
 struct Inner {
     #[kommandozeilen_argumente(default: false, short, invertiere_präfix: möp)]
     inner_flag: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Parse)]
-#[kommandozeilen_argumente(english, version, help(lang: [hilfe, help], kurz: h))]
+#[kommandozeilen_argumente(version, help(lang: [hilfe, help], kurz: h))]
 struct Test2 {
     #[kommandozeilen_argumente(default: Bla::Meh, long: [bla, meh, muh])]
     /// bla

@@ -1,7 +1,7 @@
 //! Implementierung für das derive-Macro des Parse-Traits.
 
 use proc_macro2::{LexError, TokenStream};
-use quote::{format_ident, quote};
+use quote::quote;
 use syn::{Field, ItemStruct};
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -9,12 +9,25 @@ use crate::{
     base_name, compile_error_return, unwrap_option_or_compile_error, unwrap_result_or_compile_error,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum Sprache {
     Deutsch,
     English,
+    TokenStream(TokenStream),
 }
-use Sprache::*;
+use Sprache::{Deutsch, English};
+
+impl Sprache {
+    fn token_stream(self) -> TokenStream {
+        use Sprache::*;
+        let crate_name = base_name();
+        match self {
+            Deutsch => quote!(#crate_name::Sprache::DEUTSCH),
+            English => quote!(#crate_name::Sprache::ENGLISH),
+            TokenStream(ts) => ts,
+        }
+    }
+}
 
 fn parse_klammer_arg(string: &str) -> Option<(&str, &str)> {
     parse_allgemeines_klammer_arg(string, '(', ')')
@@ -191,25 +204,20 @@ impl<'t> KurzNamen<'t> {
 fn erstelle_version_methode(
     feste_sprache: Option<Sprache>,
     namen: Option<(TokenStream, TokenStream)>,
-) -> impl Fn(TokenStream, Sprache) -> TokenStream {
-    let version_methode = feste_sprache.map(|sprache| match sprache {
-        Deutsch => "version_mit_namen",
-        English => "version_with_names",
-    });
+) -> impl FnOnce(TokenStream, Sprache) -> TokenStream {
     let crate_name = base_name();
-    let (lang_namen, kurz_namen) = namen.unwrap_or_else(|| (quote!("version"), quote!("v")));
     move |item, sprache| {
-        let version_methode = version_methode.unwrap_or_else(|| match sprache {
-            Deutsch => "version_mit_namen",
-            English => "version_with_names",
+        let sprache_ts = feste_sprache.unwrap_or(sprache).token_stream();
+        let (lang_namen, kurz_namen) = namen.unwrap_or_else(|| {
+            (quote!(#sprache_ts.version_lang), quote!(#sprache_ts.version_kurz))
         });
-        let version_ident = format_ident!("{}", version_methode);
         quote!(
-            #item.#version_ident(
+            #item.version_mit_namen_und_sprache(
                 #lang_namen,
                 #kurz_namen,
                 #crate_name::crate_name!(),
                 #crate_name::crate_version!(),
+                #sprache_ts,
             )
         )
     }
@@ -220,24 +228,18 @@ fn erstelle_hilfe_methode(
     namen: Option<(TokenStream, TokenStream)>,
 ) -> impl Fn(TokenStream) -> TokenStream {
     let crate_name = base_name();
-    let (hilfe_methode, hilfe_ident) = match sprache {
-        Deutsch => ("hilfe", "hilfe_mit_namen"),
-        English => ("help", "help_with_names"),
-    };
-    let hilfe_ident = format_ident!("{}", hilfe_ident);
-    let kurz_standard = if let Some(kurz) = hilfe_methode.graphemes(true).next() {
-        quote!(#kurz)
-    } else {
-        quote!(None)
-    };
-    let (lang_namen, kurz_namen) = namen.unwrap_or_else(|| (quote!(#hilfe_methode), kurz_standard));
+    let sprache_ts = sprache.token_stream();
+    let lang_standard = quote!(#sprache_ts.hilfe_lang);
+    let kurz_standard = quote!(#sprache_ts.hilfe_kurz);
+    let (lang_namen, kurz_namen) = namen.unwrap_or_else(|| (lang_standard, kurz_standard));
     move |item| {
         quote!(
-            #item.#hilfe_ident(
+            #item.hilfe_mit_namen_und_sprache(
                 #lang_namen,
                 #kurz_namen,
                 #crate_name::crate_name!(),
                 Some(#crate_name::crate_version!()),
+                #sprache_ts
             )
         )
     }
@@ -270,8 +272,6 @@ fn parse_wert_arg(
     }
     for sub_arg in sub_args.iter() {
         match *sub_arg {
-            "deutsch" => setze_sprache(Deutsch, sub_arg)?,
-            "englisch" | "english" => setze_sprache(English, sub_arg)?,
             "kurz" | "short" => kurz_namen = KurzNamen::Auto,
             "glätten" | "flatten" => setze_feld_argument!(FeldArgument::Parse, sub_arg),
             "FromStr" => setze_feld_argument!(FeldArgument::FromStr, sub_arg),
@@ -287,6 +287,18 @@ fn parse_wert_arg(
                     }
                     let trimmed = s_arg_name.trim();
                     match trimmed {
+                        "sprache" | "language" => {
+                            let sprache = match wert_trimmed {
+                                "deutsch" | "german" => Deutsch,
+                                "englisch" | "english" => English,
+                                _ => Sprache::TokenStream(
+                                    wert_trimmed
+                                        .parse()
+                                        .map_err(|err: LexError| err.to_string())?,
+                                ),
+                            };
+                            setze_sprache(sprache, sub_arg)?
+                        }
                         "standard" | "default" => {
                             setze_standard(Some(wert_trimmed), trimmed, string)?
                         }
@@ -379,18 +391,14 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
     // CARGO_PKG_AUTHORS — Colon separated list of authors from the manifest of your package.
     // CARGO_PKG_DESCRIPTION — The description from the manifest of your package.
     // CARGO_BIN_NAME — The name of the binary that is currently being compiled (if it is a binary). This name does not include any file extension, such as .exe
-    let mut erstelle_version: Option<Box<dyn Fn(TokenStream, Sprache) -> TokenStream>> = None;
+    let mut erstelle_version: Option<Box<dyn FnOnce(TokenStream, Sprache) -> TokenStream>> = None;
     let mut erstelle_hilfe: Option<Box<dyn FnOnce(TokenStream) -> TokenStream>> = None;
-    let mut sprache = Deutsch;
+    let mut sprache = English;
     let mut invertiere_präfix = None;
     let mut meta_var = None;
     let crate_name = base_name();
     for arg in args {
         match arg.as_str() {
-            "deutsch" => sprache = Deutsch,
-            "german" => sprache = Deutsch,
-            "english" => sprache = English,
-            "englisch" => sprache = English,
             "version" => erstelle_version = Some(Box::new(erstelle_version_methode(None, None))),
             "hilfe" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(Deutsch, None))),
             "help" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(English, None))),
@@ -437,11 +445,21 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                         }
                     }
                 } else if let Some((arg_name, wert_string)) = string.split_once(':') {
+                    let wert_trimmed = wert_string.trim();
                     match arg_name.trim() {
-                        "invertiere_präfix" | "invert_prefix" => {
-                            invertiere_präfix = Some(wert_string.to_owned())
+                        "sprache" | "language" => {
+                            sprache = match wert_trimmed {
+                                "deutsch" | "german" => Deutsch,
+                                "englisch" | "english" => English,
+                                _ => Sprache::TokenStream(unwrap_result_or_compile_error!(
+                                    wert_trimmed.parse()
+                                )),
+                            }
                         }
-                        "meta_var" => meta_var = Some(wert_string.to_owned()),
+                        "invertiere_präfix" | "invert_prefix" => {
+                            invertiere_präfix = Some(wert_trimmed.to_owned())
+                        }
+                        "meta_var" => meta_var = Some(wert_trimmed.to_owned()),
                         trimmed => {
                             compile_error_return!(
                                 "Benanntes Argument(Doppelpunkt) {} nicht unterstützt: {:?}",
@@ -456,14 +474,17 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
             }
         }
     }
-    let invertiere_präfix = invertiere_präfix.unwrap_or(match sprache {
-        Deutsch => "kein".to_owned(),
-        English => "no".to_owned(),
-    });
-    let meta_var = meta_var.unwrap_or(match sprache {
-        Deutsch => "WERT".to_owned(),
-        English => "VALUE".to_owned(),
-    });
+    let sprache_ts = sprache.clone().token_stream();
+    let invertiere_präfix = if let Some(präfix) = invertiere_präfix {
+        quote!(#präfix)
+    } else {
+        quote!(#sprache_ts.invertiere_präfix)
+    };
+    let meta_var = if let Some(meta_var) = meta_var {
+        quote!(#meta_var)
+    } else {
+        quote!(#sprache_ts.meta_var)
+    };
     let mut tuples = Vec::new();
     for field in item_struct.fields {
         let Field { attrs, ident, .. } = field;
@@ -477,8 +498,8 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
         let mut kurz = quote!(None);
         let mut standard = quote!(#crate_name::parse::ParseArgument::standard());
         let mut feld_argument = FeldArgument::ArgEnum;
-        let mut feld_invertiere_präfix = quote!(#invertiere_präfix);
-        let mut feld_meta_var = quote!(#meta_var);
+        let mut feld_invertiere_präfix = invertiere_präfix.clone();
+        let mut feld_meta_var = meta_var.clone();
         for attr in attrs {
             if attr.path.is_ident("doc") {
                 let args_str = attr.tokens.to_string();
@@ -543,15 +564,18 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
         } else {
             quote!(Some(#hilfe_string.to_owned()))
         };
+        let erstelle_beschreibung = quote!(
+            let beschreibung = #crate_name::Beschreibung::neu(
+                #lang,
+                #kurz,
+                #hilfe,
+                #standard,
+            );
+        );
         let erstelle_args = match feld_argument {
             FeldArgument::ArgEnum => {
                 quote!({
-                    let beschreibung = #crate_name::Beschreibung::neu(
-                        #lang,
-                        #kurz,
-                        #hilfe,
-                        #standard,
-                    );
+                    #erstelle_beschreibung
                     #crate_name::ParseArgument::argumente(
                         beschreibung,
                         #feld_invertiere_präfix,
@@ -561,12 +585,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
             }
             FeldArgument::FromStr => {
                 quote!({
-                    let beschreibung = #crate_name::Beschreibung::neu(
-                        #lang.to_owned(),
-                        #kurz,
-                        #hilfe,
-                        #standard,
-                    );
+                    #erstelle_beschreibung
                     #crate_name::Argumente::wert_from_str_display(
                         beschreibung,
                         #feld_meta_var.to_owned(),
