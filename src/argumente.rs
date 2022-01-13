@@ -17,11 +17,14 @@ use crate::{
     sprache::Sprache,
 };
 
-pub mod flag;
+pub(crate) mod flag;
 #[path = "argumente/frühes_beenden.rs"]
-pub mod frühes_beenden;
-pub mod kombiniere;
-pub mod wert;
+pub(crate) mod frühes_beenden;
+pub(crate) mod kombiniere;
+pub(crate) mod wert;
+
+pub use self::wert::ArgEnum;
+pub use crate::kombiniere;
 
 /// Interner Typ, wird für das [kombiniere]-Macro benötigt.
 #[derive(Debug)]

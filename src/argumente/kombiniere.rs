@@ -22,7 +22,6 @@ macro_rules! kombiniere {
         $crate::kombiniere!(uncurry_first_two => tuple_arg, $($args),+)
     }};
 }
-pub use crate::kombiniere;
 
 macro_rules! impl_kombiniere_n {
     ($name: ident ($($var: ident: $ty_var: ident),*)) => {
