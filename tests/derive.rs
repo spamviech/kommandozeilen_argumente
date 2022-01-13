@@ -2,9 +2,9 @@
 
 use std::{ffi::OsString, fmt::Display, iter, process};
 
-use kommandozeilen_argumente::{ArgEnum, Ergebnis, Parse};
+use kommandozeilen_argumente::{EnumArgument, Ergebnis, Parse};
 
-#[derive(Debug, Clone, PartialEq, Eq, ArgEnum)]
+#[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
 enum Bla {
     Meh,
     Muh,

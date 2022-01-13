@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[cfg(feature = "derive")]
-pub use kommandozeilen_argumente_derive::ArgEnum;
+pub use kommandozeilen_argumente_derive::EnumArgument;
 
 impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
@@ -137,7 +137,7 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
 /// Gedacht für Summentypen ohne extra Daten (nur Unit-Varianten).
 ///
 /// Mit aktiviertem `derive`-Feature kann die Implementierung automatisch erzeugt werden.
-pub trait ArgEnum: Sized {
+pub trait EnumArgument: Sized {
     /// Alle Varianten des Typs.
     fn varianten() -> Vec<Self>;
 
@@ -145,8 +145,8 @@ pub trait ArgEnum: Sized {
     fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>>;
 }
 
-impl<T: 'static + Display + Clone + ArgEnum> Argumente<T, String> {
-    /// Erzeuge ein Wert-Argument für ein [ArgEnum].
+impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
+    /// Erzeuge ein Wert-Argument für ein [EnumArgument].
     pub fn wert_enum_display(
         beschreibung: Beschreibung<T>,
         meta_var: String,
@@ -155,8 +155,8 @@ impl<T: 'static + Display + Clone + ArgEnum> Argumente<T, String> {
     }
 }
 
-impl<T: 'static + Display + Clone + ArgEnum> Argumente<T, String> {
-    /// Erzeuge ein Wert-Argument für ein [ArgEnum].
+impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
+    /// Erzeuge ein Wert-Argument für ein [EnumArgument].
     pub fn wert_enum(
         beschreibung: Beschreibung<T>,
         meta_var: String,

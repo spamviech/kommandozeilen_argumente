@@ -63,11 +63,11 @@ Als Beschreibung im erzeugten Hilfe-Text wird der docstring des jeweiligen Felde
 
 Zum parsen wird das `ParseArgument`-Trait verwendet.
 Es ist implementiert für `bool`, `String`, Zahlentypen (`i8`, `u8`, `i16`, `u16`, ..., `f32`, `f64`),
-`Option<T>` und Typen, die das `ArgEnum`-Trait implementieren.
+`Option<T>` und Typen, die das `EnumArgument`-Trait implementieren.
 Flag-Argumente werden für `bool`-Argumente erzeugt; diese sind standardmäßig deaktiviert.
 Alle anderen Implementierungen erzeugen Wert-Argumente; `Option<T>` sind standardmäßig `None`,
 alle anderen sind benötigte Argumente.
-Das `ArgEnum`-Trait kann automatisch für ein `enum`, das keine Daten hält abgeleitet werden.
+Das `EnumArgument`-Trait kann automatisch für ein `enum`, das keine Daten hält abgeleitet werden.
 Für eine Verwendung als `ParseArgument` wird zusätzlich eine `Display`-Implementierung benötigt.
 
 Das Standard-Verhalten kann über `#[kommandozeilen_argumente(<Optionen>)]`-Attribute beeinflusst werden.

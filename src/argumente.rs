@@ -23,7 +23,7 @@ pub(crate) mod frühes_beenden;
 pub(crate) mod kombiniere;
 pub(crate) mod wert;
 
-pub use self::wert::ArgEnum;
+pub use self::wert::EnumArgument;
 pub use crate::kombiniere;
 
 /// Interner Typ, wird für das [kombiniere]-Macro benötigt.

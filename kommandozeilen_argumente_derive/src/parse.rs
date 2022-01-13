@@ -177,7 +177,7 @@ macro_rules! split_klammer_argumente {
 }
 
 enum FeldArgument {
-    ArgEnum,
+    EnumArgument,
     FromStr,
     Parse,
 }
@@ -497,7 +497,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
         let mut lang = quote!(#ident_str.to_owned());
         let mut kurz = quote!(None);
         let mut standard = quote!(#crate_name::parse::ParseArgument::standard());
-        let mut feld_argument = FeldArgument::ArgEnum;
+        let mut feld_argument = FeldArgument::EnumArgument;
         let mut feld_invertiere_präfix = invertiere_präfix.clone();
         let mut feld_meta_var = meta_var.clone();
         for attr in attrs {
@@ -573,7 +573,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
             );
         );
         let erstelle_args = match feld_argument {
-            FeldArgument::ArgEnum => {
+            FeldArgument::EnumArgument => {
                 quote!({
                     #erstelle_beschreibung
                     #crate_name::ParseArgument::argumente(

@@ -79,8 +79,8 @@ pub fn derive_parse(item: TokenStream) -> TokenStream {
     parse::derive_parse(item_struct).into()
 }
 
-/// Derive-Macro für das ArgEnum-Trait.
-#[proc_macro_derive(ArgEnum)]
+/// Derive-Macro für das EnumArgument-Trait.
+#[proc_macro_derive(EnumArgument)]
 pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
     let crate_name = base_name();
     let item_enum = parse_macro_input!(item as ItemEnum);
@@ -101,7 +101,7 @@ pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
     }
     let varianten_str: Vec<_> = varianten.iter().map(ToString::to_string).collect();
     let instance = quote!(
-        impl #crate_name::ArgEnum for #ident {
+        impl #crate_name::EnumArgument for #ident {
             fn varianten() -> Vec<Self> {
                 vec![#(Self::#varianten),*]
             }

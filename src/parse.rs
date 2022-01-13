@@ -5,7 +5,7 @@ use std::{ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
 use nonempty::NonEmpty;
 
 use crate::{
-    argumente::{wert::ArgEnum, ArgString, Argumente},
+    argumente::{wert::EnumArgument, ArgString, Argumente},
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Fehler, ParseFehler},
     sprache::Sprache,
@@ -176,7 +176,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
     }
 }
 
-impl<T: 'static + ArgEnum + Display + Clone> ParseArgument for T {
+impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
     fn argumente(
         beschreibung: Beschreibung<Self>,
         _invertiere_präfix: &'static str,

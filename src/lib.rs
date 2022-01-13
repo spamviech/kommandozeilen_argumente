@@ -60,7 +60,7 @@ pub mod parse;
 pub mod sprache;
 
 pub use self::{
-    argumente::{wert::ArgEnum, Argumente},
+    argumente::{wert::EnumArgument, Argumente},
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Fehler, ParseFehler},
     parse::{Parse, ParseArgument},
