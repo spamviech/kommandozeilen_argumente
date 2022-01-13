@@ -77,32 +77,32 @@ Direkt am `struct` werden folgende Optionen unterstützt:
 - `sprache: <sprache>` | `language: <language>`:
   Standard-Einstellung für einige Strings, Standard: `english`.
   Vorgefertigte Sprachen für `deutsch`, `englisch` und `english`.
-- `version`: erzeuge eine `--version` Flag
-- `hilfe` | `help`: erzeuge eine Hilfe-Text
+- `version`: erzeuge eine `--version` Flag.
+- `hilfe` | `help`: erzeuge eine Hilfe-Text.
 - `hilfe(<opts>)`, `help(<opts>)`, `version(<opts>)`:
   Wie die Variante ohne opts, nur Kurzname ist standardmäßig deaktiviert. Mögliche Opts:
-  - `lang: <name>`, `long [<namen>]`: Setze Langnamen explizit
-  - `kurz`: Setze Kurznamen als erstes Grapheme des originalen Langnamen
-  - `kurz: <name>`, `kurz: [<namen>]`: Setze Kurznamen explizit
-  - `sprache: <sprache>` | `language: <language>`: Sprache von Hilfe-Text und Standard-Namen
+  - `lang: <name>`, `long [<namen>]`: Setze Langnamen explizit.
+  - `kurz`: Setze Kurznamen als erstes Grapheme des originalen Langnamen.
+  - `kurz: <name>`, `kurz: [<namen>]`: Setze Kurznamen explizit.
+  - `sprache: <sprache>` | `language: <language>`: Sprache von Hilfe-Text und Standard-Namen.
 - `meta_var: <string>` | `meta_var: <string>`:
-  Setze Standardwert für in der Hilfe angezeigte Meta-Variable, Standard `WERT` oder `VALUE`
+  Setze Standardwert für in der Hilfe angezeigte Meta-Variable, Standard `WERT` oder `VALUE`.
 - `invertiere_präfix: <string>` | `invert_prefix: <string>`:
-  Setze Standardwert für Präfix zum invertieren einer Flag, Standard `kein` oder `no`
+  Setze Standardwert für Präfix zum invertieren einer Flag, Standard `kein` oder `no`.
 
 Vor Feldern werden folgende Optionen unterstützt:
 
-- `glätten`/`flatten`: verwende das Parse-Trait (übernehmen der konfigurierten Argumente)
-- `FromStr`: verwende das FromStr-Trait (benötigt Display für Wert und Fehler-Typ)
-- `benötigt`/`required`: entferne den konfigurierten Standard-Wert
-- `lang: <name>`| `long: <name>`: bestimme Langname explizit
-- `lang: [<namen>]` | `long: [<names>]`: bestimme Langnamen explizit (Komma-getrennte Liste)
-- `kurz`/`short`: Verwende eine Kurzform, bestehend aus dem ersten Grapheme der Langform
-- `kurz: <wert>"`/`short: <value>"`: Verwende die spezifizierte Kurzform
-- `kurz: [<namen>]` | `short: [<names>]`: bestimme Kurzformen explizit (Komma-getrennte Liste)
-- `standard: <wert>` | `default: <value>`: setzte den Standard-Wert
-- `meta_var: <string>`: setzte die in der Hilfe angezeigt Meta-Variable
-- `invertiere_präfix: <string>` | `invert_prefix: <string>`: setze Präfix zum invertieren einer Flag
+- `glätten`/`flatten`: verwende das Parse-Trait (übernehmen der konfigurierten Argumente).
+- `FromStr`: verwende das FromStr-Trait (benötigt Display für Wert und Fehler-Typ).
+- `benötigt`/`required`: entferne den konfigurierten Standard-Wert.
+- `lang: <name>`| `long: <name>`: bestimme Langname explizit.
+- `lang: [<namen>]` | `long: [<names>]`: bestimme Langnamen explizit (Komma-getrennte Liste).
+- `kurz`/`short`: Verwende eine Kurzform, bestehend aus dem ersten Grapheme der Langform.
+- `kurz: <wert>"`/`short: <value>"`: Verwende die spezifizierte Kurzform.
+- `kurz: [<namen>]` | `short: [<names>]`: bestimme Kurzformen explizit (Komma-getrennte Liste).
+- `standard: <wert>` | `default: <value>`: setzte den Standard-Wert.
+- `meta_var: <string>`: setzte die in der Hilfe angezeigt Meta-Variable.
+- `invertiere_präfix: <string>` | `invert_prefix: <string>`: setze Präfix zum invertieren einer Flag.
 
 ## Beispiel
 
