@@ -1,6 +1,7 @@
 //! Beschreibung eines Arguments.
 
 use std::fmt::Display;
+use std::ops::Deref;
 
 use nonempty::NonEmpty;
 
@@ -73,6 +74,16 @@ impl LangNamen for NonEmpty<String> {
     }
 }
 
+impl<S: Deref<Target = str>> LangNamen for &NonEmpty<S> {
+    fn lang_namen(self) -> NonEmpty<String> {
+        let NonEmpty { head, tail } = self;
+        NonEmpty {
+            head: head.deref().to_owned(),
+            tail: tail.iter().map(|s| s.deref().to_owned()).collect(),
+        }
+    }
+}
+
 /// Beliebige Anzahl an Strings für den kurzen Namen.
 pub trait KurzNamen {
     /// Konvertiere in einen [Vec].
@@ -94,6 +105,18 @@ impl KurzNamen for String {
 impl KurzNamen for &str {
     fn kurz_namen(self) -> Vec<String> {
         vec![self.to_owned()]
+    }
+}
+
+impl KurzNamen for NonEmpty<String> {
+    fn kurz_namen(self) -> Vec<String> {
+        self.into()
+    }
+}
+
+impl<S: Deref<Target = str>> KurzNamen for &Vec<S> {
+    fn kurz_namen(self) -> Vec<String> {
+        self.iter().map(|s| s.deref().to_owned()).collect()
     }
 }
 

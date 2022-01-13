@@ -5,7 +5,7 @@ use std::{ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
 use nonempty::NonEmpty;
 
 use crate::{
-    argumente::{wert::ArgEnum, Argumente},
+    argumente::{wert::ArgEnum, ArgString, Argumente},
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Fehler, ParseFehler},
     sprache::Sprache,
@@ -116,32 +116,28 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         meta_var: &str,
     ) -> Argumente<Self, String> {
         let Beschreibung { lang, kurz, .. } = &beschreibung;
-        let Argumente { parse, .. } = T::argumente(
-            Beschreibung { lang: lang.clone(), kurz: kurz.clone(), hilfe: None, standard: None },
-            invertiere_präfix,
-            meta_var,
-        );
-        let name: OsString = format!("--{}", lang.head).into();
-        Argumente::wert(
-            beschreibung,
-            meta_var.to_owned(),
-            None,
-            move |arg| {
-                let (ergebnis, _nicht_verwendet) = parse(vec![Some(name.as_os_str()), Some(arg)]);
-                // FIXME Fehlerbehandlung erscheint mir nicht richtig
-                match ergebnis {
-                    Ergebnis::Wert(wert) => Ok(Some(wert)),
-                    _ergebnis => Err(ParseFehler::InvaliderString(arg.to_owned())),
-                }
-            },
-            |opt| {
+        let Argumente { parse, .. } =
+            T::argumente(Beschreibung::neu(lang, kurz, None, None), invertiere_präfix, meta_var);
+        let (beschreibung_string, _standard) =
+            beschreibung.als_string_beschreibung_allgemein(|opt| {
                 if let Some(t) = opt {
                     t.to_string()
                 } else {
                     "None".to_owned()
                 }
-            },
-        )
+            });
+        Argumente {
+            beschreibungen: vec![ArgString::Wert {
+                beschreibung: beschreibung_string,
+                meta_var: meta_var.to_owned(),
+                mögliche_werte: None,
+            }],
+            flag_kurzformen: Vec::new(),
+            parse: Box::new(move |args| {
+                let (ergebnis, nicht_verwendet) = parse(args);
+                (ergebnis.map(Some), nicht_verwendet)
+            }),
+        }
     }
 
     fn standard() -> Option<Self> {

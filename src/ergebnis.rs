@@ -18,6 +18,17 @@ pub enum Ergebnis<T, E> {
     Fehler(NonEmpty<Fehler<E>>),
 }
 
+impl<T, E> Ergebnis<T, E> {
+    /// Konvertiere einen erfolgreich geparsten Wert mit der spezifizierten Funktion.
+    pub fn map<S>(self, f: impl FnOnce(T) -> S) -> Ergebnis<S, E> {
+        match self {
+            Ergebnis::Wert(t) => Ergebnis::Wert(f(t)),
+            Ergebnis::FrühesBeenden(nachrichten) => Ergebnis::FrühesBeenden(nachrichten),
+            Ergebnis::Fehler(fehler) => Ergebnis::Fehler(fehler),
+        }
+    }
+}
+
 /// Fehlerquellen beim Parsen von Kommandozeilen-Argumenten
 #[derive(Debug, Clone)]
 pub enum Fehler<E> {
