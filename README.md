@@ -16,12 +16,15 @@ Für Kurznamen wird angenommen, dass sie nur ein [Grapheme](https://docs.rs/unic
 Alle verwendeten Strings, z.B. für die erzeugte Hilfe-Meldung, sind konfigurierbar.
 Sofern es relevant ist werden für Deutsch und Englisch spezialisierte Funktionen bereitgestellt.
 
+Argumente können Standard-Werte haben, der verwendet wird sofern keiner ihrer Namen verwendet wird.
+Ohne Standard-Wert muss das Argument verwendet werden, ansonsten schlägt das Parsen fehl.
+
 ## Flags
 
 Flags sind Argumente ohne Wert, sie können entweder aktiviert oder deaktiviert sein.
 Meistens repräsentieren sie `bool`-Argumente, andere Typen werden aber ebenfalls unterstützt.
 
-Angenommen Langnamen `flag` und Kurznamen `f` und invertiere_präfix `kein`,
+Angenommen Langnamen `flag`, Kurznamen `f` und invertiere_präfix `kein`,
 eine Flag kann mit `--flag` oder `-f` aktiviert
 und mit `--kein-flag` deaktiviert werden.
 
@@ -32,16 +35,19 @@ so können alle gleichzeitig mit `-fgh` aktiviert werden.
 
 Eine besondere Art von Flags führt zu frühem beenden.
 Sie können nicht deaktiviert werden und führen zu vorzeitigem Beenden unter Anzeigen einer Nachricht.
-Typische Beispiele sind Anzeigen der aktuellen Version oder des Hilfe-Textes.
+Typische Anwendungsfälle sind Anzeigen der aktuellen Version oder des Hilfe-Textes.
 
 ## Werte
 
-TODO
+Argumente können ebenfalls Werte spezifizieren.
+Bei Langnamen wird der Wert getrennt von einem Leerzeichen, oder `=`-Zeichen angegeben.
+Bei Kurznamen kann der Wert auch direkt im Anschluss an den Namen angegeben werden.
+Die Konvertierung des Wertes wird aus `&OsStr` versucht.
 
-Langformen: `--arg <Wert>` oder `--arg=<Wert>`
-Kurzformen: `-a <Wert>`, `-a=<Wert>` oder `-a<Wert>`
+Es ist möglich, alle erlaubten Werte im Hilfe-Text anzeigen zu lassen.
 
-Konfigurierbarer Standardwert, potentiell Anzeige möglicher Werte im Hilfe-Text.
+Angenommen Langnamen `--wert` und Kurznamen `-w` für ein Zahlen-Argument,
+`--wert 3`, `--wert=3`, `-w 3`, `-w=3` und `-w3` werden alle mit Ergebnis `3` geparst.
 
 ## derive-Attribute
 
