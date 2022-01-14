@@ -106,7 +106,25 @@ Vor Feldern werden folgende Optionen unterstützt:
 
 ## Beispiel
 
-TODO
+TODO Funktionsbeispiel
+
+TODO derive-Beispiel
+
+```rust
+use kommandozeilen_argumente::Parse;
+
+#[derive(Debug, Parse)]
+#[kommandozeilen_argumente(hilfe, version, sprache: deutsch)]
+pub struct Args {
+    flag: bool,
+    wert: String,
+}
+
+fn main() {
+    let args = Args::parse_mit_fehlermeldung();
+    do_stuff(args)
+}
+```
 
 ## (Noch) Fehlende Features
 
