@@ -21,21 +21,25 @@ use crate::{
 
 impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Erzeuge `--version`- und `--hilfe`-Flags, die zu vorzeitigem Beenden führen.
-    /// Wie [version_deutsch] und [hilfe] mit synchronisiertem Programmnamen.
+    /// Wie [version_deutsch](Argumente::version_deutsch) und [hilfe](Argumente::hilfe)
+    /// mit synchronisiertem Programmnamen und Version.
     #[inline(always)]
     pub fn hilfe_und_version(self, programm_name: &str, version: &str) -> Argumente<T, E> {
         self.hilfe_und_version_mit_sprache(programm_name, version, Sprache::DEUTSCH)
     }
 
     /// Create `--version` and `--help` flags causing an early exit.
-    /// Similar to using [version_english] and [help] with a synchronised program name.
+    /// Similar to using [version_english](Argumente::version_english) and [help](Argumente::help)
+    /// with a synchronised program name and version.
     #[inline(always)]
     pub fn help_and_version(self, program_name: &str, version: &str) -> Argumente<T, E> {
         self.hilfe_und_version_mit_sprache(program_name, version, Sprache::ENGLISH)
     }
 
     /// Erzeuge Flags, die zu vorzeitigem Beenden führen und Version, bzw. Hilfe-Text anzeigen.
-    /// Wie [version_mit_sprache] und [hilfe_mit_sprache] mit synchronisiertem Programmnamen.
+    /// Wie [version_mit_sprache](Argumente::version_mit_sprache) und
+    /// [hilfe_mit_sprache](Argumente::hilfe_mit_sprache) mit synchronisiertem
+    /// Programmnamen und Version.
     #[inline(always)]
     pub fn hilfe_und_version_mit_sprache(
         self,
@@ -366,12 +370,12 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                         lang_regex.push_str("]-");
                     }
                     namen_regex_hinzufügen(&mut lang_regex, &lang_namen.head, &lang_namen.tail);
-                }
+                },
                 Either::Right(meta_var) => {
                     namen_regex_hinzufügen(&mut lang_regex, &lang_namen.head, &lang_namen.tail);
                     lang_regex.push_str("(=| )");
                     lang_regex.push_str(meta_var);
-                }
+                },
             }
             lang_regex
         }
@@ -382,10 +386,10 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             let (beschreibung, invertiere_präfix_oder_meta_var, mögliche_werte) = match arg_string {
                 ArgString::Flag { beschreibung, invertiere_präfix } => {
                     (beschreibung, Either::Left(invertiere_präfix), &none)
-                }
+                },
                 ArgString::Wert { beschreibung, meta_var, mögliche_werte } => {
                     (beschreibung, Either::Right(meta_var), mögliche_werte)
-                }
+                },
             };
             let lang_regex = lang_regex(&beschreibung.lang, invertiere_präfix_oder_meta_var);
             let lang_regex_breite = lang_regex.graphemes(true).count();
@@ -553,14 +557,14 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                     Ergebnis::FrühesBeenden(mut frühes_beenden) => {
                         frühes_beenden.tail.extend(nachrichten);
                         Ergebnis::FrühesBeenden(frühes_beenden)
-                    }
+                    },
                     _ => {
                         if let Some(frühes_beenden) = NonEmpty::from_vec(nachrichten) {
                             Ergebnis::FrühesBeenden(frühes_beenden)
                         } else {
                             ergebnis
                         }
-                    }
+                    },
                 };
                 (finales_ergebnis, nicht_verwendet)
             }),

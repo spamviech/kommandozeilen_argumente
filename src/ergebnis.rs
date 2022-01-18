@@ -81,10 +81,10 @@ pub(crate) fn namen_regex_hinzufügen(string: &mut String, head: &String, tail: 
     }
 }
 
-/// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr].
+/// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr](std::ffi::OsStr).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseFehler<E> {
-    /// Die Konvertierung in ein &[str] ist fehlgeschlagen.
+    /// Die Konvertierung in ein [&str](str) ist fehlgeschlagen.
     InvaliderString(OsString),
     /// Fehler beim Parsen des Strings.
     ParseFehler(E),
@@ -136,12 +136,12 @@ impl<E: Display> Fehler<E> {
                     fehlermeldung.push_str(invertiere_präfix);
                     fehlermeldung.push_str("-]");
                     namen_regex_hinzufügen(&mut fehlermeldung, &lang.head, &lang.tail);
-                }
+                },
                 Either::Right(meta_var) => {
                     namen_regex_hinzufügen(&mut fehlermeldung, &lang.head, &lang.tail);
                     fehlermeldung.push_str("( |=)");
                     fehlermeldung.push_str(meta_var);
-                }
+                },
             }
             if let Some((head, tail)) = kurz.split_first() {
                 fehlermeldung.push_str(" | -");
@@ -156,15 +156,15 @@ impl<E: Display> Fehler<E> {
         match self {
             Fehler::FehlendeFlag { lang, kurz, invertiere_präfix } => {
                 fehlermeldung(fehlende_flag, lang, kurz, Either::Left(invertiere_präfix))
-            }
+            },
             Fehler::FehlenderWert { lang, kurz, meta_var } => {
                 fehlermeldung(fehlender_wert, lang, kurz, Either::Right(meta_var))
-            }
+            },
             Fehler::Fehler { lang, kurz, meta_var, fehler } => {
                 let (fehler_art, fehler_anzeige) = match fehler {
                     ParseFehler::InvaliderString(os_string) => {
                         (invalider_string, format!("{:?}", os_string))
-                    }
+                    },
                     ParseFehler::ParseFehler(fehler) => (parse_fehler, fehler.to_string()),
                 };
                 let mut fehlermeldung =
@@ -172,7 +172,7 @@ impl<E: Display> Fehler<E> {
                 fehlermeldung.push('\n');
                 fehlermeldung.push_str(&fehler_anzeige);
                 fehlermeldung
-            }
+            },
         }
     }
 }

@@ -11,7 +11,8 @@ pub struct Beschreibung<T> {
     /// Voller Name, wird nach zwei Minus angegeben "--<lang>".
     pub lang: NonEmpty<String>,
     /// Kurzer Name, wird nach einem Minus angegeben "-<kurz>".
-    /// Falls der Name länger wie ein [unicode_segmentation::grapheme] ist wird parsen nie erfolgreich sein.
+    /// Kurznamen länger als ein [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
+    /// werden nicht unterstützt.
     pub kurz: Vec<String>,
     /// Im automatischen Hilfetext angezeigte Beschreibung.
     pub hilfe: Option<String>,
