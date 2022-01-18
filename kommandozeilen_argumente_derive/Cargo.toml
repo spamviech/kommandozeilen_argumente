@@ -1,10 +1,10 @@
 [package]
 name = "kommandozeilen_argumente_derive"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["spamviech <spamviech@web.de>"]
 edition = "2021"
 license = "MIT"
-publish = true
+publish = false
 resolver = "2"
 repository = "https://github.com/spamviech/kommandozeilen_argumente"
 description = "derive-Macros für das kommandozeilen_argumente crate."
