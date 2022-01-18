@@ -106,9 +106,139 @@ Vor Feldern werden folgende Optionen unterstützt:
 
 ## Beispiel
 
-TODO Funktionsbeispiel
+Ein einfaches `struct` mit 3 Flags und 2 Werten, teilweise mit Standard-Werten kann über
+folgenden Code ausgelesen werden:
 
-TODO derive-Beispiel
+```rust
+use std::{
+    fmt::{Debug, Display},
+    num::NonZeroI32,
+};
+
+use kommandozeilen_argumente::{
+    crate_name, crate_version, kombiniere, unicase_eq, Argumente, Beschreibung, EnumArgument,
+    NonEmpty, ParseArgument, ParseFehler, Sprache,
+};
+
+#[derive(Debug, Clone)]
+enum Aufzählung {
+    Eins,
+    Zwei,
+    Drei,
+}
+
+impl EnumArgument for Aufzählung {
+    fn varianten() -> Vec<Self> {
+        use Aufzählung::*;
+        vec![Eins, Zwei, Drei]
+    }
+
+    fn parse_enum(
+        arg: &std::ffi::OsStr,
+    ) -> Result<Self, kommandozeilen_argumente::ParseFehler<String>> {
+        use Aufzählung::*;
+        if let Some(string) = arg.to_str() {
+            if unicase_eq(string, "Eins") {
+                Ok(Eins)
+            } else if unicase_eq(string, "Zwei") {
+                Ok(Zwei)
+            } else if unicase_eq(string, "Drei") {
+                Ok(Drei)
+            } else {
+                Err(ParseFehler::ParseFehler(format!("Unbekannte Variante: {}", string)))
+            }
+        } else {
+            Err(ParseFehler::InvaliderString(arg.to_owned()))
+        }
+    }
+}
+
+impl Display for Aufzählung {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+#[derive(Debug)]
+struct Args {
+    flag: bool,
+    umbenannt: bool,
+    benötigt: bool,
+    wert: String,
+    aufzählung: Aufzählung,
+}
+
+impl Display for Args {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Args { flag, umbenannt, benötigt, wert, aufzählung } = self;
+        write!(f, "flag: {flag}\n")?;
+        write!(f, "umbenannt: {umbenannt}\n")?;
+        write!(f, "benötigt: {benötigt}\n")?;
+        write!(f, "wert: {wert}\n")?;
+        write!(f, "aufzählung: {aufzählung}\n")
+    }
+}
+
+fn main() {
+    let sprache = Sprache::DEUTSCH;
+    let flag = Argumente::flag_bool_mit_sprache(
+        Beschreibung::neu(
+            "flag",
+            None,
+            Some("Eine Flag mit Standard-Einstellungen".to_owned()),
+            Some(false),
+        ),
+        sprache,
+    );
+    let umbenannt = Argumente::flag_bool_mit_sprache(
+        Beschreibung::neu(
+            NonEmpty { head: "andere".to_owned(), tail: vec!["namen".to_owned()] },
+            "u",
+            Some("Eine Flag mit Standard-Einstellungen".to_owned()),
+            Some(false),
+        ),
+        sprache,
+    );
+    let benötigt = Argumente::flag_bool(
+        Beschreibung::neu(
+            "benötigt",
+            "b",
+            Some(
+                "Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.".to_owned(),
+            ),
+            None,
+        ),
+        "no",
+    );
+    let wert = String::argumente_mit_sprache(
+        Beschreibung::neu("wert", None, Some("Ein String-Wert.".to_owned()), None),
+        sprache,
+    );
+    let aufzählung = Argumente::wert_enum_display_mit_sprache(
+        Beschreibung::neu(
+            "aufzählung",
+            "a",
+            Some("Ein Aufzählung-Wert mit Standard-Wert.".to_owned()),
+            Some(Aufzählung::Zwei),
+        ),
+        sprache,
+    );
+    let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung| Args {
+        flag,
+        umbenannt,
+        benötigt,
+        wert,
+        aufzählung,
+    };
+    let argumente = kombiniere!(zusammenfassen => flag, umbenannt, benötigt, wert, aufzählung)
+        .hilfe_und_version_mit_sprache(crate_name!(), crate_version!(), sprache);
+    let args = argumente
+        .parse_vollständig_mit_sprache_aus_env(NonZeroI32::new(1).expect("1 != 0"), sprache);
+    do_stuff("{:?}", args)
+}
+```
+
+Mit aktiviertem `derive`-Feature ist ein identisches Verhalten mit folgendem Code möglich:
 
 ```rust
 use std::{
@@ -150,7 +280,7 @@ fn main() {
 }
 ```
 
-Erzeugte Hilfemeldung:
+In beiden Fällen wird folgender Hilfe-Text erzeugt:
 
 ```cmd
 kommandozeilen_argumente 0.1.0
