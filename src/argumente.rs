@@ -215,13 +215,13 @@ impl<T, E: Display> Argumente<T, E> {
             Ergebnis::Wert(_wert) => {
                 eprintln!("{}: {:?}", arg_nicht_verwendet, nicht_verwendet);
                 process::exit(fehler_code.get())
-            }
+            },
             Ergebnis::FrühesBeenden(nachrichten) => {
                 for nachricht in nachrichten {
                     println!("{}", nachricht);
                 }
                 process::exit(0)
-            }
+            },
             Ergebnis::Fehler(fehler_sammlung) => {
                 for fehler in fehler_sammlung {
                     eprintln!(
@@ -235,7 +235,7 @@ impl<T, E: Display> Argumente<T, E> {
                     )
                 }
                 process::exit(fehler_code.get())
-            }
+            },
         }
     }
 }
@@ -274,7 +274,7 @@ impl<T, E> Argumente<T, E> {
                     println!("{}", nachricht);
                 }
                 process::exit(0)
-            }
+            },
             Ergebnis::Fehler(fehler) => Err(fehler),
         };
         (result, nicht_verwendet)

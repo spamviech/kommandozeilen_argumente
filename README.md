@@ -111,22 +111,33 @@ TODO Funktionsbeispiel
 TODO derive-Beispiel
 
 ```rust
-use kommandozeilen_argumente::{Parse, EnumArgument};
+use std::{
+    fmt::{Debug, Display},
+    num::NonZeroI32,
+};
 
-#[derive(Debug, EnumArgument)]
-struct Aufzählung {
+use kommandozeilen_argumente::{EnumArgument, Parse};
+
+#[derive(Debug, Clone, EnumArgument)]
+enum Aufzählung {
     Eins,
     Zwei,
     Drei,
 }
 
+impl Display for Aufzählung {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
 #[derive(Debug, Parse)]
 #[kommandozeilen_argumente(hilfe, version, sprache: deutsch)]
-pub struct Args {
+struct Args {
     flag: bool,
     #[kommandozeilen_argumente(lang: [andere, namen], kurz: u)]
     umbenannt: bool,
-    #[kommandozeilen_argumente(benötigt, kurz)]
+    #[kommandozeilen_argumente(benötigt, kurz, invertiere_präfix: no)]
     benötigt: bool,
     wert: String,
     #[kommandozeilen_argumente(kurz, standard: Aufzählung::Zwei)]
@@ -134,9 +145,27 @@ pub struct Args {
 }
 
 fn main() {
-    let args = Args::parse_mit_fehlermeldung();
+    let args = Args::parse_mit_fehlermeldung_aus_env(NonZeroI32::new(1).expect("1 != 0"));
     do_stuff(args)
 }
+```
+
+Erzeugte Hilfemeldung:
+
+```cmd
+kommandozeilen_argumente 0.1.0
+
+derive.exe [OPTIONEN]
+
+OPTIONEN:
+  --[kein]-flag                          Eine Flag mit 
+Standard-Einstellungen. [Standard: false]
+  --[kein]-(andere|namen) | -u           Eine Flag mit 
+alternativen Namen. [Standard: false]
+  --[no]-benötigt         | -b           Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.  --wert(=| )WERT                        Ein String-Wert.
+  --aufzählung(=| )WERT   | -a[=| ]WERT  Ein Aufzählung-Wert mit Standard-Wert. [Erlaubte Werte: Eins, Zwei, Drei | Standard: Zwei]
+  --version               | -v           Zeige die aktuelle Version an.
+  --hilfe                 | -h           Zeige diesen Text an.
 ```
 
 ## (Noch) Fehlende Features

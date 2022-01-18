@@ -17,6 +17,10 @@ derive = ["kommandozeilen_argumente_derive", "unicase"]
 name = "derive"
 required-features = ["derive"]
 
+[[example]]
+name = "derive"
+required-features = ["derive"]
+
 [dependencies]
 either = "1.6.1"
 itertools = "0.10.3"
