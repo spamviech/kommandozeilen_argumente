@@ -4,8 +4,8 @@ use std::{
 };
 
 use kommandozeilen_argumente::{
-    crate_name, crate_version, kombiniere, unicase_eq, Argumente, Beschreibung, EnumArgument,
-    NonEmpty, ParseArgument, ParseFehler, Sprache,
+    crate_name, crate_version, kombiniere, Argumente, Beschreibung, EnumArgument, NonEmpty,
+    ParseArgument, ParseFehler, Sprache,
 };
 
 #[derive(Debug, Clone)]
@@ -26,14 +26,12 @@ impl EnumArgument for Aufzählung {
     ) -> Result<Self, kommandozeilen_argumente::ParseFehler<String>> {
         use Aufzählung::*;
         if let Some(string) = arg.to_str() {
-            if unicase_eq(string, "Eins") {
-                Ok(Eins)
-            } else if unicase_eq(string, "Zwei") {
-                Ok(Zwei)
-            } else if unicase_eq(string, "Drei") {
-                Ok(Drei)
-            } else {
-                Err(ParseFehler::ParseFehler(format!("Unbekannte Variante: {}", string)))
+            let lowercase = string.to_ascii_lowercase();
+            match lowercase.as_str() {
+                "eins" => Ok(Eins),
+                "zwei" => Ok(Zwei),
+                "drei" => Ok(Drei),
+                _ => Err(ParseFehler::ParseFehler(format!("Unbekannte Variante: {}", string))),
             }
         } else {
             Err(ParseFehler::InvaliderString(arg.to_owned()))
