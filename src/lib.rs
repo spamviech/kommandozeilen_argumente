@@ -61,7 +61,8 @@ pub mod ergebnis;
 pub mod parse;
 pub mod sprache;
 
-#[doc(no_inline)]
+#[doc(inline)]
+#[cfg_attr(doc, doc(cfg(feature = "derive")))]
 pub use self::{
     argumente::{wert::EnumArgument, Argumente},
     beschreibung::Beschreibung,

@@ -23,7 +23,9 @@ pub(crate) mod frühes_beenden;
 pub(crate) mod kombiniere;
 pub(crate) mod wert;
 
+#[cfg_attr(doc, doc(cfg(feature = "derive")))]
 pub use self::wert::EnumArgument;
+#[doc(inline)]
 pub use crate::kombiniere;
 
 /// Interner Typ, wird für das [kombiniere]-Macro benötigt.
