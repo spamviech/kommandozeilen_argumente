@@ -26,6 +26,8 @@ impl EnumArgument for Aufzählung {
     ) -> Result<Self, kommandozeilen_argumente::ParseFehler<String>> {
         use Aufzählung::*;
         if let Some(string) = arg.to_str() {
+            // Vergleich-Strings enthalten nur ASCII-characters,
+            // alle anderen können demnach ignoriert werden.
             let lowercase = string.to_ascii_lowercase();
             match lowercase.as_str() {
                 "eins" => Ok(Eins),
