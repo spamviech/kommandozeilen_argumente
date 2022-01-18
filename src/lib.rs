@@ -40,7 +40,7 @@ pub use nonempty::NonEmpty;
 pub use unicase::eq as unicase_eq;
 
 #[macro_export]
-/// Return the crate name specified in Cargo.toml.
+/// Crate Name spezifiziert in Cargo.toml.
 macro_rules! crate_name {
     () => {
         env!("CARGO_PKG_NAME")
@@ -48,7 +48,7 @@ macro_rules! crate_name {
 }
 
 #[macro_export]
-/// Return the crate version specified in Cargo.toml.
+/// Crate Version spezifiziert in Cargo.toml.
 macro_rules! crate_version {
     () => {
         env!("CARGO_PKG_VERSION")
@@ -61,6 +61,7 @@ pub mod ergebnis;
 pub mod parse;
 pub mod sprache;
 
+#[doc(no_inline)]
 pub use self::{
     argumente::{wert::EnumArgument, Argumente},
     beschreibung::Beschreibung,
