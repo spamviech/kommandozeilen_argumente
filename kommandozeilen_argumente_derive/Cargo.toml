@@ -6,6 +6,7 @@ edition = "2021"
 license = "MIT"
 publish = false
 resolver = "2"
+repository = "https://github.com/spamviech/kommandozeilen_argumente"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
