@@ -11,7 +11,8 @@ use crate::{
     sprache::Sprache,
 };
 
-#[cfg(feature = "derive")]
+#[cfg(any(feature = "derive", doc))]
+#[cfg_attr(doc, doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::Parse;
 
 /// Trait für Typen, die direkt mit dem derive-Macro für [Parse] verwendet werden können.

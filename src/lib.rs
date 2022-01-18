@@ -32,9 +32,11 @@
     unused_results,
     variant_size_differences
 )]
+#![cfg_attr(doc, feature(doc_cfg))]
 
 pub use nonempty::NonEmpty;
-#[cfg(feature = "derive")]
+#[cfg(any(feature = "derive", doc))]
+#[cfg_attr(doc, doc(cfg(feature = "derive")))]
 pub use unicase::eq as unicase_eq;
 
 #[macro_export]
