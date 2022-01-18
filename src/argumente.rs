@@ -49,6 +49,7 @@ pub(crate) enum ArgString {
 // TODO case sensitive Argumente/alles case sensitive
 //  benötigt Unicode normalization (wird bisher von unicase übernommen?), auch optional?
 // TODO Argument-Gruppen (nur eine dieser N Flags kann gleichzeitig aktiv sein)
+// TODO Programm-Beschreibung in Hilfe-Text
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<T, E> {
