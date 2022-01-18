@@ -161,7 +161,8 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
 /// Trait für Typen mit einer festen Anzahl an Werten und Methode zum Parsen.
 /// Gedacht für Summentypen ohne extra Daten (nur Unit-Varianten).
 ///
-/// Mit aktiviertem `derive`-Feature kann die Implementierung automatisch erzeugt werden.
+/// Mit aktiviertem `derive`-Feature kann die Implementierung
+/// [automatisch erzeugt werden](derive@EnumArgument).
 pub trait EnumArgument: Sized {
     /// Alle Varianten des Typs.
     fn varianten() -> Vec<Self>;

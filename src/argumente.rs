@@ -72,33 +72,33 @@ fn args_aus_env() -> impl Iterator<Item = OsString> {
 }
 
 impl<T, E: Display> Argumente<T, E> {
-    /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
+    /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
-    /// [std::process::exit] mit exit code `0` beendet.
+    /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
     #[inline(always)]
     pub fn parse_mit_fehlermeldung_aus_env(&self, fehler_code: NonZeroI32) -> T {
         self.parse_mit_fehlermeldung(args_aus_env(), fehler_code)
     }
 
-    /// Parse [std::env::args_os] to create the requested type.
+    /// Parse [args_os](std::env::args_os) to create the requested type.
     /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
-    /// `stdout` and the program stops via [std::process::exit] with exit code `0`.
+    /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
-    /// `stderr` and the program stops via [std::process::exit] with exit code `error_code`.
+    /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
     #[inline(always)]
     pub fn parse_with_error_message_from_env(&self, error_code: NonZeroI32) -> T {
         self.parse_with_error_message(args_aus_env(), error_code)
     }
 
-    /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
+    /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
-    /// [std::process::exit] mit exit code `0` beendet.
+    /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
     #[inline(always)]
     pub fn parse_vollständig_mit_sprache_aus_env(
         &self,
@@ -115,12 +115,12 @@ impl<T, E: Display> Argumente<T, E> {
         )
     }
 
-    /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
+    /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
-    /// [std::process::exit] mit exit code `0` beendet.
+    /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
     #[inline(always)]
     pub fn parse_vollständig_aus_env(
         &self,
@@ -145,9 +145,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
-    /// [std::process::exit] mit exit code `0` beendet.
+    /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
     #[inline(always)]
     pub fn parse_mit_fehlermeldung(
         &self,
@@ -159,9 +159,9 @@ impl<T, E: Display> Argumente<T, E> {
 
     /// Parse command line arguments to create the requested type.
     /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
-    /// `stdout` and the program stops via [std::process::exit] with exit code `0`.
+    /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
-    /// `stderr` and the program stops via [std::process::exit] with exit code `error_code`.
+    /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
     #[inline(always)]
     pub fn parse_with_error_message(
         &self,
@@ -174,9 +174,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
-    /// [std::process::exit] mit exit code `0` beendet.
+    /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
     #[inline(always)]
     pub fn parse_vollständig_mit_sprache(
         &self,
@@ -198,9 +198,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
-    /// [std::process::exit] mit exit code `0` beendet.
+    /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [std::process::exit] mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
     pub fn parse_vollständig(
         &self,
         args: impl Iterator<Item = OsString>,
@@ -243,16 +243,16 @@ impl<T, E: Display> Argumente<T, E> {
 }
 
 impl<T, E> Argumente<T, E> {
-    /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
+    /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     #[inline(always)]
     pub fn parse_aus_env(&self) -> (Ergebnis<T, E>, Vec<OsString>) {
         Argumente::parse(&self, args_aus_env())
     }
 
-    /// Parse [std::env::args_os] und versuche den gewünschten Typ zu erzeugen.
+    /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
-    /// [std::process::exit] mit exit code `0` beendet.
+    /// [exit](std::process::exit) mit exit code `0` beendet.
     #[inline(always)]
     pub fn parse_aus_env_mit_frühen_beenden(
         &self,
@@ -263,7 +263,7 @@ impl<T, E> Argumente<T, E> {
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
-    /// [std::process::exit] mit exit code `0` beendet.
+    /// [exit](std::process::exit) mit exit code `0` beendet.
     pub fn parse_mit_frühen_beenden(
         &self,
         args: impl Iterator<Item = OsString>,
