@@ -111,13 +111,26 @@ TODO Funktionsbeispiel
 TODO derive-Beispiel
 
 ```rust
-use kommandozeilen_argumente::Parse;
+use kommandozeilen_argumente::{Parse, EnumArgument};
+
+#[derive(Debug, EnumArgument)]
+struct Aufzählung {
+    Eins,
+    Zwei,
+    Drei,
+}
 
 #[derive(Debug, Parse)]
 #[kommandozeilen_argumente(hilfe, version, sprache: deutsch)]
 pub struct Args {
     flag: bool,
+    #[kommandozeilen_argumente(lang: [andere, namen], kurz: u)]
+    umbenannt: bool,
+    #[kommandozeilen_argumente(benötigt, kurz)]
+    benötigt: bool,
     wert: String,
+    #[kommandozeilen_argumente(kurz, standard: Aufzählung::Zwei)]
+    aufzählung: Aufzählung,
 }
 
 fn main() {
