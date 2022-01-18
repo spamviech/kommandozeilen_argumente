@@ -4,9 +4,10 @@ version = "0.1.0"
 authors = ["spamviech <spamviech@web.de>"]
 edition = "2021"
 license = "MIT"
-publish = false
+publish = true
 resolver = "2"
 repository = "https://github.com/spamviech/kommandozeilen_argumente"
+description = "derive-Macros für das kommandozeilen_argumente crate."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]

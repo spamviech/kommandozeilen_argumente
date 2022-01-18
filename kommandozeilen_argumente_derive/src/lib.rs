@@ -1,4 +1,4 @@
-//! Macros für das kommandozeilen_argumente crate.
+//! derive-Macros für das kommandozeilen_argumente crate.
 
 #![warn(
     absolute_paths_not_starting_with_crate,
