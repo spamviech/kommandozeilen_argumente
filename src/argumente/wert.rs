@@ -9,12 +9,24 @@ use crate::{
     argumente::{ArgString, Argumente},
     beschreibung::{contains_str, Beschreibung},
     ergebnis::{Ergebnis, Fehler, ParseFehler},
+    sprache::Sprache,
 };
 
 #[cfg(feature = "derive")]
 pub use kommandozeilen_argumente_derive::EnumArgument;
 
 impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
+    /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    #[inline(always)]
+    pub fn wert_display_mit_sprache(
+        beschreibung: Beschreibung<T>,
+        mögliche_werte: Option<NonEmpty<T>>,
+        parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
+        sprache: Sprache,
+    ) -> Argumente<T, E> {
+        Argumente::wert_display(beschreibung, sprache.meta_var.to_owned(), mögliche_werte, parse)
+    }
+
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
     #[inline(always)]
     pub fn wert_display(
@@ -28,6 +40,18 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
 }
 
 impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
+    /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    #[inline(always)]
+    pub fn wert_mit_sprache(
+        beschreibung: Beschreibung<T>,
+        mögliche_werte: Option<NonEmpty<T>>,
+        parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
+        anzeige: impl Fn(&T) -> String,
+        sprache: Sprache,
+    ) -> Argumente<T, E> {
+        Argumente::wert(beschreibung, sprache.meta_var.to_owned(), mögliche_werte, parse, anzeige)
+    }
+
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
     pub fn wert(
         beschreibung: Beschreibung<T>,
@@ -147,6 +171,16 @@ pub trait EnumArgument: Sized {
 
 impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     /// Erzeuge ein Wert-Argument für ein [EnumArgument].
+    #[inline(always)]
+    pub fn wert_enum_display_mit_sprache(
+        beschreibung: Beschreibung<T>,
+        sprache: Sprache,
+    ) -> Argumente<T, String> {
+        Argumente::wert_enum_display(beschreibung, sprache.meta_var.to_owned())
+    }
+
+    /// Erzeuge ein Wert-Argument für ein [EnumArgument].
+    #[inline(always)]
     pub fn wert_enum_display(
         beschreibung: Beschreibung<T>,
         meta_var: String,
@@ -156,6 +190,16 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
 }
 
 impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
+    /// Erzeuge ein Wert-Argument für ein [EnumArgument].
+    #[inline(always)]
+    pub fn wert_enum_mit_sprache(
+        beschreibung: Beschreibung<T>,
+        anzeige: impl Fn(&T) -> String,
+        sprache: Sprache,
+    ) -> Argumente<T, String> {
+        Argumente::wert_enum(beschreibung, sprache.meta_var.to_owned(), anzeige)
+    }
+
     /// Erzeuge ein Wert-Argument für ein [EnumArgument].
     pub fn wert_enum(
         beschreibung: Beschreibung<T>,
@@ -174,6 +218,16 @@ where
 {
     /// Erzeuge ein Wert-Argument anhand der [FromStr]-Implementierung.
     #[inline(always)]
+    pub fn wert_from_str_display_mit_sprache(
+        beschreibung: Beschreibung<T>,
+        mögliche_werte: Option<NonEmpty<T>>,
+        sprache: Sprache,
+    ) -> Argumente<T, String> {
+        Argumente::wert_from_str_display(beschreibung, sprache.meta_var.to_owned(), mögliche_werte)
+    }
+
+    /// Erzeuge ein Wert-Argument anhand der [FromStr]-Implementierung.
+    #[inline(always)]
     pub fn wert_from_str_display(
         beschreibung: Beschreibung<T>,
         meta_var: String,
@@ -190,6 +244,24 @@ where
     T: 'static + Clone + FromStr,
     E: 'static + Clone,
 {
+    /// Erzeuge ein Wert-Argument anhand der [FromStr]-Implementierung.
+    #[inline(always)]
+    pub fn wert_from_str_mit_sprache(
+        beschreibung: Beschreibung<T>,
+        mögliche_werte: Option<NonEmpty<T>>,
+        anzeige: impl Fn(&T) -> String,
+        konvertiere_fehler: impl 'static + Fn(T::Err) -> E,
+        sprache: Sprache,
+    ) -> Argumente<T, E> {
+        Argumente::wert_from_str(
+            beschreibung,
+            sprache.meta_var.to_owned(),
+            mögliche_werte,
+            anzeige,
+            konvertiere_fehler,
+        )
+    }
+
     /// Erzeuge ein Wert-Argument anhand der [FromStr]-Implementierung.
     pub fn wert_from_str(
         beschreibung: Beschreibung<T>,
