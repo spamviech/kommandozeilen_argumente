@@ -19,6 +19,33 @@ pub use kommandozeilen_argumente_derive::EnumArgument;
 impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
     #[inline(always)]
+    pub fn wert_string_display_mit_sprache(
+        beschreibung: Beschreibung<T>,
+        mögliche_werte: Option<NonEmpty<T>>,
+        parse: impl 'static + Fn(&str) -> Result<T, E>,
+        sprache: Sprache,
+    ) -> Argumente<T, E> {
+        Argumente::wert_string_display(
+            beschreibung,
+            sprache.meta_var.to_owned(),
+            mögliche_werte,
+            parse,
+        )
+    }
+
+    /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    #[inline(always)]
+    pub fn wert_string_display(
+        beschreibung: Beschreibung<T>,
+        meta_var: String,
+        mögliche_werte: Option<NonEmpty<T>>,
+        parse: impl 'static + Fn(&str) -> Result<T, E>,
+    ) -> Argumente<T, E> {
+        Argumente::wert_string(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
+    }
+
+    /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    #[inline(always)]
     pub fn wert_display_mit_sprache(
         beschreibung: Beschreibung<T>,
         mögliche_werte: Option<NonEmpty<T>>,
@@ -41,6 +68,48 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
 }
 
 impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
+    /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    #[inline(always)]
+    pub fn wert_string_mit_sprache(
+        beschreibung: Beschreibung<T>,
+        mögliche_werte: Option<NonEmpty<T>>,
+        parse: impl 'static + Fn(&str) -> Result<T, E>,
+        anzeige: impl Fn(&T) -> String,
+        sprache: Sprache,
+    ) -> Argumente<T, E> {
+        Argumente::wert_string(
+            beschreibung,
+            sprache.meta_var.to_owned(),
+            mögliche_werte,
+            parse,
+            anzeige,
+        )
+    }
+
+    /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    #[inline(always)]
+    pub fn wert_string(
+        beschreibung: Beschreibung<T>,
+        meta_var: String,
+        mögliche_werte: Option<NonEmpty<T>>,
+        parse: impl 'static + Fn(&str) -> Result<T, E>,
+        anzeige: impl Fn(&T) -> String,
+    ) -> Argumente<T, E> {
+        Argumente::wert(
+            beschreibung,
+            meta_var,
+            mögliche_werte,
+            move |os_str| {
+                if let Some(s) = os_str.to_str() {
+                    parse(s).map_err(ParseFehler::ParseFehler)
+                } else {
+                    Err(ParseFehler::InvaliderString(os_str.to_owned()))
+                }
+            },
+            anzeige,
+        )
+    }
+
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
     #[inline(always)]
     pub fn wert_mit_sprache(
@@ -272,20 +341,11 @@ where
         anzeige: impl Fn(&T) -> String,
         konvertiere_fehler: impl 'static + Fn(T::Err) -> E,
     ) -> Argumente<T, E> {
-        Argumente::wert(
+        Argumente::wert_string(
             beschreibung,
             meta_var,
             mögliche_werte,
-            move |os_str| {
-                os_str
-                    .to_str()
-                    .ok_or_else(|| ParseFehler::InvaliderString(os_str.to_owned()))
-                    .and_then(|string| {
-                        T::from_str(string)
-                            .map_err(&konvertiere_fehler)
-                            .map_err(ParseFehler::ParseFehler)
-                    })
-            },
+            move |string| T::from_str(string).map_err(&konvertiere_fehler),
             anzeige,
         )
     }
