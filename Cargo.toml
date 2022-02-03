@@ -1,10 +1,10 @@
 [package]
 name = "kommandozeilen_argumente"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["spamviech <spamviech@web.de>"]
 edition = "2021"
 license = "MIT"
-publish = true
+publish = false
 resolver = "2"
 repository = "https://github.com/spamviech/kommandozeilen_argumente"
 description = "Parser für Kommandozeilen-Argumente mit optionaler, automatischer Hilfe-Generierung."
