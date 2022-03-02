@@ -72,7 +72,7 @@ pub(crate) use unwrap_option_or_compile_error;
 mod enum_argument;
 mod parse;
 
-/// Derive-Macro für das [kommandozeilen_argumente::Parse]-Traits.
+/// Derive-Macro für das [Parse](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html)-Traits.
 #[proc_macro_derive(Parse, attributes(kommandozeilen_argumente))]
 pub fn derive_parse(item: TokenStream) -> TokenStream {
     let item_struct = parse_macro_input!(item as ItemStruct);
@@ -80,7 +80,7 @@ pub fn derive_parse(item: TokenStream) -> TokenStream {
     parse::derive_parse(item_struct).into()
 }
 
-/// Derive-Macro für das [kommandozeilen_argumente::EnumArgument]-Trait.
+/// Derive-Macro für das [EnumArgument](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html)-Trait.
 #[proc_macro_derive(EnumArgument)]
 pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
     let item_enum = parse_macro_input!(item as ItemEnum);
