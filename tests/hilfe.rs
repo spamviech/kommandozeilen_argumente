@@ -6,10 +6,6 @@ use void::Void;
 
 use kommandozeilen_argumente::{Argumente, Beschreibung, Ergebnis};
 
-#[allow(unused_imports)]
-// Derive-Macro kommt mit integration test nicht zurecht, daher muss crate::kombiniere existieren.
-use kommandozeilen_argumente::kombiniere;
-
 #[test]
 fn hilfe_test() {
     let arg: Argumente<bool, Void> = Argumente::hilfe_und_version(
@@ -33,10 +29,10 @@ fn hilfe_test() {
                     println!("{}", nachricht);
                 }
             }
-        }
+        },
         res => {
             eprintln!("Unerwartetes Ergebnis: {:?}", res);
             process::exit(2);
-        }
+        },
     }
 }
