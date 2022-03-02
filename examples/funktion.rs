@@ -118,7 +118,7 @@ fn main() {
         wert,
         aufzählung,
     };
-    let argumente = kombiniere!(zusammenfassen => flag, umbenannt, benötigt, wert, aufzählung)
+    let argumente = kombiniere!(zusammenfassen, flag, umbenannt, benötigt, wert, aufzählung)
         .hilfe_und_version_mit_sprache(crate_name!(), crate_version!(), sprache);
     let args = argumente
         .parse_vollständig_mit_sprache_aus_env(NonZeroI32::new(1).expect("1 != 0"), sprache);
