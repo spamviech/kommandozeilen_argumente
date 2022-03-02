@@ -97,18 +97,18 @@ fn derive_test() {
                     println!("{}", nachricht);
                 }
             }
-        }
+        },
         (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
             for fehler in fehler_sammlung {
                 eprintln!("{}", fehler.fehlermeldung())
             }
             eprintln!("{:?}", nicht_verwendet);
             process::exit(2);
-        }
+        },
         res => {
             eprintln!("Unerwartetes Ergebnis: {:?}", res);
             process::exit(3);
-        }
+        },
     }
     println!("--------------");
     let arg2 = Test2::kommandozeilen_argumente();
@@ -123,18 +123,18 @@ fn derive_test() {
                     println!("{}", nachricht);
                 }
             }
-        }
+        },
         (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
             for fehler in fehler_sammlung {
                 eprintln!("{}", fehler.fehlermeldung())
             }
             eprintln!("{:?}", nicht_verwendet);
             process::exit(4);
-        }
+        },
         res => {
             eprintln!("Unerwartetes Ergebnis: {:?}", res);
             process::exit(5);
-        }
+        },
     }
 }
 
@@ -155,18 +155,18 @@ fn verschmelze_kurzformen() {
                     println!("{}", nachricht);
                 }
             }
-        }
+        },
         (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
             for fehler in fehler_sammlung {
                 eprintln!("{}", fehler.fehlermeldung())
             }
             eprintln!("{:?}", nicht_verwendet);
             process::exit(3);
-        }
+        },
         res => {
             eprintln!("Unerwartetes Ergebnis: {:?}", res);
             process::exit(4);
-        }
+        },
     }
     println!("--------------");
     let arg2 = Test2::kommandozeilen_argumente();
@@ -183,10 +183,10 @@ fn verschmelze_kurzformen() {
             } else {
                 println!("{:?}", test2)
             }
-        }
+        },
         res => {
             eprintln!("Unerwartetes Ergebnis: {:?}", res);
             process::exit(7);
-        }
+        },
     }
 }
