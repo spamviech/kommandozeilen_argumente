@@ -195,7 +195,7 @@ impl<'t> KurzNamen<'t> {
             KurzNamen::Keiner => Vec::new(),
             KurzNamen::Auto => {
                 vec![lang_name.graphemes(true).next().expect("Langname ohne Graphemes!")]
-            }
+            },
             KurzNamen::Namen(namen) => namen,
         }
     }
@@ -298,14 +298,14 @@ fn parse_wert_arg(
                                 ),
                             };
                             setze_sprache(sprache, sub_arg)?
-                        }
+                        },
                         "standard" | "default" => {
                             setze_standard(Some(wert_trimmed), trimmed, string)?
-                        }
+                        },
                         "meta_var" => setze_meta_var(wert_trimmed, trimmed, string)?,
                         "invertiere_präfix" | "invert_prefix" => {
                             setze_invertiere_präfix(wert_trimmed, trimmed, string)?
-                        }
+                        },
                         "lang" | "long" => {
                             let mut namen_iter = werte.into_iter();
                             let (head, tail) = if let Some(head) = namen_iter.next() {
@@ -314,14 +314,14 @@ fn parse_wert_arg(
                                 return Err(format!("Kein LangName für {}!", arg_name));
                             };
                             lang_namen = Some((head, tail))
-                        }
+                        },
                         "kurz" | "short" => kurz_namen = KurzNamen::Namen(werte),
                         _ => {
                             return Err(format!(
                                 "Benanntes Argument {} für {} nicht unterstützt: {}",
                                 trimmed, arg_name, string
                             ))
-                        }
+                        },
                     }
                 } else {
                     return Err(format!(
@@ -329,7 +329,7 @@ fn parse_wert_arg(
                         arg_name, sub_arg
                     ));
                 }
-            }
+            },
         }
     }
     let (head, tail) = lang_namen.unwrap_or((arg_name, Vec::new()));
@@ -429,20 +429,20 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                                 sub_sprache.unwrap_or(standard_sprache),
                                 Some((lang_namen, kurz_namen)),
                             )))
-                        }
+                        },
                         "version" => {
                             erstelle_version = Some(Box::new(erstelle_version_methode(
                                 sub_sprache,
                                 Some((lang_namen, kurz_namen)),
                             )))
-                        }
+                        },
                         trimmed => {
                             compile_error_return!(
                                 "Benanntes Argument(Klammer) {:?} nicht unterstützt: {:?}",
                                 trimmed,
                                 string,
                             )
-                        }
+                        },
                     }
                 } else if let Some((arg_name, wert_string)) = string.split_once(':') {
                     let wert_trimmed = wert_string.trim();
@@ -455,10 +455,10 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                                     wert_trimmed.parse()
                                 )),
                             }
-                        }
+                        },
                         "invertiere_präfix" | "invert_prefix" => {
                             invertiere_präfix = Some(wert_trimmed.to_owned())
-                        }
+                        },
                         "meta_var" => meta_var = Some(wert_trimmed.to_owned()),
                         trimmed => {
                             compile_error_return!(
@@ -466,12 +466,12 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                                 trimmed,
                                 string,
                             )
-                        }
+                        },
                     }
                 } else {
                     compile_error_return!("Argument nicht unterstützt: {}", arg)
                 }
-            }
+            },
         }
     }
     let sprache_ts = sprache.clone().token_stream();
@@ -537,7 +537,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                                         .parse()
                                         .map_err(|err: LexError| err.to_string())?;
                                     quote!(Some(#ts))
-                                }
+                                },
                             };
                             Ok(())
                         },
@@ -582,7 +582,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                         #feld_meta_var
                     )
                 })
-            }
+            },
             FeldArgument::FromStr => {
                 quote!({
                     #erstelle_beschreibung
@@ -592,10 +592,10 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                         None,
                     )
                 })
-            }
+            },
             FeldArgument::Parse => {
                 quote!(#crate_name::Parse::kommandozeilen_argumente())
-            }
+            },
         };
         tuples.push((ident, erstelle_args));
     }
@@ -604,7 +604,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
         #(
             let #idents = #erstelle_args;
         )*
-        #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*} => #(#idents),*)
+        #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*}, #(#idents),*)
     );
     let nach_version = if let Some(version_hinzufügen) = erstelle_version {
         version_hinzufügen(kombiniere, sprache)

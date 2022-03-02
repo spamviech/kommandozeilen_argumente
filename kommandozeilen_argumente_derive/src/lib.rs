@@ -33,8 +33,8 @@
 )]
 
 use proc_macro::TokenStream;
-use quote::{format_ident, quote};
-use syn::{parse_macro_input, Fields, Ident, ItemEnum, ItemStruct};
+use quote::format_ident;
+use syn::{parse_macro_input, Ident, ItemEnum, ItemStruct};
 
 fn base_name() -> Ident {
     format_ident!("{}", "kommandozeilen_argumente")
@@ -69,9 +69,10 @@ macro_rules! unwrap_option_or_compile_error {
 }
 pub(crate) use unwrap_option_or_compile_error;
 
+mod enum_argument;
 mod parse;
 
-/// Implementierung für das derive-Macro des Parse-Traits.
+/// Derive-Macro für das [kommandozeilen_argumente::Parse]-Traits.
 #[proc_macro_derive(Parse, attributes(kommandozeilen_argumente))]
 pub fn derive_parse(item: TokenStream) -> TokenStream {
     let item_struct = parse_macro_input!(item as ItemStruct);
@@ -79,50 +80,10 @@ pub fn derive_parse(item: TokenStream) -> TokenStream {
     parse::derive_parse(item_struct).into()
 }
 
-/// Derive-Macro für das EnumArgument-Trait.
+/// Derive-Macro für das [kommandozeilen_argumente::EnumArgument]-Trait.
 #[proc_macro_derive(EnumArgument)]
 pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
-    let crate_name = base_name();
     let item_enum = parse_macro_input!(item as ItemEnum);
-    if !item_enum.generics.params.is_empty() {
-        compile_error_return!("Nur Enums ohne Generics unterstützt.");
-    }
-    let ident = &item_enum.ident;
-    let mut varianten = Vec::new();
-    for variant in item_enum.variants {
-        if let Fields::Unit = variant.fields {
-        } else {
-            compile_error_return!(
-                "Nur Enums mit Unit-Varianten unterstützt, aber {} hält Daten.",
-                variant.ident
-            );
-        }
-        varianten.push(variant.ident);
-    }
-    let varianten_str: Vec<_> = varianten.iter().map(ToString::to_string).collect();
-    let instance = quote!(
-        impl #crate_name::EnumArgument for #ident {
-            fn varianten() -> Vec<Self> {
-                vec![#(Self::#varianten),*]
-            }
 
-            fn parse_enum(arg: &std::ffi::OsStr) -> Result<Self, #crate_name::ParseFehler<String>> {
-                if let Some(string) = arg.to_str() {
-                    #(
-                        if #crate_name::unicase_eq(string, #varianten_str) {
-                            Ok(Self::#varianten)
-                        } else
-                    )*
-                    {
-                        Err(#crate_name::ParseFehler::ParseFehler(
-                            format!("Unbekannte Variante: {}", string))
-                        )
-                    }
-                } else {
-                    Err(#crate_name::ParseFehler::InvaliderString(arg.to_owned()))
-                }
-            }
-        }
-    );
-    instance.into()
+    enum_argument::derive_enum_argument(item_enum).into()
 }

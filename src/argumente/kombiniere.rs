@@ -7,20 +7,32 @@ use crate::{argumente::Argumente, ergebnis::Ergebnis};
 #[macro_export]
 /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
 macro_rules! kombiniere {
-    ($funktion: expr => ) => {
+    ($funktion: expr $(,)?) => {
         $crate::Argumente::konstant($funktion)
     };
-    ($funktion: expr => $a: ident $(,)?) => {
+    ($funktion: expr => ) => {
+        $crate::kombiniere!($funktion)
+    };
+    ($funktion: expr, $a: ident $(,)?) => {
         $crate::Argumente::konvertiere($funktion, $a)
     };
-    ($funktion: expr => $a: ident, $b:ident $(,)?) => {
+    ($funktion: expr => $a: ident $(,)?) => {
+        $crate::kombiniere!($funktion, $a)
+    };
+    ($funktion: expr, $a: ident, $b:ident $(,)?) => {
         $crate::Argumente::kombiniere2($funktion, $a, $b)
     };
-    ($funktion: expr => $a: ident, $b:ident, $($args: ident),+ $(,)?) => {{
+    ($funktion: expr => $a: ident, $b:ident $(,)?) => {
+        $crate::kombiniere!($funktion, $a, $b)
+    };
+    ($funktion: expr, $a: ident, $b:ident, $($args: ident),+ $(,)?) => {{
         let tuple_arg = $crate::Argumente::kombiniere2(|a,b| (a,b), $a, $b);
         let uncurry_first_two = move |(a,b), $($args),+| $funktion(a, b, $($args),+);
-        $crate::kombiniere!(uncurry_first_two => tuple_arg, $($args),+)
+        $crate::kombiniere!(uncurry_first_two, tuple_arg, $($args),+)
     }};
+    ($funktion: expr => $a: ident, $b:ident, $($args: ident),+ $(,)?) => {
+        $crate::kombiniere!($funktion, $a, $b, $($args),+)
+    };
 }
 
 macro_rules! impl_kombiniere_n {
@@ -88,11 +100,11 @@ impl<T, Error: 'static> Argumente<T, Error> {
                     Ergebnis::FrühesBeenden(nachrichten) => {
                         frühes_beenden.extend(nachrichten);
                         None
-                    }
+                    },
                     Ergebnis::Fehler(parse_fehler) => {
                         fehler.extend(parse_fehler);
                         None
-                    }
+                    },
                 };
                 let (b_ergebnis, b_nicht_verwendet) = (b.parse)(a_nicht_verwendet);
                 let b = match b_ergebnis {
@@ -100,11 +112,11 @@ impl<T, Error: 'static> Argumente<T, Error> {
                     Ergebnis::FrühesBeenden(nachrichten) => {
                         frühes_beenden.extend(nachrichten);
                         None
-                    }
+                    },
                     Ergebnis::Fehler(parse_fehler) => {
                         fehler.extend(parse_fehler);
                         None
-                    }
+                    },
                 };
                 let ergebnis = if let Some(fehler) = NonEmpty::from_vec(fehler) {
                     Ergebnis::Fehler(fehler)
