@@ -1,6 +1,11 @@
 //! Implementierung für das derive-Macro des Parse-Traits.
 
-use proc_macro2::{LexError, TokenStream};
+use std::{
+    fmt::{self, Display, Formatter},
+    iter,
+};
+
+use proc_macro2::{Delimiter, LexError, Spacing, TokenStream, TokenTree};
 use quote::quote;
 use syn::{Field, ItemStruct};
 use unicode_segmentation::UnicodeSegmentation;
@@ -25,6 +30,77 @@ impl Sprache {
             Deutsch => quote!(#crate_name::Sprache::DEUTSCH),
             English => quote!(#crate_name::Sprache::ENGLISH),
             TokenStream(ts) => ts,
+        }
+    }
+}
+
+enum GenauEinesFehler<T, I> {
+    Leer,
+    MehrAlsEins { erstes: Option<T>, zweites: Option<T>, rest: I },
+}
+
+impl<T, I: Iterator<Item = T>> Iterator for GenauEinesFehler<T, I> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<T> {
+        use GenauEinesFehler::*;
+        match self {
+            Leer => None,
+            MehrAlsEins { erstes, zweites, rest } => {
+                erstes.take().or_else(|| zweites.take()).or_else(|| rest.next())
+            },
+        }
+    }
+}
+
+fn genau_eines<T, I: Iterator<Item = T>>(mut iter: I) -> Result<T, GenauEinesFehler<T, I>> {
+    let erstes = iter.next().ok_or(GenauEinesFehler::Leer)?;
+    if let Some(zweites) = iter.next() {
+        Err(GenauEinesFehler::MehrAlsEins {
+            erstes: Some(erstes),
+            zweites: Some(zweites),
+            rest: iter,
+        })
+    } else {
+        Ok(erstes)
+    }
+}
+
+#[derive(Debug)]
+enum ArgumentWert {
+    KeinWert,
+    Unterargument(TokenStream),
+    Wert(TokenTree),
+}
+
+#[derive(Debug)]
+struct Argument {
+    name: String,
+    wert: ArgumentWert,
+}
+
+#[derive(Debug)]
+enum Fehler {
+    NichtInKlammer(TokenStream),
+    LeeresArgument(TokenStream),
+    InvaliderArgumentName(TokenTree),
+    InvaliderArgumentWert { name: String, doppelpunkt: bool, wert: TokenStream },
+}
+
+impl Display for Fehler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        use Fehler::*;
+        match self {
+            NichtInKlammer(ts) => write!(f, "Argumente nicht in Klammern eingeschlossen: {ts}"),
+            LeeresArgument(ts) => write!(f, "Leeres Argument: {ts}"),
+            InvaliderArgumentName(tt) => write!(f, "Invalider Name für ein Argument: {tt}"),
+            InvaliderArgumentWert { name, doppelpunkt, wert } => {
+                write!(f, "Invalider Wert für Argument {name}!\n{name} ")?;
+                if *doppelpunkt {
+                    write!(f, ": ")?;
+                }
+                write!(f, "{wert}")
+            },
         }
     }
 }
@@ -155,6 +231,65 @@ fn split_argumente<'t, S: From<&'t str>>(
     Ok(())
 }
 
+fn tt_is_not_comma(tt: &TokenTree) -> bool {
+    if let TokenTree::Punct(punct) = tt {
+        punct.as_char() != ',' || punct.spacing() != Spacing::Alone
+    } else {
+        true
+    }
+}
+
+/// Argumente getrennt durch Kommas, Unterargumente mit () angegeben, potentiell mit Kommas, z.B. help.
+/// Argumente können Werte haben, getrennt durch `:`.
+/// Wert-Argumente können Listen (angegeben durch [], potentiell mit Kommas) sein.
+/// Argumente werden nicht weiter behandelt.
+fn split_argumente_ts(args: &mut Vec<Argument>, args_ts: TokenStream) -> Result<(), Fehler> {
+    let mut iter = args_ts.into_iter().peekable();
+    let iter_mut_ref = iter.by_ref();
+    while iter_mut_ref.peek().is_some() {
+        let mut arg_iter = iter_mut_ref.take_while(tt_is_not_comma).peekable();
+        // Name extrahieren
+        let name = match arg_iter.next() {
+            Some(TokenTree::Ident(ident)) => ident.to_string(),
+            Some(tt) => return Err(Fehler::InvaliderArgumentName(tt)),
+            None => return Err(Fehler::LeeresArgument(iter_mut_ref.collect())),
+        };
+        // Wert bestimmen
+        let wert = match arg_iter.next() {
+            None => ArgumentWert::KeinWert,
+            Some(TokenTree::Punct(punct))
+                if punct.as_char() == ':' && punct.spacing() == Spacing::Alone =>
+            {
+                match genau_eines(arg_iter) {
+                    Ok(wert) => ArgumentWert::Wert(wert),
+                    Err(fehler) => {
+                        return Err(Fehler::InvaliderArgumentWert {
+                            name,
+                            doppelpunkt: true,
+                            wert: fehler.collect(),
+                        })
+                    },
+                }
+            },
+            Some(TokenTree::Group(group))
+                if group.delimiter() == Delimiter::Parenthesis && arg_iter.peek().is_none() =>
+            {
+                ArgumentWert::Unterargument(group.stream())
+            },
+            Some(erstes) => {
+                return Err(Fehler::InvaliderArgumentWert {
+                    name,
+                    doppelpunkt: false,
+                    wert: iter::once(erstes).chain(arg_iter).collect(),
+                })
+            },
+        };
+        // Argument hinzufügen
+        args.push(Argument { name, wert });
+    }
+    Ok(())
+}
+
 fn split_klammer_argumente<'t, S: From<&'t str>>(
     args: &mut Vec<S>,
     args_str: &'t str,
@@ -165,6 +300,18 @@ fn split_klammer_argumente<'t, S: From<&'t str>>(
         return Err(format!("Argumente nicht in Klammern eingeschlossen: {}", args_str));
     };
     split_argumente(args, stripped)
+}
+
+fn split_klammer_argumente_ts(
+    args: &mut Vec<Argument>,
+    args_ts: TokenStream,
+) -> Result<(), Fehler> {
+    let group = match genau_eines(args_ts.into_iter()) {
+        Ok(TokenTree::Group(group)) if group.delimiter() == Delimiter::Parenthesis => group,
+        Ok(tt) => return Err(Fehler::NichtInKlammer(tt.into())),
+        Err(fehler) => return Err(Fehler::NichtInKlammer(fehler.collect())),
+    };
+    split_argumente_ts(args, group.stream())
 }
 
 macro_rules! split_klammer_argumente {
