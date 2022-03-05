@@ -145,10 +145,24 @@ fn find_or_len(string: &str, c: char) -> usize {
 
 #[test]
 fn test_split_argumente() {
-    let mut args: Vec<&str> = Vec::new();
-    let args_str = "(hello(hi), world: [it's, a, big, world!])";
-    split_argumente(&mut args, args_str).expect("Argumente sind wohlgeformt");
-    assert_eq!(args, vec!["hello(hi)", "world: [it's, a, big, world!]"])
+    fn argument_to_string(Argument { mut name, wert }: Argument) -> String {
+        use ArgumentWert::*;
+        match wert {
+            KeinWert => {},
+            Unterargument(ts) => name.push_str(&format!("({ts})")),
+            Wert(tt) => name.push_str(&format!(": {tt}")),
+        }
+        name
+    }
+    let mut args: Vec<Argument> = Vec::new();
+    let args_ts =
+        "(hello(hi), world: [it's, a, big, world!])".parse().expect("Valider TokenStream");
+    let world_wert =
+        "[it's, a, big, world!]".parse::<TokenStream>().expect("world_wert").to_string();
+    let world_string = format!("world: {world_wert}");
+    split_klammer_argumente_ts(&mut args, args_ts).expect("Argumente sind wohlgeformt");
+    let args_str: Vec<_> = args.into_iter().map(argument_to_string).collect();
+    assert_eq!(args_str, vec!["hello(hi)", &world_string])
 }
 
 fn split_argumente<'t, S: From<&'t str>>(
