@@ -79,6 +79,19 @@ struct Argument {
     wert: ArgumentWert,
 }
 
+impl Display for Argument {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let Argument { name, wert } = self;
+        write!(f, "{name}")?;
+        use ArgumentWert::*;
+        match wert {
+            KeinWert => Ok(()),
+            Unterargument(ts) => write!(f, "({ts})"),
+            Wert(tt) => write!(f, ": {tt}"),
+        }
+    }
+}
+
 #[derive(Debug)]
 enum Fehler {
     NichtInKlammer(TokenStream),
@@ -145,15 +158,6 @@ fn find_or_len(string: &str, c: char) -> usize {
 
 #[test]
 fn test_split_argumente() {
-    fn argument_to_string(Argument { mut name, wert }: Argument) -> String {
-        use ArgumentWert::*;
-        match wert {
-            KeinWert => {},
-            Unterargument(ts) => name.push_str(&format!("({ts})")),
-            Wert(tt) => name.push_str(&format!(": {tt}")),
-        }
-        name
-    }
     let mut args: Vec<Argument> = Vec::new();
     let args_ts =
         "(hello(hi), world: [it's, a, big, world!])".parse().expect("Valider TokenStream");
@@ -161,7 +165,7 @@ fn test_split_argumente() {
         "[it's, a, big, world!]".parse::<TokenStream>().expect("world_wert").to_string();
     let world_string = format!("world: {world_wert}");
     split_klammer_argumente_ts(&mut args, args_ts).expect("Argumente sind wohlgeformt");
-    let args_str: Vec<_> = args.into_iter().map(argument_to_string).collect();
+    let args_str: Vec<_> = args.iter().map(ToString::to_string).collect();
     assert_eq!(args_str, vec!["hello(hi)", &world_string])
 }
 
@@ -332,6 +336,16 @@ macro_rules! split_klammer_argumente {
     ($args: expr, $stripped: expr) => {
         if let Err(fehler) = split_klammer_argumente(&mut $args, $stripped) {
             let compile_error = quote!(compile_error! {#fehler });
+            return compile_error;
+        }
+    };
+}
+
+macro_rules! split_klammer_argumente_ts {
+    ($args: expr, $ts: expr) => {
+        if let Err(fehler) = split_klammer_argumente_ts(&mut $args, $ts) {
+            let fehler_str = fehler.to_string();
+            let compile_error = quote!(compile_error! {#fehler_str });
             return compile_error;
         }
     };
@@ -534,15 +548,14 @@ fn standard_error_message<'t>(
 }
 
 pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
-    if !item_struct.generics.params.is_empty() {
+    let ItemStruct { ident, generics, attrs, fields, .. } = item_struct;
+    if !generics.params.is_empty() {
         compile_error_return!("Nur Structs ohne Generics unterstützt.");
     }
-    let item_ty = &item_struct.ident;
-    let mut args: Vec<String> = Vec::new();
-    for attr in &item_struct.attrs {
+    let mut args: Vec<Argument> = Vec::new();
+    for attr in attrs {
         if attr.path.is_ident("kommandozeilen_argumente") {
-            let args_str = attr.tokens.to_string();
-            split_klammer_argumente!(args, &args_str);
+            split_klammer_argumente_ts!(args, attr.tokens);
         }
     }
     // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
@@ -559,7 +572,24 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
     let mut meta_var = None;
     let crate_name = base_name();
     for arg in args {
-        match arg.as_str() {
+        // FIXME Match direkt im for-loop, sobald str-Version entfernt
+        let arg_str = arg.to_string();
+        let Argument { name, wert } = arg;
+        match wert {
+            ArgumentWert::KeinWert => match name.as_str() {
+                "version" => {
+                    erstelle_version = Some(Box::new(erstelle_version_methode(None, None)))
+                },
+                "hilfe" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(Deutsch, None))),
+                "help" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(English, None))),
+                _ => todo!(),
+            },
+            ArgumentWert::Unterargument(ts) => todo!(),
+            ArgumentWert::Wert(tt) => todo!(),
+        }
+
+        // FIXME replace
+        match name.as_str() {
             "version" => erstelle_version = Some(Box::new(erstelle_version_methode(None, None))),
             "hilfe" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(Deutsch, None))),
             "help" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(English, None))),
@@ -630,7 +660,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                         },
                     }
                 } else {
-                    compile_error_return!("Argument nicht unterstützt: {}", arg)
+                    compile_error_return!("Argument nicht unterstützt: {}", arg_str)
                 }
             },
         }
@@ -647,7 +677,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
         quote!(#sprache_ts.meta_var)
     };
     let mut tuples = Vec::new();
-    for field in item_struct.fields {
+    for field in fields {
         let Field { attrs, ident, .. } = field;
         let mut hilfe_lits = Vec::new();
         let ident = unwrap_option_or_compile_error!(ident, "Nur benannte Felder unterstützt.");
@@ -778,7 +808,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
         nach_version
     };
     quote! {
-        impl #crate_name::Parse for #item_ty {
+        impl #crate_name::Parse for #ident {
             type Fehler = String;
 
             fn kommandozeilen_argumente() -> #crate_name::Argumente<Self, Self::Fehler> {
