@@ -75,9 +75,20 @@ fn punct_is_char(punct: &Punct, c: char) -> bool {
 enum ArgumentWert {
     KeinWert,
     Unterargument(Vec<Argument>),
-    Ident(Ident),
-    Literal(Literal),
     Liste(Vec<TokenStream>),
+    Stream(TokenStream),
+}
+
+impl Display for ArgumentWert {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        use ArgumentWert::*;
+        match self {
+            KeinWert => Ok(()),
+            Unterargument(args) => write_liste(f, "(", args, ")"),
+            Liste(tts) => write_liste(f, "[", tts.clone(), "]"),
+            Stream(ts) => write!(f, "{ts}"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -114,9 +125,8 @@ impl Display for Argument {
         match wert {
             KeinWert => Ok(()),
             Unterargument(args) => write_liste(f, "(", args, ")"),
-            Ident(ident) => write!(f, ": {ident}"),
-            Literal(literal) => write!(f, ": {literal}"),
             Liste(tts) => write_liste(f, ": [", tts.clone(), "]"),
+            Stream(ts) => write!(f, ": {ts}"),
         }
     }
 }
@@ -357,8 +367,6 @@ fn split_argumente_ts(
             None => ArgumentWert::KeinWert,
             Some(TokenTree::Punct(punct)) if punct_is_char(&punct, ':') => {
                 match genau_eines(arg_iter) {
-                    Ok(TokenTree::Ident(ident)) => ArgumentWert::Ident(ident),
-                    Ok(TokenTree::Literal(literal)) => ArgumentWert::Literal(literal),
                     Ok(TokenTree::Group(group)) if group.delimiter() == Delimiter::Bracket => {
                         let mut iter = group.stream().into_iter();
                         let mut acc = Vec::new();
@@ -374,22 +382,8 @@ fn split_argumente_ts(
                         }
                         ArgumentWert::Liste(acc)
                     },
-                    Ok(tt) => {
-                        return Err(Fehler::InvaliderArgumentWert {
-                            parent,
-                            name,
-                            doppelpunkt: true,
-                            wert: tt.into(),
-                        })
-                    },
-                    Err(fehler) => {
-                        return Err(Fehler::InvaliderArgumentWert {
-                            parent,
-                            name,
-                            doppelpunkt: true,
-                            wert: fehler.collect(),
-                        })
-                    },
+                    Ok(tt) => ArgumentWert::Stream(tt.into()),
+                    Err(fehler) => ArgumentWert::Stream(fehler.collect()),
                 }
             },
             Some(TokenTree::Group(group))
@@ -446,18 +440,18 @@ enum FeldArgument {
 }
 
 #[derive(Debug)]
-enum KurzNamen<'t> {
+enum KurzNamen {
     Keiner,
     Auto,
-    Namen(Vec<&'t str>),
+    Namen(Vec<String>),
 }
 
-impl<'t> KurzNamen<'t> {
-    fn to_vec(self, lang_name: &'t str) -> Vec<&'t str> {
+impl KurzNamen {
+    fn to_vec(self, lang_name: &str) -> Vec<String> {
         match self {
             KurzNamen::Keiner => Vec::new(),
             KurzNamen::Auto => {
-                vec![lang_name.graphemes(true).next().expect("Langname ohne Graphemes!")]
+                vec![lang_name.graphemes(true).next().expect("Langname ohne Graphemes!").to_owned()]
             },
             KurzNamen::Namen(namen) => namen,
         }
@@ -578,7 +572,7 @@ fn parse_wert_arg(
                             };
                             lang_namen = Some((head, tail))
                         },
-                        "kurz" | "short" => kurz_namen = KurzNamen::Namen(werte),
+                        "kurz" | "short" => kurz_namen = KurzNamen::Namen(werte.into_iter().map(|s|s.to_owned()).collect()),
                         _ => {
                             return Err(format!(
                                 "Benanntes Argument {trimmed} für {arg_name} nicht unterstützt: {string}"
@@ -613,10 +607,94 @@ fn parse_wert_arg_ts(
     setze_kurz_namen: impl FnOnce(TokenStream),
     mut setze_meta_var: impl FnMut(&str, &str, &str) -> Result<(), String>,
     mut setze_invertiere_präfix: impl FnMut(&str, &str, &str) -> Result<(), String>,
-    mut setze_standard: impl FnMut(Option<&str>, &str, &str) -> Result<(), String>,
+    mut setze_standard: impl FnMut(Option<TokenStream>, &str, &str) -> Result<(), String>,
     mut feld_argument: Option<&mut FeldArgument>,
 ) -> Result<(), String> {
-    todo!()
+    let crate_name = base_name();
+    let mut lang_namen = None;
+    let mut kurz_namen = KurzNamen::Keiner;
+    macro_rules! setze_feld_argument {
+        ($wert: expr, $sub_arg: expr) => {
+            if let Some(var) = feld_argument.as_mut() {
+                **var = $wert
+            } else {
+                return Err(format!("Argument nicht unterstützt: {}", $sub_arg));
+            }
+        };
+    }
+    for sub_arg in sub_args {
+        let sub_arg_str = sub_arg.to_string();
+        let Argument { name, wert } = sub_arg;
+        let wert_str = wert.to_string();
+        match wert {
+            ArgumentWert::KeinWert => match name.as_str() {
+                "kurz" | "short" => kurz_namen = KurzNamen::Auto,
+                "glätten" | "flatten" => setze_feld_argument!(FeldArgument::Parse, sub_arg_str),
+                "FromStr" => setze_feld_argument!(FeldArgument::FromStr, sub_arg_str),
+                "benötigt" | "required" => setze_standard(None, &name, &name)?,
+                _ => todo!(),
+            },
+            ArgumentWert::Liste(liste) => match name.as_str() {
+                "lang" | "long" => {
+                    let mut namen_iter = liste.into_iter().map(|ts| ts.to_string());
+                    let (head, tail) = if let Some(head) = namen_iter.next() {
+                        (head, namen_iter.collect())
+                    } else {
+                        return Err(format!("Kein LangName für {arg_name}!"));
+                    };
+                    lang_namen = Some((head, tail));
+                },
+                "kurz" | "short" => {
+                    let namen_iter = liste.into_iter().map(|ts| ts.to_string());
+                    kurz_namen = KurzNamen::Namen(namen_iter.collect());
+                },
+                _ => {
+                    return Err(format!(
+                        "Benanntes Argument {name} für {arg_name} nicht unterstützt: {wert_str}"
+                    ))
+                },
+            },
+            ArgumentWert::Stream(ts) => match name.as_str() {
+                "sprache" | "language" => {
+                    let sprache = match genau_eines(ts.into_iter()) {
+                        Ok(TokenTree::Ident(ident)) => match ident.to_string().as_str() {
+                            "deutsch" | "german" => Deutsch,
+                            "englisch" | "english" => English,
+                            _ => Sprache::TokenStream(TokenTree::Ident(ident).into()),
+                        },
+                        Ok(tt) => Sprache::TokenStream(tt.into()),
+                        Err(fehler) => Sprache::TokenStream(fehler.collect()),
+                    };
+                    setze_sprache(sprache, &sub_arg_str)?
+                },
+                "standard" | "default" => setze_standard(Some(ts), &name, &wert_str)?,
+                "meta_var" => setze_meta_var(&wert_str, &name, &wert_str)?,
+                "invertiere_präfix" | "invert_prefix" => {
+                    setze_invertiere_präfix(&wert_str, &name, &wert_str)?
+                },
+                "lang" | "long" => lang_namen = Some((wert_str, Vec::new())),
+                "kurz" | "short" => kurz_namen = KurzNamen::Namen(vec![wert_str]),
+                _ => {
+                    return Err(format!(
+                        "Benanntes Argument {name} für {arg_name} nicht unterstützt: {wert_str}"
+                    ))
+                },
+            },
+            _ => return Err(format!("Argument für {arg_name} nicht unterstützt: {sub_arg_str}")),
+        }
+    }
+    let (head, tail) = lang_namen.unwrap_or((arg_name.to_owned(), Vec::new()));
+    let lang_namen = quote!(
+        #crate_name::NonEmpty {
+            head: #head.to_owned(),
+            tail: vec![#(#tail.to_owned()),*]
+        }
+    );
+    setze_lang_namen(lang_namen);
+    let kurz_namen_iter = kurz_namen.to_vec(&head).into_iter();
+    let kurz_namen = quote!(vec![#(#kurz_namen_iter.to_owned()),*]);
+    setze_kurz_namen(kurz_namen);
+    Ok(())
 }
 
 fn wert_argument_error_message<'t>(
@@ -634,6 +712,14 @@ fn sprache_error_message<'t>() -> impl 't + Fn(Sprache, &str) -> Result<(), Stri
 fn standard_error_message<'t>(
     arg_name: &'t str,
 ) -> impl 't + Fn(Option<&str>, &str, &str) -> Result<(), String> {
+    move |_wert, ignored, string| {
+        Err(format!("Benanntes Argument {ignored} für {arg_name} nicht unterstützt: {string}"))
+    }
+}
+
+fn standard_error_message_ts<'t>(
+    arg_name: &'t str,
+) -> impl 't + Fn(Option<TokenStream>, &str, &str) -> Result<(), String> {
     move |_wert, ignored, string| {
         Err(format!("Benanntes Argument {ignored} für {arg_name} nicht unterstützt: {string}"))
     }
@@ -691,7 +777,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                     |namen| { kurz_namen = namen },
                     wert_argument_error_message(&name),
                     wert_argument_error_message(&name),
-                    standard_error_message(&name),
+                    standard_error_message_ts(&name),
                     None,
                 ));
                 match name.as_str() {
@@ -715,9 +801,8 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                     },
                 }
             },
-            ArgumentWert::Ident(ident) => todo!(),
-            ArgumentWert::Literal(literal) => todo!(),
             ArgumentWert::Liste(liste) => todo!(),
+            ArgumentWert::Stream(ts) => todo!(),
         }
 
         // FIXME replace
