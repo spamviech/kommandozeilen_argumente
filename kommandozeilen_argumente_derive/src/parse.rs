@@ -262,6 +262,9 @@ fn split_argumente(
                                 _ => current.extend(iter::once(tt)),
                             }
                         }
+                        if !current.is_empty() {
+                            acc.push(current)
+                        }
                         ArgumentWert::Liste(acc)
                     },
                     Ok(tt) => ArgumentWert::Stream(tt.into()),
