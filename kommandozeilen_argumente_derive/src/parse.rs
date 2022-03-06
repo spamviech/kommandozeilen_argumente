@@ -69,7 +69,7 @@ fn genau_eines<T, I: Iterator<Item = T>>(mut iter: I) -> Result<T, GenauEinesFeh
 #[derive(Debug)]
 enum ArgumentWert {
     KeinWert,
-    Unterargument(TokenStream),
+    Unterargument(Vec<Argument>),
     Wert(TokenTree),
 }
 
@@ -86,7 +86,19 @@ impl Display for Argument {
         use ArgumentWert::*;
         match wert {
             KeinWert => Ok(()),
-            Unterargument(ts) => write!(f, "({ts})"),
+            Unterargument(args) => {
+                write!(f, "(")?;
+                let mut first = true;
+                for arg in args {
+                    if first {
+                        first = false
+                    } else {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{arg}")?;
+                }
+                write!(f, ")")
+            },
             Wert(tt) => write!(f, ": {tt}"),
         }
     }
@@ -344,7 +356,11 @@ fn split_argumente_ts(
             Some(TokenTree::Group(group))
                 if group.delimiter() == Delimiter::Parenthesis && arg_iter.peek().is_none() =>
             {
-                ArgumentWert::Unterargument(group.stream())
+                let mut sub_parent = parent.clone();
+                sub_parent.push(name.clone());
+                let mut sub_args = Vec::new();
+                split_argumente_ts(sub_parent, &mut sub_args, group.stream())?;
+                ArgumentWert::Unterargument(sub_args)
             },
             Some(erstes) => {
                 return Err(Fehler::InvaliderArgumentWert {
