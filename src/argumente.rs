@@ -48,6 +48,9 @@ pub(crate) enum ArgString {
 //      z.B. nichts: -O0, -O: -O1, -O=N für explizite Angabe
 // TODO case sensitive Argumente/alles case sensitive
 //  benötigt Unicode normalization (wird bisher von unicase übernommen?), auch optional?
+// TODO Verwende unicode normalization, bevor das erste Grapheme für Kurznamen extrahiert wird?
+//      sowohl für automatisch erzeugte, wie für überprüfte Kurznamen
+//      https://crates.io/crates/unicode-normalization
 // TODO Argument-Gruppen (nur eine dieser N Flags kann gleichzeitig aktiv sein)
 // TODO Programm-Beschreibung in Hilfe-Text
 
