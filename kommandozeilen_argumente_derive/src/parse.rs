@@ -5,7 +5,7 @@ use std::{
     iter,
 };
 
-use proc_macro2::{Delimiter, Ident, LexError, Literal, Spacing, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Ident, LexError, Literal, Punct, Spacing, TokenStream, TokenTree};
 use quote::quote;
 use syn::{Field, ItemStruct};
 use unicode_segmentation::UnicodeSegmentation;
@@ -66,13 +66,18 @@ fn genau_eines<T, I: Iterator<Item = T>>(mut iter: I) -> Result<T, GenauEinesFeh
     }
 }
 
+#[inline(always)]
+fn punct_is_char(punct: &Punct, c: char) -> bool {
+    punct.as_char() == c && punct.spacing() == Spacing::Alone
+}
+
 #[derive(Debug)]
 enum ArgumentWert {
     KeinWert,
     Unterargument(Vec<Argument>),
     Ident(Ident),
     Literal(Literal),
-    Liste(TokenStream),
+    Liste(Vec<TokenStream>),
 }
 
 #[derive(Debug)]
@@ -81,27 +86,28 @@ struct Argument {
     wert: ArgumentWert,
 }
 
+fn write_liste<T: Display>(
+    f: &mut Formatter<'_>,
+    open: &str,
+    list: impl IntoIterator<Item = T>,
+    close: &str,
+) -> fmt::Result {
+    f.write_str(open)?;
+    let mut first = true;
+    for elem in list {
+        if first {
+            first = false
+        } else {
+            write!(f, ", ")?;
+        }
+        write!(f, "{elem}")?;
+    }
+    f.write_str(close)?;
+    Ok(())
+}
+
 impl Display for Argument {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        fn write_liste<T: Display>(
-            f: &mut Formatter<'_>,
-            open: &str,
-            list: impl IntoIterator<Item = T>,
-            close: &str,
-        ) -> fmt::Result {
-            f.write_str(open)?;
-            let mut first = true;
-            for elem in list {
-                if first {
-                    first = false
-                } else {
-                    write!(f, ", ")?;
-                }
-                write!(f, "{elem}")?;
-            }
-            f.write_str(close)?;
-            Ok(())
-        }
         let Argument { name, wert } = self;
         f.write_str(name)?;
         use ArgumentWert::*;
@@ -321,7 +327,7 @@ fn split_argumente<'t, S: From<&'t str>>(
 
 fn tt_is_not_comma(tt: &TokenTree) -> bool {
     if let TokenTree::Punct(punct) = tt {
-        punct.as_char() != ',' || punct.spacing() != Spacing::Alone
+        !punct_is_char(punct, ',')
     } else {
         true
     }
@@ -349,14 +355,24 @@ fn split_argumente_ts(
         // Wert bestimmen
         let wert = match arg_iter.next() {
             None => ArgumentWert::KeinWert,
-            Some(TokenTree::Punct(punct))
-                if punct.as_char() == ':' && punct.spacing() == Spacing::Alone =>
-            {
+            Some(TokenTree::Punct(punct)) if punct_is_char(&punct, ':') => {
                 match genau_eines(arg_iter) {
                     Ok(TokenTree::Ident(ident)) => ArgumentWert::Ident(ident),
                     Ok(TokenTree::Literal(literal)) => ArgumentWert::Literal(literal),
                     Ok(TokenTree::Group(group)) if group.delimiter() == Delimiter::Bracket => {
-                        ArgumentWert::Liste(group.stream())
+                        let mut iter = group.stream().into_iter();
+                        let mut acc = Vec::new();
+                        let mut current = TokenStream::new();
+                        while let Some(tt) = iter.next() {
+                            match tt {
+                                TokenTree::Punct(punct) if punct_is_char(&punct, ',') => {
+                                    acc.push(current);
+                                    current = TokenStream::new();
+                                },
+                                _ => current.extend(iter::once(tt)),
+                            }
+                        }
+                        ArgumentWert::Liste(acc)
                     },
                     Ok(tt) => {
                         return Err(Fehler::InvaliderArgumentWert {
@@ -593,6 +609,20 @@ fn parse_wert_arg(
     Ok(())
 }
 
+fn parse_wert_arg_ts(
+    arg_name: &str,
+    sub_args: Vec<Argument>,
+    mut setze_sprache: impl FnMut(Sprache, &str) -> Result<(), String>,
+    setze_lang_namen: impl FnOnce(TokenStream),
+    setze_kurz_namen: impl FnOnce(TokenStream),
+    mut setze_meta_var: impl FnMut(&str, &str, &str) -> Result<(), String>,
+    mut setze_invertiere_präfix: impl FnMut(&str, &str, &str) -> Result<(), String>,
+    mut setze_standard: impl FnMut(Option<&str>, &str, &str) -> Result<(), String>,
+    mut feld_argument: Option<&mut FeldArgument>,
+) -> Result<(), String> {
+    todo!()
+}
+
 fn wert_argument_error_message<'t>(
     arg_name: &'t str,
 ) -> impl 't + Fn(&str, &str, &str) -> Result<(), String> {
@@ -656,7 +686,45 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                 "help" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(English, None))),
                 _ => todo!(),
             },
-            ArgumentWert::Unterargument(ts) => todo!(),
+            ArgumentWert::Unterargument(sub_args) => {
+                let mut sub_sprache = None;
+                let mut lang_namen = quote!();
+                let mut kurz_namen = quote!();
+                unwrap_result_or_compile_error!(parse_wert_arg_ts(
+                    &name,
+                    sub_args,
+                    |sprache, _string| {
+                        sub_sprache = Some(sprache);
+                        Ok(())
+                    },
+                    |namen| { lang_namen = namen },
+                    |namen| { kurz_namen = namen },
+                    wert_argument_error_message(&name),
+                    wert_argument_error_message(&name),
+                    standard_error_message(&name),
+                    None,
+                ));
+                match name.as_str() {
+                    "hilfe" | "help" => {
+                        let standard_sprache = if name == "hilfe" { Deutsch } else { English };
+                        erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(
+                            sub_sprache.unwrap_or(standard_sprache),
+                            Some((lang_namen, kurz_namen)),
+                        )))
+                    },
+                    "version" => {
+                        erstelle_version = Some(Box::new(erstelle_version_methode(
+                            sub_sprache,
+                            Some((lang_namen, kurz_namen)),
+                        )))
+                    },
+                    _ => {
+                        compile_error_return!(
+                            "Unter-Argument für {name} nicht unterstützt: {arg_str}"
+                        )
+                    },
+                }
+            },
             ArgumentWert::Ident(ident) => todo!(),
             ArgumentWert::Literal(literal) => todo!(),
             ArgumentWert::Liste(liste) => todo!(),
