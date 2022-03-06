@@ -5,7 +5,7 @@ use std::{
     iter,
 };
 
-use proc_macro2::{Delimiter, LexError, Spacing, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Ident, LexError, Literal, Spacing, TokenStream, TokenTree};
 use quote::quote;
 use syn::{Field, ItemStruct};
 use unicode_segmentation::UnicodeSegmentation;
@@ -70,7 +70,9 @@ fn genau_eines<T, I: Iterator<Item = T>>(mut iter: I) -> Result<T, GenauEinesFeh
 enum ArgumentWert {
     KeinWert,
     Unterargument(Vec<Argument>),
-    Wert(TokenTree),
+    Ident(Ident),
+    Literal(Literal),
+    Liste(TokenStream),
 }
 
 #[derive(Debug)]
@@ -81,25 +83,34 @@ struct Argument {
 
 impl Display for Argument {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        fn write_liste<T: Display>(
+            f: &mut Formatter<'_>,
+            open: &str,
+            list: impl IntoIterator<Item = T>,
+            close: &str,
+        ) -> fmt::Result {
+            f.write_str(open)?;
+            let mut first = true;
+            for elem in list {
+                if first {
+                    first = false
+                } else {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{elem}")?;
+            }
+            f.write_str(close)?;
+            Ok(())
+        }
         let Argument { name, wert } = self;
-        write!(f, "{name}")?;
+        f.write_str(name)?;
         use ArgumentWert::*;
         match wert {
             KeinWert => Ok(()),
-            Unterargument(args) => {
-                write!(f, "(")?;
-                let mut first = true;
-                for arg in args {
-                    if first {
-                        first = false
-                    } else {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{arg}")?;
-                }
-                write!(f, ")")
-            },
-            Wert(tt) => write!(f, ": {tt}"),
+            Unterargument(args) => write_liste(f, "(", args, ")"),
+            Ident(ident) => write!(f, ": {ident}"),
+            Literal(literal) => write!(f, ": {literal}"),
+            Liste(tts) => write_liste(f, ": [", tts.clone(), "]"),
         }
     }
 }
@@ -342,7 +353,19 @@ fn split_argumente_ts(
                 if punct.as_char() == ':' && punct.spacing() == Spacing::Alone =>
             {
                 match genau_eines(arg_iter) {
-                    Ok(wert) => ArgumentWert::Wert(wert),
+                    Ok(TokenTree::Ident(ident)) => ArgumentWert::Ident(ident),
+                    Ok(TokenTree::Literal(literal)) => ArgumentWert::Literal(literal),
+                    Ok(TokenTree::Group(group)) if group.delimiter() == Delimiter::Bracket => {
+                        ArgumentWert::Liste(group.stream())
+                    },
+                    Ok(tt) => {
+                        return Err(Fehler::InvaliderArgumentWert {
+                            parent,
+                            name,
+                            doppelpunkt: true,
+                            wert: tt.into(),
+                        })
+                    },
                     Err(fehler) => {
                         return Err(Fehler::InvaliderArgumentWert {
                             parent,
@@ -634,7 +657,9 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                 _ => todo!(),
             },
             ArgumentWert::Unterargument(ts) => todo!(),
-            ArgumentWert::Wert(tt) => todo!(),
+            ArgumentWert::Ident(ident) => todo!(),
+            ArgumentWert::Literal(literal) => todo!(),
+            ArgumentWert::Liste(liste) => todo!(),
         }
 
         // FIXME replace
