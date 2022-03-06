@@ -274,7 +274,7 @@ fn split_argumente<'t, S: From<&'t str>>(
                         // Ignoriere extra Komma am Ende
                         rest = "";
                     } else {
-                        return Err(format!("Leeres Argument: {}", args_str));
+                        return Err(format!("Leeres Argument: {args_str}"));
                     }
                 } else {
                     args.push(S::from(trimmed));
@@ -295,7 +295,7 @@ fn split_argumente<'t, S: From<&'t str>>(
                 verkürze_suffix!(nächste_klammer + 1);
                 while !zu_schließende_klammern.is_empty() {
                     if suffix.is_empty() {
-                        return Err(format!("Nicht geschlossene Klammer: {}", rest));
+                        return Err(format!("Nicht geschlossene Klammer: {rest}"));
                     }
                     let öffnende_runde_klammer = find_or_len(suffix, '(');
                     let öffnende_eckige_klammer = find_or_len(suffix, '[');
@@ -574,23 +574,19 @@ fn parse_wert_arg(
                             let (head, tail) = if let Some(head) = namen_iter.next() {
                                 (head, namen_iter.collect())
                             } else {
-                                return Err(format!("Kein LangName für {}!", arg_name));
+                                return Err(format!("Kein LangName für {arg_name}!"));
                             };
                             lang_namen = Some((head, tail))
                         },
                         "kurz" | "short" => kurz_namen = KurzNamen::Namen(werte),
                         _ => {
                             return Err(format!(
-                                "Benanntes Argument {} für {} nicht unterstützt: {}",
-                                trimmed, arg_name, string
+                                "Benanntes Argument {trimmed} für {arg_name} nicht unterstützt: {string}"
                             ))
                         },
                     }
                 } else {
-                    return Err(format!(
-                        "Argument für {} nicht unterstützt: {}",
-                        arg_name, sub_arg
-                    ));
+                    return Err(format!("Argument für {arg_name} nicht unterstützt: {sub_arg}"));
                 }
             },
         }
@@ -627,25 +623,19 @@ fn wert_argument_error_message<'t>(
     arg_name: &'t str,
 ) -> impl 't + Fn(&str, &str, &str) -> Result<(), String> {
     move |_wert, ignored, string| {
-        Err(format!(
-            "Benanntes Argument {} für {} nicht unterstützt: {}",
-            ignored, arg_name, string
-        ))
+        Err(format!("Benanntes Argument {ignored} für {arg_name} nicht unterstützt: {string}"))
     }
 }
 
 fn sprache_error_message<'t>() -> impl 't + Fn(Sprache, &str) -> Result<(), String> {
-    move |_sprache, string| Err(format!("Argument nicht unterstützt: {}", string))
+    move |_sprache, string| Err(format!("Argument nicht unterstützt: {string}"))
 }
 
 fn standard_error_message<'t>(
     arg_name: &'t str,
 ) -> impl 't + Fn(Option<&str>, &str, &str) -> Result<(), String> {
     move |_wert, ignored, string| {
-        Err(format!(
-            "Benanntes Argument {} für {} nicht unterstützt: {}",
-            ignored, arg_name, string
-        ))
+        Err(format!("Benanntes Argument {ignored} für {arg_name} nicht unterstützt: {string}"))
     }
 }
 
@@ -795,14 +785,12 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                         "meta_var" => meta_var = Some(wert_trimmed.to_owned()),
                         trimmed => {
                             compile_error_return!(
-                                "Benanntes Argument(Doppelpunkt) {} nicht unterstützt: {:?}",
-                                trimmed,
-                                string,
+                                "Benanntes Argument(Doppelpunkt) {trimmed} nicht unterstützt: {string:?}"
                             )
                         },
                     }
                 } else {
-                    compile_error_return!("Argument nicht unterstützt: {}", arg_str)
+                    compile_error_return!("Argument nicht unterstützt: {arg_str}")
                 }
             },
         }
@@ -825,7 +813,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
         let ident = unwrap_option_or_compile_error!(ident, "Nur benannte Felder unterstützt.");
         let ident_str = ident.to_string();
         if ident_str.is_empty() {
-            compile_error_return!("Benanntes Feld mit leerem Namen: {}", ident_str)
+            compile_error_return!("Benanntes Feld mit leerem Namen: {ident_str}")
         }
         let mut lang = quote!(#ident_str.to_owned());
         let mut kurz = quote!(None);
@@ -878,9 +866,7 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                     ));
                 } else {
                     compile_error_return!(
-                        "Argument für {} nicht in Klammern eingeschlossen: {}",
-                        ident_str,
-                        args_string
+                        "Argument für {ident_str} nicht in Klammern eingeschlossen: {args_string}"
                     )
                 }
             }
