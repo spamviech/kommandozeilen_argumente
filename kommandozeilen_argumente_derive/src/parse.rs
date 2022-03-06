@@ -429,7 +429,11 @@ fn parse_wert_arg(
                 "glätten" | "flatten" => setze_feld_argument!(FeldArgument::Parse, sub_arg_str),
                 "FromStr" => setze_feld_argument!(FeldArgument::FromStr, sub_arg_str),
                 "benötigt" | "required" => setze_standard(None, &name, &name)?,
-                _ => todo!(),
+                _ => {
+                    return Err(format!(
+                        "Unbenanntes Argument für {arg_name} nicht unterstützt: {sub_arg_str}"
+                    ))
+                },
             },
             ArgumentWert::Liste(liste) => match name.as_str() {
                 "lang" | "long" => {
