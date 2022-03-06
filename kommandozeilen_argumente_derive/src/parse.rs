@@ -94,21 +94,68 @@ impl Display for Argument {
 
 #[derive(Debug)]
 enum Fehler {
-    NichtInKlammer(TokenStream),
-    LeeresArgument(TokenStream),
-    InvaliderArgumentName(TokenTree),
-    InvaliderArgumentWert { name: String, doppelpunkt: bool, wert: TokenStream },
+    NichtInKlammer {
+        parent: Vec<String>,
+        ts: TokenStream,
+    },
+    LeeresArgument {
+        parent: Vec<String>,
+        ts: TokenStream,
+    },
+    InvaliderArgumentName {
+        parent: Vec<String>,
+        tt: TokenTree,
+    },
+    InvaliderArgumentWert {
+        parent: Vec<String>,
+        name: String,
+        doppelpunkt: bool,
+        wert: TokenStream,
+    },
 }
 
 impl Display for Fehler {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        fn write_parent(
+            f: &mut Formatter<'_>,
+            parent: &[String],
+            präposition: &str,
+        ) -> fmt::Result {
+            if !parent.is_empty() {
+                write!(f, " {präposition} ")?;
+                let mut first = true;
+                for name in parent {
+                    if first {
+                        first = false
+                    } else {
+                        write!(f, "::")?;
+                    }
+                    write!(f, "{name}")?;
+                }
+            }
+            Ok(())
+        }
         use Fehler::*;
         match self {
-            NichtInKlammer(ts) => write!(f, "Argumente nicht in Klammern eingeschlossen: {ts}"),
-            LeeresArgument(ts) => write!(f, "Leeres Argument: {ts}"),
-            InvaliderArgumentName(tt) => write!(f, "Invalider Name für ein Argument: {tt}"),
-            InvaliderArgumentWert { name, doppelpunkt, wert } => {
-                write!(f, "Invalider Wert für Argument {name}!\n{name} ")?;
+            NichtInKlammer { parent, ts } => {
+                write!(f, "Argumente")?;
+                write_parent(f, parent, "für")?;
+                write!(f, " nicht in Klammern eingeschlossen: {ts}")
+            },
+            LeeresArgument { parent, ts } => {
+                write!(f, "Leeres Argument")?;
+                write_parent(f, parent, "für")?;
+                write!(f, ": {ts}")
+            },
+            InvaliderArgumentName { parent, tt } => {
+                write!(f, "Invalider Name für ein Argument")?;
+                write_parent(f, parent, "von")?;
+                write!(f, ": {tt}")
+            },
+            InvaliderArgumentWert { parent, name, doppelpunkt, wert } => {
+                write!(f, "Invalider Wert für Argument {name}")?;
+                write_parent(f, parent, "von")?;
+                write!(f, "!\n{name} ")?;
                 if *doppelpunkt {
                     write!(f, ": ")?;
                 }
@@ -164,7 +211,7 @@ fn test_split_argumente() {
     let world_wert =
         "[it's, a, big, world!]".parse::<TokenStream>().expect("world_wert").to_string();
     let world_string = format!("world: {world_wert}");
-    split_klammer_argumente_ts(&mut args, args_ts).expect("Argumente sind wohlgeformt");
+    split_klammer_argumente_ts(Vec::new(), &mut args, args_ts).expect("Argumente sind wohlgeformt");
     let args_str: Vec<_> = args.iter().map(ToString::to_string).collect();
     assert_eq!(args_str, vec!["hello(hi)", &world_string])
 }
@@ -261,7 +308,11 @@ fn tt_is_not_comma(tt: &TokenTree) -> bool {
 /// Argumente können Werte haben, getrennt durch `:`.
 /// Wert-Argumente können Listen (angegeben durch [], potentiell mit Kommas) sein.
 /// Argumente werden nicht weiter behandelt.
-fn split_argumente_ts(args: &mut Vec<Argument>, args_ts: TokenStream) -> Result<(), Fehler> {
+fn split_argumente_ts(
+    parent: Vec<String>,
+    args: &mut Vec<Argument>,
+    args_ts: TokenStream,
+) -> Result<(), Fehler> {
     let mut iter = args_ts.into_iter().peekable();
     let iter_mut_ref = iter.by_ref();
     while iter_mut_ref.peek().is_some() {
@@ -269,8 +320,8 @@ fn split_argumente_ts(args: &mut Vec<Argument>, args_ts: TokenStream) -> Result<
         // Name extrahieren
         let name = match arg_iter.next() {
             Some(TokenTree::Ident(ident)) => ident.to_string(),
-            Some(tt) => return Err(Fehler::InvaliderArgumentName(tt)),
-            None => return Err(Fehler::LeeresArgument(iter_mut_ref.collect())),
+            Some(tt) => return Err(Fehler::InvaliderArgumentName { parent, tt }),
+            None => return Err(Fehler::LeeresArgument { parent, ts: iter_mut_ref.collect() }),
         };
         // Wert bestimmen
         let wert = match arg_iter.next() {
@@ -282,6 +333,7 @@ fn split_argumente_ts(args: &mut Vec<Argument>, args_ts: TokenStream) -> Result<
                     Ok(wert) => ArgumentWert::Wert(wert),
                     Err(fehler) => {
                         return Err(Fehler::InvaliderArgumentWert {
+                            parent,
                             name,
                             doppelpunkt: true,
                             wert: fehler.collect(),
@@ -296,6 +348,7 @@ fn split_argumente_ts(args: &mut Vec<Argument>, args_ts: TokenStream) -> Result<
             },
             Some(erstes) => {
                 return Err(Fehler::InvaliderArgumentWert {
+                    parent,
                     name,
                     doppelpunkt: false,
                     wert: iter::once(erstes).chain(arg_iter).collect(),
@@ -308,44 +361,24 @@ fn split_argumente_ts(args: &mut Vec<Argument>, args_ts: TokenStream) -> Result<
     Ok(())
 }
 
-fn split_klammer_argumente<'t, S: From<&'t str>>(
-    args: &mut Vec<S>,
-    args_str: &'t str,
-) -> Result<(), String> {
-    let stripped = if let Some(("", stripped)) = parse_klammer_arg(args_str) {
-        stripped
-    } else {
-        return Err(format!("Argumente nicht in Klammern eingeschlossen: {}", args_str));
-    };
-    split_argumente(args, stripped)
-}
-
 fn split_klammer_argumente_ts(
+    parent: Vec<String>,
     args: &mut Vec<Argument>,
     args_ts: TokenStream,
 ) -> Result<(), Fehler> {
     let group = match genau_eines(args_ts.into_iter()) {
         Ok(TokenTree::Group(group)) if group.delimiter() == Delimiter::Parenthesis => group,
-        Ok(tt) => return Err(Fehler::NichtInKlammer(tt.into())),
-        Err(fehler) => return Err(Fehler::NichtInKlammer(fehler.collect())),
+        Ok(tt) => return Err(Fehler::NichtInKlammer { parent, ts: tt.into() }),
+        Err(fehler) => return Err(Fehler::NichtInKlammer { parent, ts: fehler.collect() }),
     };
-    split_argumente_ts(args, group.stream())
-}
-
-macro_rules! split_klammer_argumente {
-    ($args: expr, $stripped: expr) => {
-        if let Err(fehler) = split_klammer_argumente(&mut $args, $stripped) {
-            let compile_error = quote!(compile_error! {#fehler });
-            return compile_error;
-        }
-    };
+    split_argumente_ts(parent, args, group.stream())
 }
 
 macro_rules! split_klammer_argumente_ts {
     ($args: expr, $ts: expr) => {
-        if let Err(fehler) = split_klammer_argumente_ts(&mut $args, $ts) {
+        if let Err(fehler) = split_klammer_argumente_ts(Vec::new(), &mut $args, $ts) {
             let fehler_str = fehler.to_string();
-            let compile_error = quote!(compile_error! {#fehler_str });
+            let compile_error = quote!(compile_error! {#fehler_str});
             return compile_error;
         }
     };
