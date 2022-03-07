@@ -795,11 +795,13 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                         feld_args,
                         wert_argument_error_message,
                         |_name, wert_ts| -> Result<(), fn(String) -> ParseWertFehler> {
-                            feld_meta_var = wert_ts;
+                            let wert_string = wert_ts.to_string();
+                            feld_meta_var = quote!(#wert_string);
                             Ok(())
                         },
                         |_name, wert_ts| -> Result<(), fn(String) -> ParseWertFehler> {
-                            feld_invertiere_präfix = wert_ts;
+                            let wert_string = wert_ts.to_string();
+                            feld_invertiere_präfix = quote!(#wert_string);
                             Ok(())
                         },
                         |_name, opt_wert_ts| -> Result<(), fn(String) -> ParseWertFehler> {
