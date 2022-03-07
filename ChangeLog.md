@@ -2,6 +2,12 @@
 
 ## Unreleased changes
 
+- kombiniereN-Funktionen werden explizit (über ein Macro) implementiert.
+    Dadurch werden deutlich weniger Tupel ge- und entpackt,
+    wie es bei der `kombiniere!`-basierten Implementierung noch der Fall war.
+- kommandozeilen_argumente_derive verwendet syn-feature "derive" statt "full".
+- kommandozeilen_argumente_derive parsed Attribute direkt als TokenStream.
+
 ## 0.1.3
 
 - Durch kommandozeilen_argumente_derive erzeugte [Parse](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html)-Instanzen
