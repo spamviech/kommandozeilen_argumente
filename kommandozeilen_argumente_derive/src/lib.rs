@@ -33,41 +33,12 @@
 )]
 
 use proc_macro::TokenStream;
-use quote::format_ident;
+use quote::{format_ident, quote};
 use syn::{parse_macro_input, Ident, ItemEnum, ItemStruct};
 
 fn base_name() -> Ident {
     format_ident!("{}", "kommandozeilen_argumente")
 }
-
-macro_rules! compile_error_return {
-    ($format_string: tt$(, $($format_args: expr),+)?$(,)?) => {{
-        let fehlermeldung = format!($format_string$(, $($format_args),+)?);
-        let compile_error = quote!(compile_error! {#fehlermeldung });
-        return compile_error.into();
-    }};
-}
-pub(crate) use compile_error_return;
-
-macro_rules! unwrap_result_or_compile_error {
-    ($result: expr) => {
-        match $result {
-            Ok(wert) => wert,
-            Err(fehler) => compile_error_return!("{}", fehler),
-        }
-    };
-}
-pub(crate) use unwrap_result_or_compile_error;
-
-macro_rules! unwrap_option_or_compile_error {
-    ($option: expr, $fehler: tt) => {
-        match $option {
-            Some(wert) => wert,
-            None => compile_error_return!("{}", $fehler),
-        }
-    };
-}
-pub(crate) use unwrap_option_or_compile_error;
 
 mod enum_argument;
 mod parse;
@@ -75,9 +46,14 @@ mod parse;
 /// Derive-Macro für das [Parse](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html)-Traits.
 #[proc_macro_derive(Parse, attributes(kommandozeilen_argumente))]
 pub fn derive_parse(item: TokenStream) -> TokenStream {
-    let item_struct = parse_macro_input!(item as ItemStruct);
-
-    parse::derive_parse(item_struct).into()
+    match parse::derive_parse(item.into()) {
+        Ok(ts) => ts,
+        Err(fehler) => {
+            let fehlermeldung = fehler.to_string();
+            quote!(compile_error! {#fehlermeldung })
+        },
+    }
+    .into()
 }
 
 /// Derive-Macro für das [EnumArgument](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html)-Trait.

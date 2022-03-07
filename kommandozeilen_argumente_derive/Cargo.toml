@@ -19,6 +19,6 @@ proc-macro2 = "1.0.36"
 unicode-segmentation = "1.8.0"
 
 [dependencies.syn]
-version = "1.0.85"
-features = ["full", "parsing", "proc-macro"]
+version = "1.0.86"
+features = ["full", "derive", "parsing", "proc-macro"]
 default_features = false

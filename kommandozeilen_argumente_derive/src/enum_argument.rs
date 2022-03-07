@@ -4,7 +4,15 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{Fields, ItemEnum};
 
-use crate::{base_name, compile_error_return};
+use crate::base_name;
+
+macro_rules! compile_error_return {
+    ($format_string: tt$(, $($format_args: expr),+)?$(,)?) => {{
+        let fehlermeldung = format!($format_string$(, $($format_args),+)?);
+        let compile_error = quote!(compile_error! {#fehlermeldung });
+        return compile_error.into();
+    }};
+}
 
 pub(crate) fn derive_enum_argument(item_enum: ItemEnum) -> TokenStream {
     let crate_name = base_name();
