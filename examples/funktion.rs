@@ -102,14 +102,16 @@ fn main() {
         Beschreibung::neu("wert", None, Some("Ein String-Wert.".to_owned()), None),
         sprache,
     );
-    let aufzählung = Argumente::wert_enum_display_mit_sprache(
+    let aufzählung = Argumente::wert_enum_display(
         Beschreibung::neu(
             "aufzählung",
             "a",
-            Some("Ein Aufzählung-Wert mit Standard-Wert.".to_owned()),
+            Some(
+                "Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable.".to_owned(),
+            ),
             Some(Aufzählung::Zwei),
         ),
-        sprache,
+        "VAR".to_owned(),
     );
     let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung| Args {
         flag,

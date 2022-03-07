@@ -31,8 +31,8 @@ struct Args {
     benötigt: bool,
     /// Ein String-Wert.
     wert: String,
-    /// Ein Aufzählung-Wert mit Standard-Wert.
-    #[kommandozeilen_argumente(kurz, standard: Aufzählung::Zwei)]
+    /// Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable.
+    #[kommandozeilen_argumente(kurz, standard: Aufzählung::Zwei, meta_var: VAR)]
     aufzählung: Aufzählung,
 }
 
