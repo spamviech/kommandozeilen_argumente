@@ -34,7 +34,7 @@
 
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, Ident, ItemEnum, ItemStruct};
+use syn::Ident;
 
 fn base_name() -> Ident {
     format_ident!("{}", "kommandozeilen_argumente")
@@ -59,7 +59,12 @@ pub fn derive_parse(item: TokenStream) -> TokenStream {
 /// Derive-Macro für das [EnumArgument](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html)-Trait.
 #[proc_macro_derive(EnumArgument)]
 pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
-    let item_enum = parse_macro_input!(item as ItemEnum);
-
-    enum_argument::derive_enum_argument(item_enum).into()
+    match enum_argument::derive_enum_argument(item.into()) {
+        Ok(ts) => ts,
+        Err(fehler) => {
+            let fehlermeldung = fehler.to_string();
+            quote!(compile_error! {#fehlermeldung })
+        },
+    }
+    .into()
 }

@@ -20,5 +20,5 @@ unicode-segmentation = "1.8.0"
 
 [dependencies.syn]
 version = "1.0.86"
-features = ["full", "derive", "parsing", "proc-macro"]
+features = ["derive", "parsing", "proc-macro"]
 default_features = false
