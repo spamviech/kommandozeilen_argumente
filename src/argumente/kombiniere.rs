@@ -36,13 +36,47 @@ macro_rules! kombiniere {
 }
 
 macro_rules! impl_kombiniere_n {
-    ($name: ident ($($var: ident: $ty_var: ident),*)) => {
+    ($name: ident ($($var: ident: $ty_var: ident),+)) => {
         /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
-        pub fn $name<$($ty_var: 'static),*>(
-            f: impl 'static + Fn($($ty_var),*) -> T,
-            $($var: Argumente<$ty_var, Error>),*
+        pub fn $name<$($ty_var: 'static),+>(
+            f: impl 'static + Fn($($ty_var),+) -> T,
+            $($var: Argumente<$ty_var, Error>),+
         ) -> Argumente<T, Error> {
-            kombiniere!(f=>$($var),*)
+            let mut beschreibungen = Vec :: new();
+            $(beschreibungen.extend($var.beschreibungen);)+
+            let mut flag_kurzformen = Vec::new();
+            $(flag_kurzformen.extend($var.flag_kurzformen);)+
+            Argumente {
+                beschreibungen,
+                flag_kurzformen,
+                parse: Box::new(move |args| {
+                    let mut fehler = Vec::new();
+                    let mut frühes_beenden = Vec::new();
+                    let nicht_verwendet = args;
+                    $(
+                        let (ergebnis, nicht_verwendet) = ($var.parse)(nicht_verwendet);
+                        let $var = match ergebnis {
+                            Ergebnis::Wert(wert) => Some(wert),
+                            Ergebnis::FrühesBeenden(nachrichten) => {
+                                frühes_beenden.extend(nachrichten);
+                                None
+                            },
+                            Ergebnis::Fehler(parse_fehler) => {
+                                fehler.extend(parse_fehler);
+                                None
+                            },
+                        };
+                    )+
+                    let ergebnis = if let Some(fehler) = NonEmpty::from_vec(fehler) {
+                        Ergebnis::Fehler(fehler)
+                    } else if let Some(nachrichten) = NonEmpty::from_vec(frühes_beenden) {
+                        Ergebnis::FrühesBeenden(nachrichten)
+                    } else {
+                        Ergebnis::Wert(f($($var.unwrap()),+))
+                    };
+                    (ergebnis, nicht_verwendet)
+                }),
+            }
         }
 
     };
@@ -78,58 +112,7 @@ impl<T, Error: 'static> Argumente<T, Error> {
         }
     }
 
-    /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
-    pub fn kombiniere2<A: 'static, B: 'static>(
-        f: impl 'static + Fn(A, B) -> T,
-        a: Argumente<A, Error>,
-        b: Argumente<B, Error>,
-    ) -> Argumente<T, Error> {
-        let mut beschreibungen = a.beschreibungen;
-        beschreibungen.extend(b.beschreibungen);
-        let mut flag_kurzformen = a.flag_kurzformen;
-        flag_kurzformen.extend(b.flag_kurzformen);
-        Argumente {
-            beschreibungen,
-            flag_kurzformen,
-            parse: Box::new(move |args| {
-                let mut fehler = Vec::new();
-                let mut frühes_beenden = Vec::new();
-                let (a_ergebnis, a_nicht_verwendet) = (a.parse)(args);
-                let a = match a_ergebnis {
-                    Ergebnis::Wert(wert) => Some(wert),
-                    Ergebnis::FrühesBeenden(nachrichten) => {
-                        frühes_beenden.extend(nachrichten);
-                        None
-                    },
-                    Ergebnis::Fehler(parse_fehler) => {
-                        fehler.extend(parse_fehler);
-                        None
-                    },
-                };
-                let (b_ergebnis, b_nicht_verwendet) = (b.parse)(a_nicht_verwendet);
-                let b = match b_ergebnis {
-                    Ergebnis::Wert(wert) => Some(wert),
-                    Ergebnis::FrühesBeenden(nachrichten) => {
-                        frühes_beenden.extend(nachrichten);
-                        None
-                    },
-                    Ergebnis::Fehler(parse_fehler) => {
-                        fehler.extend(parse_fehler);
-                        None
-                    },
-                };
-                let ergebnis = if let Some(fehler) = NonEmpty::from_vec(fehler) {
-                    Ergebnis::Fehler(fehler)
-                } else if let Some(nachrichten) = NonEmpty::from_vec(frühes_beenden) {
-                    Ergebnis::FrühesBeenden(nachrichten)
-                } else {
-                    Ergebnis::Wert(f(a.unwrap(), b.unwrap()))
-                };
-                (ergebnis, b_nicht_verwendet)
-            }),
-        }
-    }
-
+    impl_kombiniere_n! {kombiniere2(a: A, b: B)}
     impl_kombiniere_n! {kombiniere3(a: A, b: B, c: C)}
     impl_kombiniere_n! {kombiniere4(a: A, b: B, c: C, d: D)}
     impl_kombiniere_n! {kombiniere5(a: A, b: B, c: C, d: D, e: E)}
