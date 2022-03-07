@@ -9,7 +9,7 @@ use syn::{parse2, Data, DataEnum, DeriveInput, Fields, Ident};
 use crate::base_name;
 
 #[derive(Debug)]
-enum TypNichtUnterstützt {
+pub(crate) enum TypNichtUnterstützt {
     Struct,
     Union,
 }
@@ -24,7 +24,7 @@ impl Display for TypNichtUnterstützt {
     }
 }
 
-enum Fehler {
+pub(crate) enum Fehler {
     Syn(syn::Error),
     KeinEnum { typ: TypNichtUnterstützt, input: TokenStream },
     Generics { anzahl: usize, where_clause: bool },
@@ -61,10 +61,12 @@ impl From<syn::Error> for Fehler {
 
 pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fehler> {
     use Fehler::*;
-    let DeriveInput { ident, data, generics, .. } = parse2(input)?;
+    use TypNichtUnterstützt::*;
+    let DeriveInput { ident, data, generics, .. } = parse2(input.clone())?;
     let DataEnum { variants, .. } = match data {
         Data::Enum(data_enum) => data_enum,
-        _ => todo!(),
+        Data::Struct(_) => return Err(KeinEnum { typ: Struct, input }),
+        Data::Union(_) => return Err(KeinEnum { typ: Union, input }),
     };
     let crate_name = base_name();
     let has_where_clause = generics.where_clause.is_some();
