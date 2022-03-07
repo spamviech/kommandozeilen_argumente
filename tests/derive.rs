@@ -33,7 +33,7 @@ struct Test {
     #[kommandozeilen_argumente(lang: alternativ, kurz: [p, q, r])]
     opt: Option<Bla>,
     /// from_str
-    #[kommandozeilen_argumente(FromStr, standard: 42)]
+    #[kommandozeilen_argumente(FromStr, standard: 42, meta_var: VAR)]
     from_str: i32,
     /// flag
     #[kommandozeilen_argumente(standard: true)]
