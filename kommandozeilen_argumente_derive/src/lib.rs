@@ -41,7 +41,7 @@ fn base_name() -> Ident {
 }
 
 macro_rules! compile_error_return {
-    ($format_string: tt$(, $($format_args: expr),+$(,)?)?) => {{
+    ($format_string: tt$(, $($format_args: expr),+)?$(,)?) => {{
         let fehlermeldung = format!($format_string$(, $($format_args),+)?);
         let compile_error = quote!(compile_error! {#fehlermeldung });
         return compile_error.into();
