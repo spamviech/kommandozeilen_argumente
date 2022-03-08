@@ -7,23 +7,89 @@ use crate::{argumente::Argumente, ergebnis::Ergebnis};
 #[macro_export]
 /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
 macro_rules! kombiniere {
-    ($funktion: expr $(,)?) => {
+    ($funktion:expr $(,)?) => {
         $crate::Argumente::konstant($funktion)
     };
-    ($funktion: expr => $($args:ident),*) => {
-        $crate::kombiniere!($funktion, $($args),*)
-    };
-    ($funktion: expr, $a: ident $(,)?) => {
+    ($funktion:expr, $a:ident $(,)?) => {
         $crate::Argumente::konvertiere($funktion, $a)
     };
-    ($funktion: expr, $a: ident, $b:ident $(,)?) => {
+    ($funktion:expr, $a:ident, $b:ident $(,)?) => {
         $crate::Argumente::kombiniere2($funktion, $a, $b)
     };
-    ($funktion: expr, $a: ident, $b:ident, $($args: ident),+ $(,)?) => {{
-        let tuple_arg = $crate::Argumente::kombiniere2(|a,b| (a,b), $a, $b);
-        let uncurry_first_two = move |(a,b), $($args),+| $funktion(a, b, $($args),+);
-        $crate::kombiniere!(uncurry_first_two, tuple_arg, $($args),+)
+    ($funktion:expr, $a:ident, $b:ident, $c:ident $(,)?) => {
+        $crate::Argumente::kombiniere3($funktion, $a, $b, $c)
+    };
+    ($funktion:expr, $a:ident, $b:ident, $c:ident, $d:ident $(,)?) => {
+        $crate::Argumente::kombiniere4($funktion, $a, $b, $c, $d)
+    };
+    ($funktion:expr, $a:ident, $b:ident, $c:ident, $d:ident, $e:ident $(,)?) => {
+        $crate::Argumente::kombiniere5($funktion, $a, $b, $c, $d, $e)
+    };
+    ($funktion:expr, $a:ident, $b:ident, $c:ident, $d:ident, $e:ident, $f:ident $(,)?) => {
+        $crate::Argumente::kombiniere6($funktion, $a, $b, $c, $d, $e, $f)
+    };
+    ($funktion:expr, $a:ident, $b:ident, $c:ident, $d:ident, $e:ident, $f:ident, $g:ident $(,)?) => {
+        $crate::Argumente::kombiniere7($funktion, $a, $b, $c, $d, $e, $f, $g)
+    };
+    (
+        $funktion:expr,
+        $a:ident,
+        $b:ident,
+        $c:ident,
+        $d:ident,
+        $e:ident,
+        $f:ident,
+        $g:ident,
+        $h:ident $(,)?
+    ) => {
+        $crate::Argumente::kombiniere8($funktion, $a, $b, $c, $d, $e, $f, $g, $h)
+    };
+    (
+        $funktion:expr,
+        $a:ident,
+        $b:ident,
+        $c:ident,
+        $d:ident,
+        $e:ident,
+        $f:ident,
+        $g:ident,
+        $h:ident,
+        $i:ident $(,)?
+    ) => {
+        $crate::Argumente::kombiniere9($funktion, $a, $b, $c, $d, $e, $f, $g, $h, $i)
+    };
+    (
+        $funktion:expr,
+        $a:ident,
+        $b:ident,
+        $c:ident,
+        $d:ident,
+        $e:ident,
+        $f:ident,
+        $g:ident,
+        $h:ident,
+        $i:ident,
+        $($args: ident),+
+    ) => {{
+        let tuple_arg = $crate::Argumente::kombiniere9(
+            |a,b,c,d,e,f,g,h,i| (a,b,c,d,e,f,g,h,i),
+            $a,
+            $b,
+            $c,
+            $d,
+            $e,
+            $f,
+            $g,
+            $h,
+            $i
+        );
+        let uncurry_first_nine =
+            move |(a,b,c,d,e,f,g,h,i), $($args),+| $funktion(a,b,c,d,e,f,g,h,i, $($args),+);
+        $crate::kombiniere!(uncurry_first_nine, tuple_arg, $($args),+)
     }};
+    ($funktion:expr => $($args:ident),*) => {
+        $crate::kombiniere!($funktion, $($args),*)
+    };
 }
 
 #[macro_export]
