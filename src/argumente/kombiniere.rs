@@ -10,35 +10,37 @@ macro_rules! kombiniere {
     ($funktion: expr $(,)?) => {
         $crate::Argumente::konstant($funktion)
     };
-    ($funktion: expr => ) => {
-        $crate::kombiniere!($funktion)
+    ($funktion: expr => $($args:ident),*) => {
+        $crate::kombiniere!($funktion, $($args),*)
     };
     ($funktion: expr, $a: ident $(,)?) => {
         $crate::Argumente::konvertiere($funktion, $a)
     };
-    ($funktion: expr => $a: ident $(,)?) => {
-        $crate::kombiniere!($funktion, $a)
-    };
     ($funktion: expr, $a: ident, $b:ident $(,)?) => {
         $crate::Argumente::kombiniere2($funktion, $a, $b)
-    };
-    ($funktion: expr => $a: ident, $b:ident $(,)?) => {
-        $crate::kombiniere!($funktion, $a, $b)
     };
     ($funktion: expr, $a: ident, $b:ident, $($args: ident),+ $(,)?) => {{
         let tuple_arg = $crate::Argumente::kombiniere2(|a,b| (a,b), $a, $b);
         let uncurry_first_two = move |(a,b), $($args),+| $funktion(a, b, $($args),+);
         $crate::kombiniere!(uncurry_first_two, tuple_arg, $($args),+)
     }};
-    ($funktion: expr => $a: ident, $b:ident, $($args: ident),+ $(,)?) => {
-        $crate::kombiniere!($funktion, $a, $b, $($args),+)
+}
+
+#[macro_export]
+/// Parse multiple command line arguments and combine the results with the given function.
+macro_rules! combine {
+    ($funktion: expr $(, $($args:ident),*)?) => {
+        $crate::kombiniere!($funktion $(, $($args),*)?)
+    };
+    ($funktion: expr => $($args:ident),*) => {
+        $crate::kombiniere!($funktion, $($args),*)
     };
 }
 
 macro_rules! impl_kombiniere_n {
-    ($name: ident ($($var: ident: $ty_var: ident),+)) => {
+    ($deutsch: ident - $english: ident ($($var: ident: $ty_var: ident),+)) => {
         /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
-        pub fn $name<$($ty_var: 'static),+>(
+        pub fn $deutsch<$($ty_var: 'static),+>(
             f: impl 'static + Fn($($ty_var),+) -> T,
             $($var: Argumente<$ty_var, Error>),+
         ) -> Argumente<T, Error> {
@@ -79,6 +81,15 @@ macro_rules! impl_kombiniere_n {
             }
         }
 
+
+        /// Parse multiple command line arguments and combine the results with the given function.
+        #[inline(always)]
+        pub fn $english<$($ty_var: 'static),+>(
+            f: impl 'static + Fn($($ty_var),+) -> T,
+            $($var: Argumente<$ty_var, Error>),+
+        ) -> Argumente<T, Error> {
+            Argumente::$deutsch(f, $($var),+)
+        }
     };
 }
 
@@ -92,7 +103,13 @@ impl<T, Error: 'static> Argumente<T, Error> {
         }
     }
 
-    /// Parse Kommandozeilen-Argumente und konvertiere das Ergebnis mit der übergebenen Funktion.
+    /// Parse no command line arguments and create the result with the given function.
+    #[inline(always)]
+    pub fn constant(f: impl 'static + Fn() -> T) -> Argumente<T, Error> {
+        Argumente::konstant(f)
+    }
+
+    /// Parse ein Kommandozeilen-Argument und konvertiere das Ergebnis mit der übergebenen Funktion.
     pub fn konvertiere<A: 'static>(
         f: impl 'static + Fn(A) -> T,
         Argumente { beschreibungen, flag_kurzformen, parse }: Argumente<A, Error>,
@@ -112,12 +129,21 @@ impl<T, Error: 'static> Argumente<T, Error> {
         }
     }
 
-    impl_kombiniere_n! {kombiniere2(a: A, b: B)}
-    impl_kombiniere_n! {kombiniere3(a: A, b: B, c: C)}
-    impl_kombiniere_n! {kombiniere4(a: A, b: B, c: C, d: D)}
-    impl_kombiniere_n! {kombiniere5(a: A, b: B, c: C, d: D, e: E)}
-    impl_kombiniere_n! {kombiniere6(a: A, b: B, c: C, d: D, e: E, f: F)}
-    impl_kombiniere_n! {kombiniere7(a: A, b: B, c: C, d: D, e: E, f: F, g: G)}
-    impl_kombiniere_n! {kombiniere8(a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H)}
-    impl_kombiniere_n! {kombiniere9(a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H, i: I)}
+    /// Parse one command line argument and convert the result with the given function.
+    #[inline(always)]
+    pub fn convert<A: 'static>(
+        f: impl 'static + Fn(A) -> T,
+        arg: Argumente<A, Error>,
+    ) -> Argumente<T, Error> {
+        Argumente::konvertiere(f, arg)
+    }
+
+    impl_kombiniere_n! {kombiniere2-combine2(a: A, b: B)}
+    impl_kombiniere_n! {kombiniere3-combine3(a: A, b: B, c: C)}
+    impl_kombiniere_n! {kombiniere4-combine4(a: A, b: B, c: C, d: D)}
+    impl_kombiniere_n! {kombiniere5-combine5(a: A, b: B, c: C, d: D, e: E)}
+    impl_kombiniere_n! {kombiniere6-combine6(a: A, b: B, c: C, d: D, e: E, f: F)}
+    impl_kombiniere_n! {kombiniere7-combine7(a: A, b: B, c: C, d: D, e: E, f: F, g: G)}
+    impl_kombiniere_n! {kombiniere8-combine8(a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H)}
+    impl_kombiniere_n! {kombiniere9-combine9(a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H, i: I)}
 }
