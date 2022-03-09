@@ -124,7 +124,7 @@ Standard-Einstellungen. [Standard: false]
 alternativen Namen. [Standard: false]
   --[no]-benötigt         | -b           Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.
   --wert(=| )WERT                        Ein String-Wert.
-  --aufzählung(=| )WERT   | -a[=| ]WERT  Ein Aufzählung-Wert mit Standard-Wert. [Erlaubte Werte: Eins, Zwei, Drei | Standard: Zwei]
+  --aufzählung(=| )VAR    | -a[=| ]VAR   Ein Aufzählung-Wert mit Standard-Wert. [Erlaubte Werte: Eins, Zwei, Drei | Standard: Zwei]
   --version               | -v           Zeige die aktuelle Version an.
   --hilfe                 | -h           Zeige diesen Text an.
 ```
