@@ -25,6 +25,7 @@ pub(crate) mod wert;
 
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use self::wert::EnumArgument;
+
 #[doc(inline)]
 pub use crate::kombiniere;
 

@@ -35,6 +35,7 @@
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 
 pub use nonempty::NonEmpty;
+
 #[cfg(any(feature = "derive", doc))]
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use unicase::eq as unicase_eq;
