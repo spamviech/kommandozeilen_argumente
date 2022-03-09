@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[cfg(any(feature = "derive", doc))]
-#[cfg_attr(doc, doc(cfg(feature = "derive")))]
+#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::EnumArgument;
 
 impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {

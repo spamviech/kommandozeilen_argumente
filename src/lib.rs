@@ -32,11 +32,11 @@
     unused_results,
     variant_size_differences
 )]
-#![cfg_attr(doc, feature(doc_cfg))]
+#![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 
 pub use nonempty::NonEmpty;
 #[cfg(any(feature = "derive", doc))]
-#[cfg_attr(doc, doc(cfg(feature = "derive")))]
+#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use unicase::eq as unicase_eq;
 
 #[macro_export]
@@ -62,7 +62,7 @@ pub mod parse;
 pub mod sprache;
 
 #[doc(inline)]
-#[cfg_attr(doc, doc(cfg(feature = "derive")))]
+#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use self::{
     argumente::{wert::EnumArgument, Argumente},
     beschreibung::Beschreibung,

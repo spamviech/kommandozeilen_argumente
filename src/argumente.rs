@@ -23,7 +23,7 @@ pub(crate) mod frühes_beenden;
 pub(crate) mod kombiniere;
 pub(crate) mod wert;
 
-#[cfg_attr(doc, doc(cfg(feature = "derive")))]
+#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use self::wert::EnumArgument;
 #[doc(inline)]
 pub use crate::kombiniere;
