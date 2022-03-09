@@ -307,6 +307,7 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     }
 }
 
+// TODO english doc
 /// Trait für Typen mit einer festen Anzahl an Werten und Methode zum Parsen.
 /// Gedacht für Summentypen ohne extra Daten (nur Unit-Varianten).
 ///

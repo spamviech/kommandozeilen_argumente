@@ -1,5 +1,6 @@
 //! Alle Strings, die zum erstellen von Hilfe-Text und Fehlermeldung notwendig sind.
 
+// TODO english doc for fields
 /// Alle Strings, die zum erstellen von Hilfe-Text und Fehlermeldung notwendig sind.
 #[derive(Debug, Clone, Copy)]
 pub struct Sprache {

@@ -7,6 +7,7 @@ use nonempty::NonEmpty;
 
 use crate::sprache::{Language, Sprache};
 
+// TODO english doc for variants
 /// Ergebnis des Parsen von Kommandozeilen-Argumenten.
 #[derive(Debug)]
 pub enum Ergebnis<T, E> {
@@ -22,6 +23,7 @@ pub enum Ergebnis<T, E> {
 pub type Result<T, E> = Ergebnis<T, E>;
 
 impl<T, E> Ergebnis<T, E> {
+    // TODO english doc
     /// Konvertiere einen erfolgreich geparsten Wert mit der spezifizierten Funktion.
     pub fn map<S>(self, f: impl FnOnce(T) -> S) -> Ergebnis<S, E> {
         match self {
@@ -32,6 +34,7 @@ impl<T, E> Ergebnis<T, E> {
     }
 }
 
+// TODO english doc for variants
 /// Fehlerquellen beim Parsen von Kommandozeilen-Argumenten
 #[derive(Debug, Clone)]
 pub enum Fehler<E> {
@@ -87,6 +90,7 @@ pub(crate) fn namen_regex_hinzufügen(string: &mut String, head: &String, tail: 
     }
 }
 
+// TODO english doc for variants
 /// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr](std::ffi::OsStr).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseFehler<E> {

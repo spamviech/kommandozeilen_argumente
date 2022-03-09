@@ -5,6 +5,7 @@ use std::ops::Deref;
 
 use nonempty::NonEmpty;
 
+// TODO english doc for fields
 /// Beschreibung eines Kommandozeilen-Arguments.
 #[derive(Debug, Clone)]
 pub struct Beschreibung<T> {
@@ -40,10 +41,16 @@ impl<T> Beschreibung<T> {
         (Beschreibung { lang, kurz, hilfe, standard: standard_string }, standard)
     }
 
-    /// Konvertiere eine Beschreibung zu einem anderen Typ.
+    /// Konvertiere eine [Beschreibung] zu einem anderen Typ.
     pub fn konvertiere<S>(self, konvertiere: impl FnOnce(T) -> S) -> Beschreibung<S> {
         let Beschreibung { lang, kurz, hilfe, standard } = self;
         Beschreibung { lang, kurz, hilfe, standard: standard.map(konvertiere) }
+    }
+
+    /// Convert a [Description] to a different type.
+    #[inline(always)]
+    pub fn convert<S>(self, convert: impl FnOnce(T) -> S) -> Description<S> {
+        self.konvertiere(convert)
     }
 }
 
@@ -54,6 +61,7 @@ macro_rules! contains_str {
 }
 pub(crate) use contains_str;
 
+// TODO english doc, english alias?
 /// Mindestens ein String als Definition für den vollen Namen.
 pub trait LangNamen {
     /// Konvertiere in ein [NonEmpty].
@@ -88,6 +96,7 @@ impl<S: Deref<Target = str>> LangNamen for &NonEmpty<S> {
     }
 }
 
+// TODO english doc, english alias?
 /// Beliebige Anzahl an Strings für den kurzen Namen.
 pub trait KurzNamen {
     /// Konvertiere in einen [Vec].
@@ -131,7 +140,7 @@ impl KurzNamen for Vec<String> {
 }
 
 impl<T> Beschreibung<T> {
-    /// Erzeuge eine neue Beschreibung.
+    /// Erzeuge eine neue [Beschreibung].
     pub fn neu(
         lang: impl LangNamen,
         kurz: impl KurzNamen,
@@ -139,5 +148,16 @@ impl<T> Beschreibung<T> {
         standard: Option<T>,
     ) -> Beschreibung<T> {
         Beschreibung { lang: lang.lang_namen(), kurz: kurz.kurz_namen(), hilfe, standard }
+    }
+
+    /// Create a new [Description].
+    #[inline(always)]
+    pub fn new(
+        long: impl LangNamen,
+        short: impl KurzNamen,
+        help: Option<String>,
+        default: Option<T>,
+    ) -> Description<T> {
+        Beschreibung::neu(long, short, help, default)
     }
 }

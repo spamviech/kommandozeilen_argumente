@@ -15,6 +15,7 @@ use crate::{
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::Parse;
 
+// TODO english doc, alias for trait methods?
 /// Trait für Typen, die direkt mit dem derive-Macro für [Parse] verwendet werden können.
 pub trait ParseArgument: Sized {
     /// Erstelle ein [Argumente] mit den konfigurierten Eigenschaften.
@@ -191,6 +192,7 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
     }
 }
 
+// TODO english doc, english alias for methods?
 /// Erlaube parsen aus Kommandozeilen-Argumenten ausgehend einer Standard-Konfiguration.
 ///
 /// Mit aktiviertem `derive`-Feature kann diese [automatisch erzeugt werden](derive@Parse).
