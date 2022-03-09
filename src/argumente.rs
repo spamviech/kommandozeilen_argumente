@@ -62,6 +62,9 @@ pub struct Argumente<T, E> {
     pub(crate) parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (Ergebnis<T, E>, Vec<Option<&OsStr>>)>,
 }
 
+/// Command line [Arguments] and their [Description].
+pub type Arguments<T, E> = Argumente<T, E>;
+
 impl<T, E> Debug for Argumente<T, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Argumente")

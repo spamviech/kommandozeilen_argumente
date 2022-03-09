@@ -20,6 +20,9 @@ pub struct Beschreibung<T> {
     pub standard: Option<T>,
 }
 
+/// Description of a command line argument.
+pub type Description<T> = Beschreibung<T>;
+
 impl<T: Display> Beschreibung<T> {
     #[inline(always)]
     pub(crate) fn als_string_beschreibung(self) -> (Beschreibung<String>, Option<T>) {

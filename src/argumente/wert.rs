@@ -6,10 +6,10 @@ use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    argumente::{ArgString, Argumente},
-    beschreibung::{contains_str, Beschreibung},
-    ergebnis::{Ergebnis, Fehler, ParseFehler},
-    sprache::Sprache,
+    argumente::{ArgString, Argumente, Arguments},
+    beschreibung::{contains_str, Beschreibung, Description},
+    ergebnis::{Ergebnis, Error, Fehler, ParseError, ParseFehler, Result},
+    sprache::{Language, Sprache},
 };
 
 #[cfg(any(feature = "derive", doc))]
@@ -22,7 +22,7 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     pub fn wert_string_display_mit_sprache(
         beschreibung: Beschreibung<T>,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 'static + Fn(&str) -> Result<T, E>,
+        parse: impl 'static + Fn(&str) -> std::result::Result<T, E>,
         sprache: Sprache,
     ) -> Argumente<T, E> {
         Argumente::wert_string_display(
@@ -33,13 +33,24 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
         )
     }
 
+    /// Create a Value-Argument, based on the given `parse`-function.
+    #[inline(always)]
+    pub fn value_string_display_with_language(
+        description: Description<T>,
+        possible_values: Option<NonEmpty<T>>,
+        parse: impl 'static + Fn(&str) -> std::result::Result<T, E>,
+        language: Language,
+    ) -> Arguments<T, E> {
+        Argumente::wert_string_display_mit_sprache(description, possible_values, parse, language)
+    }
+
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
     #[inline(always)]
     pub fn wert_string_display(
         beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 'static + Fn(&str) -> Result<T, E>,
+        parse: impl 'static + Fn(&str) -> std::result::Result<T, E>,
     ) -> Argumente<T, E> {
         Argumente::wert_string(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
     }
@@ -49,7 +60,7 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     pub fn wert_display_mit_sprache(
         beschreibung: Beschreibung<T>,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
+        parse: impl 'static + Fn(&OsStr) -> std::result::Result<T, ParseFehler<E>>,
         sprache: Sprache,
     ) -> Argumente<T, E> {
         Argumente::wert_display(beschreibung, sprache.meta_var.to_owned(), mögliche_werte, parse)
@@ -61,7 +72,7 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
         beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
+        parse: impl 'static + Fn(&OsStr) -> std::result::Result<T, ParseFehler<E>>,
     ) -> Argumente<T, E> {
         Argumente::wert(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
     }
@@ -73,7 +84,7 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     pub fn wert_string_mit_sprache(
         beschreibung: Beschreibung<T>,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 'static + Fn(&str) -> Result<T, E>,
+        parse: impl 'static + Fn(&str) -> std::result::Result<T, E>,
         anzeige: impl Fn(&T) -> String,
         sprache: Sprache,
     ) -> Argumente<T, E> {
@@ -92,7 +103,7 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
         beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 'static + Fn(&str) -> Result<T, E>,
+        parse: impl 'static + Fn(&str) -> std::result::Result<T, E>,
         anzeige: impl Fn(&T) -> String,
     ) -> Argumente<T, E> {
         Argumente::wert(
@@ -115,7 +126,7 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     pub fn wert_mit_sprache(
         beschreibung: Beschreibung<T>,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
+        parse: impl 'static + Fn(&OsStr) -> std::result::Result<T, ParseFehler<E>>,
         anzeige: impl Fn(&T) -> String,
         sprache: Sprache,
     ) -> Argumente<T, E> {
@@ -127,7 +138,7 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
         beschreibung: Beschreibung<T>,
         meta_var: String,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
+        parse: impl 'static + Fn(&OsStr) -> std::result::Result<T, ParseFehler<E>>,
         anzeige: impl Fn(&T) -> String,
     ) -> Argumente<T, E> {
         let name_kurz = beschreibung.kurz.clone();
@@ -237,7 +248,7 @@ pub trait EnumArgument: Sized {
     fn varianten() -> Vec<Self>;
 
     /// Versuche einen Wert ausgehend vom übergebenen [OsStr] zu erzeugen.
-    fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>>;
+    fn parse_enum(arg: &OsStr) -> std::result::Result<Self, ParseFehler<String>>;
 }
 
 impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {

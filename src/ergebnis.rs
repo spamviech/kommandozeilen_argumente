@@ -5,7 +5,7 @@ use std::{ffi::OsString, fmt::Display, iter};
 use either::Either;
 use nonempty::NonEmpty;
 
-use crate::sprache::Sprache;
+use crate::sprache::{Language, Sprache};
 
 /// Ergebnis des Parsen von Kommandozeilen-Argumenten.
 #[derive(Debug)]
@@ -17,6 +17,9 @@ pub enum Ergebnis<T, E> {
     /// Fehler beim Parsen der Kommandozeilen-Argumente.
     Fehler(NonEmpty<Fehler<E>>),
 }
+
+/// Result when parsing command line arguments.
+pub type Result<T, E> = Ergebnis<T, E>;
 
 impl<T, E> Ergebnis<T, E> {
     /// Konvertiere einen erfolgreich geparsten Wert mit der spezifizierten Funktion.
@@ -63,6 +66,9 @@ pub enum Fehler<E> {
     },
 }
 
+/// Possible errors when parsing command line arguments.
+pub type Error<E> = Fehler<E>;
+
 pub(crate) fn namen_regex_hinzufügen(string: &mut String, head: &String, tail: &[String]) {
     if !tail.is_empty() {
         string.push('(')
@@ -90,6 +96,9 @@ pub enum ParseFehler<E> {
     ParseFehler(E),
 }
 
+/// Possible errors when parsing an [OsStr](std::ffi::OsStr).
+pub type ParseError<E> = ParseFehler<E>;
+
 impl<E: Display> Fehler<E> {
     /// Zeige den Fehler in Menschen-lesbarer Form an.
     #[inline(always)]
@@ -100,10 +109,10 @@ impl<E: Display> Fehler<E> {
     /// Show the error in a human readable form.
     #[inline(always)]
     pub fn error_message(&self) -> String {
-        self.erstelle_fehlermeldung_mit_sprache(Sprache::ENGLISH)
+        self.erstelle_fehlermeldung_mit_sprache(Language::ENGLISH)
     }
 
-    /// Zeige den Fehler in Menschen-lesbarer Form an.
+    /// Zeige den [Fehler] in Menschen-lesbarer Form an.
     #[inline(always)]
     pub fn erstelle_fehlermeldung_mit_sprache(&self, sprache: Sprache) -> String {
         self.erstelle_fehlermeldung(
@@ -112,6 +121,12 @@ impl<E: Display> Fehler<E> {
             sprache.parse_fehler,
             sprache.invalider_string,
         )
+    }
+
+    /// Show the [Error] in human readable form.
+    #[inline(always)]
+    pub fn create_error_message_with_language(&self, language: Language) -> String {
+        self.erstelle_fehlermeldung_mit_sprache(language)
     }
 
     /// Zeige den Fehler in Menschen-lesbarer Form an.
@@ -174,5 +189,17 @@ impl<E: Display> Fehler<E> {
                 fehlermeldung
             },
         }
+    }
+
+    /// Show the [Error] in human readable form.
+    #[inline(always)]
+    pub fn create_error_message(
+        &self,
+        missing_flag: &str,
+        missing_value: &str,
+        parse_error: &str,
+        invalid_string: &str,
+    ) -> String {
+        self.erstelle_fehlermeldung(missing_flag, missing_value, parse_error, invalid_string)
     }
 }

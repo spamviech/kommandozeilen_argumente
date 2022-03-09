@@ -37,6 +37,9 @@ pub struct Sprache {
     pub version_kurz: &'static str,
 }
 
+/// All strings required to produce help text and error message.
+pub type Language = Sprache;
+
 impl Sprache {
     /// Deutsche Strings.
     pub const DEUTSCH: Sprache = Sprache {
@@ -59,7 +62,7 @@ impl Sprache {
     };
 
     /// English Strings.
-    pub const ENGLISH: Sprache = Sprache {
+    pub const ENGLISH: Language = Sprache {
         invertiere_präfix: "no",
         meta_var: "VALUE",
         optionen: "OPTIONS",

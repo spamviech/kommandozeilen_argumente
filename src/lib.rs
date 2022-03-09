@@ -65,9 +65,9 @@ pub mod sprache;
 #[doc(inline)]
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use self::{
-    argumente::{wert::EnumArgument, Argumente},
-    beschreibung::Beschreibung,
-    ergebnis::{Ergebnis, Fehler, ParseFehler},
+    argumente::{wert::EnumArgument, Argumente, Arguments},
+    beschreibung::{Beschreibung, Description},
+    ergebnis::{Ergebnis, Error, Fehler, ParseError, ParseFehler, Result},
     parse::{Parse, ParseArgument},
-    sprache::Sprache,
+    sprache::{Language, Sprache},
 };
