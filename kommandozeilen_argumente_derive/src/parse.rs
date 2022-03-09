@@ -524,26 +524,23 @@ where
 
 fn wert_argument_error_message(
     name: String,
-    wert: TokenStream,
+    wert_ts: TokenStream,
 ) -> Result<(), impl FnOnce(String) -> ParseWertFehler> {
-    Err(move |arg_name: String| ParseWertFehler::NichtUnterstützt {
-        arg_name,
-        argument: Argument { name, wert: ArgumentWert::Stream(wert) },
-    })
+    use ParseWertFehler::NichtUnterstützt;
+    let wert = ArgumentWert::Stream(wert_ts);
+    Err(move |arg_name: String| NichtUnterstützt { arg_name, argument: Argument { name, wert } })
 }
 
 fn standard_error_message(
-    ignored_name: String,
+    name: String,
     standard: Option<TokenStream>,
 ) -> Result<(), impl FnOnce(String) -> ParseWertFehler> {
     let wert = match standard {
         Some(ts) => ArgumentWert::Stream(ts),
         None => ArgumentWert::KeinWert,
     };
-    Err(move |arg_name: String| ParseWertFehler::NichtUnterstützt {
-        arg_name,
-        argument: Argument { name: ignored_name, wert },
-    })
+    use ParseWertFehler::NichtUnterstützt;
+    Err(move |arg_name: String| NichtUnterstützt { arg_name, argument: Argument { name, wert } })
 }
 
 #[derive(Debug)]
