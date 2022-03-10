@@ -13,10 +13,10 @@ use unicode_segmentation::UnicodeSegmentation;
 use void::Void;
 
 use crate::{
-    argumente::{ArgString, Argumente},
-    beschreibung::{contains_str, Beschreibung, KurzNamen, LangNamen},
+    argumente::{ArgString, Argumente, Arguments},
+    beschreibung::{contains_str, Beschreibung, Description, KurzNamen, LangNamen},
     ergebnis::{namen_regex_hinzufügen, Ergebnis},
-    sprache::Sprache,
+    sprache::{Language, Sprache},
 };
 
 impl<T: 'static, E: 'static> Argumente<T, E> {
@@ -32,7 +32,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Similar to using [version_english](Argumente::version_english) and [help](Argumente::help)
     /// with a synchronised program name and version.
     #[inline(always)]
-    pub fn help_and_version(self, program_name: &str, version: &str) -> Argumente<T, E> {
+    pub fn help_and_version(self, program_name: &str, version: &str) -> Arguments<T, E> {
         self.hilfe_und_version_mit_sprache(program_name, version, Sprache::ENGLISH)
     }
 
@@ -52,6 +52,19 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             Some(version),
             sprache,
         )
+    }
+
+    /// Create `--version` and `--help` flags causing an early exit.
+    /// Similar to using [version_english](Argumente::version_english) and [help](Argumente::help)
+    /// with a synchronised program name and version.
+    #[inline(always)]
+    pub fn help_and_version_with_language(
+        self,
+        program_name: &str,
+        version: &str,
+        language: Language,
+    ) -> Arguments<T, E> {
+        self.hilfe_und_version_mit_sprache(program_name, version, language)
     }
 
     /// Erzeuge eine `--version`-Flag, die zu vorzeitigem Beenden führt.
@@ -82,7 +95,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Create a `--version` flag, causing an early exit.
     /// Shows the configured program version.
     #[inline(always)]
-    pub fn version_english(self, program_name: &str, version: &str) -> Argumente<T, E> {
+    pub fn version_english(self, program_name: &str, version: &str) -> Arguments<T, E> {
         self.version_mit_sprache(program_name, version, Sprache::ENGLISH)
     }
 
@@ -93,7 +106,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         short_names: impl KurzNamen,
         program_name: &str,
         version: &str,
-    ) -> Argumente<T, E> {
+    ) -> Arguments<T, E> {
         self.version_mit_namen_und_sprache(
             long_names,
             short_names,
@@ -103,8 +116,8 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         )
     }
 
-    /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt.
-    /// Gedacht zum anzeigen der aktuellen Programm-Version.
+    /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt
+    /// und die konfigurierte Programm-Version anzeigt.
     #[inline(always)]
     pub fn version_mit_sprache(
         self,
@@ -119,6 +132,17 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             version,
             sprache,
         )
+    }
+
+    /// Create a flag causing an early exit which shows the configured program version.
+    #[inline(always)]
+    pub fn version_with_language(
+        self,
+        program_name: &str,
+        version: &str,
+        language: Language,
+    ) -> Arguments<T, E> {
+        self.version_mit_sprache(program_name, version, language)
     }
 
     /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt
@@ -140,8 +164,21 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         self.zeige_version(beschreibung, programm_name, version)
     }
 
-    /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt.
-    /// Gedacht zum anzeigen der aktuellen Programm-Version.
+    /// Create a flag causing an early exit which shows the configured program version.
+    #[inline(always)]
+    pub fn version_with_names_and_language(
+        self,
+        long_names: impl LangNamen,
+        short_names: impl KurzNamen,
+        program_name: &str,
+        version: &str,
+        language: Language,
+    ) -> Arguments<T, E> {
+        self.version_mit_namen_und_sprache(long_names, short_names, program_name, version, language)
+    }
+
+    /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt
+    /// und die konfigurierte Programm-Version anzeigt.
     #[inline(always)]
     pub fn zeige_version(
         self,
@@ -150,6 +187,17 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         version: &str,
     ) -> Argumente<T, E> {
         self.frühes_beenden(beschreibung, format!("{} {}", programm_name, version))
+    }
+
+    /// Create a flag causing an early exit which shows the configured program version.
+    #[inline(always)]
+    pub fn show_version(
+        self,
+        description: Description<Void>,
+        program_name: &str,
+        version: &str,
+    ) -> Arguments<T, E> {
+        self.zeige_version(description, program_name, version)
     }
 
     /// Erzeuge eine `--hilfe`-Flag, die zu vorzeitigem Beenden führt.
@@ -161,6 +209,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
 
     /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt
     /// und eine automatisch generierte Hilfe anzeigt.
+    #[inline(always)]
     pub fn hilfe_mit_namen(
         self,
         lang_namen: impl LangNamen,
@@ -185,6 +234,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     }
 
     /// Create a flag causing an early exit which shows an automatically created help text.
+    #[inline(always)]
     pub fn help_with_names(
         self,
         long_names: impl LangNamen,
@@ -219,6 +269,17 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         )
     }
 
+    /// Create a flag causing an early exit which shows an automatically created help text.
+    #[inline(always)]
+    pub fn help_with_language(
+        self,
+        program_name: &str,
+        version: Option<&str>,
+        language: Language,
+    ) -> Arguments<T, E> {
+        self.hilfe_mit_sprache(program_name, version, language)
+    }
+
     /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei eine automatisch konfigurierte Hilfe an.
     #[inline(always)]
@@ -239,6 +300,19 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         self.erstelle_hilfe_mit_sprache(beschreibung, programm_name, version, sprache)
     }
 
+    /// Create a flag causing an early exit which shows an automatically created help text.
+    #[inline(always)]
+    pub fn help_with_names_and_language(
+        self,
+        long_names: impl LangNamen,
+        short_names: impl KurzNamen,
+        program_name: &str,
+        version: Option<&str>,
+        language: Language,
+    ) -> Arguments<T, E> {
+        self.hilfe_mit_namen_und_sprache(long_names, short_names, program_name, version, language)
+    }
+
     /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei eine automatisch konfigurierte Hilfe an.
     #[inline(always)]
@@ -257,6 +331,18 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             sprache.standard,
             sprache.erlaubte_werte,
         )
+    }
+
+    /// Create a flag causing an early exit which shows an automatically created help text.
+    #[inline(always)]
+    pub fn create_help_with_language(
+        self,
+        help_description: Description<Void>,
+        program_name: &str,
+        version: Option<&str>,
+        language: Language,
+    ) -> Arguments<T, E> {
+        self.erstelle_hilfe_mit_sprache(help_description, program_name, version, language)
     }
 
     /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
@@ -282,6 +368,27 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         self.frühes_beenden(eigene_beschreibung, hilfe_text)
     }
 
+    /// Create a flag causing an early exit which shows an automatically created help text.
+    #[inline(always)]
+    pub fn create_help(
+        self,
+        help_description: Description<Void>,
+        program_name: &str,
+        version: Option<&str>,
+        options: &str,
+        default: &str,
+        allowed_values: &str,
+    ) -> Arguments<T, E> {
+        self.erstelle_hilfe(
+            help_description,
+            program_name,
+            version,
+            options,
+            default,
+            allowed_values,
+        )
+    }
+
     /// Erstelle den Hilfe-Text für alle konfigurierten Argumente.
     #[inline(always)]
     pub fn hilfe_text(&self, programm_name: &str, version: Option<&str>) -> String {
@@ -290,8 +397,8 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
 
     /// Create the help-text for all configured arguments.
     #[inline(always)]
-    pub fn help_text(&self, programm_name: &str, version: Option<&str>) -> String {
-        self.erstelle_hilfe_text_mit_sprache(programm_name, version, Sprache::ENGLISH)
+    pub fn help_text(&self, program_name: &str, version: Option<&str>) -> String {
+        self.erstelle_hilfe_text_mit_sprache(program_name, version, Sprache::ENGLISH)
     }
 
     /// Erstelle den Hilfe-Text für alle konfigurierten Argumente.
@@ -309,6 +416,17 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             sprache.standard,
             sprache.erlaubte_werte,
         )
+    }
+
+    /// Create the help-text for all configured arguments.
+    #[inline(always)]
+    pub fn help_text_with_language(
+        &self,
+        programm_name: &str,
+        version: Option<&str>,
+        language: Language,
+    ) -> String {
+        self.erstelle_hilfe_text_mit_sprache(programm_name, version, language)
     }
 
     /// Erstelle den Hilfe-Text für alle konfigurierten Argumente.
@@ -329,6 +447,19 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             standard,
             erlaubte_werte,
         )
+    }
+
+    /// Create the help-text for all configured arguments.
+    #[inline(always)]
+    pub fn create_help_text(
+        &self,
+        programm_name: &str,
+        version: Option<&str>,
+        options: &str,
+        default: &str,
+        allowed_values: &str,
+    ) -> String {
+        self.erstelle_hilfe_text(programm_name, version, options, default, allowed_values)
     }
 
     fn erstelle_hilfe_text_intern(
@@ -569,5 +700,11 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                 (finales_ergebnis, nicht_verwendet)
             }),
         }
+    }
+
+    /// Create a flag which causes an early exit and shows the given message.
+    #[inline(always)]
+    pub fn early_exit(self, description: Description<Void>, message: String) -> Arguments<T, E> {
+        self.frühes_beenden(description, message)
     }
 }

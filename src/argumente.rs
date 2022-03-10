@@ -29,7 +29,8 @@ pub use self::wert::EnumArgument;
 #[doc(inline)]
 pub use crate::kombiniere;
 
-/// Interner Typ, wird für das [kombiniere]-Macro benötigt.
+// TODO public machen, damit Endnutzer die Hilfe selbst generieren können?
+/// Interner Typ, wird für den automatisch generierten Hilfe-Text benötigt.
 #[derive(Debug)]
 pub(crate) enum ArgString {
     Flag {
