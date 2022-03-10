@@ -7,10 +7,10 @@ use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    argumente::{ArgString, Argumente},
-    beschreibung::{contains_str, Beschreibung},
+    argumente::{ArgString, Argumente, Arguments},
+    beschreibung::{contains_str, Beschreibung, Description},
     ergebnis::{Ergebnis, Fehler},
-    sprache::Sprache,
+    sprache::{Language, Sprache},
 };
 
 impl<E> Argumente<bool, E> {
@@ -22,8 +22,8 @@ impl<E> Argumente<bool, E> {
 
     /// Create a flag-argument which can be deactivated with a "no" prefix.
     #[inline(always)]
-    pub fn flag_bool_english(beschreibung: Beschreibung<bool>) -> Argumente<bool, E> {
-        Argumente::flag_bool_mit_sprache(beschreibung, Sprache::ENGLISH)
+    pub fn flag_bool_english(description: Description<bool>) -> Arguments<bool, E> {
+        Argumente::flag_bool_mit_sprache(description, Sprache::ENGLISH)
     }
 
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
@@ -35,6 +35,16 @@ impl<E> Argumente<bool, E> {
         Argumente::flag_bool(beschreibung, sprache.invertiere_präfix)
     }
 
+    /// Create a flag-argument which can be deactivated with the configured prefix.
+    #[inline(always)]
+    pub fn flag_bool_with_language(
+        description: Description<bool>,
+        language: Language,
+    ) -> Arguments<bool, E> {
+        Argumente::flag_bool_mit_sprache(description, language)
+    }
+
+    // TODO english doc
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
     #[inline(always)]
     pub fn flag_bool(
@@ -58,10 +68,10 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
     /// Create a flag-argument which can be deactivated with a "no" prefix.
     #[inline(always)]
     pub fn flag_english(
-        beschreibung: Beschreibung<T>,
-        konvertiere: impl 'static + Fn(bool) -> T,
+        description: Description<T>,
+        convert: impl 'static + Fn(bool) -> T,
     ) -> Argumente<T, E> {
-        Argumente::flag_mit_sprache(beschreibung, konvertiere, Sprache::ENGLISH)
+        Argumente::flag_mit_sprache(description, convert, Sprache::ENGLISH)
     }
 
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
@@ -74,6 +84,17 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
         Argumente::flag(beschreibung, konvertiere, sprache.invertiere_präfix)
     }
 
+    /// Create a flag-argument which can be deactivated with a "no" prefix.
+    #[inline(always)]
+    pub fn flag_with_language(
+        description: Description<T>,
+        convert: impl 'static + Fn(bool) -> T,
+        language: Language,
+    ) -> Arguments<T, E> {
+        Argumente::flag_mit_sprache(description, convert, language)
+    }
+
+    // TODO english doc
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
     pub fn flag(
         beschreibung: Beschreibung<T>,
