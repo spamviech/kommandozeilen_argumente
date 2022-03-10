@@ -40,6 +40,7 @@ pub use nonempty::NonEmpty;
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use unicase::eq as unicase_eq;
 
+// TODO english doc
 #[macro_export]
 /// Crate Name spezifiziert in Cargo.toml.
 macro_rules! crate_name {
@@ -48,6 +49,7 @@ macro_rules! crate_name {
     };
 }
 
+// TODO english doc
 #[macro_export]
 /// Crate Version spezifiziert in Cargo.toml.
 macro_rules! crate_version {
