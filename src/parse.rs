@@ -5,8 +5,8 @@ use std::{ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
 use nonempty::NonEmpty;
 
 use crate::{
-    argumente::{wert::EnumArgument, ArgString, Argumente},
-    beschreibung::Beschreibung,
+    argumente::{wert::EnumArgument, Argumente},
+    beschreibung::{Beschreibung, Konfiguration},
     ergebnis::{Ergebnis, Fehler, ParseFehler},
     sprache::Sprache,
 };
@@ -155,7 +155,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
             Box::new(Ergebnis::Fehler)
         };
         Argumente {
-            beschreibungen: vec![ArgString::Wert {
+            konfigurationen: vec![Konfiguration::Wert {
                 beschreibung: beschreibung_string,
                 meta_var: meta_var.to_owned(),
                 mögliche_werte: None,

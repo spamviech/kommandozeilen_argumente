@@ -161,3 +161,28 @@ impl<T> Beschreibung<T> {
         Beschreibung::neu(long, short, help, default)
     }
 }
+
+// TODO english doc for variants, fields
+/// Konfiguration eines Kommandozeilen-Arguments.
+#[derive(Debug)]
+pub enum Konfiguration {
+    /// Es handelt sich um ein Flag-Argument.
+    Flag {
+        /// Allgemeine Beschreibung des Arguments.
+        beschreibung: Beschreibung<String>,
+        /// Präfix zum invertieren des Flag-Arguments.
+        invertiere_präfix: Option<String>,
+    },
+    /// Es handelt sich um ein Wert-Argument.
+    Wert {
+        /// Allgemeine Beschreibung des Arguments.
+        beschreibung: Beschreibung<String>,
+        /// Meta-Variable im Hilfe-Text.
+        meta_var: String,
+        /// String-Darstellung der erlaubten Werte.
+        mögliche_werte: Option<NonEmpty<String>>,
+    },
+}
+
+/// Configuration of a command line argument.
+pub type Configuration = Konfiguration;

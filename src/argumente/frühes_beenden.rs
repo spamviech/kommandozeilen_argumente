@@ -13,12 +13,13 @@ use unicode_segmentation::UnicodeSegmentation;
 use void::Void;
 
 use crate::{
-    argumente::{ArgString, Argumente, Arguments},
-    beschreibung::{contains_str, Beschreibung, Description, KurzNamen, LangNamen},
+    argumente::{Argumente, Arguments},
+    beschreibung::{contains_str, Beschreibung, Description, Konfiguration, KurzNamen, LangNamen},
     ergebnis::{namen_regex_hinzufügen, Ergebnis},
     sprache::{Language, Sprache},
 };
 
+// TODO benenne [Argumente::konfigurationen], [Arguments::configurations] um eigene Hilfe zu erzeugen.
 impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Erzeuge `--version`- und `--hilfe`-Flags, die zu vorzeitigem Beenden führen.
     /// Wie [version_deutsch](Argumente::version_deutsch) und [hilfe](Argumente::hilfe)
@@ -484,7 +485,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             name.push_str(version);
         }
         let mut hilfe_text = format!("{}\n\n{} [{}]\n\n{}:\n", name, exe_name, optionen, optionen);
-        let eigener_arg_string = eigene_beschreibung.map(|beschreibung| ArgString::Flag {
+        let eigener_arg_string = eigene_beschreibung.map(|beschreibung| Konfiguration::Flag {
             beschreibung: beschreibung.clone().als_string_beschreibung().0,
             invertiere_präfix: None,
         });
@@ -513,12 +514,12 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         let none = None;
         let mut max_lang_regex_breite = 0;
         let mut lang_regex_vec = Vec::new();
-        for arg_string in self.beschreibungen.iter().chain(eigener_arg_string.iter()) {
+        for arg_string in self.konfigurationen().chain(eigener_arg_string.iter()) {
             let (beschreibung, invertiere_präfix_oder_meta_var, mögliche_werte) = match arg_string {
-                ArgString::Flag { beschreibung, invertiere_präfix } => {
+                Konfiguration::Flag { beschreibung, invertiere_präfix } => {
                     (beschreibung, Either::Left(invertiere_präfix), &none)
                 },
-                ArgString::Wert { beschreibung, meta_var, mögliche_werte } => {
+                Konfiguration::Wert { beschreibung, meta_var, mögliche_werte } => {
                     (beschreibung, Either::Right(meta_var), mögliche_werte)
                 },
             };
@@ -644,14 +645,14 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         beschreibung: Beschreibung<Void>,
         nachricht: String,
     ) -> Argumente<T, E> {
-        let Argumente { mut beschreibungen, mut flag_kurzformen, parse } = self;
+        let Argumente { mut konfigurationen, mut flag_kurzformen, parse } = self;
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
         let (beschreibung, _standard) = beschreibung.als_string_beschreibung();
         flag_kurzformen.extend(beschreibung.kurz.iter().cloned());
-        beschreibungen.push(ArgString::Flag { beschreibung, invertiere_präfix: None });
+        konfigurationen.push(Konfiguration::Flag { beschreibung, invertiere_präfix: None });
         Argumente {
-            beschreibungen,
+            konfigurationen,
             flag_kurzformen,
             parse: Box::new(move |args| {
                 let name_kurz_existiert = !name_kurz.is_empty();

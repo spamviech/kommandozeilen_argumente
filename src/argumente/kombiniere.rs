@@ -110,12 +110,12 @@ macro_rules! impl_kombiniere_n {
             f: impl 'static + Fn($($ty_var),+) -> T,
             $($var: Argumente<$ty_var, Error>),+
         ) -> Argumente<T, Error> {
-            let mut beschreibungen = Vec :: new();
-            $(beschreibungen.extend($var.beschreibungen);)+
+            let mut konfigurationen = Vec :: new();
+            $(konfigurationen.extend($var.konfigurationen);)+
             let mut flag_kurzformen = Vec::new();
             $(flag_kurzformen.extend($var.flag_kurzformen);)+
             Argumente {
-                beschreibungen,
+                konfigurationen,
                 flag_kurzformen,
                 parse: Box::new(move |args| {
                     let mut fehler = Vec::new();
@@ -163,7 +163,7 @@ impl<T, Error: 'static> Argumente<T, Error> {
     /// Parse keine Kommandozeilen-Argumente und erzeuge das Ergebnis mit der übergebenen Funktion.
     pub fn konstant(f: impl 'static + Fn() -> T) -> Argumente<T, Error> {
         Argumente {
-            beschreibungen: Vec::new(),
+            konfigurationen: Vec::new(),
             flag_kurzformen: Vec::new(),
             parse: Box::new(move |args| (Ergebnis::Wert(f()), args)),
         }
@@ -178,10 +178,10 @@ impl<T, Error: 'static> Argumente<T, Error> {
     /// Parse ein Kommandozeilen-Argument und konvertiere das Ergebnis mit der übergebenen Funktion.
     pub fn konvertiere<A: 'static>(
         f: impl 'static + Fn(A) -> T,
-        Argumente { beschreibungen, flag_kurzformen, parse }: Argumente<A, Error>,
+        Argumente { konfigurationen, flag_kurzformen, parse }: Argumente<A, Error>,
     ) -> Argumente<T, Error> {
         Argumente {
-            beschreibungen,
+            konfigurationen,
             flag_kurzformen,
             parse: Box::new(move |args| {
                 let (ergebnis, nicht_verwendet) = parse(args);

@@ -7,8 +7,8 @@ use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    argumente::{ArgString, Argumente, Arguments},
-    beschreibung::{contains_str, Beschreibung, Description},
+    argumente::{Argumente, Arguments},
+    beschreibung::{contains_str, Beschreibung, Description, Konfiguration},
     ergebnis::{Ergebnis, Fehler},
     sprache::{Language, Sprache},
 };
@@ -106,7 +106,7 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
         let invertiere_präfix_minus = format!("{}-", invertiere_präfix);
         let (beschreibung, standard) = beschreibung.als_string_beschreibung();
         Argumente {
-            beschreibungen: vec![ArgString::Flag {
+            konfigurationen: vec![Konfiguration::Flag {
                 beschreibung,
                 invertiere_präfix: Some(invertiere_präfix.to_owned()),
             }],

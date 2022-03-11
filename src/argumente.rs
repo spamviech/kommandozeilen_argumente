@@ -12,7 +12,7 @@ use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    beschreibung::Beschreibung,
+    beschreibung::{Configuration, Konfiguration},
     ergebnis::{Ergebnis, Error, Fehler, Result},
     sprache::{Language, Sprache},
 };
@@ -29,21 +29,6 @@ pub use self::wert::EnumArgument;
 #[doc(inline)]
 pub use crate::kombiniere;
 
-// TODO public machen, damit Endnutzer die Hilfe selbst generieren können?
-/// Interner Typ, wird für den automatisch generierten Hilfe-Text benötigt.
-#[derive(Debug)]
-pub(crate) enum ArgString {
-    Flag {
-        beschreibung: Beschreibung<String>,
-        invertiere_präfix: Option<String>,
-    },
-    Wert {
-        beschreibung: Beschreibung<String>,
-        meta_var: String,
-        mögliche_werte: Option<NonEmpty<String>>,
-    },
-}
-
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
 // TODO Standard-Wert, sofern nur der Name gegeben ist (unterschiedlich zu Name kommt nicht vor)
@@ -55,10 +40,12 @@ pub(crate) enum ArgString {
 //      https://crates.io/crates/unicode-normalization
 // TODO Argument-Gruppen (nur eine dieser N Flags kann gleichzeitig aktiv sein)
 // TODO Programm-Beschreibung in Hilfe-Text
+// TODO Feature-gates für automatische Hilfe, verschmelzen von flag-kurzformen, ...
+//      benötigen extra Felder in Argumente-Struktur, könnte Performance verbessern
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<T, E> {
-    pub(crate) beschreibungen: Vec<ArgString>,
+    pub(crate) konfigurationen: Vec<Konfiguration>,
     pub(crate) flag_kurzformen: Vec<String>,
     pub(crate) parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (Ergebnis<T, E>, Vec<Option<&OsStr>>)>,
 }
@@ -69,7 +56,7 @@ pub type Arguments<T, E> = Argumente<T, E>;
 impl<T, E> Debug for Argumente<T, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Argumente")
-            .field("beschreibungen", &self.beschreibungen)
+            .field("konfigurationen", &self.konfigurationen)
             .field("parse", &"<function>")
             .finish()
     }
@@ -402,7 +389,7 @@ impl<T, E> Argumente<T, E> {
     // TODO english doc
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     pub fn parse(&self, args: impl Iterator<Item = OsString>) -> (Ergebnis<T, E>, Vec<OsString>) {
-        let Argumente { beschreibungen: _, flag_kurzformen, parse } = self;
+        let Argumente { konfigurationen: _, flag_kurzformen, parse } = self;
         let angepasste_args: Vec<OsString> = args
             .flat_map(|arg| {
                 if let Some(string) = arg.to_str() {
@@ -427,5 +414,17 @@ impl<T, E> Argumente<T, E> {
             angepasste_args.iter().map(OsString::as_os_str).map(Some).collect();
         let (ergebnis, nicht_verwendet) = parse(args_os_str);
         (ergebnis, nicht_verwendet.into_iter().filter_map(|opt| opt.map(OsStr::to_owned)).collect())
+    }
+
+    /// Alle konfigurierten Kommandozeilen-Argumente.
+    #[inline(always)]
+    pub fn konfigurationen(&self) -> impl Iterator<Item = &Konfiguration> {
+        self.konfigurationen.iter()
+    }
+
+    /// All configured command line arguments.
+    #[inline(always)]
+    pub fn configurations(&self) -> impl Iterator<Item = &Configuration> {
+        self.konfigurationen.iter()
     }
 }

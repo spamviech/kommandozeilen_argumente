@@ -7,6 +7,8 @@
     wie es bei der `kombiniere!`-basierten Implementierung noch der Fall war.
 - Das `kombiniere!`-Macro erzeugt und entpackt deutlich weniger Tupel als bisher.
     Sofern möglich wird die effizientere Implementierung über die `kombiniereN`-Funktionen verwendet.
+- Bereitstellen eines `Konfiguration`-Typen und einer `konfigurationen`-Methode.
+    Damit kann z.B. ein eigener Hilfe-Text erzeugt werden.
 - Stelle englische Synonyme für Typen, Macros, Funktionen und Methoden bereit.
 - kommandozeilen_argumente_derive verwendet syn-feature "derive" statt "full".
 - kommandozeilen_argumente_derive parsed Attribute direkt als TokenStream.

@@ -6,8 +6,8 @@ use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    argumente::{ArgString, Argumente, Arguments},
-    beschreibung::{contains_str, Beschreibung, Description},
+    argumente::{Argumente, Arguments},
+    beschreibung::{contains_str, Beschreibung, Description, Konfiguration},
     ergebnis::{Ergebnis, Fehler, ParseError, ParseFehler},
     sprache::{Language, Sprache},
 };
@@ -208,7 +208,7 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
             meta_var: meta_var_clone.clone(),
         };
         Argumente {
-            beschreibungen: vec![ArgString::Wert {
+            konfigurationen: vec![Konfiguration::Wert {
                 beschreibung,
                 meta_var,
                 mögliche_werte: mögliche_werte
