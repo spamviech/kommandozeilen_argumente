@@ -63,7 +63,7 @@ pub struct Argumente<T, E> {
     pub(crate) parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (Ergebnis<T, E>, Vec<Option<&OsStr>>)>,
 }
 
-/// Command line [Arguments] and their [Description].
+/// Command line [Arguments] and their [crate::beschreibung::Description].
 pub type Arguments<T, E> = Argumente<T, E>;
 
 impl<T, E> Debug for Argumente<T, E> {
