@@ -40,18 +40,22 @@ pub use nonempty::NonEmpty;
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use unicase::eq as unicase_eq;
 
-// TODO english doc
 #[macro_export]
 /// Crate Name spezifiziert in Cargo.toml.
+///
+/// # English
+/// Crate name specified in Cargo.toml.
 macro_rules! crate_name {
     () => {
         env!("CARGO_PKG_NAME")
     };
 }
 
-// TODO english doc
 #[macro_export]
 /// Crate Version spezifiziert in Cargo.toml.
+///
+/// ## English
+/// Crate version specified in Cargo.toml.
 macro_rules! crate_version {
     () => {
         env!("CARGO_PKG_VERSION")
