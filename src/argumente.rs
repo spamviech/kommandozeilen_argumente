@@ -42,6 +42,7 @@ pub use crate::kombiniere;
 // TODO Programm-Beschreibung in Hilfe-Text
 // TODO Feature-gates für automatische Hilfe, verschmelzen von flag-kurzformen, ...
 //      benötigen extra Felder in Argumente-Struktur, könnte Performance verbessern
+// TODO Cow<'t/'static, str> anstelle von String verwenden
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<T, E> {
