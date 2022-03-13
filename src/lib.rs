@@ -1,4 +1,6 @@
 //! Parsen von Kommandozeilen-Argumenten, inklusiver automatisch generierter (deutscher) Hilfe.
+// TODO more glorious documentation, including examples; both german and english
+// should be possible with `#![doc = include_str!(documentation.txt)]`
 
 // Enable all warnings except box_pointers, non_ascii_idents, unstable_features
 #![warn(
