@@ -18,6 +18,9 @@ pub use kommandozeilen_argumente_derive::EnumArgument;
 
 impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    ///
+    /// ## English synonym
+    /// [value_string_display_with_language](Arguments::value_string_display_with_language)
     #[inline(always)]
     pub fn wert_string_display_mit_sprache(
         beschreibung: Beschreibung<T>,
@@ -34,6 +37,9 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     }
 
     /// Create a value-argument, based on the given `parse`-function.
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_string_display_mit_sprache](Argumente::wert_string_display_mit_sprache)
     #[inline(always)]
     pub fn value_string_display_with_language(
         description: Description<T>,
@@ -45,6 +51,9 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     }
 
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    ///
+    /// ## English synonym
+    /// [value_string_display](Arguments::value_string_display)
     #[inline(always)]
     pub fn wert_string_display(
         beschreibung: Beschreibung<T>,
@@ -56,6 +65,9 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     }
 
     /// Create a value-argument, based on the given `parse`-function.
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_string_display](Argumente::wert_string_display)
     #[inline(always)]
     pub fn value_string_display(
         description: Description<T>,
@@ -67,6 +79,9 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     }
 
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    ///
+    /// ## English synonym
+    /// [value_display_with_language](Arguments::value_display_with_language)
     #[inline(always)]
     pub fn wert_display_mit_sprache(
         beschreibung: Beschreibung<T>,
@@ -78,6 +93,9 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     }
 
     /// Create a value-argument, based on the given `parse`-function.
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_display_mit_sprache](Argumente::wert_display_mit_sprache)
     #[inline(always)]
     pub fn value_display_with_language(
         description: Description<T>,
@@ -89,6 +107,9 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     }
 
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    ///
+    /// ## English synonym
+    /// [value_display](Arguments::value_display)
     #[inline(always)]
     pub fn wert_display(
         beschreibung: Beschreibung<T>,
@@ -100,6 +121,9 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     }
 
     /// Create a Value-Argument, based on the given `parse`-function.
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_display](Argumente::wert_display)
     #[inline(always)]
     pub fn value_display(
         description: Description<T>,
@@ -113,6 +137,9 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
 
 impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    ///
+    /// ## English synonym
+    /// [value_string_with_language](Arguments::value_string_with_language)
     #[inline(always)]
     pub fn wert_string_mit_sprache(
         beschreibung: Beschreibung<T>,
@@ -131,6 +158,9 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     }
 
     /// Create a Value-Argument, based on the given `parse`-function.
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_string_mit_sprache](Argumente::wert_string_mit_sprache)
     #[inline(always)]
     pub fn value_string_with_language(
         description: Description<T>,
@@ -143,6 +173,9 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     }
 
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    ///
+    /// ## English synonym
+    /// [value_string](Arguments::value_string)
     #[inline(always)]
     pub fn wert_string(
         beschreibung: Beschreibung<T>,
@@ -167,6 +200,9 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     }
 
     /// Create a Value-Argument, based on the given `parse`-function.
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_string](Argumente::wert_string)
     #[inline(always)]
     pub fn value_string(
         description: Description<T>,
@@ -179,6 +215,9 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     }
 
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    ///
+    /// ## English synonym
+    /// [value_with_language](Arguments::value_with_language)
     #[inline(always)]
     pub fn wert_mit_sprache(
         beschreibung: Beschreibung<T>,
@@ -190,7 +229,25 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
         Argumente::wert(beschreibung, sprache.meta_var.to_owned(), mögliche_werte, parse, anzeige)
     }
 
+    /// Create a Value-Argument, based on the given `parse`-function.
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_mit_sprache](Arguments::wert_mit_sprache)
+    #[inline(always)]
+    pub fn value_with_language(
+        description: Description<T>,
+        possible_values: Option<NonEmpty<T>>,
+        parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
+        display: impl Fn(&T) -> String,
+        language: Language,
+    ) -> Argumente<T, E> {
+        Argumente::wert_mit_sprache(description, possible_values, parse, display, language)
+    }
+
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
+    ///
+    /// ## English synonym
+    /// [value](Arguments::value)
     pub fn wert(
         beschreibung: Beschreibung<T>,
         meta_var: String,
@@ -295,6 +352,9 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     }
 
     /// Create a Value-Argument, based on the given `parse`-function.
+    ///
+    /// ## Deutsches Synonym
+    /// [wert](Argumente::wert)
     #[inline(always)]
     pub fn value(
         description: Description<T>,
@@ -307,22 +367,46 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     }
 }
 
-// TODO english doc
 /// Trait für Typen mit einer festen Anzahl an Werten und Methode zum Parsen.
 /// Gedacht für Summentypen ohne extra Daten (nur Unit-Varianten).
 ///
 /// Mit aktiviertem `derive`-Feature kann die Implementierung
 /// [automatisch erzeugt werden](derive@EnumArgument).
+///
+/// ## English
+/// Trait for types with a fixed number of values and a parse method.
+/// Intended for sum-types without extra data (only unit variants).
+///
+/// With activated `derive`-feature, the implementation can be
+/// [created automatically](derive@EnumArgument).
 pub trait EnumArgument: Sized {
     /// Alle Varianten des Typs.
+    ///
+    /// ## English synonym
+    /// [variants](EnumArgument::variants)
     fn varianten() -> Vec<Self>;
 
+    /// All variants of the type.
+    ///
+    /// ## Deutsches Synonym
+    /// [varianten](EnumArgument::varianten)
+    #[inline(always)]
+    fn variants() -> Vec<Self> {
+        Self::varianten()
+    }
+
     /// Versuche einen Wert ausgehend vom übergebenen [OsStr] zu erzeugen.
+    ///
+    /// ## English
+    /// Try to parse a value from the given [OsStr].
     fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>>;
 }
 
 impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     /// Erzeuge ein Wert-Argument für ein [EnumArgument].
+    ///
+    /// ## English synonym
+    /// [value_enum_display_with_language](Arguments::value_enum_display_with_language)
     #[inline(always)]
     pub fn wert_enum_display_mit_sprache(
         beschreibung: Beschreibung<T>,
@@ -332,6 +416,9 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     }
 
     /// Create a value-argument for an [EnumArgument].
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_enum_display_mit_sprache](Argumente::wert_enum_display_mit_sprache)
     #[inline(always)]
     pub fn value_enum_display_with_language(
         description: Description<T>,
@@ -341,6 +428,9 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     }
 
     /// Erzeuge ein Wert-Argument für ein [EnumArgument].
+    ///
+    /// ## English synonym
+    /// [value_enum_display](Arguments::value_enum_display)
     #[inline(always)]
     pub fn wert_enum_display(
         beschreibung: Beschreibung<T>,
@@ -350,6 +440,9 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     }
 
     /// Create a value-argument for an [EnumArgument].
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_enum_display](Argumente::wert_enum_display)
     #[inline(always)]
     pub fn value_enum_display(
         description: Description<T>,
@@ -361,6 +454,9 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
 
 impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     /// Erzeuge ein Wert-Argument für ein [EnumArgument].
+    ///
+    /// ## English synonym
+    /// [value_enum_with_language](Arguments::value_enum_with_language)
     #[inline(always)]
     pub fn wert_enum_mit_sprache(
         beschreibung: Beschreibung<T>,
@@ -371,6 +467,9 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     }
 
     /// Create a value-argument for an [EnumArgument].
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_enum_mit_sprache](Argumente::wert_enum_mit_sprache)
     #[inline(always)]
     pub fn value_enum_with_language(
         description: Description<T>,
@@ -381,6 +480,9 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     }
 
     /// Erzeuge ein Wert-Argument für ein [EnumArgument].
+    ///
+    /// ## English synonym
+    /// [value_enum](Arguments::value_enum)
     pub fn wert_enum(
         beschreibung: Beschreibung<T>,
         meta_var: String,
@@ -391,6 +493,9 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     }
 
     /// Create a value-argument for an [EnumArgument].
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_enum](Argumente::wert_enum)
     #[inline(always)]
     pub fn value_enum(
         description: Description<T>,
@@ -407,6 +512,9 @@ where
     T::Err: Display,
 {
     /// Erzeuge ein Wert-Argument anhand der [FromStr]-Implementierung.
+    ///
+    /// ## English synonym
+    /// [value_from_str_display_with_language](Arguments::value_from_str_display_with_language)
     #[inline(always)]
     pub fn wert_from_str_display_mit_sprache(
         beschreibung: Beschreibung<T>,
@@ -417,6 +525,9 @@ where
     }
 
     /// Create a value-argument based on its [FromStr] implementation.
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_from_str_display_mit_sprache](Argumente::wert_from_str_display_mit_sprache)
     #[inline(always)]
     pub fn value_from_str_display_with_language(
         description: Description<T>,
@@ -427,6 +538,9 @@ where
     }
 
     /// Erzeuge ein Wert-Argument anhand der [FromStr]-Implementierung.
+    ///
+    /// ## English synonym
+    /// [value_from_str_display](Arguments::value_from_str_display)
     #[inline(always)]
     pub fn wert_from_str_display(
         beschreibung: Beschreibung<T>,
@@ -439,6 +553,9 @@ where
     }
 
     /// Create a value-argument based on its [FromStr] implementation.
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_from_str_display](Argumente::wert_from_str_display)
     #[inline(always)]
     pub fn value_from_str_display(
         description: Description<T>,
@@ -455,6 +572,9 @@ where
     E: 'static + Clone,
 {
     /// Erzeuge ein Wert-Argument anhand der [FromStr]-Implementierung.
+    ///
+    /// ## English synonym
+    /// [value_from_str_with_language](Arguments::value_from_str_with_language)
     #[inline(always)]
     pub fn wert_from_str_mit_sprache(
         beschreibung: Beschreibung<T>,
@@ -473,6 +593,9 @@ where
     }
 
     /// Create a value-argument based on its [FromStr] implementation.
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_from_str_mit_sprache](Argumente::wert_from_str_mit_sprache)
     #[inline(always)]
     pub fn value_from_str_with_language(
         description: Description<T>,
@@ -491,6 +614,9 @@ where
     }
 
     /// Erzeuge ein Wert-Argument anhand der [FromStr]-Implementierung.
+    ///
+    /// ## English synonym
+    /// [value_from_str](Arguments::value_from_str)
     pub fn wert_from_str(
         beschreibung: Beschreibung<T>,
         meta_var: String,
@@ -508,6 +634,9 @@ where
     }
 
     /// Create a value-argument based on its [FromStr] implementation.
+    ///
+    /// ## Deutsches Synonym
+    /// [wert_from_str](Argumente::wert_from_str)
     #[inline(always)]
     pub fn value_from_str(
         description: Description<T>,
