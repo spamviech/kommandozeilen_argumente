@@ -1,5 +1,7 @@
 # kommandozeilen_argumente
 
+TODO english version
+
 Parser für Kommandozeilen-Argumente mit optionaler, automatischer Hilfe-Generierung.
 
 Zum erstellen eines neuen Arguments werden assoziierte Funktionen bereitgestellt,
