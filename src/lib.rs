@@ -33,7 +33,6 @@
     variant_size_differences
 )]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
-#![cfg_attr(all(doc, not(doctest)), feature(trait_alias))]
 
 #[doc(inline)]
 /// A Non-empty growable vector.

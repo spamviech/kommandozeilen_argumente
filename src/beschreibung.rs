@@ -89,31 +89,15 @@ pub(crate) use contains_str;
 
 /// Mindestens ein String als Definition für den vollen Namen.
 ///
-/// ## English synonym
-/// [LongNames]
-pub trait LangNamen: Sized {
+/// ## English
+/// At least one String as definition for the full name.
+pub trait LangNamen {
     /// Konvertiere in ein [NonEmpty].
     ///
-    /// ## English synonym
-    /// [long_names](LongNames::long_names)
-    fn lang_namen(self) -> NonEmpty<String>;
-
+    /// ## English
     /// Convert into a [NonEmpty].
-    ///
-    /// ## Deutsches Synonym
-    /// [lang_namen](LangNamen::lang_namen)
-    #[inline(always)]
-    fn long_names(self) -> NonEmpty<String> {
-        self.lang_namen()
-    }
+    fn lang_namen(self) -> NonEmpty<String>;
 }
-
-#[cfg(all(doc, not(doctest)))]
-/// At least one String as definition for the full name.
-///
-/// ## Deutsches Synonym
-/// [LangNamen]
-pub trait LongNames = LangNamen;
 
 impl LangNamen for String {
     fn lang_namen(self) -> NonEmpty<String> {
@@ -145,31 +129,15 @@ impl<S: Deref<Target = str>> LangNamen for &NonEmpty<S> {
 
 /// Beliebige Anzahl an Strings für den kurzen Namen.
 ///
-/// ## English synonym
-/// [ShortNames]
-pub trait KurzNamen: Sized {
+/// ## English
+/// Arbitrary number of strings for the short name.
+pub trait KurzNamen {
     /// Konvertiere in einen [Vec].
     ///
-    /// ## English synonym
-    /// [short_names](ShortNames::short_names)
-    fn kurz_namen(self) -> Vec<String>;
-
+    /// ## English
     /// Convert into a [Vec].
-    ///
-    /// ## Deutsches Synonym
-    /// [kurz_namen](LangNamen::kurz_namen)
-    #[inline(always)]
-    fn short_names(self) -> Vec<String> {
-        self.kurz_namen()
-    }
+    fn kurz_namen(self) -> Vec<String>;
 }
-
-#[cfg(all(doc, not(doctest)))]
-/// Arbitrary amount of strings for the short name.
-///
-/// ## Deutsches Synonym
-/// [LangNamen]
-pub trait ShortNames = KurzNamen;
 
 impl KurzNamen for Option<String> {
     fn kurz_namen(self) -> Vec<String> {
