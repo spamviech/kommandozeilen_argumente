@@ -77,6 +77,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_with_error_message_from_env](Arguments::parse_with_error_message_from_env)
     #[inline(always)]
     pub fn parse_mit_fehlermeldung_aus_env(&self, fehler_code: NonZeroI32) -> T {
         self.parse_mit_fehlermeldung(args_aus_env(), fehler_code)
@@ -87,6 +90,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_mit_fehlermeldung_aus_env](Argumente::parse_mit_fehlermeldung_aus_env)
     #[inline(always)]
     pub fn parse_with_error_message_from_env(&self, error_code: NonZeroI32) -> T {
         self.parse_with_error_message(args_aus_env(), error_code)
@@ -98,6 +104,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_complete_with_language_from_env](Arguments::parse_complete_with_language_from_env)
     #[inline(always)]
     pub fn parse_vollständig_mit_sprache_aus_env(
         &self,
@@ -119,6 +128,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_vollständig_mit_sprache_aus_env](Argumente::parse_vollständig_mit_sprache_aus_env)
     #[inline(always)]
     pub fn parse_complete_with_language_from_env(
         &self,
@@ -134,6 +146,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_complete_from_env](Arguments::parse_complete_from_env)
     #[inline(always)]
     pub fn parse_vollständig_aus_env(
         &self,
@@ -160,6 +175,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_vollständig_aus_env](Argumente::parse_vollständig_aus_env)
     #[inline(always)]
     pub fn parse_complete_from_env(
         &self,
@@ -186,6 +204,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_with_error_message](Arguments::parse_with_error_message)
     #[inline(always)]
     pub fn parse_mit_fehlermeldung(
         &self,
@@ -200,6 +221,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_mit_fehlermeldung](Argumente::parse_mit_fehlermeldung)
     #[inline(always)]
     pub fn parse_with_error_message(
         &self,
@@ -215,6 +239,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_complete_with_language](Arguments::parse_complete_with_language)
     #[inline(always)]
     pub fn parse_vollständig_mit_sprache(
         &self,
@@ -238,6 +265,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_vollständig_mit_sprache](Argumente::parse_vollständig_mit_sprache)
     #[inline(always)]
     pub fn parse_complete_with_language(
         &self,
@@ -254,6 +284,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_complete](Arguments::parse_complete)
     pub fn parse_vollständig(
         &self,
         args: impl Iterator<Item = OsString>,
@@ -299,6 +332,9 @@ impl<T, E: Display> Argumente<T, E> {
     /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_vollständig](Argumente::parse_vollständig)
     #[inline(always)]
     pub fn parse_complete(
         &self,
@@ -324,12 +360,18 @@ impl<T, E: Display> Argumente<T, E> {
 
 impl<T, E> Argumente<T, E> {
     /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
+    ///
+    /// ## English synonym
+    /// [parse_from_env](Arguments::parse_from_env)
     #[inline(always)]
     pub fn parse_aus_env(&self) -> (Ergebnis<T, E>, Vec<OsString>) {
         Argumente::parse(&self, args_aus_env())
     }
 
-    /// Parse the given command line arguments to create the requested type.
+    /// Parse [args_os](std::env::args_os) to create the requested type.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_aus_env](Argumente::parse_aus_env)
     #[inline(always)]
     pub fn parse_from_env(&self) -> (Result<T, E>, Vec<OsString>) {
         self.parse_aus_env()
@@ -339,6 +381,9 @@ impl<T, E> Argumente<T, E> {
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [exit](std::process::exit) mit exit code `0` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_from_env_with_early_exit](Arguments::parse_from_env_with_early_exit)
     #[inline(always)]
     pub fn parse_aus_env_mit_frühen_beenden(
         &self,
@@ -349,6 +394,9 @@ impl<T, E> Argumente<T, E> {
     /// Parse [args_os](std::env::args_os) to create the requested type.
     /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
     /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_aus_env_mit_frühen_beenden](Argumente::parse_aus_env_mit_frühen_beenden)
     #[inline(always)]
     pub fn parse_from_env_with_early_exit(
         &self,
@@ -360,6 +408,9 @@ impl<T, E> Argumente<T, E> {
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [exit](std::process::exit) mit exit code `0` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_with_early_exit](Arguments::parse_with_early_exit)
     pub fn parse_mit_frühen_beenden(
         &self,
         args: impl Iterator<Item = OsString>,
@@ -381,6 +432,9 @@ impl<T, E> Argumente<T, E> {
     /// Parse the given command line arguments to create the requested type.
     /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
     /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_mit_frühen_beenden](Argumente::parse_mit_frühen_beenden)
     #[inline(always)]
     pub fn parse_with_early_exit(
         &self,
@@ -389,8 +443,10 @@ impl<T, E> Argumente<T, E> {
         self.parse_mit_frühen_beenden(args)
     }
 
-    // TODO english doc
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
+    ///
+    /// ## English
+    /// Parse the given command line arguments to create the requested type
     pub fn parse(&self, args: impl Iterator<Item = OsString>) -> (Ergebnis<T, E>, Vec<OsString>) {
         let Argumente { konfigurationen: _, flag_kurzformen, parse } = self;
         let angepasste_args: Vec<OsString> = args
@@ -420,12 +476,18 @@ impl<T, E> Argumente<T, E> {
     }
 
     /// Alle konfigurierten Kommandozeilen-Argumente.
+    ///
+    /// ## Deutsches Synonym
+    /// [configurations](Argumente::configurations)
     #[inline(always)]
     pub fn konfigurationen(&self) -> impl Iterator<Item = &Konfiguration> {
         self.konfigurationen.iter()
     }
 
     /// All configured command line arguments.
+    ///
+    /// ## English synonym
+    /// [konfigurationen](Arguments::konfigurationen)
     #[inline(always)]
     pub fn configurations(&self) -> impl Iterator<Item = &Configuration> {
         self.konfigurationen.iter()

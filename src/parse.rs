@@ -5,23 +5,32 @@ use std::{ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
 use nonempty::NonEmpty;
 
 use crate::{
-    argumente::{wert::EnumArgument, Argumente},
-    beschreibung::{Beschreibung, Konfiguration},
-    ergebnis::{Ergebnis, Fehler, ParseFehler},
-    sprache::Sprache,
+    argumente::{wert::EnumArgument, Argumente, Arguments},
+    beschreibung::{Beschreibung, Description, Konfiguration},
+    ergebnis::{Ergebnis, Error, Fehler, ParseFehler},
+    sprache::{Language, Sprache},
 };
 
 #[cfg(any(feature = "derive", doc))]
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::Parse;
 
-// TODO english doc, alias for trait methods?
-/// Trait für Typen, die direkt mit dem derive-Macro für [Parse] verwendet werden können.
+/// Trait für Typen, die direkt mit dem (derive-Macro)[derive@Parse]
+/// für das [Parse]-Trait verwendet werden können.
+///
+/// ## English
+/// Trait for types directly usable with the [derive macro](derive@Parse] for the [Parse] trait.
 pub trait ParseArgument: Sized {
     /// Erstelle ein [Argumente] mit den konfigurierten Eigenschaften.
     ///
     /// `invertiere_präfix` ist für Flag-Argumente gedacht,
     /// `meta_var` für Wert-Argumente.
+    ///
+    /// ## English
+    /// Create and [Arguments] with the configured properties.
+    ///
+    /// `invertiere_präfix` is intended as the prefix to invert flag arguments,
+    /// `meta_var` is intended as the meta-variable used in the help text for value arguments.
     fn argumente(
         beschreibung: Beschreibung<Self>,
         invertiere_präfix: &'static str,
@@ -29,9 +38,16 @@ pub trait ParseArgument: Sized {
     ) -> Argumente<Self, String>;
 
     /// Sollen Argumente dieses Typs normalerweise einen Standard-Wert haben?
+    ///
+    /// ## English
+    /// Should arguments of this type have a default value if left unspecified?
     fn standard() -> Option<Self>;
 
     /// Erstelle ein [Argumente] für die übergebene [Beschreibung].
+    ///
+    /// ## English synonym
+    /// [arguments_with_language](ParseArgument::arguments_with_language)
+    #[inline(always)]
     fn argumente_mit_sprache(
         beschreibung: Beschreibung<Self>,
         sprache: Sprache,
@@ -39,12 +55,32 @@ pub trait ParseArgument: Sized {
         Self::argumente(beschreibung, sprache.invertiere_präfix, sprache.meta_var)
     }
 
+    /// Create an [Arguments] for the given [Description].
+    ///
+    /// ## Deutsches Synonym
+    /// [argumente_mit_sprache](ParseArgument::argumente_mit_sprache)
+    #[inline(always)]
+    fn arguments_with_language(
+        description: Description<Self>,
+        language: Language,
+    ) -> Arguments<Self, String> {
+        Self::argumente_mit_sprache(description, language)
+    }
+
     /// Erstelle ein [Argumente] für die übergebene [Beschreibung].
+    ///
+    /// ## English version
+    /// [new](ParseArgument::new)
+    #[inline(always)]
     fn neu(beschreibung: Beschreibung<Self>) -> Argumente<Self, String> {
         Self::argumente_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
 
     /// Create an [Argumente] for the [Beschreibung].
+    ///
+    /// ## Deutsche Version
+    /// [neu](ParseArgument::neu)
+    #[inline(always)]
     fn new(beschreibung: Beschreibung<Self>) -> Argumente<Self, String> {
         Self::argumente_mit_sprache(beschreibung, Sprache::ENGLISH)
     }
@@ -192,18 +228,31 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
     }
 }
 
-// TODO english doc, english alias for methods?
 /// Erlaube parsen aus Kommandozeilen-Argumenten ausgehend einer Standard-Konfiguration.
 ///
 /// Mit aktiviertem `derive`-Feature kann diese [automatisch erzeugt werden](derive@Parse).
+///
+/// ## English
+/// Allow parsing from command line arguments, based on a default configuration.
+///
+/// With active `derive`-feature, the implementation can be [automatically created](derive@Parse).
 pub trait Parse: Sized {
     /// Möglicher Parse-Fehler, die automatisch erzeugte Implementierung verwendet [String].
+    ///
+    /// ## English
+    /// Possible parse error, the automatically created implementation uses [String].
     type Fehler;
 
     /// Erzeuge eine Beschreibung, wie Kommandozeilen-Argumente geparst werden sollen.
+    ///
+    /// ## English
+    /// Create a description, how command line arguments should be parsed.
     fn kommandozeilen_argumente() -> Argumente<Self, Self::Fehler>;
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
+    ///
+    /// ## English
+    /// Parse the given command line arguments to create the requested type.
     #[inline(always)]
     fn parse(
         args: impl Iterator<Item = OsString>,
@@ -212,30 +261,73 @@ pub trait Parse: Sized {
     }
 
     /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
+    ///
+    /// ## English synonym
+    /// [parse_from_env](Parse::parse_from_env)
     #[inline(always)]
     fn parse_aus_env() -> (Ergebnis<Self, Self::Fehler>, Vec<OsString>) {
         Self::kommandozeilen_argumente().parse_aus_env()
+    }
+
+    /// Parse [args_os](std::env::args_os) and try to create the requested type.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_aus_env](Parse::parse_aus_env)
+    #[inline(always)]
+    fn parse_from_env() -> (Ergebnis<Self, Self::Fehler>, Vec<OsString>) {
+        Self::parse_aus_env()
     }
 
     /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [exit](std::process::exit) mit exit code `0` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_from_env_with_early_exit](Parse::parse_from_env_with_early_exit)
     #[inline(always)]
     fn parse_aus_env_mit_frühen_beenden(
     ) -> (Result<Self, NonEmpty<Fehler<Self::Fehler>>>, Vec<OsString>) {
         Self::kommandozeilen_argumente().parse_aus_env_mit_frühen_beenden()
     }
 
+    /// Parse [args_os](std::env::args_os) to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_aus_env_mit_frühen_beenden](Argumente::parse_aus_env_mit_frühen_beenden)
+    #[inline(always)]
+    fn parse_from_env_with_early_exit(
+    ) -> (Result<Self, NonEmpty<Error<Self::Fehler>>>, Vec<OsString>) {
+        Self::parse_aus_env_mit_frühen_beenden()
+    }
+
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [exit](std::process::exit) mit exit code `0` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_with_early_exit](Parse::parse_with_early_exit)
     #[inline(always)]
     fn parse_mit_frühen_beenden(
         args: impl Iterator<Item = OsString>,
     ) -> (Result<Self, NonEmpty<Fehler<Self::Fehler>>>, Vec<OsString>) {
         Self::kommandozeilen_argumente().parse_mit_frühen_beenden(args)
+    }
+
+    /// Parse the given command line arguments to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_mit_frühen_beenden](Parse::parse_mit_frühen_beenden)
+    #[inline(always)]
+    fn parse_with_early_exit(
+        args: impl Iterator<Item = OsString>,
+    ) -> (Result<Self, NonEmpty<Error<Self::Fehler>>>, Vec<OsString>) {
+        Self::parse_mit_frühen_beenden(args)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -244,6 +336,9 @@ pub trait Parse: Sized {
     /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_complete](Parse::parse_complete)
     #[inline(always)]
     fn parse_vollständig(
         args: impl Iterator<Item = OsString>,
@@ -268,14 +363,50 @@ pub trait Parse: Sized {
         )
     }
 
+    /// Parse the given command line arguments to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_vollständig](Parse::parse_vollständig)
+    #[inline(always)]
+    fn parse_complete(
+        args: impl Iterator<Item = OsString>,
+        error_code: NonZeroI32,
+        missing_flag: &str,
+        missing_value: &str,
+        parse_error: &str,
+        invalid_string: &str,
+        unused_arg: &str,
+    ) -> Self
+    where
+        Self::Fehler: Display,
+    {
+        Self::parse_vollständig(
+            args,
+            error_code,
+            missing_flag,
+            missing_value,
+            parse_error,
+            invalid_string,
+            unused_arg,
+        )
+    }
+
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_complete_with_language](Parse::parse_complete_with_language)
     #[inline(always)]
     fn parse_vollständig_mit_sprache(
+        // FIXME this doesn't belong here, but removing it is a backward compatibility breaking change
         &self,
         args: impl Iterator<Item = OsString>,
         fehler_code: NonZeroI32,
@@ -287,20 +418,27 @@ pub trait Parse: Sized {
         Self::kommandozeilen_argumente().parse_vollständig_mit_sprache(args, fehler_code, sprache)
     }
 
-    /// Parse command line arguments to create the requested type.
+    /// Parse the given command line arguments to create the requested type.
     /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
     /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_vollständig_mit_sprache](Parse::parse_vollständig_mit_sprache)
     #[inline(always)]
-    fn parse_with_error_message(
+    fn parse_complete_with_language(
+        // FIXME this doesn't belong here, but removing it from parse_vollständig_mit_sprache
+        // is a backward compatibility breaking change
+        &self,
         args: impl Iterator<Item = OsString>,
         error_code: NonZeroI32,
+        language: Language,
     ) -> Self
     where
         Self::Fehler: Display,
     {
-        Self::kommandozeilen_argumente().parse_with_error_message(args, error_code)
+        Self::parse_vollständig_mit_sprache(self, args, error_code, language)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -309,6 +447,9 @@ pub trait Parse: Sized {
     /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English version
+    /// [parse_with_error_message](Parse::parse_with_error_message)
     #[inline(always)]
     fn parse_mit_fehlermeldung(
         args: impl Iterator<Item = OsString>,
@@ -320,12 +461,34 @@ pub trait Parse: Sized {
         Self::kommandozeilen_argumente().parse_mit_fehlermeldung(args, fehler_code)
     }
 
+    /// Parse command line arguments to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsche version
+    /// [parse_mit_fehlermeldung](Parse::parse_mit_fehlermeldung)
+    #[inline(always)]
+    fn parse_with_error_message(
+        args: impl Iterator<Item = OsString>,
+        error_code: NonZeroI32,
+    ) -> Self
+    where
+        Self::Fehler: Display,
+    {
+        Self::kommandozeilen_argumente().parse_with_error_message(args, error_code)
+    }
+
     /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_complete_from_env](Parse::parse_complete_from_env)
     #[inline(always)]
     fn parse_vollständig_aus_env(
         fehler_code: NonZeroI32,
@@ -348,14 +511,48 @@ pub trait Parse: Sized {
         )
     }
 
+    /// Parse [args_os](std::env::args_os) to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_vollständig_aus_env](Parse::parse_vollständig_aus_env)
+    #[inline(always)]
+    fn parse_complete_from_env(
+        error_code: NonZeroI32,
+        missing_flag: &str,
+        missing_value: &str,
+        parse_error: &str,
+        invalid_string: &str,
+        unused_arg: &str,
+    ) -> Self
+    where
+        Self::Fehler: Display,
+    {
+        Self::parse_vollständig_aus_env(
+            error_code,
+            missing_flag,
+            missing_value,
+            parse_error,
+            invalid_string,
+            unused_arg,
+        )
+    }
+
     /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [parse_complete_with_language_from_env](Parse::parse_complete_with_language_from_env)
     #[inline(always)]
     fn parse_vollständig_mit_sprache_aus_env(
+        // FIXME this doesn't belong here, but removing it is a backward compatibility breaking change
         &self,
         fehler_code: NonZeroI32,
         sprache: Sprache,
@@ -367,12 +564,37 @@ pub trait Parse: Sized {
             .parse_vollständig_mit_sprache_aus_env(fehler_code, sprache)
     }
 
+    /// Parse [args_os](std::env::args_os) to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [parse_vollständig_mit_sprache_aus_env](Parse::parse_vollständig_mit_sprache_aus_env)
+    #[inline(always)]
+    fn parse_complete_with_language_from_env(
+        // FIXME this doesn't belong here, but removing it from parse_vollständig_mit_sprache
+        // is a backward compatibility breaking change
+        &self,
+        error_code: NonZeroI32,
+        language: Language,
+    ) -> Self
+    where
+        Self::Fehler: Display,
+    {
+        Self::parse_vollständig_mit_sprache_aus_env(self, error_code, language)
+    }
+
     /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [exit](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [exit](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English version
+    /// [parse_with_error_message_from_env](Parse::parse_with_error_message_from_env)
     #[inline(always)]
     fn parse_mit_fehlermeldung_aus_env(fehler_code: NonZeroI32) -> Self
     where
@@ -386,6 +608,9 @@ pub trait Parse: Sized {
     /// `stdout` and the program stops via [exit](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [exit](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsche Version
+    /// [parse_mit_fehlermeldung_aus_env](Parse::parse_mit_fehlermeldung_aus_env)
     #[inline(always)]
     fn parse_with_error_message_from_env(error_code: NonZeroI32) -> Self
     where
