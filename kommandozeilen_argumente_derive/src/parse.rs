@@ -884,7 +884,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         #(
             let #idents = #erstelle_args;
         )*
-        #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*} => #(#idents),*)
+        #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*}, #(#idents),*)
     );
     let nach_version = if let Some(version_hinzufügen) = erstelle_version {
         version_hinzufügen(kombiniere, sprache)

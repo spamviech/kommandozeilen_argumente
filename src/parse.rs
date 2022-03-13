@@ -406,8 +406,6 @@ pub trait Parse: Sized {
     /// [parse_complete_with_language](Parse::parse_complete_with_language)
     #[inline(always)]
     fn parse_vollständig_mit_sprache(
-        // FIXME this doesn't belong here, but removing it is a backward compatibility breaking change
-        &self,
         args: impl Iterator<Item = OsString>,
         fehler_code: NonZeroI32,
         sprache: Sprache,
@@ -428,9 +426,6 @@ pub trait Parse: Sized {
     /// [parse_vollständig_mit_sprache](Parse::parse_vollständig_mit_sprache)
     #[inline(always)]
     fn parse_complete_with_language(
-        // FIXME this doesn't belong here, but removing it from parse_vollständig_mit_sprache
-        // is a backward compatibility breaking change
-        &self,
         args: impl Iterator<Item = OsString>,
         error_code: NonZeroI32,
         language: Language,
@@ -438,7 +433,7 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::parse_vollständig_mit_sprache(self, args, error_code, language)
+        Self::parse_vollständig_mit_sprache(args, error_code, language)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -551,12 +546,7 @@ pub trait Parse: Sized {
     /// ## English synonym
     /// [parse_complete_with_language_from_env](Parse::parse_complete_with_language_from_env)
     #[inline(always)]
-    fn parse_vollständig_mit_sprache_aus_env(
-        // FIXME this doesn't belong here, but removing it is a backward compatibility breaking change
-        &self,
-        fehler_code: NonZeroI32,
-        sprache: Sprache,
-    ) -> Self
+    fn parse_vollständig_mit_sprache_aus_env(fehler_code: NonZeroI32, sprache: Sprache) -> Self
     where
         Self::Fehler: Display,
     {
@@ -573,17 +563,11 @@ pub trait Parse: Sized {
     /// ## Deutsches Synonym
     /// [parse_vollständig_mit_sprache_aus_env](Parse::parse_vollständig_mit_sprache_aus_env)
     #[inline(always)]
-    fn parse_complete_with_language_from_env(
-        // FIXME this doesn't belong here, but removing it from parse_vollständig_mit_sprache
-        // is a backward compatibility breaking change
-        &self,
-        error_code: NonZeroI32,
-        language: Language,
-    ) -> Self
+    fn parse_complete_with_language_from_env(error_code: NonZeroI32, language: Language) -> Self
     where
         Self::Fehler: Display,
     {
-        Self::parse_vollständig_mit_sprache_aus_env(self, error_code, language)
+        Self::parse_vollständig_mit_sprache_aus_env(error_code, language)
     }
 
     /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
