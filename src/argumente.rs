@@ -33,6 +33,7 @@ pub use crate::{combine, kombiniere};
 // TODO Positions-basierte Argumente
 // TODO Standard-Wert, sofern nur der Name gegeben ist (unterschiedlich zu Name kommt nicht vor)
 //      z.B. nichts: -O0, -O: -O1, -O=N für explizite Angabe
+//      vgl. mit Flag-Argumenten, kann zu parse-Problemen wegen Mehrdeutigkeit führen
 // TODO case sensitive Argumente/alles case sensitive
 //  benötigt Unicode normalization (wird bisher von unicase übernommen?), auch optional?
 // TODO Verwende unicode normalization, bevor das erste Grapheme für Kurznamen extrahiert wird?
@@ -43,6 +44,7 @@ pub use crate::{combine, kombiniere};
 // TODO Feature-gates für automatische Hilfe, verschmelzen von flag-kurzformen, ...
 //      benötigen extra Felder in Argumente-Struktur, könnte Performance verbessern
 // TODO Cow<'t/'static, str> anstelle von String verwenden
+// TODO OneOf/Either für alternative Parse-Möglichkeiten
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<T, E> {

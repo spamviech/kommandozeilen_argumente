@@ -44,6 +44,9 @@ mod enum_argument;
 mod parse;
 
 /// Derive-Macro für das [Parse](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html)-Traits.
+///
+/// ## English
+/// Derive macro for the [Parse](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html) trait.
 #[proc_macro_derive(Parse, attributes(kommandozeilen_argumente))]
 pub fn derive_parse(item: TokenStream) -> TokenStream {
     match parse::derive_parse(item.into()) {
@@ -57,6 +60,9 @@ pub fn derive_parse(item: TokenStream) -> TokenStream {
 }
 
 /// Derive-Macro für das [EnumArgument](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html)-Trait.
+///
+/// ## English
+/// Derive macro for the [EnumArgument](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html) trait.
 #[proc_macro_derive(EnumArgument)]
 pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
     match enum_argument::derive_enum_argument(item.into()) {
