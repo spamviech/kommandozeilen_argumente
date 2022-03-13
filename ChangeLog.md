@@ -2,6 +2,10 @@
 
 ## Unreleased changes
 
+- Unbenutzten `&self`-Parameter von folgenden Methoden entfernt:
+  - `Parse::parse_vollständig_mit_sprache`
+  - `Parse::parse_vollständig_mit_sprache_aus_env`
+- Methode umbenannt: `Ergebnis::map` -> `Ergebnis::konvertiere`, `Ergebnis::convert`
 - Die `kombiniereN`-Funktionen werden explizit (über ein Macro) implementiert.
     Dadurch werden deutlich weniger Tupel ge- und entpackt,
     wie es bei der `kombiniere!`-basierten Implementierung noch der Fall war.

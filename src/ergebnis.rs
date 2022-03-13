@@ -9,28 +9,54 @@ use crate::sprache::{Language, Sprache};
 
 // TODO english doc for variants
 /// Ergebnis des Parsen von Kommandozeilen-Argumenten.
+///
+/// ## English synonym
+/// [Result]
 #[derive(Debug)]
 pub enum Ergebnis<T, E> {
     /// Erfolgreiches Parsen.
+    ///
+    /// ## English
+    /// Successful parsing.
     Wert(T),
     /// Frühes Beenden durch zeigen der Nachrichten gewünscht.
+    ///
+    /// ## English
+    /// Request an early exit, showing the given messages.
     FrühesBeenden(NonEmpty<String>),
     /// Fehler beim Parsen der Kommandozeilen-Argumente.
+    ///
+    /// ## English
+    /// Error while parsing command line arguments.
     Fehler(NonEmpty<Fehler<E>>),
 }
 
 /// Result when parsing command line arguments.
+///
+/// ## Deutsches Synonym
+/// [Ergebnis]
 pub type Result<T, E> = Ergebnis<T, E>;
 
 impl<T, E> Ergebnis<T, E> {
-    // TODO english doc
     /// Konvertiere einen erfolgreich geparsten Wert mit der spezifizierten Funktion.
-    pub fn map<S>(self, f: impl FnOnce(T) -> S) -> Ergebnis<S, E> {
+    ///
+    /// ## English synonym
+    /// [convert](Result::convert)
+    pub fn konvertiere<S>(self, f: impl FnOnce(T) -> S) -> Ergebnis<S, E> {
         match self {
             Ergebnis::Wert(t) => Ergebnis::Wert(f(t)),
             Ergebnis::FrühesBeenden(nachrichten) => Ergebnis::FrühesBeenden(nachrichten),
             Ergebnis::Fehler(fehler) => Ergebnis::Fehler(fehler),
         }
+    }
+
+    /// Convert a successfully parsed value using the specified function.
+    ///
+    /// ## Deutsches Synonym
+    /// [konvertiere](Ergebnis::konvertiere)
+    #[inline(always)]
+    pub fn convert<S>(self, f: impl FnOnce(T) -> S) -> Ergebnis<S, E> {
+        self.konvertiere(f)
     }
 }
 
