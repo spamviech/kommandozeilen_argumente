@@ -83,7 +83,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Erzeuge eine `--version`-Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei die konfigurierte Programm-Version.
     ///
-    /// ## English Version
+    /// ## English version
     /// [version_english](Arguments::version_english)
     #[inline(always)]
     pub fn version_deutsch(self, programm_name: &str, version: &str) -> Argumente<T, E> {
@@ -93,7 +93,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt
     /// und die konfigurierte Programm-Version anzeigt.
     ///
-    /// ## English Version
+    /// ## English version
     /// [version_with_names](Arguments::version_with_names)
     pub fn version_mit_namen(
         self,
@@ -246,7 +246,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Erzeuge eine `--hilfe`-Flag, die zu vorzeitigem Beenden führt.
     /// Zeige dabei eine automatisch generierte Hilfe.
     ///
-    /// ## English Version
+    /// ## English version
     /// [help](Arguments::help)
     #[inline(always)]
     pub fn hilfe(self, programm_name: &str, version: Option<&str>) -> Argumente<T, E> {
@@ -256,7 +256,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// Erzeuge eine Flag, die zu vorzeitigem Beenden führt
     /// und eine automatisch generierte Hilfe anzeigt.
     ///
-    /// ## English Version
+    /// ## English version
     /// [help_with_names](Arguments::help_with_names)
     #[inline(always)]
     pub fn hilfe_mit_namen(
