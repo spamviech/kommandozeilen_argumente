@@ -6,6 +6,9 @@ use crate::{argumente::Argumente, ergebnis::Ergebnis};
 
 #[macro_export]
 /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
+///
+/// ## English synonym
+/// [combine][crate::argumente::combine]
 macro_rules! kombiniere {
     ($funktion:expr $(,)?) => {
         $crate::Argumente::konstant($funktion)
@@ -94,6 +97,9 @@ macro_rules! kombiniere {
 
 #[macro_export]
 /// Parse multiple command line arguments and combine the results with the given function.
+///
+/// ## Deutsches Synonym
+/// [kombiniere][macro@crate::argumente::kombiniere]
 macro_rules! combine {
     ($funktion: expr $(, $($args:ident),*)?) => {
         $crate::kombiniere!($funktion $(, $($args),*)?)
@@ -106,6 +112,9 @@ macro_rules! combine {
 macro_rules! impl_kombiniere_n {
     ($deutsch: ident - $english: ident ($($var: ident: $ty_var: ident),+)) => {
         /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
+        ///
+        /// ## English synonym
+        #[doc = concat!("[", stringify!($english), "](Argumente::", stringify!($english), ")")]
         pub fn $deutsch<$($ty_var: 'static),+>(
             f: impl 'static + Fn($($ty_var),+) -> T,
             $($var: Argumente<$ty_var, Error>),+
@@ -149,6 +158,9 @@ macro_rules! impl_kombiniere_n {
 
 
         /// Parse multiple command line arguments and combine the results with the given function.
+        ///
+        /// ## Deutsches Synonym
+        #[doc = concat!("[", stringify!($deutsch), "](Argumente::", stringify!($deutsch), ")")]
         #[inline(always)]
         pub fn $english<$($ty_var: 'static),+>(
             f: impl 'static + Fn($($ty_var),+) -> T,
@@ -161,6 +173,9 @@ macro_rules! impl_kombiniere_n {
 
 impl<T, Error: 'static> Argumente<T, Error> {
     /// Parse keine Kommandozeilen-Argumente und erzeuge das Ergebnis mit der übergebenen Funktion.
+    ///
+    /// ## English synonym
+    /// [constant](Argumente::constant)
     pub fn konstant(f: impl 'static + Fn() -> T) -> Argumente<T, Error> {
         Argumente {
             konfigurationen: Vec::new(),
@@ -170,12 +185,18 @@ impl<T, Error: 'static> Argumente<T, Error> {
     }
 
     /// Parse no command line arguments and create the result with the given function.
+    ///
+    /// ## Deutsches Synonym
+    /// [konstant](Argumente::konstant)
     #[inline(always)]
     pub fn constant(f: impl 'static + Fn() -> T) -> Argumente<T, Error> {
         Argumente::konstant(f)
     }
 
     /// Parse ein Kommandozeilen-Argument und konvertiere das Ergebnis mit der übergebenen Funktion.
+    ///
+    /// ## English synonym
+    /// [convert](Argumente::convert)
     pub fn konvertiere<A: 'static>(
         f: impl 'static + Fn(A) -> T,
         Argumente { konfigurationen, flag_kurzformen, parse }: Argumente<A, Error>,
@@ -196,6 +217,9 @@ impl<T, Error: 'static> Argumente<T, Error> {
     }
 
     /// Parse one command line argument and convert the result with the given function.
+    ///
+    /// ## Deutsches Synonym
+    /// [konvertiere](Argumente::konvertiere)
     #[inline(always)]
     pub fn convert<A: 'static>(
         f: impl 'static + Fn(A) -> T,

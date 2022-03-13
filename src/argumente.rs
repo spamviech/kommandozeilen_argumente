@@ -27,7 +27,7 @@ pub(crate) mod wert;
 pub use self::wert::EnumArgument;
 
 #[doc(inline)]
-pub use crate::kombiniere;
+pub use crate::{combine, kombiniere};
 
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
