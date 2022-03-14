@@ -1,6 +1,6 @@
 //! Trait für Typen, die aus Kommandozeilen-Argumenten geparst werden können.
 
-use std::{ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
+use std::{borrow::Cow, ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
 
 use nonempty::NonEmpty;
 
@@ -31,11 +31,11 @@ pub trait ParseArgument: Sized {
     ///
     /// `invertiere_präfix` is intended as the prefix to invert flag arguments,
     /// `meta_var` is intended as the meta-variable used in the help text for value arguments.
-    fn argumente(
-        beschreibung: Beschreibung<Self>,
-        invertiere_präfix: &'static str,
-        meta_var: &str,
-    ) -> Argumente<Self, String>;
+    fn argumente<'t>(
+        beschreibung: Beschreibung<'t, Self>,
+        invertiere_präfix: impl Into<Cow<'t, str>>,
+        meta_var: impl Into<Cow<'t, str>>,
+    ) -> Argumente<'t, Self, String>;
 
     /// Sollen Argumente dieses Typs normalerweise einen Standard-Wert haben?
     ///
@@ -48,10 +48,10 @@ pub trait ParseArgument: Sized {
     /// ## English synonym
     /// [arguments_with_language](ParseArgument::arguments_with_language)
     #[inline(always)]
-    fn argumente_mit_sprache(
-        beschreibung: Beschreibung<Self>,
+    fn argumente_mit_sprache<'t>(
+        beschreibung: Beschreibung<'t, Self>,
         sprache: Sprache,
-    ) -> Argumente<Self, String> {
+    ) -> Argumente<'t, Self, String> {
         Self::argumente(beschreibung, sprache.invertiere_präfix, sprache.meta_var)
     }
 
@@ -60,10 +60,10 @@ pub trait ParseArgument: Sized {
     /// ## Deutsches Synonym
     /// [argumente_mit_sprache](ParseArgument::argumente_mit_sprache)
     #[inline(always)]
-    fn arguments_with_language(
-        description: Description<Self>,
+    fn arguments_with_language<'t>(
+        description: Description<'t, Self>,
         language: Language,
-    ) -> Arguments<Self, String> {
+    ) -> Arguments<'t, Self, String> {
         Self::argumente_mit_sprache(description, language)
     }
 
@@ -72,7 +72,7 @@ pub trait ParseArgument: Sized {
     /// ## English version
     /// [new](ParseArgument::new)
     #[inline(always)]
-    fn neu(beschreibung: Beschreibung<Self>) -> Argumente<Self, String> {
+    fn neu<'t>(beschreibung: Beschreibung<'t, Self>) -> Argumente<'t, Self, String> {
         Self::argumente_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
 
@@ -81,17 +81,17 @@ pub trait ParseArgument: Sized {
     /// ## Deutsche Version
     /// [neu](ParseArgument::neu)
     #[inline(always)]
-    fn new(beschreibung: Beschreibung<Self>) -> Argumente<Self, String> {
+    fn new<'t>(beschreibung: Beschreibung<'t, Self>) -> Argumente<'t, Self, String> {
         Self::argumente_mit_sprache(beschreibung, Sprache::ENGLISH)
     }
 }
 
 impl ParseArgument for bool {
-    fn argumente(
-        beschreibung: Beschreibung<Self>,
-        invertiere_präfix: &'static str,
-        _meta_var: &str,
-    ) -> Argumente<Self, String> {
+    fn argumente<'t>(
+        beschreibung: Beschreibung<'t, Self>,
+        invertiere_präfix: impl Into<Cow<'t, str>>,
+        _meta_var: impl Into<Cow<'t, str>>,
+    ) -> Argumente<'t, Self, String> {
         Argumente::flag_bool(beschreibung, invertiere_präfix)
     }
 
@@ -101,12 +101,12 @@ impl ParseArgument for bool {
 }
 
 impl ParseArgument for String {
-    fn argumente(
-        beschreibung: Beschreibung<Self>,
-        _invertiere_präfix: &'static str,
-        meta_var: &str,
-    ) -> Argumente<Self, String> {
-        Argumente::wert_display(beschreibung, meta_var.to_owned(), None, |os_str| {
+    fn argumente<'t>(
+        beschreibung: Beschreibung<'t, Self>,
+        _invertiere_präfix: impl Into<Cow<'t, str>>,
+        meta_var: impl Into<Cow<'t, str>>,
+    ) -> Argumente<'t, Self, String> {
+        Argumente::wert_display(beschreibung, meta_var, None, |os_str| {
             if let Some(string) = os_str.to_str() {
                 Ok(string.to_owned())
             } else {
@@ -123,12 +123,12 @@ impl ParseArgument for String {
 macro_rules! impl_parse_argument {
     ($($type:ty),*$(,)?) => {$(
         impl ParseArgument for $type {
-            fn argumente(
-                beschreibung: Beschreibung<Self>,
-                _invertiere_präfix: &'static str,
-                meta_var: &str,
-            ) -> Argumente<Self, String> {
-                Argumente::wert_display(beschreibung, meta_var.to_owned(), None, |os_str| {
+            fn argumente<'t>(
+                beschreibung: Beschreibung<'t,Self>,
+                _invertiere_präfix: impl Into<Cow<'t,str>>,
+                meta_var: impl Into<Cow<'t,str>>,
+            ) -> Argumente<'t,Self, String> {
+                Argumente::wert_display(beschreibung, meta_var, None, |os_str| {
                     if let Some(string) = os_str.to_str() {
                         string.parse().map_err(
                             |err: <$type as FromStr>::Err| ParseFehler::ParseFehler(err.to_string())
@@ -148,11 +148,11 @@ macro_rules! impl_parse_argument {
 impl_parse_argument! {i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize, f32, f64}
 
 impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
-    fn argumente(
-        beschreibung: Beschreibung<Self>,
-        invertiere_präfix: &'static str,
-        meta_var: &str,
-    ) -> Argumente<Self, String> {
+    fn argumente<'t>(
+        beschreibung: Beschreibung<'t, Self>,
+        invertiere_präfix: impl Into<Cow<'t, str>>,
+        meta_var: impl Into<Cow<'t, str>>,
+    ) -> Argumente<'t, Self, String> {
         let Beschreibung { lang, kurz, .. } = &beschreibung;
         let lang_namen = lang.clone();
         let kurz_namen = kurz.clone();
@@ -166,9 +166,10 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
                     "None".to_owned()
                 }
             });
-        type F<T> = Box<dyn Fn(NonEmpty<Fehler<String>>) -> Ergebnis<Option<T>, String>>;
-        let verwende_standard: F<T> = if let Some(standard) = option_standard {
-            Box::new(move |fehler_sammlung| {
+        type F<'s, T> =
+            Box<dyn Fn(NonEmpty<Fehler<'s, String>>) -> Ergebnis<'s, Option<T>, String>>;
+        let verwende_standard: F<'t, T> = if let Some(standard) = option_standard {
+            Box::new(|fehler_sammlung| {
                 let mut fehler_iter =
                     fehler_sammlung.into_iter().filter_map(|fehler| match fehler {
                         Fehler::FehlenderWert { lang, kurz, meta_var } => {
@@ -193,7 +194,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         Argumente {
             konfigurationen: vec![Konfiguration::Wert {
                 beschreibung: beschreibung_string,
-                meta_var: meta_var.to_owned(),
+                meta_var: meta_var.into(),
                 mögliche_werte: None,
             }],
             flag_kurzformen: Vec::new(),
@@ -215,12 +216,12 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
 }
 
 impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
-    fn argumente(
-        beschreibung: Beschreibung<Self>,
-        _invertiere_präfix: &'static str,
-        meta_var: &str,
-    ) -> Argumente<Self, String> {
-        Argumente::wert_enum_display(beschreibung, meta_var.to_owned())
+    fn argumente<'t>(
+        beschreibung: Beschreibung<'t, Self>,
+        _invertiere_präfix: impl Into<Cow<'t, str>>,
+        meta_var: impl Into<Cow<'t, str>>,
+    ) -> Argumente<'t, Self, String> {
+        Argumente::wert_enum_display(beschreibung, meta_var)
     }
 
     fn standard() -> Option<Self> {
@@ -247,16 +248,20 @@ pub trait Parse: Sized {
     ///
     /// ## English
     /// Create a description, how command line arguments should be parsed.
-    fn kommandozeilen_argumente() -> Argumente<Self, Self::Fehler>;
+    fn kommandozeilen_argumente<'t>() -> Argumente<'t, Self, Self::Fehler>;
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     ///
     /// ## English
     /// Parse the given command line arguments to create the requested type.
     #[inline(always)]
-    fn parse(
+    fn parse<'t>(
         args: impl Iterator<Item = OsString>,
-    ) -> (Ergebnis<Self, Self::Fehler>, Vec<OsString>) {
+    ) -> (Ergebnis<'t, Self, Self::Fehler>, Vec<OsString>)
+    where
+        Self: 't,
+        Self::Fehler: 't,
+    {
         Self::kommandozeilen_argumente().parse(args)
     }
 
@@ -265,7 +270,11 @@ pub trait Parse: Sized {
     /// ## English synonym
     /// [parse_from_env](Parse::parse_from_env)
     #[inline(always)]
-    fn parse_aus_env() -> (Ergebnis<Self, Self::Fehler>, Vec<OsString>) {
+    fn parse_aus_env<'t>() -> (Ergebnis<'t, Self, Self::Fehler>, Vec<OsString>)
+    where
+        Self: 't,
+        Self::Fehler: 't,
+    {
         Self::kommandozeilen_argumente().parse_aus_env()
     }
 
@@ -274,7 +283,11 @@ pub trait Parse: Sized {
     /// ## Deutsches Synonym
     /// [parse_aus_env](Parse::parse_aus_env)
     #[inline(always)]
-    fn parse_from_env() -> (Ergebnis<Self, Self::Fehler>, Vec<OsString>) {
+    fn parse_from_env<'t>() -> (Ergebnis<'t, Self, Self::Fehler>, Vec<OsString>)
+    where
+        Self: 't,
+        Self::Fehler: 't,
+    {
         Self::parse_aus_env()
     }
 
@@ -286,8 +299,12 @@ pub trait Parse: Sized {
     /// ## English synonym
     /// [parse_from_env_with_early_exit](Parse::parse_from_env_with_early_exit)
     #[inline(always)]
-    fn parse_aus_env_mit_frühen_beenden(
-    ) -> (Result<Self, NonEmpty<Fehler<Self::Fehler>>>, Vec<OsString>) {
+    fn parse_aus_env_mit_frühen_beenden<'t>(
+    ) -> (Result<Self, NonEmpty<Fehler<'t, Self::Fehler>>>, Vec<OsString>)
+    where
+        Self: 't,
+        Self::Fehler: 't,
+    {
         Self::kommandozeilen_argumente().parse_aus_env_mit_frühen_beenden()
     }
 
@@ -298,8 +315,12 @@ pub trait Parse: Sized {
     /// ## Deutsches Synonym
     /// [parse_aus_env_mit_frühen_beenden](Argumente::parse_aus_env_mit_frühen_beenden)
     #[inline(always)]
-    fn parse_from_env_with_early_exit(
-    ) -> (Result<Self, NonEmpty<Error<Self::Fehler>>>, Vec<OsString>) {
+    fn parse_from_env_with_early_exit<'t>(
+    ) -> (Result<Self, NonEmpty<Error<'t, Self::Fehler>>>, Vec<OsString>)
+    where
+        Self: 't,
+        Self::Fehler: 't,
+    {
         Self::parse_aus_env_mit_frühen_beenden()
     }
 
@@ -311,9 +332,13 @@ pub trait Parse: Sized {
     /// ## English synonym
     /// [parse_with_early_exit](Parse::parse_with_early_exit)
     #[inline(always)]
-    fn parse_mit_frühen_beenden(
+    fn parse_mit_frühen_beenden<'t>(
         args: impl Iterator<Item = OsString>,
-    ) -> (Result<Self, NonEmpty<Fehler<Self::Fehler>>>, Vec<OsString>) {
+    ) -> (Result<Self, NonEmpty<Fehler<'t, Self::Fehler>>>, Vec<OsString>)
+    where
+        Self: 't,
+        Self::Fehler: 't,
+    {
         Self::kommandozeilen_argumente().parse_mit_frühen_beenden(args)
     }
 
@@ -324,9 +349,13 @@ pub trait Parse: Sized {
     /// ## Deutsches Synonym
     /// [parse_mit_frühen_beenden](Parse::parse_mit_frühen_beenden)
     #[inline(always)]
-    fn parse_with_early_exit(
+    fn parse_with_early_exit<'t>(
         args: impl Iterator<Item = OsString>,
-    ) -> (Result<Self, NonEmpty<Error<Self::Fehler>>>, Vec<OsString>) {
+    ) -> (Result<Self, NonEmpty<Error<'t, Self::Fehler>>>, Vec<OsString>)
+    where
+        Self: 't,
+        Self::Fehler: 't,
+    {
         Self::parse_mit_frühen_beenden(args)
     }
 

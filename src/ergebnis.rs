@@ -1,6 +1,6 @@
 //! Ergebnis- und Fehler-Typ für parsen von Kommandozeilen-Argumenten.
 
-use std::{ffi::OsString, fmt::Display, iter};
+use std::{borrow::Cow, ffi::OsString, fmt::Display, iter};
 
 use either::Either;
 use nonempty::NonEmpty;
@@ -12,7 +12,7 @@ use crate::sprache::{Language, Sprache};
 /// ## English synonym
 /// [Result]
 #[derive(Debug)]
-pub enum Ergebnis<T, E> {
+pub enum Ergebnis<'t, T, E> {
     /// Erfolgreiches Parsen.
     ///
     /// ## English
@@ -22,26 +22,26 @@ pub enum Ergebnis<T, E> {
     ///
     /// ## English
     /// Request an early exit, showing the given messages.
-    FrühesBeenden(NonEmpty<String>),
+    FrühesBeenden(NonEmpty<Cow<'t, str>>),
     /// Fehler beim Parsen der Kommandozeilen-Argumente.
     ///
     /// ## English
     /// Error while parsing command line arguments.
-    Fehler(NonEmpty<Fehler<E>>),
+    Fehler(NonEmpty<Fehler<'t, E>>),
 }
 
 /// Result when parsing command line arguments.
 ///
 /// ## Deutsches Synonym
 /// [Ergebnis]
-pub type Result<T, E> = Ergebnis<T, E>;
+pub type Result<'t, T, E> = Ergebnis<'t, T, E>;
 
-impl<T, E> Ergebnis<T, E> {
+impl<'t, T, E> Ergebnis<'t, T, E> {
     /// Konvertiere einen erfolgreich geparsten Wert mit der spezifizierten Funktion.
     ///
     /// ## English synonym
     /// [convert](Result::convert)
-    pub fn konvertiere<S>(self, f: impl FnOnce(T) -> S) -> Ergebnis<S, E> {
+    pub fn konvertiere<S>(self, f: impl FnOnce(T) -> S) -> Ergebnis<'t, S, E> {
         match self {
             Ergebnis::Wert(t) => Ergebnis::Wert(f(t)),
             Ergebnis::FrühesBeenden(nachrichten) => Ergebnis::FrühesBeenden(nachrichten),
@@ -54,7 +54,7 @@ impl<T, E> Ergebnis<T, E> {
     /// ## Deutsches Synonym
     /// [konvertiere](Ergebnis::konvertiere)
     #[inline(always)]
-    pub fn convert<S>(self, f: impl FnOnce(T) -> S) -> Ergebnis<S, E> {
+    pub fn convert<S>(self, f: impl FnOnce(T) -> S) -> Ergebnis<'t, S, E> {
         self.konvertiere(f)
     }
 }
@@ -64,7 +64,7 @@ impl<T, E> Ergebnis<T, E> {
 /// ## English synonym
 /// [Result]
 #[derive(Debug, Clone)]
-pub enum Fehler<E> {
+pub enum Fehler<'t, E> {
     /// Ein benötigtes Flag-Argument wurde nicht genannt.
     ///
     /// ## English
@@ -74,17 +74,17 @@ pub enum Fehler<E> {
         ///
         /// ## English
         /// Full name.
-        lang: NonEmpty<String>,
+        lang: NonEmpty<Cow<'t, str>>,
         /// Kurzform des Namen.
         ///
         /// ## English
         /// Short form of the name.
-        kurz: Vec<String>,
+        kurz: Vec<Cow<'t, str>>,
         /// Präfix zum invertieren.
         ///
         /// ## English
         /// Prefix to invert the flag.
-        invertiere_präfix: String,
+        invertiere_präfix: Cow<'t, str>,
     },
     /// Ein benötigtes Wert-Argument wurde nicht genannt.
     ///
@@ -95,17 +95,17 @@ pub enum Fehler<E> {
         ///
         /// ## English
         /// Full name.
-        lang: NonEmpty<String>,
+        lang: NonEmpty<Cow<'t, str>>,
         /// Kurzform des Namen.
         ///
         /// ## English
         /// Short form of the name.
-        kurz: Vec<String>,
+        kurz: Vec<Cow<'t, str>>,
         /// Verwendete Meta-Variable für den Wert.
         ///
         /// ## English
         /// Used Meta-variable of the value.
-        meta_var: String,
+        meta_var: Cow<'t, str>,
     },
     /// Fehler beim Parsen des genannten Wertes.
     ///
@@ -116,17 +116,17 @@ pub enum Fehler<E> {
         ///
         /// ## English
         /// Full name
-        lang: NonEmpty<String>,
+        lang: NonEmpty<Cow<'t, str>>,
         /// Kurzform des Namen.
         ///
         /// ## English
         /// Short form of the name.
-        kurz: Vec<String>,
+        kurz: Vec<Cow<'t, str>>,
         /// Verwendete Meta-Variable für den Wert.
         ///
         /// ## English
         /// Used Meta-variable of the value.
-        meta_var: String,
+        meta_var: Cow<'t, str>,
         /// Beim Parsen aufgetretener Fehler.
         ///
         /// ## English
@@ -139,9 +139,13 @@ pub enum Fehler<E> {
 ///
 /// ## Deutsches Synonym
 /// [Fehler]
-pub type Error<E> = Fehler<E>;
+pub type Error<'t, E> = Fehler<'t, E>;
 
-pub(crate) fn namen_regex_hinzufügen(string: &mut String, head: &String, tail: &[String]) {
+pub(crate) fn namen_regex_hinzufügen(
+    string: &mut String,
+    head: &Cow<'_, str>,
+    tail: &[Cow<'_, str>],
+) {
     if !tail.is_empty() {
         string.push('(')
     }
@@ -183,7 +187,7 @@ pub enum ParseFehler<E> {
 /// [ParseFehler]
 pub type ParseError<E> = ParseFehler<E>;
 
-impl<E: Display> Fehler<E> {
+impl<E: Display> Fehler<'_, E> {
     /// Zeige den Fehler in Menschen-lesbarer Form an.
     ///
     /// ## English version
@@ -238,9 +242,9 @@ impl<E: Display> Fehler<E> {
     ) -> String {
         fn fehlermeldung(
             fehler_beschreibung: &str,
-            lang: &NonEmpty<String>,
-            kurz: &Vec<String>,
-            meta_var_oder_invertiere_präfix: Either<&String, &String>,
+            lang: &NonEmpty<Cow<'_, str>>,
+            kurz: &Vec<Cow<'_, str>>,
+            meta_var_oder_invertiere_präfix: Either<&Cow<'_, str>, &Cow<'_, str>>,
         ) -> String {
             let mut fehlermeldung = format!("{}: ", fehler_beschreibung);
             fehlermeldung.push_str("--");

@@ -1,7 +1,6 @@
 //! Beschreibung eines Arguments.
 
-use std::fmt::Display;
-use std::ops::Deref;
+use std::{borrow::Cow, fmt::Display, ops::Deref};
 
 use nonempty::NonEmpty;
 
@@ -11,12 +10,12 @@ use nonempty::NonEmpty;
 /// ## English synonym
 /// [Description]
 #[derive(Debug, Clone)]
-pub struct Beschreibung<T> {
+pub struct Beschreibung<'t, T> {
     /// Voller Name, wird nach zwei Minus angegeben "--<lang>".
     ///
     /// ## English
     /// Full Name, given after two minus characters "--<lang>"
-    pub lang: NonEmpty<String>,
+    pub lang: NonEmpty<Cow<'t, str>>,
     /// Kurzer Name, wird nach einem Minus angegeben "-<kurz>".
     /// Kurznamen länger als ein [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// werden nicht unterstützt.
@@ -25,12 +24,12 @@ pub struct Beschreibung<T> {
     /// Short name, given after one minus character "-<kurz>"
     /// Short names longer than a [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// are not supported.
-    pub kurz: Vec<String>,
+    pub kurz: Vec<Cow<'t, str>>,
     /// Im automatischen Hilfetext angezeigte Beschreibung.
     ///
     /// ## English
     /// Description shown in the automatically created help text.
-    pub hilfe: Option<String>,
+    pub hilfe: Option<Cow<'t, str>>,
     /// Standard-Wert falls kein passendes Kommandozeilen-Argument verwendet wurde.
     ///
     /// ## English
@@ -42,20 +41,20 @@ pub struct Beschreibung<T> {
 ///
 /// ## Deutsches Synonym
 /// [Beschreibung]
-pub type Description<T> = Beschreibung<T>;
+pub type Description<'t, T> = Beschreibung<'t, T>;
 
-impl<T: Display> Beschreibung<T> {
+impl<'t, T: Display> Beschreibung<'t, T> {
     #[inline(always)]
-    pub(crate) fn als_string_beschreibung(self) -> (Beschreibung<String>, Option<T>) {
+    pub(crate) fn als_string_beschreibung(self) -> (Beschreibung<'t, String>, Option<T>) {
         self.als_string_beschreibung_allgemein(ToString::to_string)
     }
 }
 
-impl<T> Beschreibung<T> {
+impl<'t, T> Beschreibung<'t, T> {
     pub(crate) fn als_string_beschreibung_allgemein(
         self,
         anzeige: impl Fn(&T) -> String,
-    ) -> (Beschreibung<String>, Option<T>) {
+    ) -> (Beschreibung<'t, String>, Option<T>) {
         let Beschreibung { lang, kurz, hilfe, standard } = self;
         let standard_string = standard.as_ref().map(anzeige);
         (Beschreibung { lang, kurz, hilfe, standard: standard_string }, standard)
@@ -65,7 +64,7 @@ impl<T> Beschreibung<T> {
     ///
     /// ## English synonym
     /// [convert](Description::convert)
-    pub fn konvertiere<S>(self, konvertiere: impl FnOnce(T) -> S) -> Beschreibung<S> {
+    pub fn konvertiere<S>(self, konvertiere: impl FnOnce(T) -> S) -> Beschreibung<'t, S> {
         let Beschreibung { lang, kurz, hilfe, standard } = self;
         Beschreibung { lang, kurz, hilfe, standard: standard.map(konvertiere) }
     }
@@ -75,7 +74,7 @@ impl<T> Beschreibung<T> {
     /// ## Deutsches Synonym
     /// [konvertiere](Beschreibung::konvertiere)
     #[inline(always)]
-    pub fn convert<S>(self, convert: impl FnOnce(T) -> S) -> Description<S> {
+    pub fn convert<S>(self, convert: impl FnOnce(T) -> S) -> Description<'t, S> {
         self.konvertiere(convert)
     }
 }
@@ -91,38 +90,39 @@ pub(crate) use contains_str;
 ///
 /// ## English
 /// At least one String as definition for the full name.
-pub trait LangNamen {
+pub trait LangNamen<'t> {
     /// Konvertiere in ein [NonEmpty].
     ///
     /// ## English
     /// Convert into a [NonEmpty].
-    fn lang_namen(self) -> NonEmpty<String>;
+    fn lang_namen(self) -> NonEmpty<Cow<'t, str>>;
 }
 
-impl LangNamen for String {
-    fn lang_namen(self) -> NonEmpty<String> {
-        NonEmpty::singleton(self)
+impl<'t> LangNamen<'t> for String {
+    fn lang_namen(self) -> NonEmpty<Cow<'t, str>> {
+        NonEmpty::singleton(Cow::Owned(self))
     }
 }
 
-impl LangNamen for &str {
-    fn lang_namen(self) -> NonEmpty<String> {
-        NonEmpty::singleton(self.to_owned())
+impl<'t> LangNamen<'t> for &'t str {
+    fn lang_namen(self) -> NonEmpty<Cow<'t, str>> {
+        NonEmpty::singleton(Cow::Borrowed(self))
     }
 }
 
-impl LangNamen for NonEmpty<String> {
-    fn lang_namen(self) -> NonEmpty<String> {
-        self
+impl<'t> LangNamen<'t> for NonEmpty<String> {
+    fn lang_namen(self) -> NonEmpty<Cow<'t, str>> {
+        let NonEmpty { head, tail } = self;
+        NonEmpty { head: Cow::Owned(head), tail: tail.into_iter().map(|s| Cow::Owned(s)).collect() }
     }
 }
 
-impl<S: Deref<Target = str>> LangNamen for &NonEmpty<S> {
-    fn lang_namen(self) -> NonEmpty<String> {
+impl<'t, S: Deref<Target = str>> LangNamen<'t> for &'t NonEmpty<S> {
+    fn lang_namen(self) -> NonEmpty<Cow<'t, str>> {
         let NonEmpty { head, tail } = self;
         NonEmpty {
-            head: head.deref().to_owned(),
-            tail: tail.iter().map(|s| s.deref().to_owned()).collect(),
+            head: Cow::Borrowed(head.deref()),
+            tail: tail.iter().map(|s| Cow::Borrowed(s.deref())).collect(),
         }
     }
 }
@@ -131,62 +131,67 @@ impl<S: Deref<Target = str>> LangNamen for &NonEmpty<S> {
 ///
 /// ## English
 /// Arbitrary number of strings for the short name.
-pub trait KurzNamen {
+pub trait KurzNamen<'t> {
     /// Konvertiere in einen [Vec].
     ///
     /// ## English
     /// Convert into a [Vec].
-    fn kurz_namen(self) -> Vec<String>;
+    fn kurz_namen(self) -> Vec<Cow<'t, str>>;
 }
 
-impl KurzNamen for Option<String> {
-    fn kurz_namen(self) -> Vec<String> {
-        self.into_iter().collect()
+impl<'t> KurzNamen<'t> for Option<String> {
+    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
+        self.into_iter().map(Cow::Owned).collect()
     }
 }
 
-impl KurzNamen for String {
-    fn kurz_namen(self) -> Vec<String> {
-        vec![self]
+impl<'t> KurzNamen<'t> for String {
+    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
+        vec![Cow::Owned(self)]
     }
 }
 
-impl KurzNamen for &str {
-    fn kurz_namen(self) -> Vec<String> {
-        vec![self.to_owned()]
+impl<'t> KurzNamen<'t> for &'t str {
+    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
+        vec![Cow::Borrowed(self)]
     }
 }
 
-impl KurzNamen for NonEmpty<String> {
-    fn kurz_namen(self) -> Vec<String> {
-        self.into()
+impl<'t> KurzNamen<'t> for NonEmpty<String> {
+    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
+        self.into_iter().map(Cow::Owned).collect()
     }
 }
 
-impl<S: Deref<Target = str>> KurzNamen for &Vec<S> {
-    fn kurz_namen(self) -> Vec<String> {
-        self.iter().map(|s| s.deref().to_owned()).collect()
+impl<'t, S: Deref<Target = str>> KurzNamen<'t> for &'t Vec<S> {
+    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
+        self.iter().map(|s| Cow::Borrowed(s.deref())).collect()
     }
 }
 
-impl KurzNamen for Vec<String> {
-    fn kurz_namen(self) -> Vec<String> {
-        self
+impl<'t> KurzNamen<'t> for Vec<String> {
+    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
+        self.into_iter().map(Cow::Owned).collect()
     }
 }
 
-impl<T> Beschreibung<T> {
+impl<'t, T> Beschreibung<'t, T> {
     /// Erzeuge eine neue [Beschreibung].
     ///
     /// ## English synonym
     /// [new](Description::new)
     pub fn neu(
-        lang: impl LangNamen,
-        kurz: impl KurzNamen,
-        hilfe: Option<String>,
+        lang: impl LangNamen<'t>,
+        kurz: impl KurzNamen<'t>,
+        hilfe: Option<impl Into<Cow<'t, str>>>,
         standard: Option<T>,
-    ) -> Beschreibung<T> {
-        Beschreibung { lang: lang.lang_namen(), kurz: kurz.kurz_namen(), hilfe, standard }
+    ) -> Beschreibung<'t, T> {
+        Beschreibung {
+            lang: lang.lang_namen(),
+            kurz: kurz.kurz_namen(),
+            hilfe: hilfe.map(Into::into),
+            standard,
+        }
     }
 
     /// Create a new [Description].
@@ -195,11 +200,11 @@ impl<T> Beschreibung<T> {
     /// [neu](Beschreibung::neu)
     #[inline(always)]
     pub fn new(
-        long: impl LangNamen,
-        short: impl KurzNamen,
-        help: Option<String>,
+        long: impl LangNamen<'t>,
+        short: impl KurzNamen<'t>,
+        help: Option<impl Into<Cow<'t, str>>>,
         default: Option<T>,
-    ) -> Description<T> {
+    ) -> Description<'t, T> {
         Beschreibung::neu(long, short, help, default)
     }
 }
@@ -209,7 +214,7 @@ impl<T> Beschreibung<T> {
 /// ## English synonym
 /// [Configuration]
 #[derive(Debug)]
-pub enum Konfiguration {
+pub enum Konfiguration<'t> {
     /// Es handelt sich um ein Flag-Argument.
     ///
     /// ## English
@@ -219,12 +224,12 @@ pub enum Konfiguration {
         ///
         /// ## English
         /// General description of the argument.
-        beschreibung: Beschreibung<String>,
+        beschreibung: Beschreibung<'t, String>,
         /// Präfix zum invertieren des Flag-Arguments.
         ///
         /// ## English
         /// Prefix to invert the flag argument.
-        invertiere_präfix: Option<String>,
+        invertiere_präfix: Option<Cow<'t, str>>,
     },
     /// Es handelt sich um ein Wert-Argument.
     ///
@@ -235,12 +240,12 @@ pub enum Konfiguration {
         ///
         /// ## English
         /// General description of the argument.
-        beschreibung: Beschreibung<String>,
+        beschreibung: Beschreibung<'t, String>,
         /// Meta-Variable im Hilfe-Text.
         ///
         /// ## English
         /// Meta-variable used in the help-text.
-        meta_var: String,
+        meta_var: Cow<'t, str>,
         /// String-Darstellung der erlaubten Werte.
         ///
         /// ## English
@@ -253,4 +258,4 @@ pub enum Konfiguration {
 ///
 /// ## Deutsches Synonym
 /// [Konfiguration]
-pub type Configuration = Konfiguration;
+pub type Configuration<'t> = Konfiguration<'t>;

@@ -1,6 +1,7 @@
 //! Definition von akzeptierten Kommandozeilen-Argumenten.
 
 use std::{
+    borrow::Cow,
     env,
     ffi::{OsStr, OsString},
     fmt::{Debug, Display},
@@ -47,16 +48,16 @@ pub use crate::{combine, kombiniere};
 // TODO OneOf/Either für alternative Parse-Möglichkeiten
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
-pub struct Argumente<T, E> {
-    pub(crate) konfigurationen: Vec<Konfiguration>,
-    pub(crate) flag_kurzformen: Vec<String>,
+pub struct Argumente<'t, T, E> {
+    pub(crate) konfigurationen: Vec<Konfiguration<'t>>,
+    pub(crate) flag_kurzformen: Vec<Cow<'t, str>>,
     pub(crate) parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (Ergebnis<T, E>, Vec<Option<&OsStr>>)>,
 }
 
 /// Command line [Arguments] and their [crate::beschreibung::Description].
-pub type Arguments<T, E> = Argumente<T, E>;
+pub type Arguments<'t, T, E> = Argumente<'t, T, E>;
 
-impl<T, E> Debug for Argumente<T, E> {
+impl<T, E> Debug for Argumente<'_, T, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Argumente")
             .field("konfigurationen", &self.konfigurationen)
@@ -70,7 +71,7 @@ fn args_aus_env() -> impl Iterator<Item = OsString> {
     env::args_os().skip(1)
 }
 
-impl<T, E: Display> Argumente<T, E> {
+impl<T, E: Display> Argumente<'_, T, E> {
     /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
@@ -358,7 +359,7 @@ impl<T, E: Display> Argumente<T, E> {
     }
 }
 
-impl<T, E> Argumente<T, E> {
+impl<T, E> Argumente<'_, T, E> {
     /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     ///
     /// ## English synonym
@@ -480,7 +481,7 @@ impl<T, E> Argumente<T, E> {
     /// ## Deutsches Synonym
     /// [configurations](Argumente::configurations)
     #[inline(always)]
-    pub fn konfigurationen(&self) -> impl Iterator<Item = &Konfiguration> {
+    pub fn konfigurationen(&self) -> impl Iterator<Item = &Konfiguration<'_>> {
         self.konfigurationen.iter()
     }
 
@@ -489,7 +490,7 @@ impl<T, E> Argumente<T, E> {
     /// ## English synonym
     /// [konfigurationen](Arguments::konfigurationen)
     #[inline(always)]
-    pub fn configurations(&self) -> impl Iterator<Item = &Configuration> {
+    pub fn configurations(&self) -> impl Iterator<Item = &Configuration<'_>> {
         self.konfigurationen.iter()
     }
 }

@@ -1,6 +1,7 @@
 //! Flag-Argumente, die zu frühen Beenden führen.
 
 use std::{
+    borrow::Cow,
     env,
     ffi::OsStr,
     path::{Path, PathBuf},
@@ -20,7 +21,7 @@ use crate::{
 };
 
 // TODO benenne [Argumente::konfigurationen], [Arguments::configurations] um eigene Hilfe zu erzeugen.
-impl<T: 'static, E: 'static> Argumente<T, E> {
+impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
     /// Erzeuge `--version`- und `--hilfe`-Flags, die zu vorzeitigem Beenden führen.
     /// Wie [version_deutsch](Argumente::version_deutsch) und [hilfe](Argumente::hilfe)
     /// mit synchronisiertem Programmnamen und Version.
@@ -28,7 +29,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// ## English version
     /// [help_and_version](Arguments::help_and_version)
     #[inline(always)]
-    pub fn hilfe_und_version(self, programm_name: &str, version: &str) -> Argumente<T, E> {
+    pub fn hilfe_und_version(self, programm_name: &str, version: &str) -> Argumente<'t, T, E> {
         self.hilfe_und_version_mit_sprache(programm_name, version, Sprache::DEUTSCH)
     }
 
@@ -39,7 +40,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// ## Deutsches Version
     /// [hilfe_und_version](Argumente::hilfe_und_version)
     #[inline(always)]
-    pub fn help_and_version(self, program_name: &str, version: &str) -> Arguments<T, E> {
+    pub fn help_and_version(self, program_name: &str, version: &str) -> Arguments<'t, T, E> {
         self.hilfe_und_version_mit_sprache(program_name, version, Sprache::ENGLISH)
     }
 
@@ -56,7 +57,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         programm_name: &str,
         version: &str,
         sprache: Sprache,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         self.version_mit_sprache(programm_name, version, sprache).hilfe_mit_sprache(
             programm_name,
             Some(version),
@@ -76,7 +77,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         program_name: &str,
         version: &str,
         language: Language,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         self.hilfe_und_version_mit_sprache(program_name, version, language)
     }
 
@@ -86,7 +87,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// ## English version
     /// [version_english](Arguments::version_english)
     #[inline(always)]
-    pub fn version_deutsch(self, programm_name: &str, version: &str) -> Argumente<T, E> {
+    pub fn version_deutsch(self, programm_name: &str, version: &str) -> Argumente<'t, T, E> {
         self.version_mit_sprache(programm_name, version, Sprache::DEUTSCH)
     }
 
@@ -97,11 +98,11 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// [version_with_names](Arguments::version_with_names)
     pub fn version_mit_namen(
         self,
-        lang_namen: impl LangNamen,
-        kurz_namen: impl KurzNamen,
+        lang_namen: impl LangNamen<'t>,
+        kurz_namen: impl KurzNamen<'t>,
         programm_name: &str,
         version: &str,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         self.version_mit_namen_und_sprache(
             lang_namen,
             kurz_namen,
@@ -117,7 +118,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// ## Deutsches Version
     /// [version_deutsch](Argumente::version_deutsch)
     #[inline(always)]
-    pub fn version_english(self, program_name: &str, version: &str) -> Arguments<T, E> {
+    pub fn version_english(self, program_name: &str, version: &str) -> Arguments<'t, T, E> {
         self.version_mit_sprache(program_name, version, Sprache::ENGLISH)
     }
 
@@ -127,11 +128,11 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// [version_mit_namen](Argumente::version_mit_namen)
     pub fn version_with_names(
         self,
-        long_names: impl LangNamen,
-        short_names: impl KurzNamen,
+        long_names: impl LangNamen<'t>,
+        short_names: impl KurzNamen<'t>,
         program_name: &str,
         version: &str,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         self.version_mit_namen_und_sprache(
             long_names,
             short_names,
@@ -152,7 +153,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         programm_name: &str,
         version: &str,
         sprache: Sprache,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         self.version_mit_namen_und_sprache(
             sprache.version_lang,
             sprache.version_kurz,
@@ -172,7 +173,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         program_name: &str,
         version: &str,
         language: Language,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         self.version_mit_sprache(program_name, version, language)
     }
 
@@ -183,12 +184,12 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// [version_with_names_and_language](Arguments::version_with_names_and_language)
     pub fn version_mit_namen_und_sprache(
         self,
-        lang_namen: impl LangNamen,
-        kurz_namen: impl KurzNamen,
+        lang_namen: impl LangNamen<'t>,
+        kurz_namen: impl KurzNamen<'t>,
         programm_name: &str,
         version: &str,
         sprache: Sprache,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         let beschreibung = Beschreibung::neu(
             lang_namen,
             kurz_namen,
@@ -205,12 +206,12 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     #[inline(always)]
     pub fn version_with_names_and_language(
         self,
-        long_names: impl LangNamen,
-        short_names: impl KurzNamen,
+        long_names: impl LangNamen<'t>,
+        short_names: impl KurzNamen<'t>,
         program_name: &str,
         version: &str,
         language: Language,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         self.version_mit_namen_und_sprache(long_names, short_names, program_name, version, language)
     }
 
@@ -222,10 +223,10 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     #[inline(always)]
     pub fn zeige_version(
         self,
-        beschreibung: Beschreibung<Void>,
+        beschreibung: Beschreibung<'t, Void>,
         programm_name: &str,
         version: &str,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         self.frühes_beenden(beschreibung, format!("{} {}", programm_name, version))
     }
 
@@ -236,10 +237,10 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     #[inline(always)]
     pub fn show_version(
         self,
-        description: Description<Void>,
+        description: Description<'t, Void>,
         program_name: &str,
         version: &str,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         self.zeige_version(description, program_name, version)
     }
 
@@ -249,7 +250,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// ## English version
     /// [help](Arguments::help)
     #[inline(always)]
-    pub fn hilfe(self, programm_name: &str, version: Option<&str>) -> Argumente<T, E> {
+    pub fn hilfe(self, programm_name: &str, version: Option<&str>) -> Argumente<'t, T, E> {
         self.hilfe_mit_sprache(programm_name, version, Sprache::DEUTSCH)
     }
 
@@ -261,11 +262,11 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     #[inline(always)]
     pub fn hilfe_mit_namen(
         self,
-        lang_namen: impl LangNamen,
-        kurz_namen: impl KurzNamen,
+        lang_namen: impl LangNamen<'t>,
+        kurz_namen: impl KurzNamen<'t>,
         programm_name: &str,
         version: Option<&str>,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         self.hilfe_mit_namen_und_sprache(
             lang_namen,
             kurz_namen,
@@ -281,7 +282,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// ## Deutsches Version
     /// [hilfe](Argumente::hilfe)
     #[inline(always)]
-    pub fn help(self, program_name: &str, version: Option<&str>) -> Argumente<T, E> {
+    pub fn help(self, program_name: &str, version: Option<&str>) -> Argumente<'t, T, E> {
         self.hilfe_mit_sprache(program_name, version, Sprache::ENGLISH)
     }
 
@@ -292,11 +293,11 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     #[inline(always)]
     pub fn help_with_names(
         self,
-        long_names: impl LangNamen,
-        short_names: impl KurzNamen,
+        long_names: impl LangNamen<'t>,
+        short_names: impl KurzNamen<'t>,
         program_name: &str,
         version: Option<&str>,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         self.hilfe_mit_namen_und_sprache(
             long_names,
             short_names,
@@ -317,7 +318,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         programm_name: &str,
         version: Option<&str>,
         sprache: Sprache,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         self.hilfe_mit_namen_und_sprache(
             sprache.hilfe_lang,
             sprache.hilfe_kurz,
@@ -337,7 +338,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
         program_name: &str,
         version: Option<&str>,
         language: Language,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         self.hilfe_mit_sprache(program_name, version, language)
     }
 
@@ -349,12 +350,12 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     #[inline(always)]
     pub fn hilfe_mit_namen_und_sprache(
         self,
-        lang_namen: impl LangNamen,
-        kurz_namen: impl KurzNamen,
+        lang_namen: impl LangNamen<'t>,
+        kurz_namen: impl KurzNamen<'t>,
         programm_name: &str,
         version: Option<&str>,
         sprache: Sprache,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         let beschreibung = Beschreibung::neu(
             lang_namen,
             kurz_namen,
@@ -371,12 +372,12 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     #[inline(always)]
     pub fn help_with_names_and_language(
         self,
-        long_names: impl LangNamen,
-        short_names: impl KurzNamen,
+        long_names: impl LangNamen<'t>,
+        short_names: impl KurzNamen<'t>,
         program_name: &str,
         version: Option<&str>,
         language: Language,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         self.hilfe_mit_namen_und_sprache(long_names, short_names, program_name, version, language)
     }
 
@@ -388,11 +389,11 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     #[inline(always)]
     pub fn erstelle_hilfe_mit_sprache(
         self,
-        eigene_beschreibung: Beschreibung<Void>,
+        eigene_beschreibung: Beschreibung<'t, Void>,
         programm_name: &str,
         version: Option<&str>,
         sprache: Sprache,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         self.erstelle_hilfe(
             eigene_beschreibung,
             programm_name,
@@ -410,11 +411,11 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     #[inline(always)]
     pub fn create_help_with_language(
         self,
-        help_description: Description<Void>,
+        help_description: Description<'t, Void>,
         program_name: &str,
         version: Option<&str>,
         language: Language,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         self.erstelle_hilfe_mit_sprache(help_description, program_name, version, language)
     }
 
@@ -426,13 +427,13 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     #[inline(always)]
     pub fn erstelle_hilfe(
         self,
-        eigene_beschreibung: Beschreibung<Void>,
+        eigene_beschreibung: Beschreibung<'t, Void>,
         programm_name: &str,
         version: Option<&str>,
         optionen: &str,
         standard: &str,
         erlaubte_werte: &str,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         let hilfe_text = self.erstelle_hilfe_text_intern(
             Some(&eigene_beschreibung),
             programm_name,
@@ -451,13 +452,13 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     #[inline(always)]
     pub fn create_help(
         self,
-        help_description: Description<Void>,
+        help_description: Description<'t, Void>,
         program_name: &str,
         version: Option<&str>,
         options: &str,
         default: &str,
         allowed_values: &str,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         self.erstelle_hilfe(
             help_description,
             program_name,
@@ -561,7 +562,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
 
     fn erstelle_hilfe_text_intern(
         &self,
-        eigene_beschreibung: Option<&Beschreibung<Void>>,
+        eigene_beschreibung: Option<&Beschreibung<'_, Void>>,
         programm_name: &str,
         version: Option<&str>,
         optionen: &str,
@@ -586,8 +587,8 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             invertiere_präfix: None,
         });
         fn lang_regex(
-            lang_namen: &NonEmpty<String>,
-            invertiere_präfix_oder_meta_var: Either<&Option<String>, &String>,
+            lang_namen: &NonEmpty<Cow<'_, str>>,
+            invertiere_präfix_oder_meta_var: Either<&Option<Cow<'_, str>>, &Cow<'_, str>>,
         ) -> String {
             let mut lang_regex = "--".to_owned();
             match invertiere_präfix_oder_meta_var {
@@ -634,8 +635,8 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             max_lang_regex_breite: usize,
             mut name_regex: String,
             lang_regex_breite: usize,
-            kurz_namen: &Vec<String>,
-            invertiere_präfix_oder_meta_var: Either<&Option<String>, &String>,
+            kurz_namen: &Vec<Cow<'_, str>>,
+            invertiere_präfix_oder_meta_var: Either<&Option<Cow<'_, str>>, &Cow<'_, str>>,
         ) -> String {
             if let Some((head, tail)) = kurz_namen.split_first() {
                 let einrücken = " ".repeat(max_lang_regex_breite - lang_regex_breite);
@@ -677,7 +678,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
             hilfe_text: &mut String,
             name_regex: String,
             name_regex_breite: usize,
-            beschreibung: &Beschreibung<String>,
+            beschreibung: &Beschreibung<'_, String>,
             mögliche_werte: &Option<NonEmpty<String>>,
         ) {
             hilfe_text.push_str("  ");
@@ -741,15 +742,16 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// [early_exit](Arguments::early_exit)
     pub fn frühes_beenden(
         self,
-        beschreibung: Beschreibung<Void>,
-        nachricht: String,
-    ) -> Argumente<T, E> {
+        beschreibung: Beschreibung<'t, Void>,
+        nachricht: impl Into<Cow<'t, str>>,
+    ) -> Argumente<'t, T, E> {
         let Argumente { mut konfigurationen, mut flag_kurzformen, parse } = self;
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
         let (beschreibung, _standard) = beschreibung.als_string_beschreibung();
         flag_kurzformen.extend(beschreibung.kurz.iter().cloned());
         konfigurationen.push(Konfiguration::Flag { beschreibung, invertiere_präfix: None });
+        let nachricht_cow = nachricht.into();
         Argumente {
             konfigurationen,
             flag_kurzformen,
@@ -757,7 +759,7 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
                 let name_kurz_existiert = !name_kurz.is_empty();
                 let mut nicht_selbst_verwendet = Vec::new();
                 let mut nachrichten = Vec::new();
-                let mut zeige_nachricht = || nachrichten.push(nachricht.clone());
+                let mut zeige_nachricht = || nachrichten.push(nachricht_cow.clone());
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
@@ -807,7 +809,11 @@ impl<T: 'static, E: 'static> Argumente<T, E> {
     /// ## Deutsches Synonym
     /// [frühes_beenden](Argumente::frühes_beenden)
     #[inline(always)]
-    pub fn early_exit(self, description: Description<Void>, message: String) -> Arguments<T, E> {
+    pub fn early_exit(
+        self,
+        description: Description<'t, Void>,
+        message: Cow<'t, str>,
+    ) -> Arguments<'t, T, E> {
         self.frühes_beenden(description, message)
     }
 }

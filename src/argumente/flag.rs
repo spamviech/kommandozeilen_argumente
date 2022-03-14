@@ -1,6 +1,6 @@
 //! Flag-Argumente.
 
-use std::{convert::identity, ffi::OsStr, fmt::Display};
+use std::{borrow::Cow, convert::identity, ffi::OsStr, fmt::Display, ops::Deref};
 
 use itertools::Itertools;
 use nonempty::NonEmpty;
@@ -13,13 +13,13 @@ use crate::{
     sprache::{Language, Sprache},
 };
 
-impl<E> Argumente<bool, E> {
+impl<'t, E> Argumente<'t, bool, E> {
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
     ///
     /// ## English version
     /// [flag_bool_english](Arguments::flag_bool_english)
     #[inline(always)]
-    pub fn flag_bool_deutsch(beschreibung: Beschreibung<bool>) -> Argumente<bool, E> {
+    pub fn flag_bool_deutsch(beschreibung: Beschreibung<'t, bool>) -> Argumente<'t, bool, E> {
         Argumente::flag_bool_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
 
@@ -28,7 +28,7 @@ impl<E> Argumente<bool, E> {
     /// ## Deutsche Version
     /// [flag_bool_deutsch](Argumente::flag_bool_deutsch)
     #[inline(always)]
-    pub fn flag_bool_english(description: Description<bool>) -> Arguments<bool, E> {
+    pub fn flag_bool_english(description: Description<'t, bool>) -> Arguments<'t, bool, E> {
         Argumente::flag_bool_mit_sprache(description, Sprache::ENGLISH)
     }
 
@@ -38,9 +38,9 @@ impl<E> Argumente<bool, E> {
     /// [flag_bool_with_language](Arguments::flag_bool_with_language)
     #[inline(always)]
     pub fn flag_bool_mit_sprache(
-        beschreibung: Beschreibung<bool>,
+        beschreibung: Beschreibung<'t, bool>,
         sprache: Sprache,
-    ) -> Argumente<bool, E> {
+    ) -> Argumente<'t, bool, E> {
         Argumente::flag_bool(beschreibung, sprache.invertiere_präfix)
     }
 
@@ -50,9 +50,9 @@ impl<E> Argumente<bool, E> {
     /// [flag_bool_mit_sprache](Argumente::flag_bool_mit_sprache)
     #[inline(always)]
     pub fn flag_bool_with_language(
-        description: Description<bool>,
+        description: Description<'t, bool>,
         language: Language,
-    ) -> Arguments<bool, E> {
+    ) -> Arguments<'t, bool, E> {
         Argumente::flag_bool_mit_sprache(description, language)
     }
 
@@ -62,23 +62,23 @@ impl<E> Argumente<bool, E> {
     /// Create a flag-argument which can be deactivated with the configured prefix.
     #[inline(always)]
     pub fn flag_bool(
-        beschreibung: Beschreibung<bool>,
-        invertiere_präfix: &'static str,
-    ) -> Argumente<bool, E> {
+        beschreibung: Beschreibung<'t, bool>,
+        invertiere_präfix: impl Into<Cow<'t, str>>,
+    ) -> Argumente<'t, bool, E> {
         Argumente::flag(beschreibung, identity, invertiere_präfix)
     }
 }
 
-impl<T: 'static + Display + Clone, E> Argumente<T, E> {
+impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
     ///
     /// ## English version
     /// [flag_english](Arguments::flag_english)
     #[inline(always)]
     pub fn flag_deutsch(
-        beschreibung: Beschreibung<T>,
+        beschreibung: Beschreibung<'t, T>,
         konvertiere: impl 'static + Fn(bool) -> T,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::flag_mit_sprache(beschreibung, konvertiere, Sprache::DEUTSCH)
     }
 
@@ -88,9 +88,9 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
     /// [flag_deutsch](Argumente::flag_deutsch)
     #[inline(always)]
     pub fn flag_english(
-        description: Description<T>,
+        description: Description<'t, T>,
         convert: impl 'static + Fn(bool) -> T,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::flag_mit_sprache(description, convert, Sprache::ENGLISH)
     }
 
@@ -100,10 +100,10 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
     /// [flag_with_language](Arguments::flag_with_language)
     #[inline(always)]
     pub fn flag_mit_sprache(
-        beschreibung: Beschreibung<T>,
+        beschreibung: Beschreibung<'t, T>,
         konvertiere: impl 'static + Fn(bool) -> T,
         sprache: Sprache,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::flag(beschreibung, konvertiere, sprache.invertiere_präfix)
     }
 
@@ -113,10 +113,10 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
     /// [flag_mit_sprache](Argumente::flag_mit_sprache)
     #[inline(always)]
     pub fn flag_with_language(
-        description: Description<T>,
+        description: Description<'t, T>,
         convert: impl 'static + Fn(bool) -> T,
         language: Language,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         Argumente::flag_mit_sprache(description, convert, language)
     }
 
@@ -125,18 +125,19 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
     /// ## English
     /// Create a flag-argument which can be deactivated with the configured prefix.
     pub fn flag(
-        beschreibung: Beschreibung<T>,
+        beschreibung: Beschreibung<'t, T>,
         konvertiere: impl 'static + Fn(bool) -> T,
-        invertiere_präfix: &'static str,
-    ) -> Argumente<T, E> {
+        invertiere_präfix: impl Into<Cow<'t, str>>,
+    ) -> Argumente<'t, T, E> {
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
-        let invertiere_präfix_minus = format!("{}-", invertiere_präfix);
+        let invertiere_präfix_cow = invertiere_präfix.into();
+        let invertiere_präfix_minus = format!("{}-", invertiere_präfix_cow);
         let (beschreibung, standard) = beschreibung.als_string_beschreibung();
         Argumente {
             konfigurationen: vec![Konfiguration::Flag {
                 beschreibung,
-                invertiere_präfix: Some(invertiere_präfix.to_owned()),
+                invertiere_präfix: Some(invertiere_präfix_cow),
             }],
             flag_kurzformen: name_kurz.iter().cloned().collect(),
             parse: Box::new(move |args| {
@@ -184,7 +185,7 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
                     let fehler = Fehler::FehlendeFlag {
                         lang: name_lang.clone(),
                         kurz: name_kurz.clone(),
-                        invertiere_präfix: invertiere_präfix.to_owned(),
+                        invertiere_präfix: invertiere_präfix_cow,
                     };
                     Ergebnis::Fehler(NonEmpty::singleton(fehler))
                 };

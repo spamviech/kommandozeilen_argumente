@@ -117,8 +117,8 @@ macro_rules! impl_kombiniere_n {
         #[doc = concat!("[", stringify!($english), "](Argumente::", stringify!($english), ")")]
         pub fn $deutsch<$($ty_var: 'static),+>(
             f: impl 'static + Fn($($ty_var),+) -> T,
-            $($var: Argumente<$ty_var, Error>),+
-        ) -> Argumente<T, Error> {
+            $($var: Argumente<'t, $ty_var, Error>),+
+        ) -> Argumente<'t, T, Error> {
             let mut konfigurationen = Vec :: new();
             $(konfigurationen.extend($var.konfigurationen);)+
             let mut flag_kurzformen = Vec::new();
@@ -164,19 +164,19 @@ macro_rules! impl_kombiniere_n {
         #[inline(always)]
         pub fn $english<$($ty_var: 'static),+>(
             f: impl 'static + Fn($($ty_var),+) -> T,
-            $($var: Argumente<$ty_var, Error>),+
-        ) -> Argumente<T, Error> {
+            $($var: Argumente<'t, $ty_var, Error>),+
+        ) -> Argumente<'t, T, Error> {
             Argumente::$deutsch(f, $($var),+)
         }
     };
 }
 
-impl<T, Error: 'static> Argumente<T, Error> {
+impl<'t, T, Error: 'static> Argumente<'t, T, Error> {
     /// Parse keine Kommandozeilen-Argumente und erzeuge das Ergebnis mit der übergebenen Funktion.
     ///
     /// ## English synonym
     /// [constant](Argumente::constant)
-    pub fn konstant(f: impl 'static + Fn() -> T) -> Argumente<T, Error> {
+    pub fn konstant(f: impl 'static + Fn() -> T) -> Argumente<'t, T, Error> {
         Argumente {
             konfigurationen: Vec::new(),
             flag_kurzformen: Vec::new(),
@@ -189,7 +189,7 @@ impl<T, Error: 'static> Argumente<T, Error> {
     /// ## Deutsches Synonym
     /// [konstant](Argumente::konstant)
     #[inline(always)]
-    pub fn constant(f: impl 'static + Fn() -> T) -> Argumente<T, Error> {
+    pub fn constant(f: impl 'static + Fn() -> T) -> Argumente<'t, T, Error> {
         Argumente::konstant(f)
     }
 
@@ -199,8 +199,8 @@ impl<T, Error: 'static> Argumente<T, Error> {
     /// [convert](Argumente::convert)
     pub fn konvertiere<A: 'static>(
         f: impl 'static + Fn(A) -> T,
-        Argumente { konfigurationen, flag_kurzformen, parse }: Argumente<A, Error>,
-    ) -> Argumente<T, Error> {
+        Argumente { konfigurationen, flag_kurzformen, parse }: Argumente<'t, A, Error>,
+    ) -> Argumente<'t, T, Error> {
         Argumente {
             konfigurationen,
             flag_kurzformen,
@@ -223,8 +223,8 @@ impl<T, Error: 'static> Argumente<T, Error> {
     #[inline(always)]
     pub fn convert<A: 'static>(
         f: impl 'static + Fn(A) -> T,
-        arg: Argumente<A, Error>,
-    ) -> Argumente<T, Error> {
+        arg: Argumente<'t, A, Error>,
+    ) -> Argumente<'t, T, Error> {
         Argumente::konvertiere(f, arg)
     }
 

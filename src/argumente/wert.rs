@@ -1,6 +1,6 @@
 //! Wert-Argument basierend auf seiner [FromStr]-Implementierung.
 
-use std::{ffi::OsStr, fmt::Display, str::FromStr};
+use std::{borrow::Cow, ffi::OsStr, fmt::Display, str::FromStr};
 
 use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
@@ -16,18 +16,18 @@ use crate::{
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::EnumArgument;
 
-impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
+impl<'t, T: 'static + Clone + Display, E: 'static + Clone> Argumente<'t, T, E> {
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
     ///
     /// ## English synonym
     /// [value_string_display_with_language](Arguments::value_string_display_with_language)
     #[inline(always)]
     pub fn wert_string_display_mit_sprache(
-        beschreibung: Beschreibung<T>,
+        beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&str) -> Result<T, E>,
         sprache: Sprache,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::wert_string_display(
             beschreibung,
             sprache.meta_var.to_owned(),
@@ -42,11 +42,11 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     /// [wert_string_display_mit_sprache](Argumente::wert_string_display_mit_sprache)
     #[inline(always)]
     pub fn value_string_display_with_language(
-        description: Description<T>,
+        description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&str) -> Result<T, E>,
         language: Language,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         Argumente::wert_string_display_mit_sprache(description, possible_values, parse, language)
     }
 
@@ -56,11 +56,11 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     /// [value_string_display](Arguments::value_string_display)
     #[inline(always)]
     pub fn wert_string_display(
-        beschreibung: Beschreibung<T>,
-        meta_var: String,
+        beschreibung: Beschreibung<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&str) -> Result<T, E>,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::wert_string(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
     }
 
@@ -70,11 +70,11 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     /// [wert_string_display](Argumente::wert_string_display)
     #[inline(always)]
     pub fn value_string_display(
-        description: Description<T>,
-        meta_var: String,
+        description: Description<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         possible_values: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&str) -> Result<T, E>,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         Argumente::wert_string_display(description, meta_var, possible_values, parse)
     }
 
@@ -84,11 +84,11 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     /// [value_display_with_language](Arguments::value_display_with_language)
     #[inline(always)]
     pub fn wert_display_mit_sprache(
-        beschreibung: Beschreibung<T>,
+        beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
         sprache: Sprache,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::wert_display(beschreibung, sprache.meta_var.to_owned(), mögliche_werte, parse)
     }
 
@@ -98,11 +98,11 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     /// [wert_display_mit_sprache](Argumente::wert_display_mit_sprache)
     #[inline(always)]
     pub fn value_display_with_language(
-        description: Description<T>,
+        description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, ParseError<E>>,
         language: Language,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         Argumente::wert_display_mit_sprache(description, possible_values, parse, language)
     }
 
@@ -112,11 +112,11 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     /// [value_display](Arguments::value_display)
     #[inline(always)]
     pub fn wert_display(
-        beschreibung: Beschreibung<T>,
-        meta_var: String,
+        beschreibung: Beschreibung<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::wert(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
     }
 
@@ -126,28 +126,28 @@ impl<T: 'static + Clone + Display, E: 'static + Clone> Argumente<T, E> {
     /// [wert_display](Argumente::wert_display)
     #[inline(always)]
     pub fn value_display(
-        description: Description<T>,
-        meta_var: String,
+        description: Description<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         possible_values: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, ParseError<E>>,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         Argumente::wert_display(description, meta_var, possible_values, parse)
     }
 }
 
-impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
+impl<'t, T: 'static + Clone, E: 'static + Clone> Argumente<'t, T, E> {
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
     ///
     /// ## English synonym
     /// [value_string_with_language](Arguments::value_string_with_language)
     #[inline(always)]
     pub fn wert_string_mit_sprache(
-        beschreibung: Beschreibung<T>,
+        beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&str) -> Result<T, E>,
         anzeige: impl Fn(&T) -> String,
         sprache: Sprache,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::wert_string(
             beschreibung,
             sprache.meta_var.to_owned(),
@@ -163,12 +163,12 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     /// [wert_string_mit_sprache](Argumente::wert_string_mit_sprache)
     #[inline(always)]
     pub fn value_string_with_language(
-        description: Description<T>,
+        description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&str) -> Result<T, E>,
         display: impl Fn(&T) -> String,
         language: Language,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         Argumente::wert_string_mit_sprache(description, possible_values, parse, display, language)
     }
 
@@ -178,12 +178,12 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     /// [value_string](Arguments::value_string)
     #[inline(always)]
     pub fn wert_string(
-        beschreibung: Beschreibung<T>,
-        meta_var: String,
+        beschreibung: Beschreibung<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&str) -> Result<T, E>,
         anzeige: impl Fn(&T) -> String,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::wert(
             beschreibung,
             meta_var,
@@ -205,12 +205,12 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     /// [wert_string](Argumente::wert_string)
     #[inline(always)]
     pub fn value_string(
-        description: Description<T>,
-        meta_var: String,
+        description: Description<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         possible_values: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&str) -> Result<T, E>,
         display: impl Fn(&T) -> String,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         Argumente::wert_string(description, meta_var, possible_values, parse, display)
     }
 
@@ -220,12 +220,12 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     /// [value_with_language](Arguments::value_with_language)
     #[inline(always)]
     pub fn wert_mit_sprache(
-        beschreibung: Beschreibung<T>,
+        beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
         anzeige: impl Fn(&T) -> String,
         sprache: Sprache,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::wert(beschreibung, sprache.meta_var.to_owned(), mögliche_werte, parse, anzeige)
     }
 
@@ -235,12 +235,12 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     /// [wert_mit_sprache](Arguments::wert_mit_sprache)
     #[inline(always)]
     pub fn value_with_language(
-        description: Description<T>,
+        description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
         display: impl Fn(&T) -> String,
         language: Language,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::wert_mit_sprache(description, possible_values, parse, display, language)
     }
 
@@ -249,25 +249,26 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     /// ## English synonym
     /// [value](Arguments::value)
     pub fn wert(
-        beschreibung: Beschreibung<T>,
-        meta_var: String,
+        beschreibung: Beschreibung<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
         anzeige: impl Fn(&T) -> String,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
-        let meta_var_clone = meta_var.clone();
+        let meta_var_cow = meta_var.into();
+        let meta_var_clone = meta_var_cow.clone();
         let (beschreibung, standard) = beschreibung.als_string_beschreibung_allgemein(&anzeige);
         let fehler_kein_wert = Fehler::FehlenderWert {
             lang: name_lang.clone(),
             kurz: name_kurz.clone(),
-            meta_var: meta_var_clone.clone(),
+            meta_var: meta_var_clone.into(),
         };
         Argumente {
             konfigurationen: vec![Konfiguration::Wert {
                 beschreibung,
-                meta_var,
+                meta_var: meta_var_cow,
                 mögliche_werte: mögliche_werte
                     .and_then(|werte| NonEmpty::from_vec(werte.iter().map(anzeige).collect())),
             }],
@@ -357,12 +358,12 @@ impl<T: 'static + Clone, E: 'static + Clone> Argumente<T, E> {
     /// [wert](Argumente::wert)
     #[inline(always)]
     pub fn value(
-        description: Description<T>,
-        meta_var: String,
+        description: Description<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         possible_values: Option<NonEmpty<T>>,
         parse: impl 'static + Fn(&OsStr) -> Result<T, ParseError<E>>,
         display: impl Fn(&T) -> String,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         Argumente::wert(description, meta_var, possible_values, parse, display)
     }
 }
@@ -402,16 +403,16 @@ pub trait EnumArgument: Sized {
     fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>>;
 }
 
-impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
+impl<'t, T: 'static + Display + Clone + EnumArgument> Argumente<'t, T, String> {
     /// Erzeuge ein Wert-Argument für ein [EnumArgument].
     ///
     /// ## English synonym
     /// [value_enum_display_with_language](Arguments::value_enum_display_with_language)
     #[inline(always)]
     pub fn wert_enum_display_mit_sprache(
-        beschreibung: Beschreibung<T>,
+        beschreibung: Beschreibung<'t, T>,
         sprache: Sprache,
-    ) -> Argumente<T, String> {
+    ) -> Argumente<'t, T, String> {
         Argumente::wert_enum_display(beschreibung, sprache.meta_var.to_owned())
     }
 
@@ -421,9 +422,9 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     /// [wert_enum_display_mit_sprache](Argumente::wert_enum_display_mit_sprache)
     #[inline(always)]
     pub fn value_enum_display_with_language(
-        description: Description<T>,
+        description: Description<'t, T>,
         language: Language,
-    ) -> Arguments<T, String> {
+    ) -> Arguments<'t, T, String> {
         Argumente::wert_enum_display_mit_sprache(description, language)
     }
 
@@ -433,9 +434,9 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     /// [value_enum_display](Arguments::value_enum_display)
     #[inline(always)]
     pub fn wert_enum_display(
-        beschreibung: Beschreibung<T>,
-        meta_var: String,
-    ) -> Argumente<T, String> {
+        beschreibung: Beschreibung<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
+    ) -> Argumente<'t, T, String> {
         Argumente::wert_enum(beschreibung, meta_var, T::to_string)
     }
 
@@ -445,24 +446,24 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     /// [wert_enum_display](Argumente::wert_enum_display)
     #[inline(always)]
     pub fn value_enum_display(
-        description: Description<T>,
-        meta_var: String,
-    ) -> Arguments<T, String> {
+        description: Description<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
+    ) -> Arguments<'t, T, String> {
         Argumente::wert_enum_display(description, meta_var)
     }
 }
 
-impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
+impl<'t, T: 'static + Display + Clone + EnumArgument> Argumente<'t, T, String> {
     /// Erzeuge ein Wert-Argument für ein [EnumArgument].
     ///
     /// ## English synonym
     /// [value_enum_with_language](Arguments::value_enum_with_language)
     #[inline(always)]
     pub fn wert_enum_mit_sprache(
-        beschreibung: Beschreibung<T>,
+        beschreibung: Beschreibung<'t, T>,
         anzeige: impl Fn(&T) -> String,
         sprache: Sprache,
-    ) -> Argumente<T, String> {
+    ) -> Argumente<'t, T, String> {
         Argumente::wert_enum(beschreibung, sprache.meta_var.to_owned(), anzeige)
     }
 
@@ -472,10 +473,10 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     /// [wert_enum_mit_sprache](Argumente::wert_enum_mit_sprache)
     #[inline(always)]
     pub fn value_enum_with_language(
-        description: Description<T>,
+        description: Description<'t, T>,
         display: impl Fn(&T) -> String,
         language: Language,
-    ) -> Arguments<T, String> {
+    ) -> Arguments<'t, T, String> {
         Argumente::wert_enum_mit_sprache(description, display, language)
     }
 
@@ -484,10 +485,10 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     /// ## English synonym
     /// [value_enum](Arguments::value_enum)
     pub fn wert_enum(
-        beschreibung: Beschreibung<T>,
-        meta_var: String,
+        beschreibung: Beschreibung<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         anzeige: impl Fn(&T) -> String,
-    ) -> Argumente<T, String> {
+    ) -> Argumente<'t, T, String> {
         let mögliche_werte = NonEmpty::from_vec(T::varianten());
         Argumente::wert(beschreibung, meta_var, mögliche_werte, T::parse_enum, anzeige)
     }
@@ -498,15 +499,15 @@ impl<T: 'static + Display + Clone + EnumArgument> Argumente<T, String> {
     /// [wert_enum](Argumente::wert_enum)
     #[inline(always)]
     pub fn value_enum(
-        description: Description<T>,
-        meta_var: String,
+        description: Description<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         display: impl Fn(&T) -> String,
-    ) -> Arguments<T, String> {
+    ) -> Arguments<'t, T, String> {
         Argumente::wert_enum(description, meta_var, display)
     }
 }
 
-impl<T> Argumente<T, String>
+impl<'t, T> Argumente<'t, T, String>
 where
     T: 'static + Display + Clone + FromStr,
     T::Err: Display,
@@ -517,10 +518,10 @@ where
     /// [value_from_str_display_with_language](Arguments::value_from_str_display_with_language)
     #[inline(always)]
     pub fn wert_from_str_display_mit_sprache(
-        beschreibung: Beschreibung<T>,
+        beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
         sprache: Sprache,
-    ) -> Argumente<T, String> {
+    ) -> Argumente<'t, T, String> {
         Argumente::wert_from_str_display(beschreibung, sprache.meta_var.to_owned(), mögliche_werte)
     }
 
@@ -530,10 +531,10 @@ where
     /// [wert_from_str_display_mit_sprache](Argumente::wert_from_str_display_mit_sprache)
     #[inline(always)]
     pub fn value_from_str_display_with_language(
-        description: Description<T>,
+        description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
         language: Language,
-    ) -> Argumente<T, String> {
+    ) -> Argumente<'t, T, String> {
         Argumente::wert_from_str_display_mit_sprache(description, possible_values, language)
     }
 
@@ -543,10 +544,10 @@ where
     /// [value_from_str_display](Arguments::value_from_str_display)
     #[inline(always)]
     pub fn wert_from_str_display(
-        beschreibung: Beschreibung<T>,
-        meta_var: String,
+        beschreibung: Beschreibung<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         mögliche_werte: Option<NonEmpty<T>>,
-    ) -> Argumente<T, String> {
+    ) -> Argumente<'t, T, String> {
         Argumente::wert_from_str(beschreibung, meta_var, mögliche_werte, T::to_string, |fehler| {
             fehler.to_string()
         })
@@ -558,15 +559,15 @@ where
     /// [wert_from_str_display](Argumente::wert_from_str_display)
     #[inline(always)]
     pub fn value_from_str_display(
-        description: Description<T>,
-        meta_var: String,
+        description: Description<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         possible_values: Option<NonEmpty<T>>,
-    ) -> Argumente<T, String> {
+    ) -> Argumente<'t, T, String> {
         Argumente::wert_from_str_display(description, meta_var, possible_values)
     }
 }
 
-impl<T, E> Argumente<T, E>
+impl<'t, T, E> Argumente<'t, T, E>
 where
     T: 'static + Clone + FromStr,
     E: 'static + Clone,
@@ -577,12 +578,12 @@ where
     /// [value_from_str_with_language](Arguments::value_from_str_with_language)
     #[inline(always)]
     pub fn wert_from_str_mit_sprache(
-        beschreibung: Beschreibung<T>,
+        beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
         anzeige: impl Fn(&T) -> String,
         konvertiere_fehler: impl 'static + Fn(T::Err) -> E,
         sprache: Sprache,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::wert_from_str(
             beschreibung,
             sprache.meta_var.to_owned(),
@@ -598,12 +599,12 @@ where
     /// [wert_from_str_mit_sprache](Argumente::wert_from_str_mit_sprache)
     #[inline(always)]
     pub fn value_from_str_with_language(
-        description: Description<T>,
+        description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
         display: impl Fn(&T) -> String,
         convert_error: impl 'static + Fn(T::Err) -> E,
         language: Language,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         Argumente::wert_from_str_mit_sprache(
             description,
             possible_values,
@@ -618,12 +619,12 @@ where
     /// ## English synonym
     /// [value_from_str](Arguments::value_from_str)
     pub fn wert_from_str(
-        beschreibung: Beschreibung<T>,
-        meta_var: String,
+        beschreibung: Beschreibung<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         mögliche_werte: Option<NonEmpty<T>>,
         anzeige: impl Fn(&T) -> String,
         konvertiere_fehler: impl 'static + Fn(T::Err) -> E,
-    ) -> Argumente<T, E> {
+    ) -> Argumente<'t, T, E> {
         Argumente::wert_string(
             beschreibung,
             meta_var,
@@ -639,12 +640,12 @@ where
     /// [wert_from_str](Argumente::wert_from_str)
     #[inline(always)]
     pub fn value_from_str(
-        description: Description<T>,
-        meta_var: String,
+        description: Description<'t, T>,
+        meta_var: impl Into<Cow<'t, str>>,
         possible_values: Option<NonEmpty<T>>,
         display: impl Fn(&T) -> String,
         convert_error: impl 'static + Fn(T::Err) -> E,
-    ) -> Arguments<T, E> {
+    ) -> Arguments<'t, T, E> {
         Argumente::wert_from_str(description, meta_var, possible_values, display, convert_error)
     }
 }
