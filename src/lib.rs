@@ -37,24 +37,21 @@
 )]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 
+use std::borrow::Cow;
+
+use cjk::is_cjkish_codepoint;
+use unicode_normalization::{is_nfc_quick, IsNormalized, UnicodeNormalization};
+
 #[doc(no_inline)]
 pub use nonempty::NonEmpty;
 
-#[cfg(any(feature = "unicode_eq", all(doc, not(doctest))))]
-use std::borrow::Cow;
-
-#[cfg(any(feature = "unicode_eq", all(doc, not(doctest))))]
 fn nfc_normalize(s: &str) -> Cow<'_, str> {
-    use cjk::is_cjkish_codepoint;
-    use unicode_normalization::{is_nfc_quick, IsNormalized, UnicodeNormalization};
     match is_nfc_quick(s.chars()) {
         IsNormalized::Yes if !s.chars().any(is_cjkish_codepoint) => Cow::Borrowed(s),
         _ => Cow::Owned(s.nfc().cjk_compat_variants().collect()),
     }
 }
 
-#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "unicode_eq")))]
-#[cfg(any(feature = "unicode_eq", all(doc, not(doctest))))]
 /// Überprüfe ob zwei Strings nach Unicode Normalisierung identisch sind,
 /// optional ohne Groß-/Kleinschreibung zu beachten.
 ///
