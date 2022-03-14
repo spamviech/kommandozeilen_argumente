@@ -15,18 +15,27 @@ use crate::{
 
 impl<E> Argumente<bool, E> {
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
+    ///
+    /// ## English version
+    /// [flag_bool_english](Arguments::flag_bool_english)
     #[inline(always)]
     pub fn flag_bool_deutsch(beschreibung: Beschreibung<bool>) -> Argumente<bool, E> {
         Argumente::flag_bool_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
 
     /// Create a flag-argument which can be deactivated with a "no" prefix.
+    ///
+    /// ## Deutsche Version
+    /// [flag_bool_deutsch](Argumente::flag_bool_deutsch)
     #[inline(always)]
     pub fn flag_bool_english(description: Description<bool>) -> Arguments<bool, E> {
         Argumente::flag_bool_mit_sprache(description, Sprache::ENGLISH)
     }
 
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
+    ///
+    /// ## English synonym
+    /// [flag_bool_with_language](Arguments::flag_bool_with_language)
     #[inline(always)]
     pub fn flag_bool_mit_sprache(
         beschreibung: Beschreibung<bool>,
@@ -36,6 +45,9 @@ impl<E> Argumente<bool, E> {
     }
 
     /// Create a flag-argument which can be deactivated with the configured prefix.
+    ///
+    /// ## Deutsches Synonym
+    /// [flag_bool_mit_sprache](Argumente::flag_bool_mit_sprache)
     #[inline(always)]
     pub fn flag_bool_with_language(
         description: Description<bool>,
@@ -44,8 +56,10 @@ impl<E> Argumente<bool, E> {
         Argumente::flag_bool_mit_sprache(description, language)
     }
 
-    // TODO english doc
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
+    ///
+    /// ## English
+    /// Create a flag-argument which can be deactivated with the configured prefix.
     #[inline(always)]
     pub fn flag_bool(
         beschreibung: Beschreibung<bool>,
@@ -57,6 +71,9 @@ impl<E> Argumente<bool, E> {
 
 impl<T: 'static + Display + Clone, E> Argumente<T, E> {
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
+    ///
+    /// ## English version
+    /// [flag_english](Arguments::flag_english)
     #[inline(always)]
     pub fn flag_deutsch(
         beschreibung: Beschreibung<T>,
@@ -66,6 +83,9 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
     }
 
     /// Create a flag-argument which can be deactivated with a "no" prefix.
+    ///
+    /// ## Deutsche Version
+    /// [flag_deutsch](Argumente::flag_deutsch)
     #[inline(always)]
     pub fn flag_english(
         description: Description<T>,
@@ -75,6 +95,9 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
     }
 
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
+    ///
+    /// ## English synonym
+    /// [flag_with_language](Arguments::flag_with_language)
     #[inline(always)]
     pub fn flag_mit_sprache(
         beschreibung: Beschreibung<T>,
@@ -85,6 +108,9 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
     }
 
     /// Create a flag-argument which can be deactivated with a "no" prefix.
+    ///
+    /// ## Deutsches Synonym
+    /// [flag_mit_sprache](Argumente::flag_mit_sprache)
     #[inline(always)]
     pub fn flag_with_language(
         description: Description<T>,
@@ -94,8 +120,10 @@ impl<T: 'static + Display + Clone, E> Argumente<T, E> {
         Argumente::flag_mit_sprache(description, convert, language)
     }
 
-    // TODO english doc
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
+    ///
+    /// ## English
+    /// Create a flag-argument which can be deactivated with the configured prefix.
     pub fn flag(
         beschreibung: Beschreibung<T>,
         konvertiere: impl 'static + Fn(bool) -> T,
