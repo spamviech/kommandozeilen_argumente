@@ -77,5 +77,5 @@ pub use self::{
     ergebnis::{Ergebnis, Error, Fehler, ParseError, ParseFehler, Result},
     parse::{Parse, ParseArgument},
     sprache::{Language, Sprache},
-    unicode::unicode_eq,
+    unicode::{Normalisiert, Normalized},
 };
