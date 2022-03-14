@@ -840,7 +840,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
             hilfe_string.push_str(&teil_string);
         }
         let hilfe = if hilfe_string.is_empty() {
-            quote!(None)
+            quote!(None::<&str>)
         } else {
             quote!(Some(#hilfe_string.to_owned()))
         };
@@ -900,7 +900,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         impl #crate_name::Parse for #ident {
             type Fehler = String;
 
-            fn kommandozeilen_argumente() -> #crate_name::Argumente<Self, Self::Fehler> {
+            fn kommandozeilen_argumente<'t>() -> #crate_name::Argumente<'t, Self, Self::Fehler> {
                 #nach_hilfe
             }
         }
