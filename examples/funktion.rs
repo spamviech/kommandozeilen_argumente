@@ -72,17 +72,17 @@ fn main() {
     let flag = Argumente::flag_bool_mit_sprache(
         Beschreibung::neu(
             "flag",
-            None,
-            Some("Eine Flag mit Standard-Einstellungen".to_owned()),
+            None::<&str>,
+            Some("Eine Flag mit Standard-Einstellungen"),
             Some(false),
         ),
         sprache,
     );
     let umbenannt = Argumente::flag_bool_mit_sprache(
         Beschreibung::neu(
-            NonEmpty { head: "andere".to_owned(), tail: vec!["namen".to_owned()] },
+            NonEmpty { head: "andere", tail: vec!["namen"] },
             "u",
-            Some("Eine Flag mit Standard-Einstellungen".to_owned()),
+            Some("Eine Flag mit Standard-Einstellungen"),
             Some(false),
         ),
         sprache,
@@ -99,16 +99,14 @@ fn main() {
         "no",
     );
     let wert = String::argumente_mit_sprache(
-        Beschreibung::neu("wert", None, Some("Ein String-Wert.".to_owned()), None),
+        Beschreibung::neu("wert", None::<&str>, Some("Ein String-Wert."), None),
         sprache,
     );
     let aufzählung = Argumente::wert_enum_display(
         Beschreibung::neu(
             "aufzählung",
             "a",
-            Some(
-                "Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable.".to_owned(),
-            ),
+            Some("Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable."),
             Some(Aufzählung::Zwei),
         ),
         "VAR".to_owned(),

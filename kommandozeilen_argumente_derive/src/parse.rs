@@ -331,8 +331,12 @@ impl KurzNamen {
     }
 
     fn to_vec_ts(self, lang_name: &str) -> TokenStream {
-        let iter = self.to_vec(&lang_name).into_iter();
-        quote!(vec![#(#iter.to_owned()),*])
+        let vec = self.to_vec(&lang_name);
+        if vec.is_empty() {
+            quote!(None::<&str>)
+        } else {
+            quote!(vec![#(#vec),*])
+        }
     }
 }
 
@@ -723,13 +727,13 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                     Some((head, tail)) => (
                         quote!(
                             #crate_name::NonEmpty {
-                                head: #head.to_owned(),
-                                tail: vec![#(#tail.to_owned()),*]
+                                head: #head,
+                                tail: vec![#(#tail),*]
                             }
                         ),
                         head,
                     ),
-                    None => (quote!(#name.to_owned()), &name),
+                    None => (quote!(#name), &name),
                 };
                 let kurz_namen = kurz.to_vec_ts(erster);
                 verarbeiten(sub_sprache, lang_namen, kurz_namen)
@@ -769,8 +773,8 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         if ident_str.is_empty() {
             return Err(LeererFeldName(ident));
         }
-        let mut lang = quote!(#ident_str.to_owned());
-        let mut kurz = quote!(None);
+        let mut lang = quote!(#ident_str);
+        let mut kurz = quote!(None::<&str>);
         let mut standard = quote!(#crate_name::parse::ParseArgument::standard());
         let mut feld_argument = FeldArgument::EnumArgument;
         let mut feld_invertiere_präfix = invertiere_präfix.clone();
@@ -781,9 +785,9 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                 if let Some(stripped) =
                     args_str.strip_prefix("= \"").and_then(|s| s.strip_suffix('"'))
                 {
-                    let trimmed = stripped.trim().to_owned();
+                    let trimmed = stripped.trim();
                     if !trimmed.is_empty() {
-                        hilfe_lits.push(trimmed);
+                        hilfe_lits.push(trimmed.to_owned());
                     }
                 }
             } else if attr.path.is_ident("kommandozeilen_argumente") {
@@ -818,14 +822,14 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                     Some((head, tail)) => {
                         lang = quote!(
                             #crate_name::NonEmpty {
-                                head: #head.to_owned(),
-                                tail: vec![#(#tail.to_owned()),*]
+                                head: #head,
+                                tail: vec![#(#tail),*]
                             }
                         );
                         head
                     },
                     None => {
-                        lang = quote!(#ident_str.to_owned());
+                        lang = quote!(#ident_str);
                         &ident_str
                     },
                 };
@@ -842,7 +846,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         let hilfe = if hilfe_string.is_empty() {
             quote!(None::<&str>)
         } else {
-            quote!(Some(#hilfe_string.to_owned()))
+            quote!(Some(#hilfe_string))
         };
         let erstelle_beschreibung = quote!(
             let beschreibung = #crate_name::Beschreibung::neu(
@@ -868,7 +872,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                     #erstelle_beschreibung
                     #crate_name::Argumente::wert_from_str_display(
                         beschreibung,
-                        #feld_meta_var.to_owned(),
+                        #feld_meta_var,
                         None,
                     )
                 })

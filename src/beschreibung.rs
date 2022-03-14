@@ -1,6 +1,6 @@
 //! Beschreibung eines Arguments.
 
-use std::{borrow::Cow, fmt::Display, ops::Deref};
+use std::{borrow::Cow, convert::AsRef, fmt::Display};
 
 use nonempty::NonEmpty;
 
@@ -113,16 +113,23 @@ impl<'t> LangNamen<'t> for &'t str {
 impl<'t> LangNamen<'t> for NonEmpty<String> {
     fn lang_namen(self) -> NonEmpty<Cow<'t, str>> {
         let NonEmpty { head, tail } = self;
-        NonEmpty { head: Cow::Owned(head), tail: tail.into_iter().map(|s| Cow::Owned(s)).collect() }
+        NonEmpty { head: Cow::Owned(head), tail: tail.into_iter().map(Cow::Owned).collect() }
     }
 }
 
-impl<'t, S: Deref<Target = str>> LangNamen<'t> for &'t NonEmpty<S> {
+impl<'t> LangNamen<'t> for NonEmpty<&'t str> {
+    fn lang_namen(self) -> NonEmpty<Cow<'t, str>> {
+        let NonEmpty { head, tail } = self;
+        NonEmpty { head: Cow::Borrowed(head), tail: tail.into_iter().map(Cow::Borrowed).collect() }
+    }
+}
+
+impl<'t, S: AsRef<str>> LangNamen<'t> for &'t NonEmpty<S> {
     fn lang_namen(self) -> NonEmpty<Cow<'t, str>> {
         let NonEmpty { head, tail } = self;
         NonEmpty {
-            head: Cow::Borrowed(head.deref()),
-            tail: tail.iter().map(|s| Cow::Borrowed(s.deref())).collect(),
+            head: Cow::Borrowed(head.as_ref()),
+            tail: tail.iter().map(|s| Cow::Borrowed(s.as_ref())).collect(),
         }
     }
 }
@@ -145,6 +152,12 @@ impl<'t> KurzNamen<'t> for Option<String> {
     }
 }
 
+impl<'t> KurzNamen<'t> for Option<&'t str> {
+    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
+        self.into_iter().map(Cow::Borrowed).collect()
+    }
+}
+
 impl<'t> KurzNamen<'t> for String {
     fn kurz_namen(self) -> Vec<Cow<'t, str>> {
         vec![Cow::Owned(self)]
@@ -163,15 +176,21 @@ impl<'t> KurzNamen<'t> for NonEmpty<String> {
     }
 }
 
-impl<'t, S: Deref<Target = str>> KurzNamen<'t> for &'t Vec<S> {
+impl<'t, S: AsRef<str>> KurzNamen<'t> for &'t Vec<S> {
     fn kurz_namen(self) -> Vec<Cow<'t, str>> {
-        self.iter().map(|s| Cow::Borrowed(s.deref())).collect()
+        self.iter().map(|s| Cow::Borrowed(s.as_ref())).collect()
     }
 }
 
 impl<'t> KurzNamen<'t> for Vec<String> {
     fn kurz_namen(self) -> Vec<Cow<'t, str>> {
         self.into_iter().map(Cow::Owned).collect()
+    }
+}
+
+impl<'t> KurzNamen<'t> for Vec<&'t str> {
+    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
+        self.into_iter().map(Cow::Borrowed).collect()
     }
 }
 

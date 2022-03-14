@@ -11,7 +11,7 @@ fn hilfe_test() {
     let arg: Argumente<bool, Void> = Argumente::hilfe_und_version(
         Argumente::flag_bool_deutsch(Beschreibung::neu(
             "test".to_owned(),
-            None,
+            None::<&str>,
             Some("hilfe".to_owned()),
             Some(false),
         )),
