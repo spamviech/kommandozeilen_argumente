@@ -41,16 +41,19 @@ pub use crate::{combine, kombiniere};
 //      sowohl für automatisch erzeugte, wie für überprüfte Kurznamen
 //      https://crates.io/crates/unicode-normalization
 // TODO Argument-Gruppen (nur eine dieser N Flags kann gleichzeitig aktiv sein)
-// TODO Programm-Beschreibung in Hilfe-Text
 // TODO Feature-gates für automatische Hilfe, verschmelzen von flag-kurzformen, ...
 //      benötigen extra Felder in Argumente-Struktur, könnte Performance verbessern
 // TODO OneOf/Either für alternative Parse-Möglichkeiten
+// TODO tests mit Unicode-namen
 // TODO Einstellung, ob Namen case-sensitive geparst werden sollen
 //      genauso bei abgeleiteter EnumArgument-implementierung
 //      verwende dazu unicode_eq (allgemein normalisieren zu empfehlen)
 // TODO erlaube Präfixe für kurz "-", lang "--" und infix für invertiere_präfix "-",
 //      infix für wert "=" zu ersetzen
-// TODO tests mit Unicode-namen
+// TODO Programm-Beschreibung in Hilfe-Text
+// TODO ersetze Cow<'t,str> durch &'t str
+//      Ich verändere sie nie, also sollten Referenzen genügen.
+//      Into<Cow<'t,str>>-Trait durch Deref<Target=str>/AsRef<str> ersetzen?
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<'t, T, E> {
