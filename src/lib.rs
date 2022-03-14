@@ -37,19 +37,19 @@
 )]
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 
-#[doc(inline)]
-/// A Non-empty growable vector.
+#[doc(no_inline)]
 pub use nonempty::NonEmpty;
 
-#[cfg(any(feature = "derive", doc))]
-#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
+// doc-cfg only works on inline items (or those defined here)
 #[doc(inline)]
+#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
+#[cfg(any(feature = "derive", doc))]
 pub use unicase::eq as unicase_eq;
 
 #[macro_export]
 /// Crate Name spezifiziert in Cargo.toml.
 ///
-/// # English
+/// ## English
 /// Crate name specified in Cargo.toml.
 macro_rules! crate_name {
     () => {
