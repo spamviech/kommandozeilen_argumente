@@ -149,7 +149,11 @@ macro_rules! impl_kombiniere_n {
                     } else if let Some(nachrichten) = NonEmpty::from_vec(frühes_beenden) {
                         Ergebnis::FrühesBeenden(nachrichten)
                     } else {
-                        Ergebnis::Wert(f($($var.unwrap()),+))
+                        // Werte werden nur auf None gesetzt, wenn ein Element zu
+                        // `fehler` oder `frühes_beenden` hinzugefügt wird,
+                        // diese demnach nicht-leer sind.
+                        // In dieser Verzweigung sind beide leer, es sind also alle Werte Some
+                        Ergebnis::Wert(f($($var.expect("Kein Wert ohne Fehler.")),+))
                     };
                     (ergebnis, nicht_verwendet)
                 }),
