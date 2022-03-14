@@ -46,6 +46,10 @@ pub use crate::{combine, kombiniere};
 //      benötigen extra Felder in Argumente-Struktur, könnte Performance verbessern
 // TODO Cow<'t/'static, str> anstelle von String verwenden
 // TODO OneOf/Either für alternative Parse-Möglichkeiten
+// TODO Einstellung, ob Namen case-sensitive geparst werden sollen
+//      genauso bei abgeleiteter EnumArgument-implementierung
+//      verwende dazu unicode_eq (allgemein normalisieren zu empfehlen)
+// TODO erlaube Präfixe für kurz "-", lang "--" und infix für invertiere_präfix "-" zu ersetzen
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<'t, T, E> {
