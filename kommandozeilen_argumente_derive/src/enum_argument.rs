@@ -91,7 +91,7 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fe
             fn parse_enum(arg: &std::ffi::OsStr) -> Result<Self, #crate_name::ParseFehler<String>> {
                 if let Some(string) = arg.to_str() {
                     #(
-                        if #crate_name::unicase_eq(string, #varianten_str) {
+                        if #crate_name::unicode_eq(string, #varianten_str, false) {
                             Ok(Self::#varianten)
                         } else
                     )*

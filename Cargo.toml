@@ -12,8 +12,9 @@ description = "Parser für Kommandozeilen-Argumente mit optionaler, automatische
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["derive"]
-derive = ["kommandozeilen_argumente_derive", "unicase"]
+default = ["derive", "unicode_eq"]
+derive = ["kommandozeilen_argumente_derive", "unicode_eq"]
+unicode_eq = ["cjk", "unicase", "unicode-normalization"]
 
 [[test]]
 name = "derive"
@@ -35,6 +36,14 @@ path = "./kommandozeilen_argumente_derive"
 version = "0.2.0"
 optional = true
 
+[dependencies.cjk]
+version = "0.2.4"
+optional = true
+
 [dependencies.unicase]
 version = "2.6.0"
+optional = true
+
+[dependencies.unicode-normalization]
+version = "0.1.19"
 optional = true

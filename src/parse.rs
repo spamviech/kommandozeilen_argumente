@@ -11,7 +11,7 @@ use crate::{
     sprache::{Language, Sprache},
 };
 
-#[cfg(any(feature = "derive", doc))]
+#[cfg(any(feature = "derive", all(doc, not(doctest))))]
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::Parse;
 
