@@ -129,9 +129,17 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
         konvertiere: impl 'static + Fn(bool) -> T,
         invertiere_präfix: impl Into<Cow<'t, str>>,
     ) -> Argumente<'t, T, E> {
-        let name_kurz = beschreibung.kurz.clone();
-        let name_lang = beschreibung.lang.clone();
+        let name_kurz: Vec<_> =
+            beschreibung.kurz.iter().map(|cow| cow.deref().to_owned()).collect();
+        let name_lang = {
+            let NonEmpty { head, tail } = beschreibung.lang;
+            NonEmpty {
+                head: head.deref().to_owned(),
+                tail: tail.iter().map(|cow| cow.deref().to_owned()).collect(),
+            }
+        };
         let invertiere_präfix_cow = invertiere_präfix.into();
+        let invertiere_präfix_string = invertiere_präfix_cow.deref().to_owned();
         let invertiere_präfix_minus = format!("{}-", invertiere_präfix_cow);
         let (beschreibung, standard) = beschreibung.als_string_beschreibung();
         Argumente {
@@ -139,7 +147,7 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
                 beschreibung,
                 invertiere_präfix: Some(invertiere_präfix_cow),
             }],
-            flag_kurzformen: name_kurz.iter().cloned().collect(),
+            flag_kurzformen: name_kurz.iter().map(|s| Cow::Borrowed(s.as_str())).collect(),
             parse: Box::new(move |args| {
                 let name_kurz_existiert = !name_kurz.is_empty();
                 let mut ergebnis = None;
@@ -183,9 +191,15 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
                     Ergebnis::Wert(wert.clone())
                 } else {
                     let fehler = Fehler::FehlendeFlag {
-                        lang: name_lang.clone(),
-                        kurz: name_kurz.clone(),
-                        invertiere_präfix: invertiere_präfix_cow,
+                        lang: {
+                            let NonEmpty { head, tail } = &name_lang;
+                            NonEmpty {
+                                head: Cow::Owned(head.clone()),
+                                tail: tail.iter().cloned().map(Cow::Owned).collect(),
+                            }
+                        },
+                        kurz: name_kurz.iter().cloned().map(Cow::Owned).collect(),
+                        invertiere_präfix: Cow::Owned(invertiere_präfix_string),
                     };
                     Ergebnis::Fehler(NonEmpty::singleton(fehler))
                 };

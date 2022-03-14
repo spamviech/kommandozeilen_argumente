@@ -1,6 +1,6 @@
 //! Wert-Argument basierend auf seiner [FromStr]-Implementierung.
 
-use std::{borrow::Cow, ffi::OsStr, fmt::Display, str::FromStr};
+use std::{borrow::Cow, ffi::OsStr, fmt::Display, ops::Deref, str::FromStr};
 
 use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
@@ -135,7 +135,7 @@ impl<'t, T: 'static + Clone + Display, E: 'static + Clone> Argumente<'t, T, E> {
     }
 }
 
-impl<'t, T: 'static + Clone, E: 'static + Clone> Argumente<'t, T, E> {
+impl<'t, T: 'static + Clone, E: 'static> Argumente<'t, T, E> {
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
     ///
     /// ## English synonym
@@ -255,15 +255,28 @@ impl<'t, T: 'static + Clone, E: 'static + Clone> Argumente<'t, T, E> {
         parse: impl 'static + Fn(&OsStr) -> Result<T, ParseFehler<E>>,
         anzeige: impl Fn(&T) -> String,
     ) -> Argumente<'t, T, E> {
-        let name_kurz = beschreibung.kurz.clone();
-        let name_lang = beschreibung.lang.clone();
+        let name_kurz: Vec<_> =
+            beschreibung.kurz.iter().map(|cow| cow.deref().to_owned()).collect();
+        let name_lang = {
+            let NonEmpty { head, tail } = beschreibung.lang;
+            NonEmpty {
+                head: head.deref().to_owned(),
+                tail: tail.iter().map(|cow| cow.deref().to_owned()).collect(),
+            }
+        };
         let meta_var_cow = meta_var.into();
-        let meta_var_clone = meta_var_cow.clone();
+        let meta_var_string = meta_var_cow.deref().to_owned();
         let (beschreibung, standard) = beschreibung.als_string_beschreibung_allgemein(&anzeige);
-        let fehler_kein_wert = Fehler::FehlenderWert {
-            lang: name_lang.clone(),
-            kurz: name_kurz.clone(),
-            meta_var: meta_var_clone.into(),
+        let fehler_kein_wert = || Fehler::FehlenderWert {
+            lang: {
+                let NonEmpty { head, tail } = &name_lang;
+                NonEmpty {
+                    head: Cow::Owned(head.clone()),
+                    tail: tail.iter().cloned().map(Cow::Owned).collect(),
+                }
+            },
+            kurz: name_kurz.iter().cloned().map(Cow::Owned).collect(),
+            meta_var: Cow::Owned(meta_var_string.clone()),
         };
         Argumente {
             konfigurationen: vec![Konfiguration::Wert {
@@ -284,14 +297,20 @@ impl<'t, T: 'static + Clone, E: 'static + Clone> Argumente<'t, T, E> {
                         match parse(wert_os_str) {
                             Ok(wert) => ergebnis = Some(wert),
                             Err(parse_fehler) => fehler.push(Fehler::Fehler {
-                                lang: name_lang.clone(),
-                                kurz: name_kurz.clone(),
-                                meta_var: meta_var_clone.clone(),
+                                lang: {
+                                    let NonEmpty { head, tail } = &name_lang;
+                                    NonEmpty {
+                                        head: Cow::Owned(head.clone()),
+                                        tail: tail.iter().cloned().map(Cow::Owned).collect(),
+                                    }
+                                },
+                                kurz: name_kurz.iter().cloned().map(Cow::Owned).collect(),
+                                meta_var: Cow::Owned(meta_var_string.clone()),
                                 fehler: parse_fehler,
                             }),
                         }
                     } else {
-                        fehler.push(fehler_kein_wert.clone())
+                        fehler.push(fehler_kein_wert())
                     }
                 };
                 for arg in args {
@@ -343,10 +362,7 @@ impl<'t, T: 'static + Clone, E: 'static + Clone> Argumente<'t, T, E> {
                 } else if let Some(wert) = &standard {
                     (Ergebnis::Wert(wert.clone()), nicht_verwendet)
                 } else {
-                    (
-                        Ergebnis::Fehler(NonEmpty::singleton(fehler_kein_wert.clone())),
-                        nicht_verwendet,
-                    )
+                    (Ergebnis::Fehler(NonEmpty::singleton(fehler_kein_wert())), nicht_verwendet)
                 }
             }),
         }

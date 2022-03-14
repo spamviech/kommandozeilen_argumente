@@ -1,6 +1,6 @@
 //! Trait für Typen, die aus Kommandozeilen-Argumenten geparst werden können.
 
-use std::{borrow::Cow, ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
+use std::{borrow::Cow, ffi::OsString, fmt::Display, num::NonZeroI32, ops::Deref, str::FromStr};
 
 use nonempty::NonEmpty;
 
@@ -154,10 +154,21 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         meta_var: impl Into<Cow<'t, str>>,
     ) -> Argumente<'t, Self, String> {
         let Beschreibung { lang, kurz, .. } = &beschreibung;
-        let lang_namen = lang.clone();
-        let kurz_namen = kurz.clone();
-        let Argumente { parse, .. } =
-            T::argumente(Beschreibung::neu(lang, kurz, None, None), invertiere_präfix, meta_var);
+        let name_kurz: Vec<_> =
+            beschreibung.kurz.iter().map(|cow| cow.deref().to_owned()).collect();
+        let name_lang = {
+            let NonEmpty { head, tail } = lang;
+            NonEmpty {
+                head: head.deref().to_owned(),
+                tail: tail.iter().map(|cow| cow.deref().to_owned()).collect(),
+            }
+        };
+        let meta_var_cow = meta_var.into();
+        let Argumente { parse, .. } = T::argumente(
+            Beschreibung::neu(name_lang.clone(), name_kurz.clone(), None::<&str>, None),
+            invertiere_präfix,
+            meta_var_cow.clone(),
+        );
         let (beschreibung_string, option_standard) = beschreibung
             .als_string_beschreibung_allgemein(|opt| {
                 if let Some(t) = opt {
@@ -168,12 +179,12 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
             });
         type F<'s, T> =
             Box<dyn Fn(NonEmpty<Fehler<'s, String>>) -> Ergebnis<'s, Option<T>, String>>;
-        let verwende_standard: F<'t, T> = if let Some(standard) = option_standard {
-            Box::new(|fehler_sammlung| {
+        let verwende_standard: F<'_, T> = if let Some(standard) = option_standard {
+            Box::new(move |fehler_sammlung| {
                 let mut fehler_iter =
                     fehler_sammlung.into_iter().filter_map(|fehler| match fehler {
                         Fehler::FehlenderWert { lang, kurz, meta_var } => {
-                            if lang == lang_namen && kurz == kurz_namen {
+                            if lang.iter().eq(name_lang.iter()) && kurz == name_kurz {
                                 None
                             } else {
                                 Some(Fehler::FehlenderWert { lang, kurz, meta_var })
@@ -194,7 +205,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         Argumente {
             konfigurationen: vec![Konfiguration::Wert {
                 beschreibung: beschreibung_string,
-                meta_var: meta_var.into(),
+                meta_var: meta_var_cow,
                 mögliche_werte: None,
             }],
             flag_kurzformen: Vec::new(),
