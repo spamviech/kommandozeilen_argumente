@@ -746,14 +746,11 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
         beschreibung: Beschreibung<'t, Void>,
         nachricht: impl Into<Cow<'t, str>>,
     ) -> Argumente<'t, T, E> {
-        // FIXME parse can't live longer then 't, since it returns a tuple with Ergebnis<'t,_,_>
-        // Box requires it to live for 'static, so we have a problem here.
-        // is there a Box-like construct without 'static requirement?
         let Argumente { mut konfigurationen, mut flag_kurzformen, parse } = self;
         let name_kurz: Vec<_> =
             beschreibung.kurz.iter().map(|cow| cow.deref().to_owned()).collect();
         let name_lang = {
-            let NonEmpty { head, tail } = beschreibung.lang;
+            let NonEmpty { head, tail } = &beschreibung.lang;
             NonEmpty {
                 head: head.deref().to_owned(),
                 tail: tail.iter().map(|cow| cow.deref().to_owned()).collect(),

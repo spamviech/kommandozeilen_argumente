@@ -258,7 +258,7 @@ impl<'t, T: 'static + Clone, E: 'static> Argumente<'t, T, E> {
         let name_kurz: Vec<_> =
             beschreibung.kurz.iter().map(|cow| cow.deref().to_owned()).collect();
         let name_lang = {
-            let NonEmpty { head, tail } = beschreibung.lang;
+            let NonEmpty { head, tail } = &beschreibung.lang;
             NonEmpty {
                 head: head.deref().to_owned(),
                 tail: tail.iter().map(|cow| cow.deref().to_owned()).collect(),
@@ -267,17 +267,6 @@ impl<'t, T: 'static + Clone, E: 'static> Argumente<'t, T, E> {
         let meta_var_cow = meta_var.into();
         let meta_var_string = meta_var_cow.deref().to_owned();
         let (beschreibung, standard) = beschreibung.als_string_beschreibung_allgemein(&anzeige);
-        let fehler_kein_wert = || Fehler::FehlenderWert {
-            lang: {
-                let NonEmpty { head, tail } = &name_lang;
-                NonEmpty {
-                    head: Cow::Owned(head.clone()),
-                    tail: tail.iter().cloned().map(Cow::Owned).collect(),
-                }
-            },
-            kurz: name_kurz.iter().cloned().map(Cow::Owned).collect(),
-            meta_var: Cow::Owned(meta_var_string.clone()),
-        };
         Argumente {
             konfigurationen: vec![Konfiguration::Wert {
                 beschreibung,
@@ -287,6 +276,17 @@ impl<'t, T: 'static + Clone, E: 'static> Argumente<'t, T, E> {
             }],
             flag_kurzformen: Vec::new(),
             parse: Box::new(move |args| {
+                let fehler_kein_wert = || Fehler::FehlenderWert {
+                    lang: {
+                        let NonEmpty { head, tail } = &name_lang;
+                        NonEmpty {
+                            head: Cow::Owned(head.clone()),
+                            tail: tail.iter().cloned().map(Cow::Owned).collect(),
+                        }
+                    },
+                    kurz: name_kurz.iter().cloned().map(Cow::Owned).collect(),
+                    meta_var: Cow::Owned(meta_var_string.clone()),
+                };
                 let name_kurz_existiert = !name_kurz.is_empty();
                 let mut ergebnis = None;
                 let mut fehler = Vec::new();

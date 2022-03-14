@@ -51,7 +51,8 @@ pub use crate::{combine, kombiniere};
 pub struct Argumente<'t, T, E> {
     pub(crate) konfigurationen: Vec<Konfiguration<'t>>,
     pub(crate) flag_kurzformen: Vec<Cow<'t, str>>,
-    pub(crate) parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (Ergebnis<'t, T, E>, Vec<Option<&OsStr>>)>,
+    pub(crate) parse:
+        Box<dyn 't + Fn(Vec<Option<&OsStr>>) -> (Ergebnis<'t, T, E>, Vec<Option<&OsStr>>)>,
 }
 
 /// Command line [Arguments] and their [crate::beschreibung::Description].
