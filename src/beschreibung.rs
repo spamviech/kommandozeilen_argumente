@@ -4,6 +4,8 @@ use std::{borrow::Cow, convert::AsRef, fmt::Display};
 
 use nonempty::NonEmpty;
 
+use crate::unicode::Normalisiert;
+
 // TODO erwähne verschmelzen von Flag-Kurzformen?
 /// Beschreibung eines Kommandozeilen-Arguments.
 ///
@@ -15,7 +17,7 @@ pub struct Beschreibung<'t, T> {
     ///
     /// ## English
     /// Full Name, given after two minus characters "--<lang>"
-    pub lang: NonEmpty<Cow<'t, str>>,
+    pub lang: NonEmpty<Normalisiert<'t>>,
     /// Kurzer Name, wird nach einem Minus angegeben "-<kurz>".
     /// Kurznamen länger als ein [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// werden nicht unterstützt.
@@ -24,7 +26,7 @@ pub struct Beschreibung<'t, T> {
     /// Short name, given after one minus character "-<kurz>"
     /// Short names longer than a [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// are not supported.
-    pub kurz: Vec<Cow<'t, str>>,
+    pub kurz: Vec<Normalisiert<'t>>,
     /// Im automatischen Hilfetext angezeigte Beschreibung.
     ///
     /// ## English
@@ -81,7 +83,7 @@ impl<'t, T> Beschreibung<'t, T> {
 
 macro_rules! contains_str {
     ($collection: expr, $gesucht: expr) => {
-        $collection.iter().any(|element| element == $gesucht)
+        $collection.iter().any(|element| element.as_ref() == $gesucht)
     };
 }
 pub(crate) use contains_str;
@@ -95,41 +97,47 @@ pub trait LangNamen<'t> {
     ///
     /// ## English
     /// Convert into a [NonEmpty].
-    fn lang_namen(self) -> NonEmpty<Cow<'t, str>>;
+    fn lang_namen(self) -> NonEmpty<Normalisiert<'t>>;
 }
 
 impl<'t> LangNamen<'t> for String {
-    fn lang_namen(self) -> NonEmpty<Cow<'t, str>> {
-        NonEmpty::singleton(Cow::Owned(self))
+    fn lang_namen(self) -> NonEmpty<Normalisiert<'t>> {
+        NonEmpty::singleton(Normalisiert::neu(self))
     }
 }
 
 impl<'t> LangNamen<'t> for &'t str {
-    fn lang_namen(self) -> NonEmpty<Cow<'t, str>> {
-        NonEmpty::singleton(Cow::Borrowed(self))
+    fn lang_namen(self) -> NonEmpty<Normalisiert<'t>> {
+        NonEmpty::singleton(Normalisiert::neu(self))
     }
 }
 
 impl<'t> LangNamen<'t> for NonEmpty<String> {
-    fn lang_namen(self) -> NonEmpty<Cow<'t, str>> {
+    fn lang_namen(self) -> NonEmpty<Normalisiert<'t>> {
         let NonEmpty { head, tail } = self;
-        NonEmpty { head: Cow::Owned(head), tail: tail.into_iter().map(Cow::Owned).collect() }
+        NonEmpty {
+            head: Normalisiert::neu(head),
+            tail: tail.into_iter().map(Normalisiert::neu).collect(),
+        }
     }
 }
 
 impl<'t> LangNamen<'t> for NonEmpty<&'t str> {
-    fn lang_namen(self) -> NonEmpty<Cow<'t, str>> {
+    fn lang_namen(self) -> NonEmpty<Normalisiert<'t>> {
         let NonEmpty { head, tail } = self;
-        NonEmpty { head: Cow::Borrowed(head), tail: tail.into_iter().map(Cow::Borrowed).collect() }
+        NonEmpty {
+            head: Normalisiert::neu(head),
+            tail: tail.into_iter().map(Normalisiert::neu).collect(),
+        }
     }
 }
 
 impl<'t, S: AsRef<str>> LangNamen<'t> for &'t NonEmpty<S> {
-    fn lang_namen(self) -> NonEmpty<Cow<'t, str>> {
+    fn lang_namen(self) -> NonEmpty<Normalisiert<'t>> {
         let NonEmpty { head, tail } = self;
         NonEmpty {
-            head: Cow::Borrowed(head.as_ref()),
-            tail: tail.iter().map(|s| Cow::Borrowed(s.as_ref())).collect(),
+            head: Normalisiert::neu(head),
+            tail: tail.into_iter().map(Normalisiert::neu).collect(),
         }
     }
 }
@@ -143,54 +151,54 @@ pub trait KurzNamen<'t> {
     ///
     /// ## English
     /// Convert into a [Vec].
-    fn kurz_namen(self) -> Vec<Cow<'t, str>>;
+    fn kurz_namen(self) -> Vec<Normalisiert<'t>>;
 }
 
 impl<'t> KurzNamen<'t> for Option<String> {
-    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
-        self.into_iter().map(Cow::Owned).collect()
+    fn kurz_namen(self) -> Vec<Normalisiert<'t>> {
+        self.into_iter().map(Normalisiert::neu).collect()
     }
 }
 
 impl<'t> KurzNamen<'t> for Option<&'t str> {
-    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
-        self.into_iter().map(Cow::Borrowed).collect()
+    fn kurz_namen(self) -> Vec<Normalisiert<'t>> {
+        self.into_iter().map(Normalisiert::neu).collect()
     }
 }
 
 impl<'t> KurzNamen<'t> for String {
-    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
-        vec![Cow::Owned(self)]
+    fn kurz_namen(self) -> Vec<Normalisiert<'t>> {
+        vec![Normalisiert::neu(self)]
     }
 }
 
 impl<'t> KurzNamen<'t> for &'t str {
-    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
-        vec![Cow::Borrowed(self)]
+    fn kurz_namen(self) -> Vec<Normalisiert<'t>> {
+        vec![Normalisiert::neu(self)]
     }
 }
 
 impl<'t> KurzNamen<'t> for NonEmpty<String> {
-    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
-        self.into_iter().map(Cow::Owned).collect()
+    fn kurz_namen(self) -> Vec<Normalisiert<'t>> {
+        self.into_iter().map(Normalisiert::neu).collect()
     }
 }
 
 impl<'t, S: AsRef<str>> KurzNamen<'t> for &'t Vec<S> {
-    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
-        self.iter().map(|s| Cow::Borrowed(s.as_ref())).collect()
+    fn kurz_namen(self) -> Vec<Normalisiert<'t>> {
+        self.into_iter().map(Normalisiert::neu).collect()
     }
 }
 
 impl<'t> KurzNamen<'t> for Vec<String> {
-    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
-        self.into_iter().map(Cow::Owned).collect()
+    fn kurz_namen(self) -> Vec<Normalisiert<'t>> {
+        self.into_iter().map(Normalisiert::neu).collect()
     }
 }
 
 impl<'t> KurzNamen<'t> for Vec<&'t str> {
-    fn kurz_namen(self) -> Vec<Cow<'t, str>> {
-        self.into_iter().map(Cow::Borrowed).collect()
+    fn kurz_namen(self) -> Vec<Normalisiert<'t>> {
+        self.into_iter().map(Normalisiert::neu).collect()
     }
 }
 
@@ -248,7 +256,7 @@ pub enum Konfiguration<'t> {
         ///
         /// ## English
         /// Prefix to invert the flag argument.
-        invertiere_präfix: Option<Cow<'t, str>>,
+        invertiere_präfix: Option<Normalisiert<'t>>,
     },
     /// Es handelt sich um ein Wert-Argument.
     ///
@@ -264,7 +272,7 @@ pub enum Konfiguration<'t> {
         ///
         /// ## English
         /// Meta-variable used in the help-text.
-        meta_var: Cow<'t, str>,
+        meta_var: &'t str,
         /// String-Darstellung der erlaubten Werte.
         ///
         /// ## English

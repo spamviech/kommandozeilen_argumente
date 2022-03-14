@@ -1,6 +1,6 @@
 //! Unicode-berücksichtigende String-Funktionen.
 
-use std::borrow::Cow;
+use std::{borrow::Cow, convert::AsRef};
 
 use cjk::is_cjkish_codepoint;
 use unicode_normalization::{is_nfc_quick, IsNormalized, UnicodeNormalization};
@@ -13,7 +13,7 @@ use unicode_normalization::{is_nfc_quick, IsNormalized, UnicodeNormalization};
 ///
 /// ## English synonym
 /// [Normalized]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(single_use_lifetimes)]
 pub struct Normalisiert<'t>(Cow<'t, str>);
 
@@ -45,10 +45,11 @@ impl<'t> Normalisiert<'t> {
     /// ## English synonym
     /// [new](Normalized::new)
     #[inline(always)]
-    pub fn neu(s: &'t str) -> Normalisiert<'t> {
-        let cow = match is_nfc_quick(s.chars()) {
-            IsNormalized::Yes if !s.chars().any(is_cjkish_codepoint) => Cow::Borrowed(s),
-            _ => Cow::Owned(s.cjk_compat_variants().nfc().collect()),
+    pub fn neu<S: 't + AsRef<str>>(s: S) -> Normalisiert<'t> {
+        let r = s.as_ref();
+        let cow = match is_nfc_quick(r.chars()) {
+            IsNormalized::Yes if !r.chars().any(is_cjkish_codepoint) => Cow::Borrowed(r),
+            _ => Cow::Owned(r.cjk_compat_variants().nfc().collect()),
         };
         Normalisiert(cow)
     }
@@ -65,7 +66,7 @@ impl<'t> Normalisiert<'t> {
     /// ## Deutsches Synonym
     /// [neu](Normalisiert::neu)
     #[inline(always)]
-    pub fn new(s: &'t str) -> Normalized<'t> {
+    pub fn new<S: 't + AsRef<str>>(s: S) -> Normalized<'t> {
         Normalisiert::neu(s)
     }
 
