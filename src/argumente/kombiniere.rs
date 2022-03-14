@@ -206,12 +206,7 @@ impl<'t, T, Error: 'static> Argumente<'t, T, Error> {
             flag_kurzformen,
             parse: Box::new(move |args| {
                 let (ergebnis, nicht_verwendet) = parse(args);
-                let konvertiert = match ergebnis {
-                    Ergebnis::Wert(wert) => Ergebnis::Wert(f(wert)),
-                    Ergebnis::FrühesBeenden(nachrichten) => Ergebnis::FrühesBeenden(nachrichten),
-                    Ergebnis::Fehler(fehler) => Ergebnis::Fehler(fehler),
-                };
-                (konvertiert, nicht_verwendet)
+                (ergebnis.konvertiere(&f), nicht_verwendet)
             }),
         }
     }
