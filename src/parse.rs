@@ -153,11 +153,10 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         invertiere_präfix: impl Into<Cow<'t, str>>,
         meta_var: impl Into<Cow<'t, str>>,
     ) -> Argumente<'t, Self, String> {
-        let Beschreibung { lang, kurz, .. } = &beschreibung;
         let name_kurz: Vec<_> =
             beschreibung.kurz.iter().map(|cow| cow.deref().to_owned()).collect();
         let name_lang = {
-            let NonEmpty { head, tail } = lang;
+            let NonEmpty { head, tail } = &beschreibung.lang;
             NonEmpty {
                 head: head.deref().to_owned(),
                 tail: tail.iter().map(|cow| cow.deref().to_owned()).collect(),
@@ -166,8 +165,8 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         let meta_var_cow = meta_var.into();
         let Argumente { parse, .. } = T::argumente(
             Beschreibung::neu(name_lang.clone(), name_kurz.clone(), None::<&str>, None),
-            invertiere_präfix,
-            meta_var_cow.clone(),
+            invertiere_präfix.into().into_owned(),
+            meta_var_cow.clone().into_owned(),
         );
         let (beschreibung_string, option_standard) = beschreibung
             .als_string_beschreibung_allgemein(|opt| {
@@ -177,9 +176,8 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
                     "None".to_owned()
                 }
             });
-        type F<'s, T> =
-            Box<dyn Fn(NonEmpty<Fehler<'s, String>>) -> Ergebnis<'s, Option<T>, String>>;
-        let verwende_standard: F<'_, T> = if let Some(standard) = option_standard {
+        type F<T> = Box<dyn Fn(NonEmpty<Fehler<'_, String>>) -> Ergebnis<'_, Option<T>, String>>;
+        let verwende_standard: F<T> = if let Some(standard) = option_standard {
             Box::new(move |fehler_sammlung| {
                 let mut fehler_iter =
                     fehler_sammlung.into_iter().filter_map(|fehler| match fehler {
@@ -200,7 +198,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
                 }
             })
         } else {
-            Box::new(Ergebnis::Fehler)
+            Box::new(|e| Ergebnis::Fehler(e))
         };
         Argumente {
             konfigurationen: vec![Konfiguration::Wert {

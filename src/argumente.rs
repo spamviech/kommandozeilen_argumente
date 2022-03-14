@@ -51,7 +51,7 @@ pub use crate::{combine, kombiniere};
 pub struct Argumente<'t, T, E> {
     pub(crate) konfigurationen: Vec<Konfiguration<'t>>,
     pub(crate) flag_kurzformen: Vec<Cow<'t, str>>,
-    pub(crate) parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (Ergebnis<T, E>, Vec<Option<&OsStr>>)>,
+    pub(crate) parse: Box<dyn Fn(Vec<Option<&OsStr>>) -> (Ergebnis<'t, T, E>, Vec<Option<&OsStr>>)>,
 }
 
 /// Command line [Arguments] and their [crate::beschreibung::Description].
@@ -359,13 +359,13 @@ impl<T, E: Display> Argumente<'_, T, E> {
     }
 }
 
-impl<T, E> Argumente<'_, T, E> {
+impl<'t, T, E> Argumente<'t, T, E> {
     /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     ///
     /// ## English synonym
     /// [parse_from_env](Arguments::parse_from_env)
     #[inline(always)]
-    pub fn parse_aus_env(&self) -> (Ergebnis<T, E>, Vec<OsString>) {
+    pub fn parse_aus_env(&self) -> (Ergebnis<'t, T, E>, Vec<OsString>) {
         Argumente::parse(&self, args_aus_env())
     }
 
@@ -374,7 +374,7 @@ impl<T, E> Argumente<'_, T, E> {
     /// ## Deutsches Synonym
     /// [parse_aus_env](Argumente::parse_aus_env)
     #[inline(always)]
-    pub fn parse_from_env(&self) -> (Result<T, E>, Vec<OsString>) {
+    pub fn parse_from_env(&self) -> (Result<'t, T, E>, Vec<OsString>) {
         self.parse_aus_env()
     }
 
@@ -388,7 +388,7 @@ impl<T, E> Argumente<'_, T, E> {
     #[inline(always)]
     pub fn parse_aus_env_mit_frühen_beenden(
         &self,
-    ) -> (std::result::Result<T, NonEmpty<Fehler<E>>>, Vec<OsString>) {
+    ) -> (std::result::Result<T, NonEmpty<Fehler<'t, E>>>, Vec<OsString>) {
         self.parse_mit_frühen_beenden(args_aus_env())
     }
 
@@ -401,7 +401,7 @@ impl<T, E> Argumente<'_, T, E> {
     #[inline(always)]
     pub fn parse_from_env_with_early_exit(
         &self,
-    ) -> (std::result::Result<T, NonEmpty<Error<E>>>, Vec<OsString>) {
+    ) -> (std::result::Result<T, NonEmpty<Error<'t, E>>>, Vec<OsString>) {
         self.parse_aus_env_mit_frühen_beenden()
     }
 
@@ -415,7 +415,7 @@ impl<T, E> Argumente<'_, T, E> {
     pub fn parse_mit_frühen_beenden(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> (std::result::Result<T, NonEmpty<Fehler<E>>>, Vec<OsString>) {
+    ) -> (std::result::Result<T, NonEmpty<Fehler<'t, E>>>, Vec<OsString>) {
         let (ergebnis, nicht_verwendet) = self.parse(args);
         let result = match ergebnis {
             Ergebnis::Wert(wert) => Ok(wert),
@@ -440,7 +440,7 @@ impl<T, E> Argumente<'_, T, E> {
     pub fn parse_with_early_exit(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> (std::result::Result<T, NonEmpty<Error<E>>>, Vec<OsString>) {
+    ) -> (std::result::Result<T, NonEmpty<Error<'t, E>>>, Vec<OsString>) {
         self.parse_mit_frühen_beenden(args)
     }
 
@@ -448,7 +448,10 @@ impl<T, E> Argumente<'_, T, E> {
     ///
     /// ## English
     /// Parse the given command line arguments to create the requested type
-    pub fn parse(&self, args: impl Iterator<Item = OsString>) -> (Ergebnis<T, E>, Vec<OsString>) {
+    pub fn parse(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> (Ergebnis<'t, T, E>, Vec<OsString>) {
         let Argumente { konfigurationen: _, flag_kurzformen, parse } = self;
         let angepasste_args: Vec<OsString> = args
             .flat_map(|arg| {

@@ -746,6 +746,9 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
         beschreibung: Beschreibung<'t, Void>,
         nachricht: impl Into<Cow<'t, str>>,
     ) -> Argumente<'t, T, E> {
+        // FIXME parse can't live longer then 't, since it returns a tuple with Ergebnis<'t,_,_>
+        // Box requires it to live for 'static, so we have a problem here.
+        // is there a Box-like construct without 'static requirement?
         let Argumente { mut konfigurationen, mut flag_kurzformen, parse } = self;
         let name_kurz: Vec<_> =
             beschreibung.kurz.iter().map(|cow| cow.deref().to_owned()).collect();
@@ -756,9 +759,12 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
                 tail: tail.iter().map(|cow| cow.deref().to_owned()).collect(),
             }
         };
-        let (beschreibung, _standard) = beschreibung.als_string_beschreibung();
-        flag_kurzformen.extend(beschreibung.kurz.iter().cloned());
-        konfigurationen.push(Konfiguration::Flag { beschreibung, invertiere_präfix: None });
+        let (beschreibung_string, _standard) = beschreibung.als_string_beschreibung();
+        flag_kurzformen.extend(beschreibung_string.kurz.iter().cloned());
+        konfigurationen.push(Konfiguration::Flag {
+            beschreibung: beschreibung_string,
+            invertiere_präfix: None,
+        });
         let nachricht_cow = nachricht.into();
         let nachricht_string = nachricht_cow.deref().to_owned();
         Argumente {
@@ -768,7 +774,8 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
                 let name_kurz_existiert = !name_kurz.is_empty();
                 let mut nicht_selbst_verwendet = Vec::new();
                 let mut nachrichten = Vec::new();
-                let mut zeige_nachricht = || nachrichten.push(Cow::Owned(nachricht_string.clone()));
+                let mut zeige_nachricht =
+                    || nachrichten.push(Cow::Owned::<str>(nachricht_string.clone()));
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
