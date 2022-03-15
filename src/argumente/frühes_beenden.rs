@@ -23,7 +23,7 @@ use crate::{
 };
 
 // TODO benenne [Argumente::konfigurationen], [Arguments::configurations] um eigene Hilfe zu erzeugen.
-impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
+impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
     /// Erzeuge `--version`- und `--hilfe`-Flags, die zu vorzeitigem Beenden führen.
     /// Wie [version_deutsch](Argumente::version_deutsch) und [hilfe](Argumente::hilfe)
     /// mit synchronisiertem Programmnamen und Version.

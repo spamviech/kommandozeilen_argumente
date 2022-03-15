@@ -115,8 +115,8 @@ macro_rules! impl_kombiniere_n {
         ///
         /// ## English synonym
         #[doc = concat!("[", stringify!($english), "](Argumente::", stringify!($english), ")")]
-        pub fn $deutsch<$($ty_var: 'static),+>(
-            f: impl 'static + Fn($($ty_var),+) -> T,
+        pub fn $deutsch<$($ty_var: 't),+>(
+            f: impl 't + Fn($($ty_var),+) -> T,
             $($var: Argumente<'t, $ty_var, Error>),+
         ) -> Argumente<'t, T, Error> {
             let mut konfigurationen = Vec :: new();
@@ -166,8 +166,8 @@ macro_rules! impl_kombiniere_n {
         /// ## Deutsches Synonym
         #[doc = concat!("[", stringify!($deutsch), "](Argumente::", stringify!($deutsch), ")")]
         #[inline(always)]
-        pub fn $english<$($ty_var: 'static),+>(
-            f: impl 'static + Fn($($ty_var),+) -> T,
+        pub fn $english<$($ty_var: 't),+>(
+            f: impl 't + Fn($($ty_var),+) -> T,
             $($var: Argumente<'t, $ty_var, Error>),+
         ) -> Argumente<'t, T, Error> {
             Argumente::$deutsch(f, $($var),+)
@@ -175,12 +175,12 @@ macro_rules! impl_kombiniere_n {
     };
 }
 
-impl<'t, T, Error: 'static> Argumente<'t, T, Error> {
+impl<'t, T, Error: 't> Argumente<'t, T, Error> {
     /// Parse keine Kommandozeilen-Argumente und erzeuge das Ergebnis mit der übergebenen Funktion.
     ///
     /// ## English synonym
     /// [constant](Argumente::constant)
-    pub fn konstant(f: impl 'static + Fn() -> T) -> Argumente<'t, T, Error> {
+    pub fn konstant(f: impl 't + Fn() -> T) -> Argumente<'t, T, Error> {
         Argumente {
             konfigurationen: Vec::new(),
             flag_kurzformen: Vec::new(),
@@ -193,7 +193,7 @@ impl<'t, T, Error: 'static> Argumente<'t, T, Error> {
     /// ## Deutsches Synonym
     /// [konstant](Argumente::konstant)
     #[inline(always)]
-    pub fn constant(f: impl 'static + Fn() -> T) -> Argumente<'t, T, Error> {
+    pub fn constant(f: impl 't + Fn() -> T) -> Argumente<'t, T, Error> {
         Argumente::konstant(f)
     }
 
@@ -201,8 +201,8 @@ impl<'t, T, Error: 'static> Argumente<'t, T, Error> {
     ///
     /// ## English synonym
     /// [convert](Argumente::convert)
-    pub fn konvertiere<A: 'static>(
-        f: impl 'static + Fn(A) -> T,
+    pub fn konvertiere<A: 't>(
+        f: impl 't + Fn(A) -> T,
         Argumente { konfigurationen, flag_kurzformen, parse }: Argumente<'t, A, Error>,
     ) -> Argumente<'t, T, Error> {
         Argumente {
@@ -220,8 +220,8 @@ impl<'t, T, Error: 'static> Argumente<'t, T, Error> {
     /// ## Deutsches Synonym
     /// [konvertiere](Argumente::konvertiere)
     #[inline(always)]
-    pub fn convert<A: 'static>(
-        f: impl 'static + Fn(A) -> T,
+    pub fn convert<A: 't>(
+        f: impl 't + Fn(A) -> T,
         arg: Argumente<'t, A, Error>,
     ) -> Argumente<'t, T, Error> {
         Argumente::konvertiere(f, arg)

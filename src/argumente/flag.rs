@@ -74,7 +74,7 @@ impl<'t, E> Argumente<'t, bool, E> {
     }
 }
 
-impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
+impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
     ///
     /// ## English version
@@ -82,7 +82,7 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
     #[inline(always)]
     pub fn flag_deutsch(
         beschreibung: Beschreibung<'t, T>,
-        konvertiere: impl 'static + Fn(bool) -> T,
+        konvertiere: impl 't + Fn(bool) -> T,
     ) -> Argumente<'t, T, E> {
         Argumente::flag_mit_sprache(beschreibung, konvertiere, Sprache::DEUTSCH)
     }
@@ -94,7 +94,7 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
     #[inline(always)]
     pub fn flag_english(
         description: Description<'t, T>,
-        convert: impl 'static + Fn(bool) -> T,
+        convert: impl 't + Fn(bool) -> T,
     ) -> Argumente<'t, T, E> {
         Argumente::flag_mit_sprache(description, convert, Sprache::ENGLISH)
     }
@@ -106,7 +106,7 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
     #[inline(always)]
     pub fn flag_mit_sprache(
         beschreibung: Beschreibung<'t, T>,
-        konvertiere: impl 'static + Fn(bool) -> T,
+        konvertiere: impl 't + Fn(bool) -> T,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
         Argumente::flag(beschreibung, konvertiere, sprache.invertiere_präfix)
@@ -119,7 +119,7 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
     #[inline(always)]
     pub fn flag_with_language(
         description: Description<'t, T>,
-        convert: impl 'static + Fn(bool) -> T,
+        convert: impl 't + Fn(bool) -> T,
         language: Language,
     ) -> Arguments<'t, T, E> {
         Argumente::flag_mit_sprache(description, convert, language)
@@ -131,7 +131,7 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
     /// Create a flag-argument which can be deactivated with the configured prefix.
     pub fn flag(
         beschreibung: Beschreibung<'t, T>,
-        konvertiere: impl 'static + Fn(bool) -> T,
+        konvertiere: impl 't + Fn(bool) -> T,
         invertiere_präfix: &'t str,
     ) -> Argumente<'t, T, E> {
         let name_kurz = beschreibung.kurz.clone();
