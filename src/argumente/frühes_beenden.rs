@@ -2,9 +2,9 @@
 
 use std::{
     borrow::Cow,
+    convert::AsRef,
     env,
     ffi::OsStr,
-    ops::Deref,
     path::{Path, PathBuf},
 };
 
@@ -19,6 +19,7 @@ use crate::{
     beschreibung::{contains_str, Beschreibung, Description, Konfiguration, KurzNamen, LangNamen},
     ergebnis::{namen_regex_hinzufügen, Ergebnis},
     sprache::{Language, Sprache},
+    unicode::Normalisiert,
 };
 
 // TODO benenne [Argumente::konfigurationen], [Arguments::configurations] um eigene Hilfe zu erzeugen.
@@ -191,12 +192,8 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
         version: &str,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
-        let beschreibung = Beschreibung::neu(
-            lang_namen,
-            kurz_namen,
-            Some(sprache.version_beschreibung.to_owned()),
-            None,
-        );
+        let beschreibung =
+            Beschreibung::neu(lang_namen, kurz_namen, Some(sprache.version_beschreibung), None);
         self.zeige_version(beschreibung, programm_name, version)
     }
 
@@ -357,12 +354,8 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
         version: Option<&str>,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
-        let beschreibung = Beschreibung::neu(
-            lang_namen,
-            kurz_namen,
-            Some(sprache.hilfe_beschreibung.to_owned()),
-            None,
-        );
+        let beschreibung =
+            Beschreibung::neu(lang_namen, kurz_namen, Some(sprache.hilfe_beschreibung), None);
         self.erstelle_hilfe_mit_sprache(beschreibung, programm_name, version, sprache)
     }
 
@@ -588,15 +581,15 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
             invertiere_präfix: None,
         });
         fn lang_regex(
-            lang_namen: &NonEmpty<Cow<'_, str>>,
-            invertiere_präfix_oder_meta_var: Either<&Option<Cow<'_, str>>, &Cow<'_, str>>,
+            lang_namen: &NonEmpty<Normalisiert<'_>>,
+            invertiere_präfix_oder_meta_var: Either<&Option<Normalisiert<'_>>, &str>,
         ) -> String {
             let mut lang_regex = "--".to_owned();
             match invertiere_präfix_oder_meta_var {
                 Either::Left(invertiere_präfix) => {
                     if let Some(präfix) = invertiere_präfix {
                         lang_regex.push('[');
-                        lang_regex.push_str(präfix);
+                        lang_regex.push_str(präfix.as_ref());
                         lang_regex.push_str("]-");
                     }
                     namen_regex_hinzufügen(&mut lang_regex, &lang_namen.head, &lang_namen.tail);
@@ -618,7 +611,7 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
                     (beschreibung, Either::Left(invertiere_präfix), &none)
                 },
                 Konfiguration::Wert { beschreibung, meta_var, mögliche_werte } => {
-                    (beschreibung, Either::Right(meta_var), mögliche_werte)
+                    (beschreibung, Either::Right(*meta_var), mögliche_werte)
                 },
             };
             let lang_regex = lang_regex(&beschreibung.lang, invertiere_präfix_oder_meta_var);
@@ -636,8 +629,8 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
             max_lang_regex_breite: usize,
             mut name_regex: String,
             lang_regex_breite: usize,
-            kurz_namen: &Vec<Cow<'_, str>>,
-            invertiere_präfix_oder_meta_var: Either<&Option<Cow<'_, str>>, &Cow<'_, str>>,
+            kurz_namen: &Vec<Normalisiert<'_>>,
+            invertiere_präfix_oder_meta_var: Either<&Option<Normalisiert<'_>>, &str>,
         ) -> String {
             if let Some((head, tail)) = kurz_namen.split_first() {
                 let einrücken = " ".repeat(max_lang_regex_breite - lang_regex_breite);
@@ -747,15 +740,8 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
         nachricht: impl Into<Cow<'t, str>>,
     ) -> Argumente<'t, T, E> {
         let Argumente { mut konfigurationen, mut flag_kurzformen, parse } = self;
-        let name_kurz: Vec<_> =
-            beschreibung.kurz.iter().map(|cow| cow.deref().to_owned()).collect();
-        let name_lang = {
-            let NonEmpty { head, tail } = &beschreibung.lang;
-            NonEmpty {
-                head: head.deref().to_owned(),
-                tail: tail.iter().map(|cow| cow.deref().to_owned()).collect(),
-            }
-        };
+        let name_kurz = beschreibung.kurz.clone();
+        let name_lang = beschreibung.lang.clone();
         let (beschreibung_string, _standard) = beschreibung.als_string_beschreibung();
         flag_kurzformen.extend(beschreibung_string.kurz.iter().cloned());
         konfigurationen.push(Konfiguration::Flag {
@@ -763,16 +749,14 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
             invertiere_präfix: None,
         });
         let nachricht_cow = nachricht.into();
-        let nachricht_string = nachricht_cow.deref().to_owned();
         Argumente {
             konfigurationen,
             flag_kurzformen,
             parse: Box::new(move |args| {
                 let name_kurz_existiert = !name_kurz.is_empty();
                 let mut nicht_selbst_verwendet = Vec::new();
-                let mut nachrichten = Vec::new();
-                let mut zeige_nachricht =
-                    || nachrichten.push(Cow::Owned::<str>(nachricht_string.clone()));
+                let mut nachrichten: Vec<Cow<'t, str>> = Vec::new();
+                let mut zeige_nachricht = || nachrichten.push(nachricht_cow.clone());
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
@@ -825,7 +809,7 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
     pub fn early_exit(
         self,
         description: Description<'t, Void>,
-        message: Cow<'t, str>,
+        message: impl Into<Cow<'t, str>>,
     ) -> Arguments<'t, T, E> {
         self.frühes_beenden(description, message)
     }

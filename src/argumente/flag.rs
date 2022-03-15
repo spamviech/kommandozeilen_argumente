@@ -1,6 +1,10 @@
 //! Flag-Argumente.
 
-use std::{borrow::Cow, convert::identity, ffi::OsStr, fmt::Display, ops::Deref};
+use std::{
+    convert::{identity, AsRef},
+    ffi::OsStr,
+    fmt::Display,
+};
 
 use itertools::Itertools;
 use nonempty::NonEmpty;
@@ -11,6 +15,7 @@ use crate::{
     beschreibung::{contains_str, Beschreibung, Description, Konfiguration},
     ergebnis::{Ergebnis, Fehler},
     sprache::{Language, Sprache},
+    unicode::Normalisiert,
 };
 
 impl<'t, E> Argumente<'t, bool, E> {
@@ -63,7 +68,7 @@ impl<'t, E> Argumente<'t, bool, E> {
     #[inline(always)]
     pub fn flag_bool(
         beschreibung: Beschreibung<'t, bool>,
-        invertiere_präfix: impl Into<Cow<'t, str>>,
+        invertiere_präfix: &'t str,
     ) -> Argumente<'t, bool, E> {
         Argumente::flag(beschreibung, identity, invertiere_präfix)
     }
@@ -127,27 +132,21 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
     pub fn flag(
         beschreibung: Beschreibung<'t, T>,
         konvertiere: impl 'static + Fn(bool) -> T,
-        invertiere_präfix: impl Into<Cow<'t, str>>,
+        invertiere_präfix: &'t str,
     ) -> Argumente<'t, T, E> {
-        let name_kurz: Vec<_> =
-            beschreibung.kurz.iter().map(|cow| cow.deref().to_owned()).collect();
-        let name_lang = {
-            let NonEmpty { head, tail } = &beschreibung.lang;
-            NonEmpty {
-                head: head.deref().to_owned(),
-                tail: tail.iter().map(|cow| cow.deref().to_owned()).collect(),
-            }
-        };
-        let invertiere_präfix_cow = invertiere_präfix.into();
-        let invertiere_präfix_string = invertiere_präfix_cow.deref().to_owned();
-        let invertiere_präfix_minus = format!("{}-", invertiere_präfix_cow);
+        let name_kurz = beschreibung.kurz.clone();
+        let flag_kurzformen = beschreibung.kurz.clone();
+        let name_lang = beschreibung.lang.clone();
+        let invertiere_präfix_normalisiert = Normalisiert::neu(invertiere_präfix);
+        let invertiere_präfix_str = invertiere_präfix_normalisiert.as_ref();
+        let invertiere_präfix_minus = format!("{invertiere_präfix_str}-");
         let (beschreibung, standard) = beschreibung.als_string_beschreibung();
         Argumente {
             konfigurationen: vec![Konfiguration::Flag {
                 beschreibung,
-                invertiere_präfix: Some(invertiere_präfix_cow),
+                invertiere_präfix: Some(invertiere_präfix_normalisiert.clone()),
             }],
-            flag_kurzformen: name_kurz.iter().cloned().map(Cow::Owned).collect(),
+            flag_kurzformen,
             parse: Box::new(move |args| {
                 let name_kurz_existiert = !name_kurz.is_empty();
                 let mut ergebnis = None;
@@ -191,15 +190,9 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
                     Ergebnis::Wert(wert.clone())
                 } else {
                     let fehler = Fehler::FehlendeFlag {
-                        lang: {
-                            let NonEmpty { head, tail } = &name_lang;
-                            NonEmpty {
-                                head: Cow::Owned(head.clone()),
-                                tail: tail.iter().cloned().map(Cow::Owned).collect(),
-                            }
-                        },
-                        kurz: name_kurz.iter().cloned().map(Cow::Owned).collect(),
-                        invertiere_präfix: Cow::Owned(invertiere_präfix_string.clone()),
+                        lang: name_lang.clone(),
+                        kurz: name_kurz.clone(),
+                        invertiere_präfix: invertiere_präfix_normalisiert.clone(),
                     };
                     Ergebnis::Fehler(NonEmpty::singleton(fehler))
                 };

@@ -45,13 +45,13 @@ impl<'t> Normalisiert<'t> {
     /// ## English synonym
     /// [new](Normalized::new)
     #[inline(always)]
-    pub fn neu<S: 't + AsRef<str>>(s: S) -> Normalisiert<'t> {
-        let r = s.as_ref();
-        let cow = match is_nfc_quick(r.chars()) {
-            IsNormalized::Yes if !r.chars().any(is_cjkish_codepoint) => Cow::Borrowed(r),
-            _ => Cow::Owned(r.cjk_compat_variants().nfc().collect()),
+    pub fn neu(s: impl Into<Cow<'t, str>>) -> Normalisiert<'t> {
+        let cow = s.into();
+        let normalisiert = match is_nfc_quick(cow.chars()) {
+            IsNormalized::Yes if !cow.chars().any(is_cjkish_codepoint) => cow,
+            _ => Cow::Owned(cow.cjk_compat_variants().nfc().collect()),
         };
-        Normalisiert(cow)
+        Normalisiert(normalisiert)
     }
 
     /// Normalize a unicode string, unless it is already normalized ([is_nfc_quick]),
@@ -66,7 +66,7 @@ impl<'t> Normalisiert<'t> {
     /// ## Deutsches Synonym
     /// [neu](Normalisiert::neu)
     #[inline(always)]
-    pub fn new<S: 't + AsRef<str>>(s: S) -> Normalized<'t> {
+    pub fn new(s: impl Into<Cow<'t, str>>) -> Normalized<'t> {
         Normalisiert::neu(s)
     }
 

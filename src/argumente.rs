@@ -60,7 +60,7 @@ pub struct Argumente<'t, T, E> {
     pub(crate) konfigurationen: Vec<Konfiguration<'t>>,
     pub(crate) flag_kurzformen: Vec<Normalisiert<'t>>,
     pub(crate) parse:
-        Box<dyn 't + Fn(Vec<Option<&OsStr>>) -> (Ergebnis<'t, T, E>, Vec<Option<&OsStr>>)>,
+        Box<dyn 't + Fn(Vec<Option<&'t OsStr>>) -> (Ergebnis<'t, T, E>, Vec<Option<&OsStr>>)>,
 }
 
 /// Command line [Arguments] and their [crate::beschreibung::Description].
@@ -468,7 +468,8 @@ impl<'t, T, E> Argumente<'t, T, E> {
                     if let Some(kurz) = string.strip_prefix('-') {
                         let mut gefundene_kurzformen = Vec::new();
                         for grapheme in kurz.graphemes(true) {
-                            if flag_kurzformen.iter().any(|string| string == grapheme) {
+                            // TODO case_sensitive setting
+                            if flag_kurzformen.iter().any(|string| string.eq(grapheme, true)) {
                                 gefundene_kurzformen.push(format!("-{}", grapheme).into())
                             } else {
                                 return vec![arg];

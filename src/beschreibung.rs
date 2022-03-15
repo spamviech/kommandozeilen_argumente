@@ -133,12 +133,18 @@ impl<'t> LangNamen<'t> for NonEmpty<&'t str> {
     }
 }
 
+impl<'t> LangNamen<'t> for NonEmpty<Normalisiert<'t>> {
+    fn lang_namen(self) -> NonEmpty<Normalisiert<'t>> {
+        self
+    }
+}
+
 impl<'t, S: AsRef<str>> LangNamen<'t> for &'t NonEmpty<S> {
     fn lang_namen(self) -> NonEmpty<Normalisiert<'t>> {
         let NonEmpty { head, tail } = self;
         NonEmpty {
-            head: Normalisiert::neu(head),
-            tail: tail.into_iter().map(Normalisiert::neu).collect(),
+            head: Normalisiert::neu(head.as_ref()),
+            tail: tail.into_iter().map(|s| Normalisiert::neu(s.as_ref())).collect(),
         }
     }
 }
@@ -185,12 +191,6 @@ impl<'t> KurzNamen<'t> for NonEmpty<String> {
     }
 }
 
-impl<'t, S: AsRef<str>> KurzNamen<'t> for &'t Vec<S> {
-    fn kurz_namen(self) -> Vec<Normalisiert<'t>> {
-        self.into_iter().map(Normalisiert::neu).collect()
-    }
-}
-
 impl<'t> KurzNamen<'t> for Vec<String> {
     fn kurz_namen(self) -> Vec<Normalisiert<'t>> {
         self.into_iter().map(Normalisiert::neu).collect()
@@ -203,6 +203,18 @@ impl<'t> KurzNamen<'t> for Vec<&'t str> {
     }
 }
 
+impl<'t> KurzNamen<'t> for Vec<Normalisiert<'t>> {
+    fn kurz_namen(self) -> Vec<Normalisiert<'t>> {
+        self
+    }
+}
+
+impl<'t, S: AsRef<str>> KurzNamen<'t> for &'t Vec<S> {
+    fn kurz_namen(self) -> Vec<Normalisiert<'t>> {
+        self.into_iter().map(|s| Normalisiert::neu(s.as_ref())).collect()
+    }
+}
+
 impl<'t, T> Beschreibung<'t, T> {
     /// Erzeuge eine neue [Beschreibung].
     ///
@@ -211,15 +223,10 @@ impl<'t, T> Beschreibung<'t, T> {
     pub fn neu(
         lang: impl LangNamen<'t>,
         kurz: impl KurzNamen<'t>,
-        hilfe: Option<impl 't + AsRef<str>>,
+        hilfe: Option<&'t str>,
         standard: Option<T>,
     ) -> Beschreibung<'t, T> {
-        Beschreibung {
-            lang: lang.lang_namen(),
-            kurz: kurz.kurz_namen(),
-            hilfe: hilfe.map(|h| h.as_ref()),
-            standard,
-        }
+        Beschreibung { lang: lang.lang_namen(), kurz: kurz.kurz_namen(), hilfe, standard }
     }
 
     /// Create a new [Description].
@@ -230,7 +237,7 @@ impl<'t, T> Beschreibung<'t, T> {
     pub fn new(
         long: impl LangNamen<'t>,
         short: impl KurzNamen<'t>,
-        help: Option<impl 't + AsRef<str>>,
+        help: Option<&'t str>,
         default: Option<T>,
     ) -> Description<'t, T> {
         Beschreibung::neu(long, short, help, default)

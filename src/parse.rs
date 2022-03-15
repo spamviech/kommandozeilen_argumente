@@ -1,6 +1,6 @@
 //! Trait für Typen, die aus Kommandozeilen-Argumenten geparst werden können.
 
-use std::{borrow::Cow, ffi::OsString, fmt::Display, num::NonZeroI32, ops::Deref, str::FromStr};
+use std::{convert::AsRef, ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
 
 use nonempty::NonEmpty;
 
@@ -33,8 +33,8 @@ pub trait ParseArgument: Sized {
     /// `meta_var` is intended as the meta-variable used in the help text for value arguments.
     fn argumente<'t>(
         beschreibung: Beschreibung<'t, Self>,
-        invertiere_präfix: impl Into<Cow<'t, str>>,
-        meta_var: impl Into<Cow<'t, str>>,
+        invertiere_präfix: &'t str,
+        meta_var: &'t str,
     ) -> Argumente<'t, Self, String>;
 
     /// Sollen Argumente dieses Typs normalerweise einen Standard-Wert haben?
@@ -89,8 +89,8 @@ pub trait ParseArgument: Sized {
 impl ParseArgument for bool {
     fn argumente<'t>(
         beschreibung: Beschreibung<'t, Self>,
-        invertiere_präfix: impl Into<Cow<'t, str>>,
-        _meta_var: impl Into<Cow<'t, str>>,
+        invertiere_präfix: &'t str,
+        _meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
         Argumente::flag_bool(beschreibung, invertiere_präfix)
     }
@@ -103,14 +103,14 @@ impl ParseArgument for bool {
 impl ParseArgument for String {
     fn argumente<'t>(
         beschreibung: Beschreibung<'t, Self>,
-        _invertiere_präfix: impl Into<Cow<'t, str>>,
-        meta_var: impl Into<Cow<'t, str>>,
+        _invertiere_präfix: &'t str,
+        meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
         Argumente::wert_display(beschreibung, meta_var, None, |os_str| {
             if let Some(string) = os_str.to_str() {
                 Ok(string.to_owned())
             } else {
-                Err(ParseFehler::InvaliderString(os_str.to_owned()))
+                Err(ParseFehler::InvaliderString(os_str))
             }
         })
     }
@@ -125,8 +125,8 @@ macro_rules! impl_parse_argument {
         impl ParseArgument for $type {
             fn argumente<'t>(
                 beschreibung: Beschreibung<'t,Self>,
-                _invertiere_präfix: impl Into<Cow<'t,str>>,
-                meta_var: impl Into<Cow<'t,str>>,
+                _invertiere_präfix: &'t str,
+                meta_var: &'t str,
             ) -> Argumente<'t,Self, String> {
                 Argumente::wert_display(beschreibung, meta_var, None, |os_str| {
                     if let Some(string) = os_str.to_str() {
@@ -134,7 +134,7 @@ macro_rules! impl_parse_argument {
                             |err: <$type as FromStr>::Err| ParseFehler::ParseFehler(err.to_string())
                         )
                     } else {
-                        Err(ParseFehler::InvaliderString(os_str.to_owned()))
+                        Err(ParseFehler::InvaliderString(os_str))
                     }
                 })
             }
@@ -150,23 +150,16 @@ impl_parse_argument! {i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, u
 impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
     fn argumente<'t>(
         beschreibung: Beschreibung<'t, Self>,
-        invertiere_präfix: impl Into<Cow<'t, str>>,
-        meta_var: impl Into<Cow<'t, str>>,
+        invertiere_präfix: &'t str,
+        meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
-        let name_kurz: Vec<_> =
-            beschreibung.kurz.iter().map(|cow| cow.deref().to_owned()).collect();
-        let name_lang = {
-            let NonEmpty { head, tail } = &beschreibung.lang;
-            NonEmpty {
-                head: head.deref().to_owned(),
-                tail: tail.iter().map(|cow| cow.deref().to_owned()).collect(),
-            }
-        };
-        let meta_var_cow = meta_var.into();
+        let name_kurz = beschreibung.kurz.clone();
+        let name_lang = beschreibung.lang.clone();
+        let meta_var_str = meta_var.as_ref();
         let Argumente { parse, .. } = T::argumente(
             Beschreibung::neu(name_lang.clone(), name_kurz.clone(), None::<&str>, None),
-            invertiere_präfix.into().into_owned(),
-            meta_var_cow.clone().into_owned(),
+            invertiere_präfix,
+            meta_var_str,
         );
         let (beschreibung_string, option_standard) = beschreibung
             .als_string_beschreibung_allgemein(|opt| {
@@ -176,8 +169,9 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
                     "None".to_owned()
                 }
             });
-        type F<T> = Box<dyn Fn(NonEmpty<Fehler<'_, String>>) -> Ergebnis<'_, Option<T>, String>>;
-        let verwende_standard: F<T> = if let Some(standard) = option_standard {
+        type F<'s, T> =
+            Box<dyn 's + Fn(NonEmpty<Fehler<'_, String>>) -> Ergebnis<'_, Option<T>, String>>;
+        let verwende_standard: F<'t, T> = if let Some(standard) = option_standard {
             Box::new(move |fehler_sammlung| {
                 let mut fehler_iter =
                     fehler_sammlung.into_iter().filter_map(|fehler| match fehler {
@@ -203,7 +197,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         Argumente {
             konfigurationen: vec![Konfiguration::Wert {
                 beschreibung: beschreibung_string,
-                meta_var: meta_var_cow,
+                meta_var,
                 mögliche_werte: None,
             }],
             flag_kurzformen: Vec::new(),
@@ -227,8 +221,8 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
 impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
     fn argumente<'t>(
         beschreibung: Beschreibung<'t, Self>,
-        _invertiere_präfix: impl Into<Cow<'t, str>>,
-        meta_var: impl Into<Cow<'t, str>>,
+        _invertiere_präfix: &'t str,
+        meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
         Argumente::wert_enum_display(beschreibung, meta_var)
     }

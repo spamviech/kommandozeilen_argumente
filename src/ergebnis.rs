@@ -1,11 +1,14 @@
 //! Ergebnis- und Fehler-Typ für parsen von Kommandozeilen-Argumenten.
 
-use std::{borrow::Cow, ffi::OsString, fmt::Display, iter};
+use std::{borrow::Cow, ffi::OsStr, fmt::Display, iter};
 
 use either::Either;
 use nonempty::NonEmpty;
 
-use crate::sprache::{Language, Sprache};
+use crate::{
+    sprache::{Language, Sprache},
+    unicode::Normalisiert,
+};
 
 /// Ergebnis des Parsen von Kommandozeilen-Argumenten.
 ///
@@ -74,17 +77,17 @@ pub enum Fehler<'t, E> {
         ///
         /// ## English
         /// Full name.
-        lang: NonEmpty<Cow<'t, str>>,
+        lang: NonEmpty<Normalisiert<'t>>,
         /// Kurzform des Namen.
         ///
         /// ## English
         /// Short form of the name.
-        kurz: Vec<Cow<'t, str>>,
+        kurz: Vec<Normalisiert<'t>>,
         /// Präfix zum invertieren.
         ///
         /// ## English
         /// Prefix to invert the flag.
-        invertiere_präfix: Cow<'t, str>,
+        invertiere_präfix: Normalisiert<'t>,
     },
     /// Ein benötigtes Wert-Argument wurde nicht genannt.
     ///
@@ -95,17 +98,17 @@ pub enum Fehler<'t, E> {
         ///
         /// ## English
         /// Full name.
-        lang: NonEmpty<Cow<'t, str>>,
+        lang: NonEmpty<Normalisiert<'t>>,
         /// Kurzform des Namen.
         ///
         /// ## English
         /// Short form of the name.
-        kurz: Vec<Cow<'t, str>>,
+        kurz: Vec<Normalisiert<'t>>,
         /// Verwendete Meta-Variable für den Wert.
         ///
         /// ## English
         /// Used Meta-variable of the value.
-        meta_var: Cow<'t, str>,
+        meta_var: &'t str,
     },
     /// Fehler beim Parsen des genannten Wertes.
     ///
@@ -116,22 +119,22 @@ pub enum Fehler<'t, E> {
         ///
         /// ## English
         /// Full name
-        lang: NonEmpty<Cow<'t, str>>,
+        lang: NonEmpty<Normalisiert<'t>>,
         /// Kurzform des Namen.
         ///
         /// ## English
         /// Short form of the name.
-        kurz: Vec<Cow<'t, str>>,
+        kurz: Vec<Normalisiert<'t>>,
         /// Verwendete Meta-Variable für den Wert.
         ///
         /// ## English
         /// Used Meta-variable of the value.
-        meta_var: Cow<'t, str>,
+        meta_var: &'t str,
         /// Beim Parsen aufgetretener Fehler.
         ///
         /// ## English
         /// Reported error from parsing.
-        fehler: ParseFehler<E>,
+        fehler: ParseFehler<'t, E>,
     },
 }
 
@@ -141,11 +144,7 @@ pub enum Fehler<'t, E> {
 /// [Fehler]
 pub type Error<'t, E> = Fehler<'t, E>;
 
-pub(crate) fn namen_regex_hinzufügen(
-    string: &mut String,
-    head: &Cow<'_, str>,
-    tail: &[Cow<'_, str>],
-) {
+pub(crate) fn namen_regex_hinzufügen<S: AsRef<str>>(string: &mut String, head: &S, tail: &[S]) {
     if !tail.is_empty() {
         string.push('(')
     }
@@ -156,24 +155,25 @@ pub(crate) fn namen_regex_hinzufügen(
         } else {
             string.push_str("|");
         }
-        string.push_str(name);
+        string.push_str(name.as_ref());
     }
     if !tail.is_empty() {
         string.push(')')
     }
 }
 
-/// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr](std::ffi::OsStr).
+/// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr].
 ///
 /// ## English synonym
 /// [ParseError]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ParseFehler<E> {
+#[allow(single_use_lifetimes)]
+pub enum ParseFehler<'t, E> {
     /// Die Konvertierung in ein [&str](str) ist fehlgeschlagen.
     ///
     /// ## English
     /// Conversion to a [&str](str) failed.
-    InvaliderString(OsString),
+    InvaliderString(&'t OsStr),
     /// Fehler beim Parsen des Strings.
     ///
     /// ## English
@@ -181,11 +181,11 @@ pub enum ParseFehler<E> {
     ParseFehler(E),
 }
 
-/// Possible errors when parsing an [OsStr](std::ffi::OsStr).
+/// Possible errors when parsing an [OsStr].
 ///
 /// ## Deutsches Synonym
 /// [ParseFehler]
-pub type ParseError<E> = ParseFehler<E>;
+pub type ParseError<'t, E> = ParseFehler<'t, E>;
 
 impl<E: Display> Fehler<'_, E> {
     /// Zeige den Fehler in Menschen-lesbarer Form an.
@@ -242,16 +242,16 @@ impl<E: Display> Fehler<'_, E> {
     ) -> String {
         fn fehlermeldung(
             fehler_beschreibung: &str,
-            lang: &NonEmpty<Cow<'_, str>>,
-            kurz: &Vec<Cow<'_, str>>,
-            meta_var_oder_invertiere_präfix: Either<&Cow<'_, str>, &Cow<'_, str>>,
+            lang: &NonEmpty<Normalisiert<'_>>,
+            kurz: &Vec<Normalisiert<'_>>,
+            invertiere_präfix_oder_meta_var: Either<&Normalisiert<'_>, &str>,
         ) -> String {
             let mut fehlermeldung = format!("{}: ", fehler_beschreibung);
             fehlermeldung.push_str("--");
-            match meta_var_oder_invertiere_präfix {
+            match invertiere_präfix_oder_meta_var {
                 Either::Left(invertiere_präfix) => {
                     fehlermeldung.push('[');
-                    fehlermeldung.push_str(invertiere_präfix);
+                    fehlermeldung.push_str(invertiere_präfix.as_ref());
                     fehlermeldung.push_str("-]");
                     namen_regex_hinzufügen(&mut fehlermeldung, &lang.head, &lang.tail);
                 },
@@ -264,7 +264,7 @@ impl<E: Display> Fehler<'_, E> {
             if let Some((head, tail)) = kurz.split_first() {
                 fehlermeldung.push_str(" | -");
                 namen_regex_hinzufügen(&mut fehlermeldung, head, tail);
-                if let Either::Right(meta_var) = meta_var_oder_invertiere_präfix {
+                if let Either::Right(meta_var) = invertiere_präfix_oder_meta_var {
                     fehlermeldung.push_str("[ |=]");
                     fehlermeldung.push_str(meta_var);
                 }
