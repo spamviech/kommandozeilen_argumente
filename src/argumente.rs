@@ -483,8 +483,12 @@ impl<'t, T, E> Argumente<'t, T, E> {
                 vec![arg]
             })
             .collect();
-        let args_os_str: Vec<_> =
-            angepasste_args.iter().map(OsString::as_os_str).map(Some).collect();
+        // FIXME 't is probably longer then this function
+        // however, since angepasste_args was created here and is owned by the function,
+        // it can't live longer then the function call.
+        // Since it might be dropped earlier, we can't guarantee the references inside it live for 't
+        let args_os_str =
+            angepasste_args.iter().map(|os_string| Some(os_string.as_os_str())).collect();
         let (ergebnis, nicht_verwendet) = parse(args_os_str);
         (ergebnis, nicht_verwendet.into_iter().filter_map(|opt| opt.map(OsStr::to_owned)).collect())
     }

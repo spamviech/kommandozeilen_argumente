@@ -25,7 +25,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
     pub fn wert_string_display_mit_sprache(
         beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t str) -> Result<T, E>,
+        parse: impl 't + Fn(&str) -> Result<T, E>,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
         Argumente::wert_string_display(beschreibung, sprache.meta_var, mögliche_werte, parse)
@@ -39,7 +39,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
     pub fn value_string_display_with_language(
         description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t str) -> Result<T, E>,
+        parse: impl 't + Fn(&str) -> Result<T, E>,
         language: Language,
     ) -> Arguments<'t, T, E> {
         Argumente::wert_string_display_mit_sprache(description, possible_values, parse, language)
@@ -54,7 +54,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
         beschreibung: Beschreibung<'t, T>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t str) -> Result<T, E>,
+        parse: impl 't + Fn(&str) -> Result<T, E>,
     ) -> Argumente<'t, T, E> {
         Argumente::wert_string(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
     }
@@ -68,7 +68,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
         description: Description<'t, T>,
         meta_var: &'t str,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t str) -> Result<T, E>,
+        parse: impl 't + Fn(&str) -> Result<T, E>,
     ) -> Arguments<'t, T, E> {
         Argumente::wert_string_display(description, meta_var, possible_values, parse)
     }
@@ -81,7 +81,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
     pub fn wert_display_mit_sprache(
         beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseFehler<'t, E>>,
+        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
         Argumente::wert_display(beschreibung, sprache.meta_var, mögliche_werte, parse)
@@ -110,7 +110,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
         beschreibung: Beschreibung<'t, T>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseFehler<'t, E>>,
+        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
     ) -> Argumente<'t, T, E> {
         Argumente::wert(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
     }
@@ -139,7 +139,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     pub fn wert_string_mit_sprache(
         beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t str) -> Result<T, E>,
+        parse: impl 't + Fn(&str) -> Result<T, E>,
         anzeige: impl Fn(&T) -> String,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
@@ -154,7 +154,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     pub fn value_string_with_language(
         description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t str) -> Result<T, E>,
+        parse: impl 't + Fn(&str) -> Result<T, E>,
         display: impl Fn(&T) -> String,
         language: Language,
     ) -> Arguments<'t, T, E> {
@@ -170,7 +170,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         beschreibung: Beschreibung<'t, T>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t str) -> Result<T, E>,
+        parse: impl 't + Fn(&str) -> Result<T, E>,
         anzeige: impl Fn(&T) -> String,
     ) -> Argumente<'t, T, E> {
         Argumente::wert(
@@ -197,7 +197,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         description: Description<'t, T>,
         meta_var: &'t str,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t str) -> Result<T, E>,
+        parse: impl 't + Fn(&str) -> Result<T, E>,
         display: impl Fn(&T) -> String,
     ) -> Arguments<'t, T, E> {
         Argumente::wert_string(description, meta_var, possible_values, parse, display)
@@ -211,7 +211,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     pub fn wert_mit_sprache(
         beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseFehler<'t, E>>,
+        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
         anzeige: impl Fn(&T) -> String,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
@@ -226,7 +226,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     pub fn value_with_language(
         description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseFehler<'t, E>>,
+        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
         display: impl Fn(&T) -> String,
         language: Language,
     ) -> Argumente<'t, T, E> {
@@ -241,7 +241,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         beschreibung: Beschreibung<'t, T>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseFehler<'t, E>>,
+        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
         anzeige: impl Fn(&T) -> String,
     ) -> Argumente<'t, T, E> {
         let name_kurz = beschreibung.kurz.clone();
