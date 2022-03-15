@@ -141,6 +141,8 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
         let invertiere_präfix_str = invertiere_präfix_normalisiert.as_ref();
         let invertiere_präfix_minus = format!("{invertiere_präfix_str}-");
         let (beschreibung, standard) = beschreibung.als_string_beschreibung();
+        // TODO
+        let case_sensitive = false;
         Argumente {
             konfigurationen: vec![Konfiguration::Flag {
                 beschreibung,
@@ -154,14 +156,14 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
-                            if contains_str!(&name_lang, lang) {
+                            if contains_str!(&name_lang, lang, case_sensitive) {
                                 ergebnis = Some(konvertiere(true));
                                 nicht_verwendet.push(None);
                                 continue;
                             } else if let Some(negiert) =
                                 lang.strip_prefix(&invertiere_präfix_minus)
                             {
-                                if contains_str!(&name_lang, negiert) {
+                                if contains_str!(&name_lang, negiert, case_sensitive) {
                                     ergebnis = Some(konvertiere(false));
                                     nicht_verwendet.push(None);
                                     continue;
@@ -172,7 +174,7 @@ impl<'t, T: 'static + Display + Clone, E> Argumente<'t, T, E> {
                                 if kurz
                                     .graphemes(true)
                                     .exactly_one()
-                                    .map(|name| contains_str!(&name_kurz, name))
+                                    .map(|name| contains_str!(&name_kurz, name, case_sensitive))
                                     .unwrap_or(false)
                                 {
                                     ergebnis = Some(konvertiere(true));

@@ -247,6 +247,8 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         let name_kurz = beschreibung.kurz.clone();
         let name_lang = beschreibung.lang.clone();
         let (beschreibung, standard) = beschreibung.als_string_beschreibung_allgemein(&anzeige);
+        // TODO
+        let case_sensitive = false;
         Argumente {
             konfigurationen: vec![Konfiguration::Wert {
                 beschreibung,
@@ -289,11 +291,11 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                     } else if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
                             if let Some((name, wert_str)) = lang.split_once('=') {
-                                if contains_str!(&name_lang, name) {
+                                if contains_str!(&name_lang, name, case_sensitive) {
                                     parse_auswerten(Some(wert_str.as_ref()));
                                     continue;
                                 }
-                            } else if contains_str!(&name_lang, lang) {
+                            } else if contains_str!(&name_lang, lang, case_sensitive) {
                                 name_ohne_wert = true;
                                 nicht_verwendet.push(None);
                                 continue;
@@ -303,7 +305,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                                 let mut graphemes = kurz.graphemes(true);
                                 if graphemes
                                     .next()
-                                    .map(|name| contains_str!(&name_kurz, name))
+                                    .map(|name| contains_str!(&name_kurz, name, case_sensitive))
                                     .unwrap_or(false)
                                 {
                                     let rest = graphemes.as_str();

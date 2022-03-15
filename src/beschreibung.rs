@@ -8,6 +8,7 @@ use crate::unicode::Normalisiert;
 
 // TODO erwähne verschmelzen von Flag-Kurzformen?
 // TODO Lang/Kurz-Präfix
+// TODO case_sensitive für (jeden?) Namen
 /// Beschreibung eines Kommandozeilen-Arguments.
 ///
 /// ## English synonym
@@ -19,6 +20,7 @@ pub struct Beschreibung<'t, T> {
     /// ## English
     /// Full Name, given after two minus characters "--<lang>"
     pub lang: NonEmpty<Normalisiert<'t>>,
+
     /// Kurzer Name, wird nach einem Minus angegeben "-<kurz>".
     /// Kurznamen länger als ein [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// werden nicht unterstützt.
@@ -28,11 +30,13 @@ pub struct Beschreibung<'t, T> {
     /// Short names longer than a [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// are not supported.
     pub kurz: Vec<Normalisiert<'t>>,
+
     /// Im automatischen Hilfetext angezeigte Beschreibung.
     ///
     /// ## English
     /// Description shown in the automatically created help text.
     pub hilfe: Option<&'t str>,
+
     /// Standard-Wert falls kein passendes Kommandozeilen-Argument verwendet wurde.
     ///
     /// ## English
@@ -83,8 +87,8 @@ impl<'t, T> Beschreibung<'t, T> {
 }
 
 macro_rules! contains_str {
-    ($collection: expr, $gesucht: expr) => {
-        $collection.iter().any(|element| element.as_ref() == $gesucht)
+    ($collection: expr, $gesucht: expr, $case_sensitive: expr) => {
+        $collection.iter().any(|element| element.eq($gesucht, $case_sensitive))
     };
 }
 pub(crate) use contains_str;
@@ -261,12 +265,14 @@ pub enum Konfiguration<'t> {
         /// ## English
         /// General description of the argument.
         beschreibung: Beschreibung<'t, String>,
+
         /// Präfix zum invertieren des Flag-Arguments.
         ///
         /// ## English
         /// Prefix to invert the flag argument.
         invertiere_präfix: Option<Normalisiert<'t>>,
     },
+
     /// Es handelt sich um ein Wert-Argument.
     ///
     /// ## English
@@ -277,11 +283,13 @@ pub enum Konfiguration<'t> {
         /// ## English
         /// General description of the argument.
         beschreibung: Beschreibung<'t, String>,
+
         /// Meta-Variable im Hilfe-Text.
         ///
         /// ## English
         /// Meta-variable used in the help-text.
         meta_var: &'t str,
+
         /// String-Darstellung der erlaubten Werte.
         ///
         /// ## English

@@ -749,6 +749,8 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
             invertiere_präfix: None,
         });
         let nachricht_cow = nachricht.into();
+        // TODO
+        let case_sensitive = false;
         Argumente {
             konfigurationen,
             flag_kurzformen,
@@ -760,7 +762,7 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = string.strip_prefix("--") {
-                            if contains_str!(&name_lang, lang) {
+                            if contains_str!(&name_lang, lang, case_sensitive) {
                                 zeige_nachricht();
                                 nicht_selbst_verwendet.push(None);
                                 continue;
@@ -770,7 +772,7 @@ impl<'t, T: 'static, E: 'static> Argumente<'t, T, E> {
                                 if kurz
                                     .graphemes(true)
                                     .exactly_one()
-                                    .map(|name| contains_str!(&name_kurz, name))
+                                    .map(|name| contains_str!(&name_kurz, name, case_sensitive))
                                     .unwrap_or(false)
                                 {
                                     zeige_nachricht();
