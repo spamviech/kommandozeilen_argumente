@@ -12,7 +12,7 @@ fn hilfe_test() {
         Argumente::flag_bool_deutsch(Beschreibung::neu(
             "test".to_owned(),
             None::<&str>,
-            Some("hilfe".to_owned()),
+            Some("hilfe"),
             Some(false),
         )),
         "programm",

@@ -91,9 +91,7 @@ fn main() {
         Beschreibung::neu(
             "benötigt",
             "b",
-            Some(
-                "Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.".to_owned(),
-            ),
+            Some("Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren."),
             None,
         ),
         "no",
@@ -109,7 +107,7 @@ fn main() {
             Some("Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable."),
             Some(Aufzählung::Zwei),
         ),
-        "VAR".to_owned(),
+        "VAR",
     );
     let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung| Args {
         flag,
