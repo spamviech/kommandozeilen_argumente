@@ -110,7 +110,7 @@ impl ParseArgument for String {
             if let Some(string) = os_str.to_str() {
                 Ok(string.to_owned())
             } else {
-                Err(ParseFehler::InvaliderString(os_str))
+                Err(ParseFehler::InvaliderString(os_str.to_owned()))
             }
         })
     }
@@ -134,7 +134,7 @@ macro_rules! impl_parse_argument {
                             |err: <$type as FromStr>::Err| ParseFehler::ParseFehler(err.to_string())
                         )
                     } else {
-                        Err(ParseFehler::InvaliderString(os_str))
+                        Err(ParseFehler::InvaliderString(os_str.to_owned()))
                     }
                 })
             }

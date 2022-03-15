@@ -81,7 +81,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
     pub fn wert_display_mit_sprache(
         beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
+        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
         Argumente::wert_display(beschreibung, sprache.meta_var, mögliche_werte, parse)
@@ -95,7 +95,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
     pub fn value_display_with_language(
         description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
+        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
         language: Language,
     ) -> Arguments<'t, T, E> {
         Argumente::wert_display_mit_sprache(description, possible_values, parse, language)
@@ -110,7 +110,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
         beschreibung: Beschreibung<'t, T>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
+        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
     ) -> Argumente<'t, T, E> {
         Argumente::wert(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
     }
@@ -124,7 +124,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
         description: Description<'t, T>,
         meta_var: &'t str,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
+        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
     ) -> Arguments<'t, T, E> {
         Argumente::wert_display(description, meta_var, possible_values, parse)
     }
@@ -181,7 +181,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                 if let Some(s) = os_str.to_str() {
                     parse(s).map_err(ParseFehler::ParseFehler)
                 } else {
-                    Err(ParseFehler::InvaliderString(os_str))
+                    Err(ParseFehler::InvaliderString(os_str.to_owned()))
                 }
             },
             anzeige,
@@ -211,7 +211,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     pub fn wert_mit_sprache(
         beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
+        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
         anzeige: impl Fn(&T) -> String,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
@@ -226,7 +226,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     pub fn value_with_language(
         description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
+        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
         display: impl Fn(&T) -> String,
         language: Language,
     ) -> Argumente<'t, T, E> {
@@ -241,7 +241,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         beschreibung: Beschreibung<'t, T>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
+        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
         anzeige: impl Fn(&T) -> String,
     ) -> Argumente<'t, T, E> {
         let name_kurz = beschreibung.kurz.clone();
@@ -345,7 +345,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         description: Description<'t, T>,
         meta_var: &'t str,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&'t OsStr) -> Result<T, ParseError<'t, E>>,
+        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
         display: impl Fn(&T) -> String,
     ) -> Arguments<'t, T, E> {
         Argumente::wert(description, meta_var, possible_values, parse, display)
@@ -384,7 +384,7 @@ pub trait EnumArgument: Sized {
     ///
     /// ## English
     /// Try to parse a value from the given [OsStr].
-    fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<'_, String>>;
+    fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>>;
 }
 
 impl<'t, T: 't + Display + Clone + EnumArgument> Argumente<'t, T, String> {

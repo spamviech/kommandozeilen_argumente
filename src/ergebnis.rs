@@ -1,6 +1,6 @@
 //! Ergebnis- und Fehler-Typ für parsen von Kommandozeilen-Argumenten.
 
-use std::{borrow::Cow, ffi::OsStr, fmt::Display, iter};
+use std::{borrow::Cow, ffi::OsString, fmt::Display, iter};
 
 use either::Either;
 use nonempty::NonEmpty;
@@ -134,7 +134,7 @@ pub enum Fehler<'t, E> {
         ///
         /// ## English
         /// Reported error from parsing.
-        fehler: ParseFehler<'t, E>,
+        fehler: ParseFehler<E>,
     },
 }
 
@@ -168,12 +168,12 @@ pub(crate) fn namen_regex_hinzufügen<S: AsRef<str>>(string: &mut String, head: 
 /// [ParseError]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(single_use_lifetimes)]
-pub enum ParseFehler<'t, E> {
+pub enum ParseFehler<E> {
     /// Die Konvertierung in ein [&str](str) ist fehlgeschlagen.
     ///
     /// ## English
     /// Conversion to a [&str](str) failed.
-    InvaliderString(&'t OsStr),
+    InvaliderString(OsString),
     /// Fehler beim Parsen des Strings.
     ///
     /// ## English
@@ -185,7 +185,7 @@ pub enum ParseFehler<'t, E> {
 ///
 /// ## Deutsches Synonym
 /// [ParseFehler]
-pub type ParseError<'t, E> = ParseFehler<'t, E>;
+pub type ParseError<E> = ParseFehler<E>;
 
 impl<E: Display> Fehler<'_, E> {
     /// Zeige den Fehler in Menschen-lesbarer Form an.

@@ -59,8 +59,9 @@ pub use crate::{combine, kombiniere};
 pub struct Argumente<'t, T, E> {
     pub(crate) konfigurationen: Vec<Konfiguration<'t>>,
     pub(crate) flag_kurzformen: Vec<Normalisiert<'t>>,
-    pub(crate) parse:
-        Box<dyn 't + Fn(Vec<Option<&'t OsStr>>) -> (Ergebnis<'t, T, E>, Vec<Option<&OsStr>>)>,
+    pub(crate) parse: Box<
+        dyn 't + for<'s> Fn(Vec<Option<&'s OsStr>>) -> (Ergebnis<'t, T, E>, Vec<Option<&'s OsStr>>),
+    >,
 }
 
 /// Command line [Arguments] and their [crate::beschreibung::Description].
@@ -483,10 +484,6 @@ impl<'t, T, E> Argumente<'t, T, E> {
                 vec![arg]
             })
             .collect();
-        // FIXME 't is probably longer then this function
-        // however, since angepasste_args was created here and is owned by the function,
-        // it can't live longer then the function call.
-        // Since it might be dropped earlier, we can't guarantee the references inside it live for 't
         let args_os_str =
             angepasste_args.iter().map(|os_string| Some(os_string.as_os_str())).collect();
         let (ergebnis, nicht_verwendet) = parse(args_os_str);
