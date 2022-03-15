@@ -1,12 +1,13 @@
 //! Beschreibung eines Arguments.
 
-use std::{borrow::Cow, convert::AsRef, fmt::Display};
+use std::{convert::AsRef, fmt::Display};
 
 use nonempty::NonEmpty;
 
 use crate::unicode::Normalisiert;
 
 // TODO erwähne verschmelzen von Flag-Kurzformen?
+// TODO Lang/Kurz-Präfix
 /// Beschreibung eines Kommandozeilen-Arguments.
 ///
 /// ## English synonym
@@ -31,7 +32,7 @@ pub struct Beschreibung<'t, T> {
     ///
     /// ## English
     /// Description shown in the automatically created help text.
-    pub hilfe: Option<Cow<'t, str>>,
+    pub hilfe: Option<&'t str>,
     /// Standard-Wert falls kein passendes Kommandozeilen-Argument verwendet wurde.
     ///
     /// ## English
@@ -210,13 +211,13 @@ impl<'t, T> Beschreibung<'t, T> {
     pub fn neu(
         lang: impl LangNamen<'t>,
         kurz: impl KurzNamen<'t>,
-        hilfe: Option<impl Into<Cow<'t, str>>>,
+        hilfe: Option<impl 't + AsRef<str>>,
         standard: Option<T>,
     ) -> Beschreibung<'t, T> {
         Beschreibung {
             lang: lang.lang_namen(),
             kurz: kurz.kurz_namen(),
-            hilfe: hilfe.map(Into::into),
+            hilfe: hilfe.map(|h| h.as_ref()),
             standard,
         }
     }
@@ -229,13 +230,14 @@ impl<'t, T> Beschreibung<'t, T> {
     pub fn new(
         long: impl LangNamen<'t>,
         short: impl KurzNamen<'t>,
-        help: Option<impl Into<Cow<'t, str>>>,
+        help: Option<impl 't + AsRef<str>>,
         default: Option<T>,
     ) -> Description<'t, T> {
         Beschreibung::neu(long, short, help, default)
     }
 }
 
+// TODO Invertiere-Flag-Infix, Wert-Infix
 /// Konfiguration eines Kommandozeilen-Arguments.
 ///
 /// ## English synonym

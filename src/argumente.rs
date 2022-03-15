@@ -1,7 +1,6 @@
 //! Definition von akzeptierten Kommandozeilen-Argumenten.
 
 use std::{
-    borrow::Cow,
     env,
     ffi::{OsStr, OsString},
     fmt::{Debug, Display},
@@ -16,6 +15,7 @@ use crate::{
     beschreibung::{Configuration, Konfiguration},
     ergebnis::{Ergebnis, Error, Fehler, Result},
     sprache::{Language, Sprache},
+    unicode::Normalisiert,
 };
 
 pub(crate) mod flag;
@@ -58,7 +58,7 @@ pub use crate::{combine, kombiniere};
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<'t, T, E> {
     pub(crate) konfigurationen: Vec<Konfiguration<'t>>,
-    pub(crate) flag_kurzformen: Vec<Cow<'t, str>>,
+    pub(crate) flag_kurzformen: Vec<Normalisiert<'t>>,
     pub(crate) parse:
         Box<dyn 't + Fn(Vec<Option<&OsStr>>) -> (Ergebnis<'t, T, E>, Vec<Option<&OsStr>>)>,
 }
