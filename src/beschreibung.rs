@@ -95,7 +95,7 @@ impl<'t, T> Beschreibung<'t, T> {
 
 macro_rules! contains_str {
     ($collection: expr, $gesucht: expr, $case_sensitive: expr) => {
-        $collection.iter().any(|element| element.eq($gesucht, $case_sensitive))
+        $collection.iter().any(|(element, case)| element.eq($gesucht, *case))
     };
 }
 pub(crate) use contains_str;
