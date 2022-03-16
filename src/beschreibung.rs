@@ -32,7 +32,7 @@ pub struct Beschreibung<'t, T> {
     ///
     /// ## English
     /// Prefix before the long name.
-    lang_präfix: ZielString<'t>,
+    pub lang_präfix: ZielString<'t>,
 
     /// Voller Name, wird nach `lang_präfix` angegeben.
     ///
@@ -44,7 +44,7 @@ pub struct Beschreibung<'t, T> {
     ///
     /// ## English
     /// Prefix before the short name.
-    kurz_präfix: ZielString<'t>,
+    pub kurz_präfix: ZielString<'t>,
 
     /// Kurzer Name, wird nach `kurz_präfix` angegeben.
     /// Bei Flag-Argumenten können KurzNamen mit identischen `kurz_präfix` zusammen angegeben werden,
