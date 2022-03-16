@@ -77,7 +77,7 @@ impl<'t> Normalisiert<'t> {
     }
 
     /// Überprüfe ob zwei Strings nach Unicode Normalisierung identisch sind,
-    /// optional ohne Groß-/Kleinschreibung zu beachten.
+    /// optional [ohne Groß-/Kleinschreibung zu beachten](unicase::eq).
     ///
     /// ## English
     /// Check whether two Strings are identical after unicode normalization,
