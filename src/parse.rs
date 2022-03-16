@@ -1,12 +1,14 @@
 //! Trait für Typen, die aus Kommandozeilen-Argumenten geparst werden können.
 
-use std::{convert::AsRef, ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
+use std::{
+    borrow::Cow, collections::HashMap, ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr,
+};
 
 use nonempty::NonEmpty;
 
 use crate::{
     argumente::{wert::EnumArgument, Argumente, Arguments},
-    beschreibung::{Beschreibung, Description, Konfiguration},
+    beschreibung::{Beschreibung, Description, Konfiguration, ZielString},
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler},
     sprache::{Language, Sprache},
 };
@@ -33,7 +35,9 @@ pub trait ParseArgument: Sized {
     /// `meta_var` is intended as the meta-variable used in the help text for value arguments.
     fn argumente<'t>(
         beschreibung: Beschreibung<'t, Self>,
-        invertiere_präfix: &'t str,
+        invertiere_präfix: impl Into<ZielString<'t>>,
+        invertiere_infix: impl Into<ZielString<'t>>,
+        wert_infix: impl Into<ZielString<'t>>,
         meta_var: &'t str,
     ) -> Argumente<'t, Self, String>;
 
@@ -52,7 +56,13 @@ pub trait ParseArgument: Sized {
         beschreibung: Beschreibung<'t, Self>,
         sprache: Sprache,
     ) -> Argumente<'t, Self, String> {
-        Self::argumente(beschreibung, sprache.invertiere_präfix, sprache.meta_var)
+        Self::argumente(
+            beschreibung,
+            sprache.invertiere_präfix,
+            sprache.invertiere_infix,
+            sprache.wert_infix,
+            sprache.meta_var,
+        )
     }
 
     /// Create an [Arguments] for the given [Description].
@@ -89,7 +99,9 @@ pub trait ParseArgument: Sized {
 impl ParseArgument for bool {
     fn argumente<'t>(
         beschreibung: Beschreibung<'t, Self>,
-        invertiere_präfix: &'t str,
+        invertiere_präfix: impl Into<ZielString<'t>>,
+        invertiere_infix: impl Into<ZielString<'t>>,
+        _wert_infix: impl Into<ZielString<'t>>,
         _meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
         Argumente::flag_bool(beschreibung, invertiere_präfix)
@@ -103,7 +115,9 @@ impl ParseArgument for bool {
 impl ParseArgument for String {
     fn argumente<'t>(
         beschreibung: Beschreibung<'t, Self>,
-        _invertiere_präfix: &'t str,
+        _invertiere_präfix: impl Into<ZielString<'t>>,
+        _invertiere_infix: impl Into<ZielString<'t>>,
+        wert_infix: impl Into<ZielString<'t>>,
         meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
         Argumente::wert_display(beschreibung, meta_var, None, |os_str| {
@@ -125,7 +139,9 @@ macro_rules! impl_parse_argument {
         impl ParseArgument for $type {
             fn argumente<'t>(
                 beschreibung: Beschreibung<'t,Self>,
-                _invertiere_präfix: &'t str,
+                _invertiere_präfix: impl Into<ZielString<'t>>,
+                _invertiere_infix: impl Into<ZielString<'t>>,
+                wert_infix: impl Into<ZielString<'t>>,
                 meta_var: &'t str,
             ) -> Argumente<'t,Self, String> {
                 Argumente::wert_display(beschreibung, meta_var, None, |os_str| {
@@ -150,16 +166,28 @@ impl_parse_argument! {i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, u
 impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
     fn argumente<'t>(
         beschreibung: Beschreibung<'t, Self>,
-        invertiere_präfix: &'t str,
+        invertiere_präfix: impl Into<ZielString<'t>>,
+        invertiere_infix: impl Into<ZielString<'t>>,
+        wert_infix: impl Into<ZielString<'t>>,
         meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
-        let name_kurz = beschreibung.kurz.clone();
+        let name_lang_präfix = beschreibung.lang_präfix.clone();
         let name_lang = beschreibung.lang.clone();
-        let meta_var_str = meta_var.as_ref();
+        let name_kurz_präfix = beschreibung.kurz_präfix.clone();
+        let name_kurz = beschreibung.kurz.clone();
         let Argumente { parse, .. } = T::argumente(
-            Beschreibung::neu(name_lang.clone(), name_kurz.clone(), None::<&str>, None),
+            Beschreibung::neu(
+                name_lang_präfix,
+                name_lang.clone(),
+                name_kurz_präfix,
+                name_kurz.clone(),
+                None::<&str>,
+                None,
+            ),
             invertiere_präfix,
-            meta_var_str,
+            invertiere_infix,
+            wert_infix,
+            meta_var,
         );
         let (beschreibung_string, option_standard) = beschreibung
             .als_string_beschreibung_allgemein(|opt| {
@@ -171,36 +199,44 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
             });
         type F<'s, T> =
             Box<dyn 's + Fn(NonEmpty<Fehler<'_, String>>) -> Ergebnis<'_, Option<T>, String>>;
-        let verwende_standard: F<'t, T> = if let Some(standard) = option_standard {
-            Box::new(move |fehler_sammlung| {
-                let mut fehler_iter =
-                    fehler_sammlung.into_iter().filter_map(|fehler| match fehler {
-                        Fehler::FehlenderWert { lang, kurz, meta_var } => {
-                            if lang.iter().eq(name_lang.iter()) && kurz == name_kurz {
-                                None
-                            } else {
-                                Some(Fehler::FehlenderWert { lang, kurz, meta_var })
-                            }
-                        },
-                        fehler => Some(fehler),
-                    });
-                if let Some(head) = fehler_iter.next() {
-                    let tail = fehler_iter.collect();
-                    Ergebnis::Fehler(NonEmpty { head, tail })
-                } else {
-                    Ergebnis::Wert(standard.clone())
-                }
-            })
-        } else {
-            Box::new(|e| Ergebnis::Fehler(e))
-        };
+        let verwende_standard: F<'t, T> =
+            if let Some(standard) = option_standard {
+                Box::new(move |fehler_sammlung| {
+                    let mut fehler_iter =
+                        fehler_sammlung.into_iter().filter_map(|fehler| match fehler {
+                            Fehler::FehlenderWert { namen, meta_var } => {
+                                let passender_lang_name = namen.lang.iter().eq(name_lang
+                                    .iter()
+                                    .map(|ZielString { string, case: _ }| string));
+                                let passender_kurz_name = namen.kurz.iter().eq(name_kurz
+                                    .iter()
+                                    .map(|ZielString { string, case: _ }| string));
+                                if passender_lang_name && passender_kurz_name {
+                                    None
+                                } else {
+                                    Some(Fehler::FehlenderWert { namen, meta_var })
+                                }
+                            },
+                            fehler => Some(fehler),
+                        });
+                    if let Some(head) = fehler_iter.next() {
+                        let tail = fehler_iter.collect();
+                        Ergebnis::Fehler(NonEmpty { head, tail })
+                    } else {
+                        Ergebnis::Wert(standard.clone())
+                    }
+                })
+            } else {
+                Box::new(|e| Ergebnis::Fehler(e))
+            };
         Argumente {
             konfigurationen: vec![Konfiguration::Wert {
                 beschreibung: beschreibung_string,
                 meta_var,
+                wert_infix: wert_infix.into(),
                 mögliche_werte: None,
             }],
-            flag_kurzformen: Vec::new(),
+            flag_kurzformen: HashMap::new(),
             parse: Box::new(move |args| {
                 let (ergebnis, nicht_verwendet) = parse(args);
                 let option_ergebnis = match ergebnis {
@@ -221,7 +257,9 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
 impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
     fn argumente<'t>(
         beschreibung: Beschreibung<'t, Self>,
-        _invertiere_präfix: &'t str,
+        _invertiere_präfix: impl Into<ZielString<'t>>,
+        _invertiere_infix: impl Into<ZielString<'t>>,
+        wert_infix: impl Into<ZielString<'t>>,
         meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
         Argumente::wert_enum_display(beschreibung, meta_var)
