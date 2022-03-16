@@ -6,16 +6,21 @@ use nonempty::NonEmpty;
 
 use crate::unicode::{Case, Normalisiert};
 
-// TODO besseren Namen (heh) finden, wird auch für invertiere_präfix verwendet
-/// Lang- oder Kurz-Name eines Kommandozeilen-Arguments.
+/// Normalisierter Unicode-String, sowie ob dieser unter berücksichtigen von
+/// Groß-/Kleinschreibung verglichen werden soll.
 ///
-/// ## English
-/// Long or short name of a command line argument.
-pub type Name<'t> = (Normalisiert<'t>, Case);
+/// ## English synonym
+/// [TargetString]
+pub type ZielString<'t> = (Normalisiert<'t>, Case);
+
+/// Normalized unicode string, as well as if it should be compared in a case-(in)sensitive way.
+///
+/// ## Deutsches Synonym
+/// [ZielString]
+pub type TargetString<'t> = ZielString<'t>;
 
 // TODO erwähne verschmelzen von Flag-Kurzformen?
 // TODO Lang/Kurz-Präfix
-// TODO case_sensitive für (jeden?) Namen
 /// Beschreibung eines Kommandozeilen-Arguments.
 ///
 /// ## English synonym
@@ -26,7 +31,7 @@ pub struct Beschreibung<'t, T> {
     ///
     /// ## English
     /// Full Name, given after two minus characters "--<lang>"
-    pub lang: NonEmpty<Name<'t>>,
+    pub lang: NonEmpty<ZielString<'t>>,
 
     /// Kurzer Name, wird nach einem Minus angegeben "-<kurz>".
     /// Kurznamen länger als ein [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
@@ -36,7 +41,7 @@ pub struct Beschreibung<'t, T> {
     /// Short name, given after one minus character "-<kurz>"
     /// Short names longer than a [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// are not supported.
-    pub kurz: Vec<Name<'t>>,
+    pub kurz: Vec<ZielString<'t>>,
 
     /// Im automatischen Hilfetext angezeigte Beschreibung.
     ///
@@ -93,7 +98,10 @@ impl<'t, T> Beschreibung<'t, T> {
     }
 }
 
-pub(crate) fn contains_str<'t>(iter: impl Iterator<Item = &'t Name<'t>>, gesucht: &str) -> bool {
+pub(crate) fn contains_str<'t>(
+    iter: impl Iterator<Item = &'t ZielString<'t>>,
+    gesucht: &str,
+) -> bool {
     iter.any(|(element, case)| element.eq(gesucht, *case))
 }
 
@@ -106,26 +114,26 @@ pub trait LangNamen<'t> {
     ///
     /// ## English
     /// Convert into a [NonEmpty].
-    fn lang_namen(self) -> NonEmpty<Name<'t>>;
+    fn lang_namen(self) -> NonEmpty<ZielString<'t>>;
 }
 
 macro_rules! impl_lang_namen {
     ($type: ty) => {
         impl<'t> LangNamen<'t> for $type {
-            fn lang_namen(self) -> NonEmpty<Name<'t>> {
+            fn lang_namen(self) -> NonEmpty<ZielString<'t>> {
                 NonEmpty::singleton((Normalisiert::neu(self), Case::Insensitive))
             }
         }
 
         impl<'t> LangNamen<'t> for ($type, Case) {
-            fn lang_namen(self) -> NonEmpty<Name<'t>> {
+            fn lang_namen(self) -> NonEmpty<ZielString<'t>> {
                 let (s, case) = self;
                 NonEmpty::singleton((Normalisiert::neu(s), case))
             }
         }
 
         impl<'t> LangNamen<'t> for NonEmpty<$type> {
-            fn lang_namen(self) -> NonEmpty<Name<'t>> {
+            fn lang_namen(self) -> NonEmpty<ZielString<'t>> {
                 let NonEmpty { head, tail } = self;
                 NonEmpty {
                     head: (Normalisiert::neu(head), Case::Insensitive),
@@ -138,7 +146,7 @@ macro_rules! impl_lang_namen {
         }
 
         impl<'t> LangNamen<'t> for NonEmpty<($type, Case)> {
-            fn lang_namen(self) -> NonEmpty<Name<'t>> {
+            fn lang_namen(self) -> NonEmpty<ZielString<'t>> {
                 let NonEmpty { head: (h_s, h_case), tail } = self;
                 NonEmpty {
                     head: (Normalisiert::neu(h_s), h_case),
@@ -153,19 +161,19 @@ impl_lang_namen! {String}
 impl_lang_namen! {&'t str}
 
 impl<'t> LangNamen<'t> for Normalisiert<'t> {
-    fn lang_namen(self) -> NonEmpty<Name<'t>> {
+    fn lang_namen(self) -> NonEmpty<ZielString<'t>> {
         NonEmpty::singleton((self, Case::Insensitive))
     }
 }
 
-impl<'t> LangNamen<'t> for Name<'t> {
-    fn lang_namen(self) -> NonEmpty<Name<'t>> {
+impl<'t> LangNamen<'t> for ZielString<'t> {
+    fn lang_namen(self) -> NonEmpty<ZielString<'t>> {
         NonEmpty::singleton(self)
     }
 }
 
 impl<'t> LangNamen<'t> for NonEmpty<Normalisiert<'t>> {
-    fn lang_namen(self) -> NonEmpty<Name<'t>> {
+    fn lang_namen(self) -> NonEmpty<ZielString<'t>> {
         let NonEmpty { head, tail } = self;
         NonEmpty {
             head: (head, Case::Insensitive),
@@ -174,14 +182,14 @@ impl<'t> LangNamen<'t> for NonEmpty<Normalisiert<'t>> {
     }
 }
 
-impl<'t> LangNamen<'t> for NonEmpty<Name<'t>> {
-    fn lang_namen(self) -> NonEmpty<Name<'t>> {
+impl<'t> LangNamen<'t> for NonEmpty<ZielString<'t>> {
+    fn lang_namen(self) -> NonEmpty<ZielString<'t>> {
         self
     }
 }
 
 impl<'t, S: AsRef<str>> LangNamen<'t> for &'t NonEmpty<S> {
-    fn lang_namen(self) -> NonEmpty<Name<'t>> {
+    fn lang_namen(self) -> NonEmpty<ZielString<'t>> {
         let NonEmpty { head, tail } = self;
         NonEmpty {
             head: (Normalisiert::neu(head.as_ref()), Case::Insensitive),
@@ -202,19 +210,19 @@ pub trait KurzNamen<'t> {
     ///
     /// ## English
     /// Convert into a [Vec].
-    fn kurz_namen(self) -> Vec<Name<'t>>;
+    fn kurz_namen(self) -> Vec<ZielString<'t>>;
 }
 
 macro_rules! impl_kurz_namen {
     ($type: ty) => {
         impl<'t> KurzNamen<'t> for $type {
-            fn kurz_namen(self) -> Vec<Name<'t>> {
+            fn kurz_namen(self) -> Vec<ZielString<'t>> {
                 vec![(Normalisiert::neu(self), Case::Insensitive)]
             }
         }
 
         impl<'t> KurzNamen<'t> for ($type, Case) {
-            fn kurz_namen(self) -> Vec<Name<'t>> {
+            fn kurz_namen(self) -> Vec<ZielString<'t>> {
                 let (s, case) = self;
                 vec![(Normalisiert::neu(s), case)]
             }
@@ -223,7 +231,7 @@ macro_rules! impl_kurz_namen {
         macro_rules! impl_into_iter {
             ($collection: ident) => {
                 impl<'t> KurzNamen<'t> for $collection<$type> {
-                    fn kurz_namen(self) -> Vec<Name<'t>> {
+                    fn kurz_namen(self) -> Vec<ZielString<'t>> {
                         self.into_iter()
                             .map(|s| (Normalisiert::neu(s), Case::Insensitive))
                             .collect()
@@ -231,7 +239,7 @@ macro_rules! impl_kurz_namen {
                 }
 
                 impl<'t> KurzNamen<'t> for $collection<($type, Case)> {
-                    fn kurz_namen(self) -> Vec<Name<'t>> {
+                    fn kurz_namen(self) -> Vec<ZielString<'t>> {
                         self.into_iter().map(|(s, case)| (Normalisiert::neu(s), case)).collect()
                     }
                 }
@@ -248,13 +256,13 @@ impl_kurz_namen! {String}
 impl_kurz_namen! {&'t str}
 
 impl<'t> KurzNamen<'t> for Normalisiert<'t> {
-    fn kurz_namen(self) -> Vec<Name<'t>> {
+    fn kurz_namen(self) -> Vec<ZielString<'t>> {
         vec![(self, Case::Insensitive)]
     }
 }
 
-impl<'t> KurzNamen<'t> for Name<'t> {
-    fn kurz_namen(self) -> Vec<Name<'t>> {
+impl<'t> KurzNamen<'t> for ZielString<'t> {
+    fn kurz_namen(self) -> Vec<ZielString<'t>> {
         vec![self]
     }
 }
@@ -262,13 +270,13 @@ impl<'t> KurzNamen<'t> for Name<'t> {
 macro_rules! impl_kurz_namen_into_iter {
     ($collection: ident) => {
         impl<'t> KurzNamen<'t> for $collection<Normalisiert<'t>> {
-            fn kurz_namen(self) -> Vec<Name<'t>> {
+            fn kurz_namen(self) -> Vec<ZielString<'t>> {
                 self.into_iter().map(|s| (s, Case::Insensitive)).collect()
             }
         }
 
-        impl<'t> KurzNamen<'t> for $collection<Name<'t>> {
-            fn kurz_namen(self) -> Vec<Name<'t>> {
+        impl<'t> KurzNamen<'t> for $collection<ZielString<'t>> {
+            fn kurz_namen(self) -> Vec<ZielString<'t>> {
                 self.into_iter().collect()
             }
         }
@@ -279,19 +287,19 @@ impl_kurz_namen_into_iter! {Option}
 impl_kurz_namen_into_iter! {NonEmpty}
 
 impl<'t> KurzNamen<'t> for Vec<Normalisiert<'t>> {
-    fn kurz_namen(self) -> Vec<Name<'t>> {
+    fn kurz_namen(self) -> Vec<ZielString<'t>> {
         self.into_iter().map(|s| (s, Case::Insensitive)).collect()
     }
 }
 
-impl<'t> KurzNamen<'t> for Vec<Name<'t>> {
-    fn kurz_namen(self) -> Vec<Name<'t>> {
+impl<'t> KurzNamen<'t> for Vec<ZielString<'t>> {
+    fn kurz_namen(self) -> Vec<ZielString<'t>> {
         self
     }
 }
 
 impl<'t, S: AsRef<str>> KurzNamen<'t> for &'t Vec<S> {
-    fn kurz_namen(self) -> Vec<Name<'t>> {
+    fn kurz_namen(self) -> Vec<ZielString<'t>> {
         self.into_iter().map(|s| (Normalisiert::neu(s.as_ref()), Case::Insensitive)).collect()
     }
 }
@@ -347,7 +355,7 @@ pub enum Konfiguration<'t> {
         ///
         /// ## English
         /// Prefix to invert the flag argument.
-        invertiere_präfix: Option<Name<'t>>,
+        invertiere_präfix: Option<ZielString<'t>>,
     },
 
     /// Es handelt sich um ein Wert-Argument.
