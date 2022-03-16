@@ -72,13 +72,13 @@ pub struct Namen<'t> {
     ///
     /// ## English
     /// Full name.
-    lang: NonEmpty<Normalisiert<'t>>,
+    pub lang: NonEmpty<Normalisiert<'t>>,
 
     /// Kurzform des Namen.
     ///
     /// ## English
     /// Short form of the name.
-    kurz: Vec<Normalisiert<'t>>,
+    pub kurz: Vec<Normalisiert<'t>>,
 }
 
 /// All names of an argument.
