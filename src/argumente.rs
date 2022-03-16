@@ -1,6 +1,7 @@
 //! Definition von akzeptierten Kommandozeilen-Argumenten.
 
 use std::{
+    collections::HashMap,
     env,
     ffi::{OsStr, OsString},
     fmt::{Debug, Display},
@@ -12,7 +13,7 @@ use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    beschreibung::{Configuration, Konfiguration},
+    beschreibung::{Configuration, Konfiguration, ZielString},
     ergebnis::{Ergebnis, Error, Fehler, Result},
     sprache::{Language, Sprache},
     unicode::Normalisiert,
@@ -58,7 +59,7 @@ pub use crate::{combine, kombiniere};
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<'t, T, E> {
     pub(crate) konfigurationen: Vec<Konfiguration<'t>>,
-    pub(crate) flag_kurzformen: Vec<Normalisiert<'t>>,
+    pub(crate) flag_kurzformen: HashMap<Normalisiert<'t>, Vec<ZielString<'t>>>,
     pub(crate) parse: Box<
         dyn 't + for<'s> Fn(Vec<Option<&'s OsStr>>) -> (Ergebnis<'t, T, E>, Vec<Option<&'s OsStr>>),
     >,
@@ -463,15 +464,15 @@ impl<'t, T, E> Argumente<'t, T, E> {
         args: impl Iterator<Item = OsString>,
     ) -> (Ergebnis<'t, T, E>, Vec<OsString>) {
         let Argumente { konfigurationen: _, flag_kurzformen, parse } = self;
-        let angepasste_args: Vec<OsString> = args
-            .flat_map(|arg| {
-                if let Some(string) = arg.to_str() {
-                    if let Some(kurz) = string.strip_prefix('-') {
+        let ersetze_verschmolzene_kurzformen = |arg: OsString| -> Vec<OsString> {
+            if let Some(string) = arg.to_str() {
+                for (prefix, kurzformen) in flag_kurzformen.iter() {
+                    let prefix_str = prefix.as_ref();
+                    if let Some(kurz) = string.strip_prefix(prefix_str) {
                         let mut gefundene_kurzformen = Vec::new();
                         for grapheme in kurz.graphemes(true) {
-                            // TODO case_sensitive setting
-                            if flag_kurzformen.iter().any(|string| string.eq(grapheme, true)) {
-                                gefundene_kurzformen.push(format!("-{}", grapheme).into())
+                            if kurzformen.iter().any(|(string, case)| string.eq(grapheme, *case)) {
+                                gefundene_kurzformen.push(format!("{prefix_str}{grapheme}").into())
                             } else {
                                 return vec![arg];
                             }
@@ -481,9 +482,11 @@ impl<'t, T, E> Argumente<'t, T, E> {
                         }
                     }
                 }
-                vec![arg]
-            })
-            .collect();
+            }
+            vec![arg]
+        };
+        let angepasste_args: Vec<OsString> =
+            args.flat_map(ersetze_verschmolzene_kurzformen).collect();
         let args_os_str =
             angepasste_args.iter().map(|os_string| Some(os_string.as_os_str())).collect();
         let (ergebnis, nicht_verwendet) = parse(args_os_str);
