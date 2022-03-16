@@ -23,6 +23,12 @@ impl AsRef<str> for Normalisiert<'_> {
     }
 }
 
+impl<'t, S: Into<Cow<'t, str>>> From<S> for Normalisiert<'t> {
+    fn from(input: S) -> Self {
+        Normalisiert::neu(input)
+    }
+}
+
 /// A normalized unicode string.
 ///
 /// The String is in
