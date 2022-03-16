@@ -62,6 +62,31 @@ impl<'t, T, E> Ergebnis<'t, T, E> {
     }
 }
 
+/// Alle Namen eines Arguments.
+///
+/// ## English synonym
+/// [Names]
+#[derive(Debug, Clone)]
+pub struct Namen<'t> {
+    /// Vollständiger Name.
+    ///
+    /// ## English
+    /// Full name.
+    lang: NonEmpty<Normalisiert<'t>>,
+
+    /// Kurzform des Namen.
+    ///
+    /// ## English
+    /// Short form of the name.
+    kurz: Vec<Normalisiert<'t>>,
+}
+
+/// All names of an argument.
+///
+/// ## Deutsches Synonym
+/// [Namen]
+pub type Names<'t> = Namen<'t>;
+
 /// Fehlerquellen beim Parsen von Kommandozeilen-Argumenten.
 ///
 /// ## English synonym
@@ -73,16 +98,12 @@ pub enum Fehler<'t, E> {
     /// ## English
     /// A required flag argument is missing.
     FehlendeFlag {
-        /// Vollständiger Name.
+        /// Alle Namen des Flag-Arguments.
         ///
         /// ## English
-        /// Full name.
-        lang: NonEmpty<Normalisiert<'t>>,
-        /// Kurzform des Namen.
-        ///
-        /// ## English
-        /// Short form of the name.
-        kurz: Vec<Normalisiert<'t>>,
+        /// All names of the flag argument.
+        namen: Namen<'t>,
+
         /// Präfix zum invertieren.
         ///
         /// ## English
@@ -94,16 +115,12 @@ pub enum Fehler<'t, E> {
     /// ## English
     /// A required value argument is missing.
     FehlenderWert {
-        /// Vollständiger Name.
+        /// Alle Namen des Wert-Arguments.
         ///
         /// ## English
-        /// Full name.
-        lang: NonEmpty<Normalisiert<'t>>,
-        /// Kurzform des Namen.
-        ///
-        /// ## English
-        /// Short form of the name.
-        kurz: Vec<Normalisiert<'t>>,
+        /// All names of the value argument.
+        namen: Namen<'t>,
+
         /// Verwendete Meta-Variable für den Wert.
         ///
         /// ## English
@@ -115,21 +132,18 @@ pub enum Fehler<'t, E> {
     /// ## English
     /// Error while parsing the value.
     Fehler {
-        /// Vollständiger Name.
+        /// Alle Namen des Wert-Arguments.
         ///
         /// ## English
-        /// Full name
-        lang: NonEmpty<Normalisiert<'t>>,
-        /// Kurzform des Namen.
-        ///
-        /// ## English
-        /// Short form of the name.
-        kurz: Vec<Normalisiert<'t>>,
+        /// All names of the value argument.
+        namen: Namen<'t>,
+
         /// Verwendete Meta-Variable für den Wert.
         ///
         /// ## English
         /// Used Meta-variable of the value.
         meta_var: &'t str,
+
         /// Beim Parsen aufgetretener Fehler.
         ///
         /// ## English
@@ -242,8 +256,7 @@ impl<E: Display> Fehler<'_, E> {
     ) -> String {
         fn fehlermeldung(
             fehler_beschreibung: &str,
-            lang: &NonEmpty<Normalisiert<'_>>,
-            kurz: &Vec<Normalisiert<'_>>,
+            Namen { lang, kurz }: &Namen<'_>,
             invertiere_präfix_oder_meta_var: Either<&Normalisiert<'_>, &str>,
         ) -> String {
             let mut fehlermeldung = format!("{}: ", fehler_beschreibung);
@@ -272,21 +285,20 @@ impl<E: Display> Fehler<'_, E> {
             fehlermeldung
         }
         match self {
-            Fehler::FehlendeFlag { lang, kurz, invertiere_präfix } => {
-                fehlermeldung(fehlende_flag, lang, kurz, Either::Left(invertiere_präfix))
+            Fehler::FehlendeFlag { namen, invertiere_präfix } => {
+                fehlermeldung(fehlende_flag, namen, Either::Left(invertiere_präfix))
             },
-            Fehler::FehlenderWert { lang, kurz, meta_var } => {
-                fehlermeldung(fehlender_wert, lang, kurz, Either::Right(meta_var))
+            Fehler::FehlenderWert { namen, meta_var } => {
+                fehlermeldung(fehlender_wert, namen, Either::Right(meta_var))
             },
-            Fehler::Fehler { lang, kurz, meta_var, fehler } => {
+            Fehler::Fehler { namen, meta_var, fehler } => {
                 let (fehler_art, fehler_anzeige) = match fehler {
                     ParseFehler::InvaliderString(os_string) => {
                         (invalider_string, format!("{:?}", os_string))
                     },
                     ParseFehler::ParseFehler(fehler) => (parse_fehler, fehler.to_string()),
                 };
-                let mut fehlermeldung =
-                    fehlermeldung(fehler_art, lang, kurz, Either::Right(meta_var));
+                let mut fehlermeldung = fehlermeldung(fehler_art, namen, Either::Right(meta_var));
                 fehlermeldung.push('\n');
                 fehlermeldung.push_str(&fehler_anzeige);
                 fehlermeldung
