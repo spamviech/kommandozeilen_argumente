@@ -82,12 +82,46 @@ impl<'t> Normalisiert<'t> {
     /// ## English
     /// Check whether two Strings are identical after unicode normalization,
     /// optionally in a [case-insensitive way](unicase::eq).
-    pub fn eq(&self, s: &str, case_sensitive: bool) -> bool {
+    pub fn eq(&self, s: &str, case_sensitive: Case) -> bool {
         let normalisiert = Normalisiert::neu(s);
-        if case_sensitive {
-            *self == normalisiert
-        } else {
-            unicase::eq(self, &normalisiert)
+        match case_sensitive {
+            Case::Sensitive => *self == normalisiert,
+            Case::Insensitive => unicase::eq(self, &normalisiert),
         }
+    }
+}
+
+/// Wird Groß-/Kleinschreibung beachtet?
+///
+/// ## English
+/// Are both Strings compared respecting or ignoring case differences?
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Case {
+    /// Beachte Groß-/Kleinschreibung: `"a" != "A"`
+    ///
+    /// ## English
+    /// Compare respecting case differences: `"a" != "A"`
+    Sensitive,
+
+    /// Ignoriere Groß-/Kleinschreibung: `"a" == "A"`
+    ///
+    /// ## English
+    /// Compare ignoring case differences: `"a" == "A"`
+    Insensitive,
+}
+
+impl From<bool> for Case {
+    fn from(input: bool) -> Self {
+        if input {
+            Case::Sensitive
+        } else {
+            Case::Insensitive
+        }
+    }
+}
+
+impl From<Case> for bool {
+    fn from(input: Case) -> Self {
+        input == Case::Sensitive
     }
 }
