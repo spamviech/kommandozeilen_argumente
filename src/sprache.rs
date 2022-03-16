@@ -6,11 +6,35 @@
 /// [Language]
 #[derive(Debug, Clone, Copy)]
 pub struct Sprache {
+    /// Standard-Präfix für LangNamen.
+    ///
+    /// ## English
+    /// Default prefix for long names.
+    pub lang_präfix: &'static str,
+
+    /// Standard-Präfix für KurzNamen.
+    ///
+    /// ## English
+    /// Default prefix for short names.
+    pub kurz_präfix: &'static str,
+
     /// Standard-Präfix zum invertieren einer Flag.
     ///
     /// ## English
     /// Default prefix to invert a flag.
     pub invertiere_präfix: &'static str,
+
+    /// Standard-Infix nach dem Präfix zum invertieren einer Flag.
+    ///
+    /// ## English
+    /// Default infix after the prefix to invert a flag.
+    pub invertiere_infix: &'static str,
+
+    /// Standard-Infix um einen Wert im selben Argument wie den Namen anzugeben.
+    ///
+    /// ## English
+    /// Default infix to give a value in the same argument as the name.
+    pub wert_infix: &'static str,
 
     /// Standard-Wert für die Meta-Variable im Hilfe-Text
     ///
@@ -112,7 +136,11 @@ pub type Language = Sprache;
 impl Sprache {
     /// Deutsche Strings.
     pub const DEUTSCH: Sprache = Sprache {
+        lang_präfix: "--",
+        kurz_präfix: "-",
         invertiere_präfix: "kein",
+        invertiere_infix: "-",
+        wert_infix: "=",
         meta_var: "WERT",
         optionen: "OPTIONEN",
         standard: "Standard",
@@ -132,7 +160,11 @@ impl Sprache {
 
     /// English Strings.
     pub const ENGLISH: Language = Sprache {
+        lang_präfix: "--",
+        kurz_präfix: "-",
         invertiere_präfix: "no",
+        invertiere_infix: "-",
+        wert_infix: "=",
         meta_var: "VALUE",
         optionen: "OPTIONS",
         standard: "Default",

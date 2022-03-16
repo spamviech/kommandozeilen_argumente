@@ -4,7 +4,10 @@ use std::{convert::AsRef, fmt::Display};
 
 use nonempty::NonEmpty;
 
-use crate::unicode::{Case, Normalisiert};
+use crate::{
+    sprache::{Language, Sprache},
+    unicode::{Case, Normalisiert},
+};
 
 /// Normalisierter Unicode-String, sowie ob dieser unter berücksichtigen von
 /// Groß-/Kleinschreibung verglichen werden soll.
@@ -19,26 +22,39 @@ pub type ZielString<'t> = (Normalisiert<'t>, Case);
 /// [ZielString]
 pub type TargetString<'t> = ZielString<'t>;
 
-// TODO erwähne verschmelzen von Flag-Kurzformen?
-// TODO Lang/Kurz-Präfix
 /// Beschreibung eines Kommandozeilen-Arguments.
 ///
 /// ## English synonym
 /// [Description]
 #[derive(Debug, Clone)]
 pub struct Beschreibung<'t, T> {
-    /// Voller Name, wird nach zwei Minus angegeben "--<lang>".
+    /// Präfix vor dem LangNamen.
     ///
     /// ## English
-    /// Full Name, given after two minus characters "--<lang>"
+    /// Prefix before the long name.
+    lang_präfix: ZielString<'t>,
+
+    /// Voller Name, wird nach `lang_präfix` angegeben.
+    ///
+    /// ## English
+    /// Full Name, given after `lang_präfix`.
     pub lang: NonEmpty<ZielString<'t>>,
 
-    /// Kurzer Name, wird nach einem Minus angegeben "-<kurz>".
+    /// Präfix vor dem KurzNamen.
+    ///
+    /// ## English
+    /// Prefix before the short name.
+    kurz_präfix: ZielString<'t>,
+
+    /// Kurzer Name, wird nach `kurz_präfix` angegeben.
+    /// Bei Flag-Argumenten können KurzNamen mit identischen `kurz_präfix` zusammen angegeben werden,
+    /// zum Beispiel "-fgh".
     /// Kurznamen länger als ein [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// werden nicht unterstützt.
     ///
     /// ## English
-    /// Short name, given after one minus character "-<kurz>"
+    /// Short name, given after `short_präfix`.
+    /// Flag arguments with identical `kurz_präfix` may be given at once, e.g. "-fgh".
     /// Short names longer than a [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// are not supported.
     pub kurz: Vec<ZielString<'t>>,
@@ -74,9 +90,12 @@ impl<'t, T> Beschreibung<'t, T> {
         self,
         anzeige: impl Fn(&T) -> String,
     ) -> (Beschreibung<'t, String>, Option<T>) {
-        let Beschreibung { lang, kurz, hilfe, standard } = self;
-        let standard_string = standard.as_ref().map(anzeige);
-        (Beschreibung { lang, kurz, hilfe, standard: standard_string }, standard)
+        let Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard } = self;
+        let standard_str = standard.as_ref().map(anzeige);
+        (
+            Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard: standard_str },
+            standard,
+        )
     }
 
     /// Konvertiere eine [Beschreibung] zu einem anderen Typ.
@@ -84,8 +103,15 @@ impl<'t, T> Beschreibung<'t, T> {
     /// ## English synonym
     /// [convert](Description::convert)
     pub fn konvertiere<S>(self, konvertiere: impl FnOnce(T) -> S) -> Beschreibung<'t, S> {
-        let Beschreibung { lang, kurz, hilfe, standard } = self;
-        Beschreibung { lang, kurz, hilfe, standard: standard.map(konvertiere) }
+        let Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard } = self;
+        Beschreibung {
+            lang_präfix,
+            lang,
+            kurz_präfix,
+            kurz,
+            hilfe,
+            standard: standard.map(konvertiere),
+        }
     }
 
     /// Convert a [Description] to a different type.
@@ -310,12 +336,21 @@ impl<'t, T> Beschreibung<'t, T> {
     /// ## English synonym
     /// [new](Description::new)
     pub fn neu(
+        lang_präfix: ZielString<'t>,
         lang: impl LangNamen<'t>,
+        kurz_präfix: ZielString<'t>,
         kurz: impl KurzNamen<'t>,
         hilfe: Option<&'t str>,
         standard: Option<T>,
     ) -> Beschreibung<'t, T> {
-        Beschreibung { lang: lang.lang_namen(), kurz: kurz.kurz_namen(), hilfe, standard }
+        Beschreibung {
+            lang_präfix,
+            lang: lang.lang_namen(),
+            kurz_präfix,
+            kurz: kurz.kurz_namen(),
+            hilfe,
+            standard,
+        }
     }
 
     /// Create a new [Description].
@@ -324,16 +359,54 @@ impl<'t, T> Beschreibung<'t, T> {
     /// [neu](Beschreibung::neu)
     #[inline(always)]
     pub fn new(
+        long_prefix: TargetString<'t>,
         long: impl LangNamen<'t>,
+        short_prefix: TargetString<'t>,
         short: impl KurzNamen<'t>,
         help: Option<&'t str>,
         default: Option<T>,
     ) -> Description<'t, T> {
-        Beschreibung::neu(long, short, help, default)
+        Beschreibung::neu(long_prefix, long, short_prefix, short, help, default)
+    }
+
+    /// Erzeuge eine neue [Beschreibung].
+    ///
+    /// ## English synonym
+    /// [new_with_language](Description::new_with_language)
+    #[inline(always)]
+    pub fn neu_mit_sprache(
+        lang: impl LangNamen<'t>,
+        kurz: impl KurzNamen<'t>,
+        hilfe: Option<&'t str>,
+        standard: Option<T>,
+        sprache: Sprache,
+    ) -> Beschreibung<'t, T> {
+        Beschreibung::neu(
+            (Normalisiert::neu(sprache.lang_präfix), Case::Sensitive),
+            lang,
+            (Normalisiert::neu(sprache.kurz_präfix), Case::Sensitive),
+            kurz,
+            hilfe,
+            standard,
+        )
+    }
+
+    /// Create a new [Description].
+    ///
+    /// ## Deutsches Synonym
+    /// [neu_mit_sprache](Description::neu_mit_sprache)
+    #[inline(always)]
+    pub fn new_with_language(
+        long: impl LangNamen<'t>,
+        short: impl KurzNamen<'t>,
+        help: Option<&'t str>,
+        default: Option<T>,
+        language: Language,
+    ) -> Beschreibung<'t, T> {
+        Beschreibung::neu_mit_sprache(long, short, help, default, language)
     }
 }
 
-// TODO Invertiere-Flag-Infix, Wert-Infix
 /// Konfiguration eines Kommandozeilen-Arguments.
 ///
 /// ## English synonym
@@ -351,11 +424,13 @@ pub enum Konfiguration<'t> {
         /// General description of the argument.
         beschreibung: Beschreibung<'t, String>,
 
-        /// Präfix zum invertieren des Flag-Arguments.
+        /// Präfix und folgendes Infix zum invertieren des Flag-Arguments.
+        /// Der Wert ist [None], wenn es sich um eine Flag die zu frühem beenden führt handelt.
         ///
         /// ## English
-        /// Prefix to invert the flag argument.
-        invertiere_präfix: Option<ZielString<'t>>,
+        /// Prefix an following infix to invert the flag argument.
+        /// The value is [None] if it is a flag causing an early exit.
+        invertiere_präfix_infix: Option<ZielString<'t>>,
     },
 
     /// Es handelt sich um ein Wert-Argument.
@@ -368,6 +443,12 @@ pub enum Konfiguration<'t> {
         /// ## English
         /// General description of the argument.
         beschreibung: Beschreibung<'t, String>,
+
+        /// Infix um einen Wert im selben Argument wie den Namen anzugeben.
+        ///
+        /// ## English
+        /// Infix to give a value in the same argument as the name.
+        wert_infix: ZielString<'t>,
 
         /// Meta-Variable im Hilfe-Text.
         ///
