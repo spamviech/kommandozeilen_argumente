@@ -1,7 +1,6 @@
 //! Flag-Argumente.
 
 use std::{
-    collections::HashMap,
     convert::{identity, AsRef},
     ffi::OsStr,
     fmt::Display,
@@ -10,14 +9,13 @@ use std::{
 
 use itertools::Itertools;
 use nonempty::NonEmpty;
-use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     argumente::{Argumente, Arguments},
     beschreibung::{contains_str, Beschreibung, Description, Konfiguration},
-    ergebnis::{Ergebnis, Fehler},
+    ergebnis::{Ergebnis, Fehler, Namen},
     sprache::{Language, Sprache},
-    unicode::{Normalisiert, Vergleich},
+    unicode::Vergleich,
 };
 
 impl<'t, E> Argumente<'t, bool, E> {
@@ -143,15 +141,16 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
         invertiere_präfix: impl Into<Vergleich<'t>>,
         invertiere_infix: impl Into<Vergleich<'t>>,
     ) -> Argumente<'t, T, E> {
+        let name_lang_präfix = beschreibung.lang_präfix.clone();
+        let name_lang = beschreibung.lang.clone();
+        let name_kurz_präfix = beschreibung.kurz_präfix.clone();
         let name_kurz = beschreibung.kurz.clone();
         let flag_kurzformen =
             iter::once((beschreibung.kurz_präfix.clone(), beschreibung.kurz.clone())).collect();
-        let name_lang = beschreibung.lang.clone();
         let invertiere_präfix_vergleich = invertiere_präfix.into();
         let invertiere_infix_vergleich = invertiere_infix.into();
         let invertiere_präfix_str = invertiere_präfix_vergleich.string.as_ref();
         let invertiere_infix_str = invertiere_infix_vergleich.string.as_ref();
-        let invertiere_präfix_minus = format!("{invertiere_präfix_str}{invertiere_infix_str}");
         let (beschreibung, standard) = beschreibung.als_string_beschreibung();
         Argumente {
             konfigurationen: vec![Konfiguration::Flag {
@@ -168,26 +167,29 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
                 let mut nicht_verwendet = Vec::new();
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
-                        if let Some(lang) = string.strip_prefix("--") {
-                            if contains_str!(&name_lang, lang, case_sensitive) {
+                        if let Some(lang_graphemes) = name_lang_präfix.strip_als_präfix(string) {
+                            if contains_str(&name_lang, lang_graphemes.as_str()) {
                                 ergebnis = Some(konvertiere(true));
                                 nicht_verwendet.push(None);
                                 continue;
-                            } else if let Some(negiert) =
-                                lang.strip_prefix(&invertiere_präfix_minus)
+                            } else if let Some(negiert) = invertiere_präfix_vergleich
+                                .strip_als_präfix(lang_graphemes.as_str())
+                                .and_then(|graphemes| {
+                                    invertiere_infix_vergleich.strip_als_präfix(graphemes.as_str())
+                                })
                             {
-                                if contains_str!(&name_lang, negiert, case_sensitive) {
+                                if contains_str(&name_lang, negiert.as_str()) {
                                     ergebnis = Some(konvertiere(false));
                                     nicht_verwendet.push(None);
                                     continue;
                                 }
                             }
                         } else if name_kurz_existiert {
-                            if let Some(kurz) = string.strip_prefix('-') {
-                                if kurz
-                                    .graphemes(true)
+                            if let Some(kurz_graphemes) = name_kurz_präfix.strip_als_präfix(string)
+                            {
+                                if kurz_graphemes
                                     .exactly_one()
-                                    .map(|name| contains_str!(&name_kurz, name, case_sensitive))
+                                    .map(|name| contains_str(&name_kurz, name))
                                     .unwrap_or(false)
                                 {
                                     ergebnis = Some(konvertiere(true));
@@ -205,9 +207,17 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
                     Ergebnis::Wert(wert.clone())
                 } else {
                     let fehler = Fehler::FehlendeFlag {
-                        lang: name_lang.clone(),
-                        kurz: name_kurz.clone(),
-                        invertiere_präfix: invertiere_präfix_normalisiert.clone(),
+                        namen: Namen {
+                            lang_präfix: name_lang_präfix.string.clone(),
+                            lang: name_lang.clone().map(|Vergleich { string, case: _ }| string),
+                            kurz_präfix: name_kurz_präfix.string.clone(),
+                            kurz: name_kurz
+                                .iter()
+                                .map(|Vergleich { string, case: _ }| string.clone())
+                                .collect(),
+                        },
+                        invertiere_präfix: invertiere_präfix_vergleich.string.clone(),
+                        invertiere_infix: invertiere_infix_vergleich.string.clone(),
                     };
                     Ergebnis::Fehler(NonEmpty::singleton(fehler))
                 };

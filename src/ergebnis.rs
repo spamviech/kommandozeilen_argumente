@@ -116,11 +116,17 @@ pub enum Fehler<'t, E> {
         /// All names of the flag argument.
         namen: Namen<'t>,
 
-        /// Präfix und folgendes Infix zum invertieren des Flag-Arguments.
+        /// Präfix zum invertieren des Flag-Arguments.
         ///
         /// ## English
-        /// Prefix an following infix to invert the flag argument.
-        invertiere_präfix_infix: Normalisiert<'t>,
+        /// Prefix to invert the flag argument.
+        invertiere_präfix: Normalisiert<'t>,
+
+        /// Auf Präfix folgendes Infix zum invertieren des Flag-Arguments.
+        ///
+        /// ## English
+        /// Infix following the prefix to invert the flag argument.
+        invertiere_infix: Normalisiert<'t>,
     },
     /// Ein benötigtes Wert-Argument wurde nicht genannt.
     ///
