@@ -3,6 +3,7 @@
 use std::{convert::AsRef, fmt::Display};
 
 use nonempty::NonEmpty;
+use unicode_segmentation::{GraphemeCursor, Graphemes};
 
 use crate::{
     sprache::{Language, Sprache},
@@ -116,6 +117,13 @@ pub(crate) fn contains_str<'t>(
     gesucht: &str,
 ) -> bool {
     iter.any(|ziel| ziel.eq(gesucht))
+}
+
+pub(crate) fn contains_prefix<'t>(
+    iter: impl 't + Iterator<Item = &'t Vergleich<'t>>,
+    input: &'t str,
+) -> impl 't + Iterator<Item = Graphemes<'t>> {
+    iter.filter_map(move |ziel| ziel.strip_als_präfix(input))
 }
 
 /// Mindestens ein String als Definition für den vollen Namen.

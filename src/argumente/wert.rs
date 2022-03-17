@@ -3,14 +3,13 @@
 use std::{collections::HashMap, convert::AsRef, ffi::OsStr, fmt::Display, str::FromStr};
 
 use nonempty::NonEmpty;
-use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     argumente::{Argumente, Arguments},
-    beschreibung::{contains_str, Beschreibung, Description, Konfiguration},
+    beschreibung::{contains_prefix, contains_str, Beschreibung, Description, Konfiguration},
     ergebnis::{Ergebnis, Fehler, Namen, ParseError, ParseFehler},
     sprache::{Language, Sprache},
-    unicode::{Compare, Normalisiert, Vergleich},
+    unicode::{Compare, Vergleich},
 };
 
 #[cfg(any(feature = "derive", all(doc, not(doctest))))]
@@ -343,47 +342,51 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                         fehler.push(fehler_kein_wert())
                     }
                 };
-                for arg in args {
+                'args: for arg in args {
                     if name_ohne_wert {
                         parse_auswerten(arg);
                         name_ohne_wert = false;
+                        nicht_verwendet.push(None);
                         continue;
                     } else if let Some(string) = arg.and_then(OsStr::to_str) {
-                        let normalisiert = Normalisiert::neu(string);
-                        // TODO verwende name_lang_präfix (berücksichtige Case-parameter!)
-                        // Graphemes::as_str, DoubleEndedIterator::next_back
-                        if let Some(lang) = string.strip_prefix("--") {
-                            // TODO verwende wert_infix (berücksichtige Case-parameter!)
-                            if let Some((name, wert_str)) = lang.split_once('=') {
-                                if contains_str(name_lang.iter(), name) {
-                                    parse_auswerten(Some(wert_str.as_ref()));
-                                    continue;
+                        if let Some(lang) = name_lang_präfix.strip_als_präfix(string) {
+                            let suffixe = contains_prefix(name_lang.iter(), lang.as_str());
+                            for suffix in suffixe {
+                                let suffix_str = suffix.as_str();
+                                if suffix_str.is_empty() {
+                                    name_ohne_wert = true;
+                                    nicht_verwendet.push(None);
+                                    continue 'args;
+                                } else if let Some(wert_graphemes) =
+                                    wert_infix_vergleich.strip_als_präfix(suffix_str)
+                                {
+                                    parse_auswerten(Some(wert_graphemes.as_str().as_ref()));
+                                    nicht_verwendet.push(None);
+                                    continue 'args;
                                 }
-                            } else if contains_str(name_lang.iter(), lang) {
-                                name_ohne_wert = true;
-                                nicht_verwendet.push(None);
-                                continue;
                             }
                         } else if name_kurz_existiert {
-                            // TODO verwende wert_kurz_präfix (berücksichtige Case-parameter!)
-                            if let Some(kurz) = string.strip_prefix('-') {
-                                let mut graphemes = kurz.graphemes(true);
-                                if graphemes
+                            if let Some(mut kurz) = name_kurz_präfix.strip_als_präfix(string) {
+                                if kurz
                                     .next()
                                     .map(|name| contains_str(name_kurz.iter(), name))
                                     .unwrap_or(false)
                                 {
-                                    let rest = graphemes.as_str();
-                                    let wert_str = if let Some(wert_str) = rest.strip_prefix('=') {
-                                        wert_str
+                                    let rest = kurz.as_str();
+                                    let wert_str = if let Some(wert_graphemes) =
+                                        wert_infix_vergleich.strip_als_präfix(rest)
+                                    {
+                                        wert_graphemes.as_str()
                                     } else if !rest.is_empty() {
                                         rest
                                     } else {
                                         name_ohne_wert = true;
                                         nicht_verwendet.push(None);
-                                        continue;
+                                        continue 'args;
                                     };
                                     parse_auswerten(Some(wert_str.as_ref()));
+                                    nicht_verwendet.push(None);
+                                    continue 'args;
                                 }
                             }
                         }

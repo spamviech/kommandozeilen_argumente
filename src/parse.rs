@@ -103,7 +103,7 @@ impl ParseArgument for bool {
         _wert_infix: impl Into<Vergleich<'t>>,
         _meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
-        Argumente::flag_bool(beschreibung, invertiere_präfix)
+        Argumente::flag_bool(beschreibung, invertiere_präfix, invertiere_infix)
     }
 
     fn standard() -> Option<Self> {
@@ -119,7 +119,7 @@ impl ParseArgument for String {
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
-        Argumente::wert_display(beschreibung, meta_var, None, |os_str| {
+        Argumente::wert_display(beschreibung, wert_infix, meta_var, None, |os_str| {
             if let Some(string) = os_str.to_str() {
                 Ok(string.to_owned())
             } else {
@@ -143,7 +143,7 @@ macro_rules! impl_parse_argument {
                 wert_infix: impl Into<Vergleich<'t>>,
                 meta_var: &'t str,
             ) -> Argumente<'t,Self, String> {
-                Argumente::wert_display(beschreibung, meta_var, None, |os_str| {
+                Argumente::wert_display(beschreibung,wert_infix, meta_var, None, |os_str| {
                     if let Some(string) = os_str.to_str() {
                         string.parse().map_err(
                             |err: <$type as FromStr>::Err| ParseFehler::ParseFehler(err.to_string())
@@ -261,7 +261,7 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
-        Argumente::wert_enum_display(beschreibung, meta_var)
+        Argumente::wert_enum_display(beschreibung, wert_infix, meta_var)
     }
 
     fn standard() -> Option<Self> {
