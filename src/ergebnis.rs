@@ -68,11 +68,23 @@ impl<'t, T, E> Ergebnis<'t, T, E> {
 /// [Names]
 #[derive(Debug, Clone)]
 pub struct Namen<'t> {
+    /// Präfix vor dem LangNamen.
+    ///
+    /// ## English
+    /// Prefix before the long name.
+    pub lang_präfix: Normalisiert<'t>,
+
     /// Vollständiger Name.
     ///
     /// ## English
     /// Full name.
     pub lang: NonEmpty<Normalisiert<'t>>,
+
+    /// Präfix vor dem KurzNamen.
+    ///
+    /// ## English
+    /// Prefix before the short name.
+    pub kurz_präfix: Normalisiert<'t>,
 
     /// Kurzform des Namen.
     ///
@@ -104,11 +116,11 @@ pub enum Fehler<'t, E> {
         /// All names of the flag argument.
         namen: Namen<'t>,
 
-        /// Präfix zum invertieren.
+        /// Präfix und folgendes Infix zum invertieren des Flag-Arguments.
         ///
         /// ## English
-        /// Prefix to invert the flag.
-        invertiere_präfix: Normalisiert<'t>,
+        /// Prefix an following infix to invert the flag argument.
+        invertiere_präfix_infix: Normalisiert<'t>,
     },
     /// Ein benötigtes Wert-Argument wurde nicht genannt.
     ///
@@ -120,6 +132,12 @@ pub enum Fehler<'t, E> {
         /// ## English
         /// All names of the value argument.
         namen: Namen<'t>,
+
+        /// Infix um einen Wert im selben Argument wie den Namen anzugeben.
+        ///
+        /// ## English
+        /// Infix to give a value in the same argument as the name.
+        wert_infix: Normalisiert<'t>,
 
         /// Verwendete Meta-Variable für den Wert.
         ///
@@ -137,6 +155,12 @@ pub enum Fehler<'t, E> {
         /// ## English
         /// All names of the value argument.
         namen: Namen<'t>,
+
+        /// Infix um einen Wert im selben Argument wie den Namen anzugeben.
+        ///
+        /// ## English
+        /// Infix to give a value in the same argument as the name.
+        wert_infix: Normalisiert<'t>,
 
         /// Verwendete Meta-Variable für den Wert.
         ///
@@ -256,49 +280,55 @@ impl<E: Display> Fehler<'_, E> {
     ) -> String {
         fn fehlermeldung(
             fehler_beschreibung: &str,
-            Namen { lang, kurz }: &Namen<'_>,
-            invertiere_präfix_oder_meta_var: Either<&Normalisiert<'_>, &str>,
+            Namen { lang_präfix, lang, kurz_präfix, kurz }: &Namen<'_>,
+            flag_oder_wert: Either<&Normalisiert<'_>, (&Normalisiert<'_>, &str)>,
         ) -> String {
-            let mut fehlermeldung = format!("{}: ", fehler_beschreibung);
-            fehlermeldung.push_str("--");
-            match invertiere_präfix_oder_meta_var {
-                Either::Left(invertiere_präfix) => {
+            let mut fehlermeldung = format!("{fehler_beschreibung}: ");
+            fehlermeldung.push_str(lang_präfix.as_ref());
+            match flag_oder_wert {
+                Either::Left(invertiere_präfix_infix) => {
                     fehlermeldung.push('[');
-                    fehlermeldung.push_str(invertiere_präfix.as_ref());
-                    fehlermeldung.push_str("-]");
+                    fehlermeldung.push_str(invertiere_präfix_infix.as_ref());
+                    fehlermeldung.push(']');
                     namen_regex_hinzufügen(&mut fehlermeldung, &lang.head, &lang.tail);
                 },
-                Either::Right(meta_var) => {
+                Either::Right((wert_infix, meta_var)) => {
                     namen_regex_hinzufügen(&mut fehlermeldung, &lang.head, &lang.tail);
-                    fehlermeldung.push_str("( |=)");
+                    fehlermeldung.push_str("( |");
+                    fehlermeldung.push_str(wert_infix.as_ref());
+                    fehlermeldung.push(')');
                     fehlermeldung.push_str(meta_var);
                 },
             }
             if let Some((head, tail)) = kurz.split_first() {
-                fehlermeldung.push_str(" | -");
+                fehlermeldung.push_str(" | ");
+                fehlermeldung.push_str(kurz_präfix.as_ref());
                 namen_regex_hinzufügen(&mut fehlermeldung, head, tail);
-                if let Either::Right(meta_var) = invertiere_präfix_oder_meta_var {
-                    fehlermeldung.push_str("[ |=]");
+                if let Either::Right((wert_infix, meta_var)) = flag_oder_wert {
+                    fehlermeldung.push_str("[ |");
+                    fehlermeldung.push_str(wert_infix.as_ref());
+                    fehlermeldung.push(']');
                     fehlermeldung.push_str(meta_var);
                 }
             }
             fehlermeldung
         }
         match self {
-            Fehler::FehlendeFlag { namen, invertiere_präfix } => {
-                fehlermeldung(fehlende_flag, namen, Either::Left(invertiere_präfix))
+            Fehler::FehlendeFlag { namen, invertiere_präfix_infix } => {
+                fehlermeldung(fehlende_flag, namen, Either::Left(invertiere_präfix_infix))
             },
-            Fehler::FehlenderWert { namen, meta_var } => {
-                fehlermeldung(fehlender_wert, namen, Either::Right(meta_var))
+            Fehler::FehlenderWert { namen, wert_infix, meta_var } => {
+                fehlermeldung(fehlender_wert, namen, Either::Right((wert_infix, meta_var)))
             },
-            Fehler::Fehler { namen, meta_var, fehler } => {
+            Fehler::Fehler { namen, wert_infix, meta_var, fehler } => {
                 let (fehler_art, fehler_anzeige) = match fehler {
                     ParseFehler::InvaliderString(os_string) => {
                         (invalider_string, format!("{:?}", os_string))
                     },
                     ParseFehler::ParseFehler(fehler) => (parse_fehler, fehler.to_string()),
                 };
-                let mut fehlermeldung = fehlermeldung(fehler_art, namen, Either::Right(meta_var));
+                let mut fehlermeldung =
+                    fehlermeldung(fehler_art, namen, Either::Right((wert_infix, meta_var)));
                 fehlermeldung.push('\n');
                 fehlermeldung.push_str(&fehler_anzeige);
                 fehlermeldung
