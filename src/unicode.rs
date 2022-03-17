@@ -203,6 +203,8 @@ impl Vergleich<'_> {
         &self,
         string: impl Into<Normalisiert<'t>>,
     ) -> Option<Graphemes<'t>> {
+        // FIXME ß kann mit SS verglichen werden,
+        // Anzahl an Graphemes ist demnach nicht ausreichend spezifisch!
         let normalisiert = string.into();
         let lang_graphemes = self.string.as_ref().graphemes(true);
         let lang_länge = lang_graphemes.clone().count();
