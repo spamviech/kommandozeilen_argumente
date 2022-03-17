@@ -125,3 +125,66 @@ impl From<Case> for bool {
         input == Case::Sensitive
     }
 }
+
+/// Normalisierter Unicode-String, sowie ob dieser unter berücksichtigen von
+/// Groß-/Kleinschreibung verglichen werden soll.
+///
+/// ## English synonym
+/// [Compare]
+#[derive(Debug, Clone)]
+pub struct Vergleich<'t> {
+    pub string: Normalisiert<'t>,
+    pub case: Case,
+}
+
+macro_rules! impl_ziel_string_from {
+    ($type: ty) => {
+        #[allow(single_use_lifetimes)]
+        impl<'t> From<$type> for Vergleich<'t> {
+            fn from(input: $type) -> Self {
+                Vergleich { string: Normalisiert::neu(input), case: Case::Sensitive }
+            }
+        }
+
+        #[allow(single_use_lifetimes)]
+        impl<'t> From<($type, Case)> for Vergleich<'t> {
+            fn from((s, case): ($type, Case)) -> Self {
+                Vergleich { string: Normalisiert::neu(s), case }
+            }
+        }
+    };
+}
+
+impl_ziel_string_from! {String}
+impl_ziel_string_from! {&'t str}
+
+impl<'t> From<Normalisiert<'t>> for Vergleich<'t> {
+    fn from(input: Normalisiert<'t>) -> Self {
+        Vergleich { string: input, case: Case::Sensitive }
+    }
+}
+
+impl<'t> From<(Normalisiert<'t>, Case)> for Vergleich<'t> {
+    fn from((string, case): (Normalisiert<'t>, Case)) -> Self {
+        Vergleich { string, case }
+    }
+}
+
+/// Normalized unicode string, as well as if it should be compared in a case-(in)sensitive way.
+///
+/// ## Deutsches Synonym
+/// [Vergleich]
+pub type Compare<'t> = Vergleich<'t>;
+
+impl Vergleich<'_> {
+    /// Überprüfe ob zwei Strings nach Unicode Normalisierung identisch sind,
+    /// optional [ohne Groß-/Kleinschreibung zu beachten](unicase::eq).
+    ///
+    /// ## English
+    /// Check whether two Strings are identical after unicode normalization,
+    /// optionally in a [case-insensitive way](unicase::eq).
+    pub fn eq(&self, gesucht: &str) -> bool {
+        let Vergleich { string, case } = self;
+        string.eq(gesucht, *case)
+    }
+}
