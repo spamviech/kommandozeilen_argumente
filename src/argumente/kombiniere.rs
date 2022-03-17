@@ -1,5 +1,7 @@
 //! Kombiniere mehrere [Argumente] zu einem neuen, basierend auf einer Funktion.
 
+use std::collections::HashMap;
+
 use nonempty::NonEmpty;
 
 use crate::{argumente::Argumente, ergebnis::Ergebnis};
@@ -121,8 +123,12 @@ macro_rules! impl_kombiniere_n {
         ) -> Argumente<'t, T, Error> {
             let mut konfigurationen = Vec :: new();
             $(konfigurationen.extend($var.konfigurationen);)+
-            let mut flag_kurzformen = Vec::new();
-            $(flag_kurzformen.extend($var.flag_kurzformen);)+
+            let mut flag_kurzformen = HashMap::new();
+            $(
+                for (präfix, kurz_namen) in $var.flag_kurzformen {
+                    flag_kurzformen.entry(präfix).or_insert(Vec::new()).extend(kurz_namen);
+                }
+            )+
             Argumente {
                 konfigurationen,
                 flag_kurzformen,
@@ -183,7 +189,7 @@ impl<'t, T, Error: 't> Argumente<'t, T, Error> {
     pub fn konstant(f: impl 't + Fn() -> T) -> Argumente<'t, T, Error> {
         Argumente {
             konfigurationen: Vec::new(),
-            flag_kurzformen: Vec::new(),
+            flag_kurzformen: HashMap::new(),
             parse: Box::new(move |args| (Ergebnis::Wert(f()), args)),
         }
     }
