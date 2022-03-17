@@ -1,11 +1,6 @@
 //! Flag-Argumente.
 
-use std::{
-    convert::{identity, AsRef},
-    ffi::OsStr,
-    fmt::Display,
-    iter,
-};
+use std::{convert::identity, ffi::OsStr, fmt::Display, iter};
 
 use itertools::Itertools;
 use nonempty::NonEmpty;
@@ -149,15 +144,13 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
             iter::once((beschreibung.kurz_präfix.clone(), beschreibung.kurz.clone())).collect();
         let invertiere_präfix_vergleich = invertiere_präfix.into();
         let invertiere_infix_vergleich = invertiere_infix.into();
-        let invertiere_präfix_str = invertiere_präfix_vergleich.string.as_ref();
-        let invertiere_infix_str = invertiere_infix_vergleich.string.as_ref();
         let (beschreibung, standard) = beschreibung.als_string_beschreibung();
         Argumente {
             konfigurationen: vec![Konfiguration::Flag {
                 beschreibung,
                 invertiere_präfix_infix: Some((
-                    invertiere_präfix_vergleich,
-                    invertiere_infix_vergleich,
+                    invertiere_präfix_vergleich.clone(),
+                    invertiere_infix_vergleich.clone(),
                 )),
             }],
             flag_kurzformen,

@@ -174,6 +174,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         let name_lang = beschreibung.lang.clone();
         let name_kurz_präfix = beschreibung.kurz_präfix.clone();
         let name_kurz = beschreibung.kurz.clone();
+        let wert_infix_vergleich = wert_infix.into();
         let Argumente { parse, .. } = T::argumente(
             Beschreibung::neu(
                 name_lang_präfix,
@@ -185,7 +186,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
             ),
             invertiere_präfix,
             invertiere_infix,
-            wert_infix,
+            wert_infix_vergleich.clone(),
             meta_var,
         );
         let (beschreibung_string, option_standard) = beschreibung
@@ -232,7 +233,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
             konfigurationen: vec![Konfiguration::Wert {
                 beschreibung: beschreibung_string,
                 meta_var,
-                wert_infix: wert_infix.into(),
+                wert_infix: wert_infix_vergleich,
                 mögliche_werte: None,
             }],
             flag_kurzformen: HashMap::new(),

@@ -301,7 +301,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         Argumente {
             konfigurationen: vec![Konfiguration::Wert {
                 beschreibung,
-                wert_infix: wert_infix_vergleich,
+                wert_infix: wert_infix_vergleich.clone(),
                 meta_var,
                 mögliche_werte: mögliche_werte
                     .and_then(|werte| NonEmpty::from_vec(werte.iter().map(anzeige).collect())),
