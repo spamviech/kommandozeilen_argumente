@@ -15,7 +15,7 @@ use crate::{
     beschreibung::{contains_str, Beschreibung, Description, Konfiguration},
     ergebnis::{Ergebnis, Fehler},
     sprache::{Language, Sprache},
-    unicode::Normalisiert,
+    unicode::{Normalisiert, Vergleich},
 };
 
 impl<'t, E> Argumente<'t, bool, E> {
@@ -46,7 +46,7 @@ impl<'t, E> Argumente<'t, bool, E> {
         beschreibung: Beschreibung<'t, bool>,
         sprache: Sprache,
     ) -> Argumente<'t, bool, E> {
-        Argumente::flag_bool(beschreibung, sprache.invertiere_präfix)
+        Argumente::flag_bool(beschreibung, sprache.invertiere_präfix, sprache.invertiere_infix)
     }
 
     /// Create a flag-argument which can be deactivated with the configured prefix.
@@ -68,9 +68,10 @@ impl<'t, E> Argumente<'t, bool, E> {
     #[inline(always)]
     pub fn flag_bool(
         beschreibung: Beschreibung<'t, bool>,
-        invertiere_präfix: &'t str,
+        invertiere_präfix: impl Into<Vergleich<'t>>,
+        invertiere_infix: impl Into<Vergleich<'t>>,
     ) -> Argumente<'t, bool, E> {
-        Argumente::flag(beschreibung, identity, invertiere_präfix)
+        Argumente::flag(beschreibung, identity, invertiere_präfix, invertiere_infix)
     }
 }
 
@@ -109,7 +110,12 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
         konvertiere: impl 't + Fn(bool) -> T,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
-        Argumente::flag(beschreibung, konvertiere, sprache.invertiere_präfix)
+        Argumente::flag(
+            beschreibung,
+            konvertiere,
+            sprache.invertiere_präfix,
+            sprache.invertiere_infix,
+        )
     }
 
     /// Create a flag-argument which can be deactivated with a "no" prefix.
@@ -132,7 +138,8 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
     pub fn flag(
         beschreibung: Beschreibung<'t, T>,
         konvertiere: impl 't + Fn(bool) -> T,
-        invertiere_präfix: &'t str,
+        invertiere_präfix: impl Into<Vergleich<'t>>,
+        invertiere_infix: impl Into<Vergleich<'t>>,
     ) -> Argumente<'t, T, E> {
         let name_kurz = beschreibung.kurz.clone();
         let flag_kurzformen = beschreibung.kurz.clone();

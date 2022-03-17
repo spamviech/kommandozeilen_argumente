@@ -350,7 +350,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                         continue;
                     } else if let Some(string) = arg.and_then(OsStr::to_str) {
                         if let Some(lang) = name_lang_präfix.strip_als_präfix(string) {
-                            let suffixe = contains_prefix(name_lang.iter(), lang.as_str());
+                            let suffixe = contains_prefix(&name_lang, lang.as_str());
                             for suffix in suffixe {
                                 let suffix_str = suffix.as_str();
                                 if suffix_str.is_empty() {
@@ -369,7 +369,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                             if let Some(mut kurz) = name_kurz_präfix.strip_als_präfix(string) {
                                 if kurz
                                     .next()
-                                    .map(|name| contains_str(name_kurz.iter(), name))
+                                    .map(|name| contains_str(&name_kurz, name))
                                     .unwrap_or(false)
                                 {
                                     let rest = kurz.as_str();

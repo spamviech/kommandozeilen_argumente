@@ -192,8 +192,13 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
         version: &str,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
-        let beschreibung =
-            Beschreibung::neu(lang_namen, kurz_namen, Some(sprache.version_beschreibung), None);
+        let beschreibung = Beschreibung::neu_mit_sprache(
+            lang_namen,
+            kurz_namen,
+            Some(sprache.version_beschreibung),
+            None,
+            sprache,
+        );
         self.zeige_version(beschreibung, programm_name, version)
     }
 
@@ -354,8 +359,13 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
         version: Option<&str>,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
-        let beschreibung =
-            Beschreibung::neu(lang_namen, kurz_namen, Some(sprache.hilfe_beschreibung), None);
+        let beschreibung = Beschreibung::neu_mit_sprache(
+            lang_namen,
+            kurz_namen,
+            Some(sprache.hilfe_beschreibung),
+            None,
+            sprache,
+        );
         self.erstelle_hilfe_mit_sprache(beschreibung, programm_name, version, sprache)
     }
 

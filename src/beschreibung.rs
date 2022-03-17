@@ -3,7 +3,7 @@
 use std::{convert::AsRef, fmt::Display};
 
 use nonempty::NonEmpty;
-use unicode_segmentation::{GraphemeCursor, Graphemes};
+use unicode_segmentation::Graphemes;
 
 use crate::{
     sprache::{Language, Sprache},
@@ -113,17 +113,17 @@ impl<'t, T> Beschreibung<'t, T> {
 }
 
 pub(crate) fn contains_str<'t>(
-    iter: impl Iterator<Item = &'t Vergleich<'t>>,
+    collection: impl IntoIterator<Item = &'t Vergleich<'t>>,
     gesucht: &str,
 ) -> bool {
-    iter.any(|ziel| ziel.eq(gesucht))
+    collection.into_iter().any(|ziel| ziel.eq(gesucht))
 }
 
 pub(crate) fn contains_prefix<'t>(
-    iter: impl 't + Iterator<Item = &'t Vergleich<'t>>,
+    collection: impl 't + IntoIterator<Item = &'t Vergleich<'t>>,
     input: &'t str,
 ) -> impl 't + Iterator<Item = Graphemes<'t>> {
-    iter.filter_map(move |ziel| ziel.strip_als_präfix(input))
+    collection.into_iter().filter_map(move |ziel| ziel.strip_als_präfix(input))
 }
 
 /// Mindestens ein String als Definition für den vollen Namen.
