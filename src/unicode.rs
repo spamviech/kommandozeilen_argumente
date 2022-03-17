@@ -4,6 +4,7 @@ use std::{borrow::Cow, convert::AsRef};
 
 use cjk::is_cjkish_codepoint;
 use unicode_normalization::{is_nfc_quick, IsNormalized, UnicodeNormalization};
+use unicode_segmentation::{Graphemes, UnicodeSegmentation};
 
 /// Ein normalisierter Unicode String.
 ///
@@ -186,5 +187,28 @@ impl Vergleich<'_> {
     pub fn eq(&self, gesucht: &str) -> bool {
         let Vergleich { string, case } = self;
         string.eq(gesucht, *case)
+    }
+
+    /// Versuche einen String vom Anfang des anderen Strings zu entfernen.
+    pub(crate) fn strip_als_präfix<'t>(
+        &self,
+        string: impl Into<Normalisiert<'t>>,
+    ) -> Option<Graphemes<'t>> {
+        let normalisiert = string.into();
+        let lang_graphemes = self.string.as_ref().graphemes(true);
+        let lang_länge = lang_graphemes.clone().count();
+        let mut string_graphemes = normalisiert.as_ref().graphemes(true);
+        let string_präfix: String = string_graphemes.clone().take(lang_länge).collect();
+        if self.eq(&string_präfix) {
+            // Bei leerem Präfix muss nichts übersprungen werden
+            if lang_länge > 0 {
+                // Verwende [Iterator::nth] anstelle von [Iterator::skip],
+                // damit [Graphemes::as_str] weiterhin verwendet werden kann.
+                string_graphemes.nth(lang_länge - 1)?;
+            }
+            Some(string_graphemes)
+        } else {
+            None
+        }
     }
 }
