@@ -9,7 +9,7 @@ use crate::{
     beschreibung::{contains_prefix, contains_str, Beschreibung, Description, Konfiguration},
     ergebnis::{Ergebnis, Fehler, Namen, ParseError, ParseFehler},
     sprache::{Language, Sprache},
-    unicode::{Compare, Vergleich},
+    unicode::{Compare, Normalisiert, Vergleich},
 };
 
 #[cfg(any(feature = "derive", all(doc, not(doctest))))]
@@ -349,16 +349,23 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                         nicht_verwendet.push(None);
                         continue;
                     } else if let Some(string) = arg.and_then(OsStr::to_str) {
-                        if let Some(lang) = name_lang_präfix.strip_als_präfix(string) {
-                            let suffixe = contains_prefix(&name_lang, lang.as_str());
+                        // TODO Problem ist bei Aufruf von parse_auswerten,
+                        // evtl. mach es Sinn das auf Cow-Argument zu konvertieren
+                        let normalisiert = Normalisiert::neu(string);
+                        if let Some(lang) = name_lang_präfix.strip_als_präfix(&normalisiert) {
+                            let lang_normalisiert =
+                                Normalisiert::neu_borrowed_unchecked(lang.as_str());
+                            let suffixe = contains_prefix(&name_lang, &lang_normalisiert);
                             for suffix in suffixe {
                                 let suffix_str = suffix.as_str();
+                                let suffix_normalisiert =
+                                    Normalisiert::neu_borrowed_unchecked(suffix_str);
                                 if suffix_str.is_empty() {
                                     name_ohne_wert = true;
                                     nicht_verwendet.push(None);
                                     continue 'args;
                                 } else if let Some(wert_graphemes) =
-                                    wert_infix_vergleich.strip_als_präfix(suffix_str)
+                                    wert_infix_vergleich.strip_als_präfix(&suffix_normalisiert)
                                 {
                                     parse_auswerten(Some(wert_graphemes.as_str().as_ref()));
                                     nicht_verwendet.push(None);
@@ -366,15 +373,19 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                                 }
                             }
                         } else if name_kurz_existiert {
-                            if let Some(mut kurz) = name_kurz_präfix.strip_als_präfix(string) {
+                            if let Some(mut kurz) =
+                                name_kurz_präfix.strip_als_präfix(&normalisiert)
+                            {
                                 if kurz
                                     .next()
                                     .map(|name| contains_str(&name_kurz, name))
                                     .unwrap_or(false)
                                 {
                                     let rest = kurz.as_str();
+                                    let kurz_normalisiert =
+                                        Normalisiert::neu_borrowed_unchecked(rest);
                                     let wert_str = if let Some(wert_graphemes) =
-                                        wert_infix_vergleich.strip_als_präfix(rest)
+                                        wert_infix_vergleich.strip_als_präfix(&kurz_normalisiert)
                                     {
                                         wert_graphemes.as_str()
                                     } else if !rest.is_empty() {

@@ -15,7 +15,7 @@ use crate::{
     beschreibung::{Configuration, Konfiguration},
     ergebnis::{Ergebnis, Error, Fehler, Result},
     sprache::{Language, Sprache},
-    unicode::Vergleich,
+    unicode::{Normalisiert, Vergleich},
 };
 
 pub(crate) mod flag;
@@ -466,7 +466,9 @@ impl<'t, T, E> Argumente<'t, T, E> {
         let ersetze_verschmolzene_kurzformen = |arg: OsString| -> Vec<OsString> {
             if let Some(string) = arg.to_str() {
                 for (prefix, kurzformen) in flag_kurzformen.iter() {
-                    if let Some(kurz_graphemes) = prefix.strip_als_präfix(string) {
+                    if let Some(kurz_graphemes) =
+                        prefix.strip_als_präfix(&Normalisiert::neu(string))
+                    {
                         let präfix_str = prefix.string.as_ref();
                         let mut gefundene_kurzformen = Vec::new();
                         for grapheme in kurz_graphemes {

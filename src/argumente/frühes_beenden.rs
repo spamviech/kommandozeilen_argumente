@@ -19,7 +19,7 @@ use crate::{
     beschreibung::{contains_str, Beschreibung, Description, Konfiguration, KurzNamen, LangNamen},
     ergebnis::{namen_regex_hinzufügen, Ergebnis},
     sprache::{Language, Sprache},
-    unicode::Vergleich,
+    unicode::{Normalisiert, Vergleich},
 };
 
 // TODO benenne [Argumente::konfigurationen], [Arguments::configurations] um eigene Hilfe zu erzeugen.
@@ -774,14 +774,18 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
                 let mut zeige_nachricht = || nachrichten.push(nachricht_cow.clone());
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
-                        if let Some(lang_graphemes) = name_lang_präfix.strip_als_präfix(string) {
+                        let normalisiert = Normalisiert::neu(string);
+                        if let Some(lang_graphemes) =
+                            name_lang_präfix.strip_als_präfix(&normalisiert)
+                        {
                             if contains_str(&name_lang, lang_graphemes.as_str()) {
                                 zeige_nachricht();
                                 nicht_selbst_verwendet.push(None);
                                 continue;
                             }
                         } else if name_kurz_existiert {
-                            if let Some(kurz_graphemes) = name_kurz_präfix.strip_als_präfix(string)
+                            if let Some(kurz_graphemes) =
+                                name_kurz_präfix.strip_als_präfix(&normalisiert)
                             {
                                 if kurz_graphemes
                                     .exactly_one()

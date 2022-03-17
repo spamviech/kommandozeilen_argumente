@@ -91,6 +91,10 @@ impl<'t> Normalisiert<'t> {
             Case::Insensitive => unicase::eq(self, &normalisiert),
         }
     }
+
+    pub(crate) fn neu_borrowed_unchecked(s: &'t str) -> Normalisiert<'t> {
+        Normalisiert(Cow::Borrowed(s))
+    }
 }
 
 /// Wird Groß-/Kleinschreibung beachtet?
@@ -201,14 +205,16 @@ impl Vergleich<'_> {
     /// Versuche einen String vom Anfang des anderen Strings zu entfernen.
     pub(crate) fn strip_als_präfix<'t>(
         &self,
-        string: impl Into<Normalisiert<'t>>,
+        string: &'t Normalisiert<'t>,
     ) -> Option<Graphemes<'t>> {
+        let graphemes = string.as_ref().graphemes(true);
+        let string_länge = graphemes.clone().count();
+        let mut präfixe = todo!();
         // FIXME ß kann mit SS verglichen werden,
         // Anzahl an Graphemes ist demnach nicht ausreichend spezifisch!
-        let normalisiert = string.into();
         let lang_graphemes = self.string.as_ref().graphemes(true);
         let lang_länge = lang_graphemes.clone().count();
-        let mut string_graphemes = normalisiert.as_ref().graphemes(true);
+        let mut string_graphemes = string.as_ref().graphemes(true);
         let string_präfix: String = string_graphemes.clone().take(lang_länge).collect();
         if self.eq(&string_präfix) {
             // Bei leerem Präfix muss nichts übersprungen werden

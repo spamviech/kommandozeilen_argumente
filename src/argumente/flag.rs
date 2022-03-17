@@ -10,7 +10,7 @@ use crate::{
     beschreibung::{contains_str, Beschreibung, Description, Konfiguration},
     ergebnis::{Ergebnis, Fehler, Namen},
     sprache::{Language, Sprache},
-    unicode::Vergleich,
+    unicode::{Normalisiert, Vergleich},
 };
 
 impl<'t, E> Argumente<'t, bool, E> {
@@ -160,25 +160,33 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
                 let mut nicht_verwendet = Vec::new();
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
-                        if let Some(lang_graphemes) = name_lang_präfix.strip_als_präfix(string) {
-                            if contains_str(&name_lang, lang_graphemes.as_str()) {
+                        let normalisiert = Normalisiert::neu(string);
+                        if let Some(lang_graphemes) =
+                            name_lang_präfix.strip_als_präfix(&normalisiert)
+                        {
+                            let lang_str = lang_graphemes.as_str();
+                            if contains_str(&name_lang, lang_str) {
                                 ergebnis = Some(konvertiere(true));
                                 nicht_verwendet.push(None);
                                 continue;
-                            } else if let Some(negiert) = invertiere_präfix_vergleich
-                                .strip_als_präfix(lang_graphemes.as_str())
-                                .and_then(|graphemes| {
-                                    invertiere_infix_vergleich.strip_als_präfix(graphemes.as_str())
-                                })
+                            } else if let Some(infix_name) = invertiere_präfix_vergleich
+                                .strip_als_präfix(&Normalisiert::neu_borrowed_unchecked(lang_str))
                             {
-                                if contains_str(&name_lang, negiert.as_str()) {
-                                    ergebnis = Some(konvertiere(false));
-                                    nicht_verwendet.push(None);
-                                    continue;
+                                let infix_name_normalisiert =
+                                    Normalisiert::neu_borrowed_unchecked(infix_name.as_str());
+                                if let Some(negiert) = invertiere_infix_vergleich
+                                    .strip_als_präfix(&infix_name_normalisiert)
+                                {
+                                    if contains_str(&name_lang, negiert.as_str()) {
+                                        ergebnis = Some(konvertiere(false));
+                                        nicht_verwendet.push(None);
+                                        continue;
+                                    }
                                 }
                             }
                         } else if name_kurz_existiert {
-                            if let Some(kurz_graphemes) = name_kurz_präfix.strip_als_präfix(string)
+                            if let Some(kurz_graphemes) =
+                                name_kurz_präfix.strip_als_präfix(&normalisiert)
                             {
                                 if kurz_graphemes
                                     .exactly_one()
