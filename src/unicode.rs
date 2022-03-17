@@ -19,6 +19,7 @@ use unicode_segmentation::{Graphemes, UnicodeSegmentation};
 pub struct Normalisiert<'t>(Cow<'t, str>);
 
 impl AsRef<str> for Normalisiert<'_> {
+    #[inline(always)]
     fn as_ref(&self) -> &str {
         self.0.as_ref()
     }
@@ -139,7 +140,7 @@ pub struct Vergleich<'t> {
     pub case: Case,
 }
 
-macro_rules! impl_ziel_string_from {
+macro_rules! impl_vergleich_from {
     ($type: ty) => {
         #[allow(single_use_lifetimes)]
         impl<'t> From<$type> for Vergleich<'t> {
@@ -157,8 +158,8 @@ macro_rules! impl_ziel_string_from {
     };
 }
 
-impl_ziel_string_from! {String}
-impl_ziel_string_from! {&'t str}
+impl_vergleich_from! {String}
+impl_vergleich_from! {&'t str}
 
 impl<'t> From<Normalisiert<'t>> for Vergleich<'t> {
     fn from(input: Normalisiert<'t>) -> Self {
@@ -169,6 +170,13 @@ impl<'t> From<Normalisiert<'t>> for Vergleich<'t> {
 impl<'t> From<(Normalisiert<'t>, Case)> for Vergleich<'t> {
     fn from((string, case): (Normalisiert<'t>, Case)) -> Self {
         Vergleich { string, case }
+    }
+}
+
+impl AsRef<str> for Vergleich<'_> {
+    #[inline(always)]
+    fn as_ref(&self) -> &str {
+        self.string.as_ref()
     }
 }
 

@@ -287,14 +287,18 @@ impl<E: Display> Fehler<'_, E> {
         fn fehlermeldung(
             fehler_beschreibung: &str,
             Namen { lang_präfix, lang, kurz_präfix, kurz }: &Namen<'_>,
-            flag_oder_wert: Either<&Normalisiert<'_>, (&Normalisiert<'_>, &str)>,
+            flag_oder_wert: Either<
+                (&Normalisiert<'_>, &Normalisiert<'_>),
+                (&Normalisiert<'_>, &str),
+            >,
         ) -> String {
             let mut fehlermeldung = format!("{fehler_beschreibung}: ");
             fehlermeldung.push_str(lang_präfix.as_ref());
             match flag_oder_wert {
-                Either::Left(invertiere_präfix_infix) => {
+                Either::Left((invertiere_präfix, invertiere_infix)) => {
                     fehlermeldung.push('[');
-                    fehlermeldung.push_str(invertiere_präfix_infix.as_ref());
+                    fehlermeldung.push_str(invertiere_präfix.as_ref());
+                    fehlermeldung.push_str(invertiere_infix.as_ref());
                     fehlermeldung.push(']');
                     namen_regex_hinzufügen(&mut fehlermeldung, &lang.head, &lang.tail);
                 },
@@ -320,9 +324,11 @@ impl<E: Display> Fehler<'_, E> {
             fehlermeldung
         }
         match self {
-            Fehler::FehlendeFlag { namen, invertiere_präfix_infix } => {
-                fehlermeldung(fehlende_flag, namen, Either::Left(invertiere_präfix_infix))
-            },
+            Fehler::FehlendeFlag { namen, invertiere_präfix, invertiere_infix } => fehlermeldung(
+                fehlende_flag,
+                namen,
+                Either::Left((invertiere_präfix, invertiere_infix)),
+            ),
             Fehler::FehlenderWert { namen, wert_infix, meta_var } => {
                 fehlermeldung(fehlender_wert, namen, Either::Right((wert_infix, meta_var)))
             },

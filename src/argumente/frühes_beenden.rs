@@ -19,7 +19,7 @@ use crate::{
     beschreibung::{contains_str, Beschreibung, Description, Konfiguration, KurzNamen, LangNamen},
     ergebnis::{namen_regex_hinzufügen, Ergebnis},
     sprache::{Language, Sprache},
-    unicode::Normalisiert,
+    unicode::Vergleich,
 };
 
 // TODO benenne [Argumente::konfigurationen], [Arguments::configurations] um eigene Hilfe zu erzeugen.
@@ -588,25 +588,28 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
         let mut hilfe_text = format!("{}\n\n{} [{}]\n\n{}:\n", name, exe_name, optionen, optionen);
         let eigener_arg_string = eigene_beschreibung.map(|beschreibung| Konfiguration::Flag {
             beschreibung: beschreibung.clone().als_string_beschreibung().0,
-            invertiere_präfix: None,
+            invertiere_präfix_infix: None,
         });
         fn lang_regex(
-            lang_namen: &NonEmpty<Normalisiert<'_>>,
-            invertiere_präfix_oder_meta_var: Either<&Option<Normalisiert<'_>>, &str>,
+            lang_namen: &NonEmpty<Vergleich<'_>>,
+            flag_oder_wert: Either<&Option<(Vergleich<'_>, Vergleich<'_>)>, (&Vergleich<'_>, &str)>,
         ) -> String {
             let mut lang_regex = "--".to_owned();
-            match invertiere_präfix_oder_meta_var {
-                Either::Left(invertiere_präfix) => {
-                    if let Some(präfix) = invertiere_präfix {
+            match flag_oder_wert {
+                Either::Left(invertiere_präfix_infix) => {
+                    if let Some((präfix, infix)) = invertiere_präfix_infix {
                         lang_regex.push('[');
                         lang_regex.push_str(präfix.as_ref());
-                        lang_regex.push_str("]-");
+                        lang_regex.push(']');
+                        lang_regex.push_str(infix.as_ref());
                     }
                     namen_regex_hinzufügen(&mut lang_regex, &lang_namen.head, &lang_namen.tail);
                 },
-                Either::Right(meta_var) => {
+                Either::Right((wert_infix, meta_var)) => {
                     namen_regex_hinzufügen(&mut lang_regex, &lang_namen.head, &lang_namen.tail);
-                    lang_regex.push_str("(=| )");
+                    lang_regex.push('(');
+                    lang_regex.push_str(wert_infix.as_ref());
+                    lang_regex.push_str("| )");
                     lang_regex.push_str(meta_var);
                 },
             }
@@ -616,22 +619,22 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
         let mut max_lang_regex_breite = 0;
         let mut lang_regex_vec = Vec::new();
         for arg_string in self.konfigurationen().chain(eigener_arg_string.iter()) {
-            let (beschreibung, invertiere_präfix_oder_meta_var, mögliche_werte) = match arg_string {
-                Konfiguration::Flag { beschreibung, invertiere_präfix } => {
-                    (beschreibung, Either::Left(invertiere_präfix), &none)
+            let (beschreibung, flag_oder_wert, mögliche_werte) = match arg_string {
+                Konfiguration::Flag { beschreibung, invertiere_präfix_infix } => {
+                    (beschreibung, Either::Left(invertiere_präfix_infix), &none)
                 },
-                Konfiguration::Wert { beschreibung, meta_var, mögliche_werte } => {
-                    (beschreibung, Either::Right(*meta_var), mögliche_werte)
+                Konfiguration::Wert { beschreibung, wert_infix, meta_var, mögliche_werte } => {
+                    (beschreibung, Either::Right((wert_infix, *meta_var)), mögliche_werte)
                 },
             };
-            let lang_regex = lang_regex(&beschreibung.lang, invertiere_präfix_oder_meta_var);
+            let lang_regex = lang_regex(&beschreibung.lang, flag_oder_wert);
             let lang_regex_breite = lang_regex.graphemes(true).count();
             max_lang_regex_breite = max_lang_regex_breite.max(lang_regex_breite);
             lang_regex_vec.push((
                 lang_regex,
                 lang_regex_breite,
                 beschreibung,
-                invertiere_präfix_oder_meta_var,
+                flag_oder_wert,
                 mögliche_werte,
             ))
         }
@@ -639,37 +642,34 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
             max_lang_regex_breite: usize,
             mut name_regex: String,
             lang_regex_breite: usize,
-            kurz_namen: &Vec<Normalisiert<'_>>,
-            invertiere_präfix_oder_meta_var: Either<&Option<Normalisiert<'_>>, &str>,
+            kurz_namen: &Vec<Vergleich<'_>>,
+            flag_oder_wert: Either<&Option<(Vergleich<'_>, Vergleich<'_>)>, (&Vergleich<'_>, &str)>,
         ) -> String {
             if let Some((head, tail)) = kurz_namen.split_first() {
                 let einrücken = " ".repeat(max_lang_regex_breite - lang_regex_breite);
                 name_regex.push_str(&einrücken);
                 name_regex.push_str(" | -");
                 namen_regex_hinzufügen(&mut name_regex, head, tail);
-                if let Either::Right(meta_var) = invertiere_präfix_oder_meta_var {
-                    name_regex.push_str("[=| ]");
-                    name_regex.push_str(meta_var);
+                if let Either::Right((wert_infix, meta_var)) = flag_oder_wert {
+                    name_regex.push('[');
+                    name_regex.push_str(wert_infix.as_ref());
+                    name_regex.push_str("| ]");
+                    name_regex.push_str(meta_var.as_ref());
                 }
             }
             name_regex
         }
         let mut max_name_regex_breite = 0;
         let mut name_regex_vec = Vec::new();
-        for (
-            lang_regex,
-            lang_regex_breite,
-            beschreibung,
-            invertiere_präfix_oder_meta_var,
-            mögliche_werte,
-        ) in lang_regex_vec
+        for (lang_regex, lang_regex_breite, beschreibung, flag_oder_wert, mögliche_werte) in
+            lang_regex_vec
         {
             let name_regex = kurz_regex_hinzufügen(
                 max_lang_regex_breite,
                 lang_regex,
                 lang_regex_breite,
                 &beschreibung.kurz,
-                invertiere_präfix_oder_meta_var,
+                flag_oder_wert,
             );
             let name_regex_breite = name_regex.graphemes(true).count();
             max_name_regex_breite = max_name_regex_breite.max(name_regex_breite);
@@ -750,17 +750,20 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
         nachricht: impl Into<Cow<'t, str>>,
     ) -> Argumente<'t, T, E> {
         let Argumente { mut konfigurationen, mut flag_kurzformen, parse } = self;
-        let name_kurz = beschreibung.kurz.clone();
+        let name_lang_präfix = beschreibung.lang_präfix.clone();
         let name_lang = beschreibung.lang.clone();
+        let name_kurz_präfix = beschreibung.kurz_präfix.clone();
+        let name_kurz = beschreibung.kurz.clone();
         let (beschreibung_string, _standard) = beschreibung.als_string_beschreibung();
-        flag_kurzformen.extend(beschreibung_string.kurz.iter().cloned());
+        flag_kurzformen
+            .entry(beschreibung_string.kurz_präfix.clone())
+            .or_insert(Vec::new())
+            .extend(beschreibung_string.kurz.iter().cloned());
         konfigurationen.push(Konfiguration::Flag {
             beschreibung: beschreibung_string,
-            invertiere_präfix: None,
+            invertiere_präfix_infix: None,
         });
         let nachricht_cow = nachricht.into();
-        // TODO
-        let case_sensitive = false;
         Argumente {
             konfigurationen,
             flag_kurzformen,
@@ -771,18 +774,18 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
                 let mut zeige_nachricht = || nachrichten.push(nachricht_cow.clone());
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
-                        if let Some(lang) = string.strip_prefix("--") {
-                            if contains_str!(&name_lang, lang, case_sensitive) {
+                        if let Some(lang_graphemes) = name_lang_präfix.strip_als_präfix(string) {
+                            if contains_str(&name_lang, lang_graphemes.as_str()) {
                                 zeige_nachricht();
                                 nicht_selbst_verwendet.push(None);
                                 continue;
                             }
                         } else if name_kurz_existiert {
-                            if let Some(kurz) = string.strip_prefix('-') {
-                                if kurz
-                                    .graphemes(true)
+                            if let Some(kurz_graphemes) = name_kurz_präfix.strip_als_präfix(string)
+                            {
+                                if kurz_graphemes
                                     .exactly_one()
-                                    .map(|name| contains_str!(&name_kurz, name, case_sensitive))
+                                    .map(|name| contains_str(&name_kurz, name))
                                     .unwrap_or(false)
                                 {
                                     zeige_nachricht();
