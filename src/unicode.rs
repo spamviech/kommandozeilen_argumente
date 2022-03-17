@@ -14,7 +14,7 @@ use unicode_segmentation::{Graphemes, UnicodeSegmentation};
 ///
 /// ## English synonym
 /// [Normalized]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[allow(single_use_lifetimes)]
 pub struct Normalisiert<'t>(Cow<'t, str>);
 
@@ -96,7 +96,7 @@ impl<'t> Normalisiert<'t> {
 ///
 /// ## English
 /// Are both Strings compared respecting or ignoring case differences?
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Case {
     /// Beachte Groß-/Kleinschreibung: `"a" != "A"`
     ///
@@ -132,7 +132,8 @@ impl From<Case> for bool {
 ///
 /// ## English synonym
 /// [Compare]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[allow(single_use_lifetimes)]
 pub struct Vergleich<'t> {
     pub string: Normalisiert<'t>,
     pub case: Case,

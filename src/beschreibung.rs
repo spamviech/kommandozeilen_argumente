@@ -351,7 +351,7 @@ pub enum Konfiguration<'t> {
         /// ## English
         /// Prefix an following infix to invert the flag argument.
         /// The value is [None] if it is a flag causing an early exit.
-        invertiere_präfix_infix: Option<Vergleich<'t>>,
+        invertiere_präfix_infix: Option<(Vergleich<'t>, Vergleich<'t>)>,
     },
 
     /// Es handelt sich um ein Wert-Argument.

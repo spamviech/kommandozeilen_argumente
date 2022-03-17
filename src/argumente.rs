@@ -10,13 +10,12 @@ use std::{
 };
 
 use nonempty::NonEmpty;
-use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     beschreibung::{Configuration, Konfiguration},
     ergebnis::{Ergebnis, Error, Fehler, Result},
     sprache::{Language, Sprache},
-    unicode::{Normalisiert, Vergleich},
+    unicode::Vergleich,
 };
 
 pub(crate) mod flag;
@@ -59,7 +58,7 @@ pub use crate::{combine, kombiniere};
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<'t, T, E> {
     pub(crate) konfigurationen: Vec<Konfiguration<'t>>,
-    pub(crate) flag_kurzformen: HashMap<Normalisiert<'t>, Vec<Vergleich<'t>>>,
+    pub(crate) flag_kurzformen: HashMap<Vergleich<'t>, Vec<Vergleich<'t>>>,
     pub(crate) parse: Box<
         dyn 't + for<'s> Fn(Vec<Option<&'s OsStr>>) -> (Ergebnis<'t, T, E>, Vec<Option<&'s OsStr>>),
     >,
@@ -467,12 +466,12 @@ impl<'t, T, E> Argumente<'t, T, E> {
         let ersetze_verschmolzene_kurzformen = |arg: OsString| -> Vec<OsString> {
             if let Some(string) = arg.to_str() {
                 for (prefix, kurzformen) in flag_kurzformen.iter() {
-                    let prefix_str = prefix.as_ref();
-                    if let Some(kurz) = string.strip_prefix(prefix_str) {
+                    if let Some(kurz_graphemes) = prefix.strip_als_präfix(string) {
+                        let präfix_str = prefix.string.as_ref();
                         let mut gefundene_kurzformen = Vec::new();
-                        for grapheme in kurz.graphemes(true) {
+                        for grapheme in kurz_graphemes {
                             if kurzformen.iter().any(|vergleich| vergleich.eq(grapheme)) {
-                                gefundene_kurzformen.push(format!("{prefix_str}{grapheme}").into())
+                                gefundene_kurzformen.push(format!("{präfix_str}{grapheme}").into())
                             } else {
                                 return vec![arg];
                             }

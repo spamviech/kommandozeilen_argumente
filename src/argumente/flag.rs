@@ -1,9 +1,11 @@
 //! Flag-Argumente.
 
 use std::{
+    collections::HashMap,
     convert::{identity, AsRef},
     ffi::OsStr,
     fmt::Display,
+    iter,
 };
 
 use itertools::Itertools;
@@ -142,18 +144,22 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
         invertiere_infix: impl Into<Vergleich<'t>>,
     ) -> Argumente<'t, T, E> {
         let name_kurz = beschreibung.kurz.clone();
-        let flag_kurzformen = beschreibung.kurz.clone();
+        let flag_kurzformen =
+            iter::once((beschreibung.kurz_präfix.clone(), beschreibung.kurz.clone())).collect();
         let name_lang = beschreibung.lang.clone();
-        let invertiere_präfix_normalisiert = Normalisiert::neu(invertiere_präfix);
-        let invertiere_präfix_str = invertiere_präfix_normalisiert.as_ref();
-        let invertiere_präfix_minus = format!("{invertiere_präfix_str}-");
+        let invertiere_präfix_vergleich = invertiere_präfix.into();
+        let invertiere_infix_vergleich = invertiere_infix.into();
+        let invertiere_präfix_str = invertiere_präfix_vergleich.string.as_ref();
+        let invertiere_infix_str = invertiere_infix_vergleich.string.as_ref();
+        let invertiere_präfix_minus = format!("{invertiere_präfix_str}{invertiere_infix_str}");
         let (beschreibung, standard) = beschreibung.als_string_beschreibung();
-        // TODO
-        let case_sensitive = false;
         Argumente {
             konfigurationen: vec![Konfiguration::Flag {
                 beschreibung,
-                invertiere_präfix: Some(invertiere_präfix_normalisiert.clone()),
+                invertiere_präfix_infix: Some((
+                    invertiere_präfix_vergleich,
+                    invertiere_infix_vergleich,
+                )),
             }],
             flag_kurzformen,
             parse: Box::new(move |args| {
