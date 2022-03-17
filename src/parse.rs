@@ -203,7 +203,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
                 Box::new(move |fehler_sammlung| {
                     let mut fehler_iter =
                         fehler_sammlung.into_iter().filter_map(|fehler| match fehler {
-                            Fehler::FehlenderWert { namen, meta_var } => {
+                            Fehler::FehlenderWert { namen, wert_infix, meta_var } => {
                                 let passender_lang_name = namen.lang.iter().eq(name_lang
                                     .iter()
                                     .map(|Vergleich { string, case: _ }| string));
@@ -213,7 +213,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
                                 if passender_lang_name && passender_kurz_name {
                                     None
                                 } else {
-                                    Some(Fehler::FehlenderWert { namen, meta_var })
+                                    Some(Fehler::FehlenderWert { namen, wert_infix, meta_var })
                                 }
                             },
                             fehler => Some(fehler),

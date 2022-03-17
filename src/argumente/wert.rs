@@ -1,6 +1,6 @@
 //! Wert-Argumente.
 
-use std::{convert::AsRef, ffi::OsStr, fmt::Display, str::FromStr};
+use std::{collections::HashMap, convert::AsRef, ffi::OsStr, fmt::Display, str::FromStr};
 
 use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
@@ -8,8 +8,9 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::{
     argumente::{Argumente, Arguments},
     beschreibung::{contains_str, Beschreibung, Description, Konfiguration},
-    ergebnis::{Ergebnis, Fehler, ParseError, ParseFehler},
+    ergebnis::{Ergebnis, Fehler, Namen, ParseError, ParseFehler},
     sprache::{Language, Sprache},
+    unicode::{Compare, Normalisiert, Vergleich},
 };
 
 #[cfg(any(feature = "derive", all(doc, not(doctest))))]
@@ -28,7 +29,13 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
         parse: impl 't + Fn(&str) -> Result<T, E>,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
-        Argumente::wert_string_display(beschreibung, sprache.meta_var, mögliche_werte, parse)
+        Argumente::wert_string_display(
+            beschreibung,
+            sprache.wert_infix,
+            sprache.meta_var,
+            mögliche_werte,
+            parse,
+        )
     }
 
     /// Create a value-argument, based on the given `parse`-function.
@@ -52,11 +59,19 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
     #[inline(always)]
     pub fn wert_string_display(
         beschreibung: Beschreibung<'t, T>,
+        wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 't + Fn(&str) -> Result<T, E>,
     ) -> Argumente<'t, T, E> {
-        Argumente::wert_string(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
+        Argumente::wert_string(
+            beschreibung,
+            wert_infix,
+            meta_var,
+            mögliche_werte,
+            parse,
+            ToString::to_string,
+        )
     }
 
     /// Create a value-argument, based on the given `parse`-function.
@@ -66,11 +81,12 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
     #[inline(always)]
     pub fn value_string_display(
         description: Description<'t, T>,
+        value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
         possible_values: Option<NonEmpty<T>>,
         parse: impl 't + Fn(&str) -> Result<T, E>,
     ) -> Arguments<'t, T, E> {
-        Argumente::wert_string_display(description, meta_var, possible_values, parse)
+        Argumente::wert_string_display(description, value_infix, meta_var, possible_values, parse)
     }
 
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
@@ -84,7 +100,13 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
         parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
-        Argumente::wert_display(beschreibung, sprache.meta_var, mögliche_werte, parse)
+        Argumente::wert_display(
+            beschreibung,
+            sprache.wert_infix,
+            sprache.meta_var,
+            mögliche_werte,
+            parse,
+        )
     }
 
     /// Create a value-argument, based on the given `parse`-function.
@@ -108,11 +130,19 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
     #[inline(always)]
     pub fn wert_display(
         beschreibung: Beschreibung<'t, T>,
+        wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
     ) -> Argumente<'t, T, E> {
-        Argumente::wert(beschreibung, meta_var, mögliche_werte, parse, ToString::to_string)
+        Argumente::wert(
+            beschreibung,
+            wert_infix,
+            meta_var,
+            mögliche_werte,
+            parse,
+            ToString::to_string,
+        )
     }
 
     /// Create a Value-Argument, based on the given `parse`-function.
@@ -122,11 +152,12 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
     #[inline(always)]
     pub fn value_display(
         description: Description<'t, T>,
+        value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
         possible_values: Option<NonEmpty<T>>,
         parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
     ) -> Arguments<'t, T, E> {
-        Argumente::wert_display(description, meta_var, possible_values, parse)
+        Argumente::wert_display(description, value_infix, meta_var, possible_values, parse)
     }
 }
 
@@ -143,7 +174,14 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         anzeige: impl Fn(&T) -> String,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
-        Argumente::wert_string(beschreibung, sprache.meta_var, mögliche_werte, parse, anzeige)
+        Argumente::wert_string(
+            beschreibung,
+            sprache.wert_infix,
+            sprache.meta_var,
+            mögliche_werte,
+            parse,
+            anzeige,
+        )
     }
 
     /// Create a Value-Argument, based on the given `parse`-function.
@@ -168,6 +206,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     #[inline(always)]
     pub fn wert_string(
         beschreibung: Beschreibung<'t, T>,
+        wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 't + Fn(&str) -> Result<T, E>,
@@ -175,6 +214,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     ) -> Argumente<'t, T, E> {
         Argumente::wert(
             beschreibung,
+            wert_infix,
             meta_var,
             mögliche_werte,
             move |os_str| {
@@ -195,12 +235,13 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     #[inline(always)]
     pub fn value_string(
         description: Description<'t, T>,
+        value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
         possible_values: Option<NonEmpty<T>>,
         parse: impl 't + Fn(&str) -> Result<T, E>,
         display: impl Fn(&T) -> String,
     ) -> Arguments<'t, T, E> {
-        Argumente::wert_string(description, meta_var, possible_values, parse, display)
+        Argumente::wert_string(description, value_infix, meta_var, possible_values, parse, display)
     }
 
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
@@ -215,7 +256,14 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         anzeige: impl Fn(&T) -> String,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
-        Argumente::wert(beschreibung, sprache.meta_var, mögliche_werte, parse, anzeige)
+        Argumente::wert(
+            beschreibung,
+            sprache.wert_infix,
+            sprache.meta_var,
+            mögliche_werte,
+            parse,
+            anzeige,
+        )
     }
 
     /// Create a Value-Argument, based on the given `parse`-function.
@@ -239,28 +287,40 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     /// [value](Arguments::value)
     pub fn wert(
         beschreibung: Beschreibung<'t, T>,
+        wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
         parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
         anzeige: impl Fn(&T) -> String,
     ) -> Argumente<'t, T, E> {
-        let name_kurz = beschreibung.kurz.clone();
+        let name_lang_präfix = beschreibung.lang_präfix.clone();
         let name_lang = beschreibung.lang.clone();
+        let name_kurz_präfix = beschreibung.kurz_präfix.clone();
+        let name_kurz = beschreibung.kurz.clone();
         let (beschreibung, standard) = beschreibung.als_string_beschreibung_allgemein(&anzeige);
-        // TODO
-        let case_sensitive = false;
+        let wert_infix_vergleich = wert_infix.into();
         Argumente {
             konfigurationen: vec![Konfiguration::Wert {
                 beschreibung,
+                wert_infix: wert_infix_vergleich,
                 meta_var,
                 mögliche_werte: mögliche_werte
                     .and_then(|werte| NonEmpty::from_vec(werte.iter().map(anzeige).collect())),
             }],
-            flag_kurzformen: Vec::new(),
+            flag_kurzformen: HashMap::new(),
             parse: Box::new(move |args| {
+                let fehler_namen = || Namen {
+                    lang_präfix: name_lang_präfix.string.clone(),
+                    lang: name_lang.clone().map(|Vergleich { string, case: _ }| string),
+                    kurz_präfix: name_kurz_präfix.string.clone(),
+                    kurz: name_kurz
+                        .iter()
+                        .map(|Vergleich { string, case: _ }| string.clone())
+                        .collect(),
+                };
                 let fehler_kein_wert = || Fehler::FehlenderWert {
-                    lang: name_lang.clone(),
-                    kurz: name_kurz.clone(),
+                    namen: fehler_namen(),
+                    wert_infix: wert_infix_vergleich.string.clone(),
                     meta_var,
                 };
                 let name_kurz_existiert = !name_kurz.is_empty();
@@ -273,8 +333,8 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                         match parse(wert_os_str) {
                             Ok(wert) => ergebnis = Some(wert),
                             Err(parse_fehler) => fehler.push(Fehler::Fehler {
-                                lang: name_lang.clone(),
-                                kurz: name_kurz.clone(),
+                                namen: fehler_namen(),
+                                wert_infix: wert_infix_vergleich.string.clone(),
                                 meta_var,
                                 fehler: parse_fehler,
                             }),
@@ -289,23 +349,28 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                         name_ohne_wert = false;
                         continue;
                     } else if let Some(string) = arg.and_then(OsStr::to_str) {
+                        let normalisiert = Normalisiert::neu(string);
+                        // TODO verwende name_lang_präfix (berücksichtige Case-parameter!)
+                        // Graphemes::as_str, DoubleEndedIterator::next_back
                         if let Some(lang) = string.strip_prefix("--") {
+                            // TODO verwende wert_infix (berücksichtige Case-parameter!)
                             if let Some((name, wert_str)) = lang.split_once('=') {
-                                if contains_str!(&name_lang, name, case_sensitive) {
+                                if contains_str(name_lang.iter(), name) {
                                     parse_auswerten(Some(wert_str.as_ref()));
                                     continue;
                                 }
-                            } else if contains_str!(&name_lang, lang, case_sensitive) {
+                            } else if contains_str(name_lang.iter(), lang) {
                                 name_ohne_wert = true;
                                 nicht_verwendet.push(None);
                                 continue;
                             }
                         } else if name_kurz_existiert {
+                            // TODO verwende wert_kurz_präfix (berücksichtige Case-parameter!)
                             if let Some(kurz) = string.strip_prefix('-') {
                                 let mut graphemes = kurz.graphemes(true);
                                 if graphemes
                                     .next()
-                                    .map(|name| contains_str!(&name_kurz, name, case_sensitive))
+                                    .map(|name| contains_str(name_kurz.iter(), name))
                                     .unwrap_or(false)
                                 {
                                     let rest = graphemes.as_str();
@@ -345,12 +410,13 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     #[inline(always)]
     pub fn value(
         description: Description<'t, T>,
+        value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
         possible_values: Option<NonEmpty<T>>,
         parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
         display: impl Fn(&T) -> String,
     ) -> Arguments<'t, T, E> {
-        Argumente::wert(description, meta_var, possible_values, parse, display)
+        Argumente::wert(description, value_infix, meta_var, possible_values, parse, display)
     }
 }
 
@@ -399,7 +465,7 @@ impl<'t, T: 't + Display + Clone + EnumArgument> Argumente<'t, T, String> {
         beschreibung: Beschreibung<'t, T>,
         sprache: Sprache,
     ) -> Argumente<'t, T, String> {
-        Argumente::wert_enum_display(beschreibung, sprache.meta_var)
+        Argumente::wert_enum_display(beschreibung, sprache.wert_infix, sprache.meta_var)
     }
 
     /// Create a value-argument for an [EnumArgument].
@@ -421,9 +487,10 @@ impl<'t, T: 't + Display + Clone + EnumArgument> Argumente<'t, T, String> {
     #[inline(always)]
     pub fn wert_enum_display(
         beschreibung: Beschreibung<'t, T>,
+        wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
     ) -> Argumente<'t, T, String> {
-        Argumente::wert_enum(beschreibung, meta_var, T::to_string)
+        Argumente::wert_enum(beschreibung, wert_infix, meta_var, T::to_string)
     }
 
     /// Create a value-argument for an [EnumArgument].
@@ -433,9 +500,10 @@ impl<'t, T: 't + Display + Clone + EnumArgument> Argumente<'t, T, String> {
     #[inline(always)]
     pub fn value_enum_display(
         description: Description<'t, T>,
+        value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
     ) -> Arguments<'t, T, String> {
-        Argumente::wert_enum_display(description, meta_var)
+        Argumente::wert_enum_display(description, value_infix, meta_var)
     }
 }
 
@@ -450,7 +518,7 @@ impl<'t, T: 't + Display + Clone + EnumArgument> Argumente<'t, T, String> {
         anzeige: impl Fn(&T) -> String,
         sprache: Sprache,
     ) -> Argumente<'t, T, String> {
-        Argumente::wert_enum(beschreibung, sprache.meta_var, anzeige)
+        Argumente::wert_enum(beschreibung, sprache.wert_infix, sprache.meta_var, anzeige)
     }
 
     /// Create a value-argument for an [EnumArgument].
@@ -472,11 +540,12 @@ impl<'t, T: 't + Display + Clone + EnumArgument> Argumente<'t, T, String> {
     /// [value_enum](Arguments::value_enum)
     pub fn wert_enum(
         beschreibung: Beschreibung<'t, T>,
+        wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
         anzeige: impl Fn(&T) -> String,
     ) -> Argumente<'t, T, String> {
         let mögliche_werte = NonEmpty::from_vec(T::varianten());
-        Argumente::wert(beschreibung, meta_var, mögliche_werte, T::parse_enum, anzeige)
+        Argumente::wert(beschreibung, wert_infix, meta_var, mögliche_werte, T::parse_enum, anzeige)
     }
 
     /// Create a value-argument for an [EnumArgument].
@@ -486,10 +555,11 @@ impl<'t, T: 't + Display + Clone + EnumArgument> Argumente<'t, T, String> {
     #[inline(always)]
     pub fn value_enum(
         description: Description<'t, T>,
+        value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
         display: impl Fn(&T) -> String,
     ) -> Arguments<'t, T, String> {
-        Argumente::wert_enum(description, meta_var, display)
+        Argumente::wert_enum(description, value_infix, meta_var, display)
     }
 }
 
@@ -508,7 +578,12 @@ where
         mögliche_werte: Option<NonEmpty<T>>,
         sprache: Sprache,
     ) -> Argumente<'t, T, String> {
-        Argumente::wert_from_str_display(beschreibung, sprache.meta_var, mögliche_werte)
+        Argumente::wert_from_str_display(
+            beschreibung,
+            sprache.wert_infix,
+            sprache.meta_var,
+            mögliche_werte,
+        )
     }
 
     /// Create a value-argument based on its [FromStr] implementation.
@@ -531,12 +606,18 @@ where
     #[inline(always)]
     pub fn wert_from_str_display(
         beschreibung: Beschreibung<'t, T>,
+        wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
     ) -> Argumente<'t, T, String> {
-        Argumente::wert_from_str(beschreibung, meta_var, mögliche_werte, T::to_string, |fehler| {
-            fehler.to_string()
-        })
+        Argumente::wert_from_str(
+            beschreibung,
+            wert_infix,
+            meta_var,
+            mögliche_werte,
+            T::to_string,
+            |fehler| fehler.to_string(),
+        )
     }
 
     /// Create a value-argument based on its [FromStr] implementation.
@@ -546,10 +627,11 @@ where
     #[inline(always)]
     pub fn value_from_str_display(
         description: Description<'t, T>,
+        value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
         possible_values: Option<NonEmpty<T>>,
     ) -> Argumente<'t, T, String> {
-        Argumente::wert_from_str_display(description, meta_var, possible_values)
+        Argumente::wert_from_str_display(description, value_infix, meta_var, possible_values)
     }
 }
 
@@ -568,6 +650,7 @@ impl<'t, T: 't + Clone + FromStr, E: Clone> Argumente<'t, T, E> {
     ) -> Argumente<'t, T, E> {
         Argumente::wert_from_str(
             beschreibung,
+            sprache.wert_infix,
             sprache.meta_var,
             mögliche_werte,
             anzeige,
@@ -602,6 +685,7 @@ impl<'t, T: 't + Clone + FromStr, E: Clone> Argumente<'t, T, E> {
     /// [value_from_str](Arguments::value_from_str)
     pub fn wert_from_str(
         beschreibung: Beschreibung<'t, T>,
+        wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
         anzeige: impl Fn(&T) -> String,
@@ -609,6 +693,7 @@ impl<'t, T: 't + Clone + FromStr, E: Clone> Argumente<'t, T, E> {
     ) -> Argumente<'t, T, E> {
         Argumente::wert_string(
             beschreibung,
+            wert_infix,
             meta_var,
             mögliche_werte,
             move |string| T::from_str(string).map_err(&konvertiere_fehler),
@@ -623,11 +708,19 @@ impl<'t, T: 't + Clone + FromStr, E: Clone> Argumente<'t, T, E> {
     #[inline(always)]
     pub fn value_from_str(
         description: Description<'t, T>,
+        value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
         possible_values: Option<NonEmpty<T>>,
         display: impl Fn(&T) -> String,
         convert_error: impl 't + Fn(T::Err) -> E,
     ) -> Arguments<'t, T, E> {
-        Argumente::wert_from_str(description, meta_var, possible_values, display, convert_error)
+        Argumente::wert_from_str(
+            description,
+            value_infix,
+            meta_var,
+            possible_values,
+            display,
+            convert_error,
+        )
     }
 }
