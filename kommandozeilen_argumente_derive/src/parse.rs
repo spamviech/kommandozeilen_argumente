@@ -849,13 +849,19 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
             quote!(Some(#hilfe_string))
         };
         let erstelle_beschreibung = quote!(
+            // TODO lang/kurz_präfix über Attribut einstellbar
             let beschreibung = #crate_name::Beschreibung::neu(
+                #sprache_ts.lang_präfix,
                 #lang,
+                #sprache_ts.kurz_präfix,
                 #kurz,
                 #hilfe,
                 #standard,
             );
         );
+        // TODO invertiere_infix, wert_infix über Attribut
+        let feld_invertiere_infix = quote!(#sprache_ts.invertiere_infix);
+        let feld_wert_infix = quote!(#sprache_ts.wert_infix);
         let erstelle_args = match feld_argument {
             FeldArgument::EnumArgument => {
                 quote!({
@@ -863,6 +869,8 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                     #crate_name::ParseArgument::argumente(
                         beschreibung,
                         #feld_invertiere_präfix,
+                        #feld_invertiere_infix,
+                        #feld_wert_infix,
                         #feld_meta_var
                     )
                 })
@@ -872,6 +880,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                     #erstelle_beschreibung
                     #crate_name::Argumente::wert_from_str_display(
                         beschreibung,
+                        #feld_wert_infix,
                         #feld_meta_var,
                         None,
                     )

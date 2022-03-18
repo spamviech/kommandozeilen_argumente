@@ -4,16 +4,17 @@ use std::{ffi::OsString, iter, process};
 
 use void::Void;
 
-use kommandozeilen_argumente::{Argumente, Beschreibung, Ergebnis};
+use kommandozeilen_argumente::{Argumente, Beschreibung, Ergebnis, Sprache};
 
 #[test]
 fn hilfe_test() {
     let arg: Argumente<bool, Void> = Argumente::hilfe_und_version(
-        Argumente::flag_bool_deutsch(Beschreibung::neu(
+        Argumente::flag_bool_deutsch(Beschreibung::neu_mit_sprache(
             "test".to_owned(),
             None::<&str>,
             Some("hilfe"),
             Some(false),
+            Sprache::DEUTSCH,
         )),
         "programm",
         "0.test",

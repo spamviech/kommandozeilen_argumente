@@ -91,7 +91,10 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fe
             fn parse_enum(arg: &std::ffi::OsStr) -> Result<Self, #crate_name::ParseFehler<String>> {
                 if let Some(string) = arg.to_str() {
                     #(
-                        if #crate_name::unicode::Normalisiert::neu(#varianten_str).eq(string, false) {
+                        // TODO Case über Attribut einstellbar
+                        if #crate_name::unicode::Normalisiert::neu(#varianten_str)
+                            .eq(string, #crate_name::unicode::Case::Insensitive)
+                        {
                             Ok(Self::#varianten)
                         } else
                     )*

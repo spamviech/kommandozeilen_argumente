@@ -70,43 +70,55 @@ impl Display for Args {
 fn main() {
     let sprache = Sprache::DEUTSCH;
     let flag = Argumente::flag_bool_mit_sprache(
-        Beschreibung::neu(
+        Beschreibung::neu_mit_sprache(
             "flag",
             None::<&str>,
             Some("Eine Flag mit Standard-Einstellungen"),
             Some(false),
+            sprache,
         ),
         sprache,
     );
     let umbenannt = Argumente::flag_bool_mit_sprache(
-        Beschreibung::neu(
+        Beschreibung::neu_mit_sprache(
             NonEmpty { head: "andere", tail: vec!["namen"] },
             "u",
             Some("Eine Flag mit Standard-Einstellungen"),
             Some(false),
+            sprache,
         ),
         sprache,
     );
     let benötigt = Argumente::flag_bool(
-        Beschreibung::neu(
+        Beschreibung::neu_mit_sprache(
             "benötigt",
             "b",
             Some("Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren."),
             None,
+            sprache,
         ),
         "no",
+        sprache.invertiere_infix,
     );
     let wert = String::argumente_mit_sprache(
-        Beschreibung::neu("wert", None::<&str>, Some("Ein String-Wert."), None),
+        Beschreibung::neu_mit_sprache(
+            "wert",
+            None::<&str>,
+            Some("Ein String-Wert."),
+            None,
+            sprache,
+        ),
         sprache,
     );
     let aufzählung = Argumente::wert_enum_display(
-        Beschreibung::neu(
+        Beschreibung::neu_mit_sprache(
             "aufzählung",
             "a",
             Some("Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable."),
             Some(Aufzählung::Zwei),
+            sprache,
         ),
+        sprache.wert_infix,
         "VAR",
     );
     let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung| Args {

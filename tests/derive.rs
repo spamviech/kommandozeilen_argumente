@@ -45,8 +45,11 @@ struct Test {
 struct Empty {}
 
 const DUMMY: kommandozeilen_argumente::Sprache = kommandozeilen_argumente::Sprache {
-    invalider_string: "dummy",
+    lang_präfix: "(-.-)",
+    kurz_präfix: "~",
     invertiere_präfix: "dummy",
+    invertiere_infix: "*",
+    wert_infix: "+",
     meta_var: "dummy",
     optionen: "dummy",
     standard: "dummy",
@@ -54,6 +57,7 @@ const DUMMY: kommandozeilen_argumente::Sprache = kommandozeilen_argumente::Sprac
     fehlende_flag: "dummy",
     fehlender_wert: "dummy",
     parse_fehler: "dummy",
+    invalider_string: "dummy",
     argument_nicht_verwendet: "dummy",
     hilfe_beschreibung: "dummy",
     hilfe_lang: "dummy",
