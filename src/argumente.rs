@@ -10,6 +10,7 @@ use std::{
 };
 
 use nonempty::NonEmpty;
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     beschreibung::{Configuration, Konfiguration},
@@ -466,12 +467,10 @@ impl<'t, T, E> Argumente<'t, T, E> {
         let ersetze_verschmolzene_kurzformen = |arg: OsString| -> Vec<OsString> {
             if let Some(string) = arg.to_str() {
                 for (prefix, kurzformen) in flag_kurzformen.iter() {
-                    if let Some(kurz_graphemes) =
-                        prefix.strip_als_präfix(&Normalisiert::neu(string))
-                    {
+                    if let Some(kurz_str) = prefix.strip_als_präfix(&Normalisiert::neu(string)) {
                         let präfix_str = prefix.string.as_ref();
                         let mut gefundene_kurzformen = Vec::new();
-                        for grapheme in kurz_graphemes {
+                        for grapheme in kurz_str.graphemes(true) {
                             if kurzformen.iter().any(|vergleich| vergleich.eq(grapheme)) {
                                 gefundene_kurzformen.push(format!("{präfix_str}{grapheme}").into())
                             } else {

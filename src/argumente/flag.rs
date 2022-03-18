@@ -4,6 +4,7 @@ use std::{convert::identity, ffi::OsStr, fmt::Display, iter};
 
 use itertools::Itertools;
 use nonempty::NonEmpty;
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     argumente::{Argumente, Arguments},
@@ -161,10 +162,7 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
                         let normalisiert = Normalisiert::neu(string);
-                        if let Some(lang_graphemes) =
-                            name_lang_präfix.strip_als_präfix(&normalisiert)
-                        {
-                            let lang_str = lang_graphemes.as_str();
+                        if let Some(lang_str) = name_lang_präfix.strip_als_präfix(&normalisiert) {
                             if contains_str(&name_lang, lang_str) {
                                 ergebnis = Some(konvertiere(true));
                                 nicht_verwendet.push(None);
@@ -173,11 +171,11 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
                                 .strip_als_präfix(&Normalisiert::neu_borrowed_unchecked(lang_str))
                             {
                                 let infix_name_normalisiert =
-                                    Normalisiert::neu_borrowed_unchecked(infix_name.as_str());
+                                    Normalisiert::neu_borrowed_unchecked(infix_name);
                                 if let Some(negiert) = invertiere_infix_vergleich
                                     .strip_als_präfix(&infix_name_normalisiert)
                                 {
-                                    if contains_str(&name_lang, negiert.as_str()) {
+                                    if contains_str(&name_lang, negiert) {
                                         ergebnis = Some(konvertiere(false));
                                         nicht_verwendet.push(None);
                                         continue;
@@ -189,6 +187,7 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
                                 name_kurz_präfix.strip_als_präfix(&normalisiert)
                             {
                                 if kurz_graphemes
+                                    .graphemes(true)
                                     .exactly_one()
                                     .map(|name| contains_str(&name_kurz, name))
                                     .unwrap_or(false)

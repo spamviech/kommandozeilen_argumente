@@ -122,7 +122,7 @@ pub(crate) fn contains_str<'t>(
 pub(crate) fn contains_prefix<'t>(
     collection: impl 't + IntoIterator<Item = &'t Vergleich<'t>>,
     input: &'t Normalisiert<'t>,
-) -> impl 't + Iterator<Item = Graphemes<'t>> {
+) -> impl 't + Iterator<Item = &'t str> {
     collection.into_iter().filter_map(|ziel| ziel.strip_als_präfix(input))
 }
 

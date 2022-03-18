@@ -775,19 +775,18 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
                 for arg in args {
                     if let Some(string) = arg.and_then(OsStr::to_str) {
                         let normalisiert = Normalisiert::neu(string);
-                        if let Some(lang_graphemes) =
-                            name_lang_präfix.strip_als_präfix(&normalisiert)
-                        {
-                            if contains_str(&name_lang, lang_graphemes.as_str()) {
+                        if let Some(lang_str) = name_lang_präfix.strip_als_präfix(&normalisiert) {
+                            if contains_str(&name_lang, lang_str) {
                                 zeige_nachricht();
                                 nicht_selbst_verwendet.push(None);
                                 continue;
                             }
                         } else if name_kurz_existiert {
-                            if let Some(kurz_graphemes) =
+                            if let Some(kurz_str) =
                                 name_kurz_präfix.strip_als_präfix(&normalisiert)
                             {
-                                if kurz_graphemes
+                                if kurz_str
+                                    .graphemes(true)
                                     .exactly_one()
                                     .map(|name| contains_str(&name_kurz, name))
                                     .unwrap_or(false)

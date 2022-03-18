@@ -3,6 +3,7 @@
 use std::{collections::HashMap, convert::AsRef, ffi::OsStr, fmt::Display, str::FromStr};
 
 use nonempty::NonEmpty;
+use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     argumente::{Argumente, Arguments},
@@ -351,47 +352,42 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                     } else if let Some(string) = arg.and_then(OsStr::to_str) {
                         let normalisiert = Normalisiert::neu(string);
                         if let Some(lang) = name_lang_präfix.strip_als_präfix(&normalisiert) {
-                            let lang_normalisiert =
-                                Normalisiert::neu_borrowed_unchecked(lang.as_str());
+                            let lang_normalisiert = Normalisiert::neu_borrowed_unchecked(lang);
                             let suffixe = contains_prefix(&name_lang, &lang_normalisiert);
                             for suffix in suffixe {
-                                let suffix_str = suffix.as_str();
                                 let suffix_normalisiert =
-                                    Normalisiert::neu_borrowed_unchecked(suffix_str);
-                                if suffix_str.is_empty() {
+                                    Normalisiert::neu_borrowed_unchecked(suffix);
+                                if suffix.is_empty() {
                                     name_ohne_wert = true;
                                     nicht_verwendet.push(None);
                                     continue 'args;
                                 } else if let Some(wert_graphemes) =
                                     wert_infix_vergleich.strip_als_präfix(&suffix_normalisiert)
                                 {
-                                    parse_auswerten(Some(wert_graphemes.as_str().as_ref()));
+                                    parse_auswerten(Some(wert_graphemes.as_ref()));
                                     nicht_verwendet.push(None);
                                     continue 'args;
                                 }
                             }
                         } else if name_kurz_existiert {
-                            if let Some(mut kurz) =
-                                name_kurz_präfix.strip_als_präfix(&normalisiert)
-                            {
-                                if kurz
+                            if let Some(kurz) = name_kurz_präfix.strip_als_präfix(&normalisiert) {
+                                let mut kurz_graphemes = kurz.graphemes(true);
+                                if kurz_graphemes
                                     .next()
                                     .map(|name| contains_str(&name_kurz, name))
                                     .unwrap_or(false)
                                 {
-                                    let rest = kurz.as_str();
+                                    let rest = kurz_graphemes.as_str();
                                     let kurz_normalisiert =
                                         Normalisiert::neu_borrowed_unchecked(rest);
-                                    let wert_str = if let Some(wert_graphemes) =
-                                        wert_infix_vergleich.strip_als_präfix(&kurz_normalisiert)
-                                    {
-                                        wert_graphemes.as_str()
-                                    } else if !rest.is_empty() {
-                                        rest
-                                    } else {
+                                    let wert_str = if rest.is_empty() {
                                         name_ohne_wert = true;
                                         nicht_verwendet.push(None);
                                         continue 'args;
+                                    } else {
+                                        wert_infix_vergleich
+                                            .strip_als_präfix(&kurz_normalisiert)
+                                            .unwrap_or(rest)
                                     };
                                     parse_auswerten(Some(wert_str.as_ref()));
                                     nicht_verwendet.push(None);

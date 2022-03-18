@@ -4,7 +4,7 @@ use std::{borrow::Cow, convert::AsRef};
 
 use cjk::is_cjkish_codepoint;
 use unicode_normalization::{is_nfc_quick, IsNormalized, UnicodeNormalization};
-use unicode_segmentation::{Graphemes, UnicodeSegmentation};
+use unicode_segmentation::UnicodeSegmentation;
 
 /// Ein normalisierter Unicode String.
 ///
@@ -140,7 +140,16 @@ impl From<Case> for bool {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[allow(single_use_lifetimes)]
 pub struct Vergleich<'t> {
+    /// Der zu vergleichende String.
+    ///
+    /// ## English
+    /// The string to compare to.
     pub string: Normalisiert<'t>,
+
+    /// Soll der String unter Berücksichtigung von Groß-/Kleinschreibung verglichen werden.
+    ///
+    /// ## English
+    /// Is the comparison case-(in)sensitive?
     pub case: Case,
 }
 
@@ -203,29 +212,18 @@ impl Vergleich<'_> {
     }
 
     /// Versuche einen String vom Anfang des anderen Strings zu entfernen.
-    pub(crate) fn strip_als_präfix<'t>(
-        &self,
-        string: &'t Normalisiert<'t>,
-    ) -> Option<Graphemes<'t>> {
-        let graphemes = string.as_ref().graphemes(true);
-        let string_länge = graphemes.clone().count();
-        let mut präfixe = todo!();
-        // FIXME ß kann mit SS verglichen werden,
-        // Anzahl an Graphemes ist demnach nicht ausreichend spezifisch!
-        let lang_graphemes = self.string.as_ref().graphemes(true);
-        let lang_länge = lang_graphemes.clone().count();
-        let mut string_graphemes = string.as_ref().graphemes(true);
-        let string_präfix: String = string_graphemes.clone().take(lang_länge).collect();
-        if self.eq(&string_präfix) {
-            // Bei leerem Präfix muss nichts übersprungen werden
-            if lang_länge > 0 {
-                // Verwende [Iterator::nth] anstelle von [Iterator::skip],
-                // damit [Graphemes::as_str] weiterhin verwendet werden kann.
-                string_graphemes.nth(lang_länge - 1)?;
-            }
-            Some(string_graphemes)
-        } else {
-            None
+    pub(crate) fn strip_als_präfix<'t>(&self, string: &'t Normalisiert<'t>) -> Option<&'t str> {
+        let string_str = string.as_ref();
+        let string_länge = string_str.len();
+        let mut graphemes_indices = string_str.grapheme_indices(true);
+        let mut präfixe = vec![(string_str, string_länge)];
+        while let Some((ix, _str)) = graphemes_indices.next_back() {
+            präfixe.push((graphemes_indices.as_str(), ix))
         }
+        präfixe
+            .iter()
+            .rev()
+            .find(|(präfix, _ix)| self.eq(präfix))
+            .map(|(_präfix, ix)| &string_str[*ix..string_länge])
     }
 }
