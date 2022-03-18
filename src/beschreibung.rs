@@ -3,7 +3,6 @@
 use std::{convert::AsRef, fmt::Display};
 
 use nonempty::NonEmpty;
-use unicode_segmentation::Graphemes;
 
 use crate::{
     sprache::{Language, Sprache},
