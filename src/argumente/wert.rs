@@ -327,7 +327,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                 let mut fehler = Vec::new();
                 let mut name_ohne_wert = false;
                 let mut nicht_verwendet = Vec::new();
-                let mut parse_auswerten = |arg| {
+                let mut parse_auswerten = |arg: Option<&OsStr>| {
                     if let Some(wert_os_str) = arg {
                         match parse(wert_os_str) {
                             Ok(wert) => ergebnis = Some(wert),
@@ -349,8 +349,6 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                         nicht_verwendet.push(None);
                         continue;
                     } else if let Some(string) = arg.and_then(OsStr::to_str) {
-                        // TODO Problem ist bei Aufruf von parse_auswerten,
-                        // evtl. mach es Sinn das auf Cow-Argument zu konvertieren
                         let normalisiert = Normalisiert::neu(string);
                         if let Some(lang) = name_lang_präfix.strip_als_präfix(&normalisiert) {
                             let lang_normalisiert =
