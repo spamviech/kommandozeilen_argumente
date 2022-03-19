@@ -591,10 +591,11 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
             invertiere_präfix_infix: None,
         });
         fn lang_regex(
+            lang_präfix: &Vergleich<'_>,
             lang_namen: &NonEmpty<Vergleich<'_>>,
             flag_oder_wert: Either<&Option<(Vergleich<'_>, Vergleich<'_>)>, (&Vergleich<'_>, &str)>,
         ) -> String {
-            let mut lang_regex = "--".to_owned();
+            let mut lang_regex = lang_präfix.as_ref().to_owned();
             match flag_oder_wert {
                 Either::Left(invertiere_präfix_infix) => {
                     if let Some((präfix, infix)) = invertiere_präfix_infix {
@@ -627,7 +628,8 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
                     (beschreibung, Either::Right((wert_infix, *meta_var)), mögliche_werte)
                 },
             };
-            let lang_regex = lang_regex(&beschreibung.lang, flag_oder_wert);
+            let lang_regex =
+                lang_regex(&beschreibung.lang_präfix, &beschreibung.lang, flag_oder_wert);
             let lang_regex_breite = lang_regex.graphemes(true).count();
             max_lang_regex_breite = max_lang_regex_breite.max(lang_regex_breite);
             lang_regex_vec.push((
@@ -642,13 +644,15 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
             max_lang_regex_breite: usize,
             mut name_regex: String,
             lang_regex_breite: usize,
+            kurz_präfix: &Vergleich<'_>,
             kurz_namen: &Vec<Vergleich<'_>>,
             flag_oder_wert: Either<&Option<(Vergleich<'_>, Vergleich<'_>)>, (&Vergleich<'_>, &str)>,
         ) -> String {
             if let Some((head, tail)) = kurz_namen.split_first() {
                 let einrücken = " ".repeat(max_lang_regex_breite - lang_regex_breite);
                 name_regex.push_str(&einrücken);
-                name_regex.push_str(" | -");
+                name_regex.push_str(" | ");
+                name_regex.push_str(kurz_präfix.as_ref());
                 namen_regex_hinzufügen(&mut name_regex, head, tail);
                 if let Either::Right((wert_infix, meta_var)) = flag_oder_wert {
                     name_regex.push('[');
@@ -668,6 +672,7 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
                 max_lang_regex_breite,
                 lang_regex,
                 lang_regex_breite,
+                &beschreibung.kurz_präfix,
                 &beschreibung.kurz,
                 flag_oder_wert,
             );
