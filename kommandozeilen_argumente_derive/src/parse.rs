@@ -70,21 +70,40 @@ impl KurzNamen {
 
 fn erstelle_version_methode(
     feste_sprache: Option<Sprache>,
-    namen: Option<(TokenStream, TokenStream)>,
+    namen: Option<(Option<String>, TokenStream, Option<String>, TokenStream)>,
 ) -> impl FnOnce(TokenStream, Sprache) -> TokenStream {
     let crate_name = base_name();
     move |item, sprache| {
         let sprache_ts = feste_sprache.unwrap_or(sprache).token_stream();
-        let (lang_namen, kurz_namen) = namen.unwrap_or_else(|| {
-            (quote!(#sprache_ts.version_lang), quote!(#sprache_ts.version_kurz))
-        });
-        quote!(
-            #item.version_mit_namen_und_sprache(
+        let lang_standard = quote!(#sprache_ts.hilfe_lang);
+        let kurz_standard = quote!(#sprache_ts.hilfe_kurz);
+        let (lang_präfix, lang_namen, kurz_präfix, kurz_namen) =
+            namen.unwrap_or_else(|| (None, lang_standard, None, kurz_standard));
+        let lang_präfix = if let Some(präfix_str) = lang_präfix {
+            quote!(#präfix_str)
+        } else {
+            quote!(#sprache_ts.lang_präfix)
+        };
+        let kurz_präfix = if let Some(präfix_str) = kurz_präfix {
+            quote!(#präfix_str)
+        } else {
+            quote!(#sprache_ts.kurz_präfix)
+        };
+        let beschreibung = quote!(
+            #crate_name::Beschreibung::neu(
+                #lang_präfix,
                 #lang_namen,
+                #kurz_präfix,
                 #kurz_namen,
+                Some(#sprache_ts.version_beschreibung),
+                None,
+            )
+        );
+        quote!(
+            #item.zeige_version(
+                #beschreibung,
                 #crate_name::crate_name!(),
                 #crate_name::crate_version!(),
-                #sprache_ts,
             )
         )
     }
@@ -92,18 +111,38 @@ fn erstelle_version_methode(
 
 fn erstelle_hilfe_methode(
     sprache: Sprache,
-    namen: Option<(TokenStream, TokenStream)>,
+    namen: Option<(Option<String>, TokenStream, Option<String>, TokenStream)>,
 ) -> impl Fn(TokenStream) -> TokenStream {
     let crate_name = base_name();
     let sprache_ts = sprache.token_stream();
     let lang_standard = quote!(#sprache_ts.hilfe_lang);
     let kurz_standard = quote!(#sprache_ts.hilfe_kurz);
-    let (lang_namen, kurz_namen) = namen.unwrap_or_else(|| (lang_standard, kurz_standard));
+    let (lang_präfix, lang_namen, kurz_präfix, kurz_namen) =
+        namen.unwrap_or_else(|| (None, lang_standard, None, kurz_standard));
+    let lang_präfix = if let Some(präfix_str) = lang_präfix {
+        quote!(#präfix_str)
+    } else {
+        quote!(#sprache_ts.lang_präfix)
+    };
+    let kurz_präfix = if let Some(präfix_str) = kurz_präfix {
+        quote!(#präfix_str)
+    } else {
+        quote!(#sprache_ts.kurz_präfix)
+    };
+    let beschreibung = quote!(
+        #crate_name::Beschreibung::neu(
+            #lang_präfix,
+            #lang_namen,
+            #kurz_präfix,
+            #kurz_namen,
+            Some(#sprache_ts.hilfe_beschreibung),
+            None,
+        )
+    );
     move |item| {
         quote!(
-            #item.hilfe_mit_namen_und_sprache(
-                #lang_namen,
-                #kurz_namen,
+            #item.erstelle_hilfe_mit_sprache(
+                #beschreibung,
                 #crate_name::crate_name!(),
                 Some(#crate_name::crate_version!()),
                 #sprache_ts
@@ -157,22 +196,37 @@ impl Display for ParseWertFehler {
     }
 }
 
-fn parse_wert_arg<ES, EM, EI, ED>(
+type LangNamen = (String, Vec<String>);
+type ErstelleFehler<'t> = Box<dyn 't + FnOnce(String) -> ParseWertFehler>;
+
+fn parse_wert_arg<'t, ES, EL, EK, EW, EM, EP, EI, ED>(
     sub_args: Vec<Argument>,
     mut setze_sprache: impl FnMut(String, TokenStream) -> Result<(), ES>,
+    mut setze_lang_präfix: impl FnMut(String, TokenStream) -> Result<(), EL>,
+    mut setze_kurz_präfix: impl FnMut(String, TokenStream) -> Result<(), EK>,
+    mut setze_invertiere_präfix: impl FnMut(String, TokenStream) -> Result<(), EP>,
+    mut setze_invertiere_infix: impl FnMut(String, TokenStream) -> Result<(), EI>,
+    mut setze_wert_infix: impl FnMut(String, TokenStream) -> Result<(), EW>,
     mut setze_meta_var: impl FnMut(String, TokenStream) -> Result<(), EM>,
-    mut setze_invertiere_präfix: impl FnMut(String, TokenStream) -> Result<(), EI>,
     mut setze_standard: impl FnMut(String, Option<TokenStream>) -> Result<(), ED>,
     mut feld_argument: Option<&mut FeldArgument>,
-) -> Result<(Option<(String, Vec<String>)>, KurzNamen), Box<dyn FnOnce(String) -> ParseWertFehler>>
+) -> Result<(Option<LangNamen>, KurzNamen), ErstelleFehler<'t>>
 where
-    ES: 'static + FnOnce(String) -> ParseWertFehler,
-    EM: 'static + FnOnce(String) -> ParseWertFehler,
-    EI: 'static + FnOnce(String) -> ParseWertFehler,
-    ED: 'static + FnOnce(String) -> ParseWertFehler,
+    ES: 't + FnOnce(String) -> ParseWertFehler,
+    EL: 't + FnOnce(String) -> ParseWertFehler,
+    EK: 't + FnOnce(String) -> ParseWertFehler,
+    EW: 't + FnOnce(String) -> ParseWertFehler,
+    EM: 't + FnOnce(String) -> ParseWertFehler,
+    EP: 't + FnOnce(String) -> ParseWertFehler,
+    EI: 't + FnOnce(String) -> ParseWertFehler,
+    ED: 't + FnOnce(String) -> ParseWertFehler,
 {
     let map_es = |f: ES| -> Box<dyn FnOnce(String) -> ParseWertFehler> { Box::new(f) };
+    let map_el = |f: EL| -> Box<dyn FnOnce(String) -> ParseWertFehler> { Box::new(f) };
+    let map_ek = |f: EK| -> Box<dyn FnOnce(String) -> ParseWertFehler> { Box::new(f) };
+    let map_ew = |f: EW| -> Box<dyn FnOnce(String) -> ParseWertFehler> { Box::new(f) };
     let map_em = |f: EM| -> Box<dyn FnOnce(String) -> ParseWertFehler> { Box::new(f) };
+    let map_ep = |f: EP| -> Box<dyn FnOnce(String) -> ParseWertFehler> { Box::new(f) };
     let map_ei = |f: EI| -> Box<dyn FnOnce(String) -> ParseWertFehler> { Box::new(f) };
     let map_ed = |f: ED| -> Box<dyn FnOnce(String) -> ParseWertFehler> { Box::new(f) };
     use ParseWertFehler::*;
@@ -229,11 +283,17 @@ where
             },
             ArgumentWert::Stream(ts) => match name.as_str() {
                 "sprache" | "language" => setze_sprache(name, ts).map_err(map_es)?,
-                "standard" | "default" => setze_standard(name, Some(ts)).map_err(map_ed)?,
-                "meta_var" => setze_meta_var(name, ts).map_err(map_em)?,
+                "lang_präfix" | "long_prefix" => setze_lang_präfix(name, ts).map_err(map_el)?,
+                "kurz_präfix" | "short_prefix" => setze_kurz_präfix(name, ts).map_err(map_ek)?,
                 "invertiere_präfix" | "invert_prefix" => {
-                    setze_invertiere_präfix(name, ts).map_err(map_ei)?
+                    setze_invertiere_präfix(name, ts).map_err(map_ep)?
                 },
+                "invertiere_infix" | "invert_infix" => {
+                    setze_invertiere_infix(name, ts).map_err(map_ei)?
+                },
+                "wert_infix" | "value_infix" => setze_wert_infix(name, ts).map_err(map_ew)?,
+                "meta_var" => setze_meta_var(name, ts).map_err(map_em)?,
+                "standard" | "default" => setze_standard(name, Some(ts)).map_err(map_ed)?,
                 "lang" | "long" => lang_namen = Some((ts.to_string(), Vec::new())),
                 "kurz" | "short" => kurz_namen = KurzNamen::Namen(vec![ts.to_string()]),
                 _ => {
@@ -398,7 +458,11 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
     let mut erstelle_version: Option<Box<dyn FnOnce(TokenStream, Sprache) -> TokenStream>> = None;
     let mut erstelle_hilfe: Option<Box<dyn FnOnce(TokenStream) -> TokenStream>> = None;
     let mut sprache = English;
+    let mut lang_präfix = None;
+    let mut kurz_präfix = None;
     let mut invertiere_präfix = None;
+    let mut invertiere_infix = None;
+    let mut wert_infix = None;
     let mut meta_var = None;
     let crate_name = base_name();
     for Argument { name, wert } in args {
@@ -412,31 +476,53 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                 _ => return Err(NichtUnterstützt(Argument { name, wert })),
             },
             ArgumentWert::Unterargument(sub_args) => {
-                let verarbeiten: Box<dyn FnOnce(Option<Sprache>, TokenStream, TokenStream)> =
-                    match name.as_str() {
-                        "hilfe" | "help" => {
-                            let standard_sprache = if name == "hilfe" { Deutsch } else { English };
-                            Box::new(|sub_sprache, lang_namen, kurz_namen| {
+                let verarbeiten: Box<
+                    dyn FnOnce(
+                        Option<Sprache>,
+                        Option<String>,
+                        TokenStream,
+                        Option<String>,
+                        TokenStream,
+                    ),
+                > = match name.as_str() {
+                    "hilfe" | "help" => {
+                        let standard_sprache = if name == "hilfe" { Deutsch } else { English };
+                        Box::new(
+                            |sub_sprache,
+                             sub_lang_präfix,
+                             lang_namen,
+                             sub_kurz_präfix,
+                             kurz_namen| {
                                 erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(
                                     sub_sprache.unwrap_or(standard_sprache),
-                                    Some((lang_namen, kurz_namen)),
+                                    Some((
+                                        sub_lang_präfix,
+                                        lang_namen,
+                                        sub_kurz_präfix,
+                                        kurz_namen,
+                                    )),
                                 )))
-                            })
-                        },
-                        "version" => Box::new(|sub_sprache, lang_namen, kurz_namen| {
+                            },
+                        )
+                    },
+                    "version" => Box::new(
+                        |sub_sprache, sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen| {
                             erstelle_version = Some(Box::new(erstelle_version_methode(
                                 sub_sprache,
-                                Some((lang_namen, kurz_namen)),
+                                Some((sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen)),
                             )))
-                        }),
-                        _ => {
-                            return Err(NichtUnterstützt(Argument {
-                                name,
-                                wert: ArgumentWert::Unterargument(sub_args),
-                            }))
                         },
-                    };
+                    ),
+                    _ => {
+                        return Err(NichtUnterstützt(Argument {
+                            name,
+                            wert: ArgumentWert::Unterargument(sub_args),
+                        }))
+                    },
+                };
                 let mut sub_sprache = None;
+                let mut sub_lang_präfix = None;
+                let mut sub_kurz_präfix = None;
                 let (lang, kurz) = unwrap_or_call_return!(
                     parse_wert_arg(
                         sub_args,
@@ -444,6 +530,16 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                             sub_sprache = Some(parse_sprache(ts));
                             Ok(())
                         },
+                        |_sub_arg_name, ts| -> Result<(), fn(String) -> ParseWertFehler> {
+                            sub_lang_präfix = Some(ts.to_string());
+                            Ok(())
+                        },
+                        |_sub_arg_name, ts| -> Result<(), fn(String) -> ParseWertFehler> {
+                            sub_kurz_präfix = Some(ts.to_string());
+                            Ok(())
+                        },
+                        wert_argument_error_message,
+                        wert_argument_error_message,
                         wert_argument_error_message,
                         wert_argument_error_message,
                         standard_error_message,
@@ -464,14 +560,18 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                     None => (quote!(#name), &name),
                 };
                 let kurz_namen = kurz.to_vec_ts(erster);
-                verarbeiten(sub_sprache, lang_namen, kurz_namen)
+                verarbeiten(sub_sprache, sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen)
             },
             wert @ ArgumentWert::Liste(_) => {
                 return Err(NichtUnterstützt(Argument { name, wert }))
             },
             ArgumentWert::Stream(ts) => match name.as_str() {
                 "sprache" | "language" => sprache = parse_sprache(ts),
+                "lang_präfix" | "long_prefix" => lang_präfix = Some(ts.to_string()),
+                "kurz_präfix" | "short_prefix" => kurz_präfix = Some(ts.to_string()),
                 "invertiere_präfix" | "invert_prefix" => invertiere_präfix = Some(ts.to_string()),
+                "invertiere_infix" | "invert_infix" => invertiere_infix = Some(ts.to_string()),
+                "wert_infix" | "value_infix" => wert_infix = Some(ts.to_string()),
                 "meta_var" => meta_var = Some(ts.to_string()),
                 _ => {
                     return Err(NichtUnterstützt(
@@ -482,11 +582,28 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         }
     }
     let sprache_ts = sprache.clone().token_stream();
+    let lang_präfix = if let Some(präfix) = lang_präfix {
+        quote!(#präfix)
+    } else {
+        quote!(#sprache_ts.lang_präfix)
+    };
+    let kurz_präfix = if let Some(präfix) = kurz_präfix {
+        quote!(#präfix)
+    } else {
+        quote!(#sprache_ts.kurz_präfix)
+    };
     let invertiere_präfix = if let Some(präfix) = invertiere_präfix {
         quote!(#präfix)
     } else {
         quote!(#sprache_ts.invertiere_präfix)
     };
+    let invertiere_infix = if let Some(infix) = invertiere_infix {
+        quote!(#infix)
+    } else {
+        quote!(#sprache_ts.invertiere_infix)
+    };
+    let wert_infix =
+        if let Some(infix) = wert_infix { quote!(#infix) } else { quote!(#sprache_ts.wert_infix) };
     let meta_var = if let Some(meta_var) = meta_var {
         quote!(#meta_var)
     } else {
@@ -505,7 +622,11 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         let mut kurz = quote!(None::<&str>);
         let mut standard = quote!(#crate_name::parse::ParseArgument::standard());
         let mut feld_argument = FeldArgument::EnumArgument;
+        let mut feld_lang_präfix = lang_präfix.clone();
+        let mut feld_kurz_präfix = kurz_präfix.clone();
         let mut feld_invertiere_präfix = invertiere_präfix.clone();
+        let mut feld_invertiere_infix = invertiere_infix.clone();
+        let mut feld_wert_infix = wert_infix.clone();
         let mut feld_meta_var = meta_var.clone();
         for attr in attrs {
             if attr.path.is_ident("doc") {
@@ -527,12 +648,32 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                         wert_argument_error_message,
                         |_name, wert_ts| -> Result<(), fn(String) -> ParseWertFehler> {
                             let wert_string = wert_ts.to_string();
-                            feld_meta_var = quote!(#wert_string);
+                            feld_lang_präfix = quote!(#wert_string);
+                            Ok(())
+                        },
+                        |_name, wert_ts| -> Result<(), fn(String) -> ParseWertFehler> {
+                            let wert_string = wert_ts.to_string();
+                            feld_kurz_präfix = quote!(#wert_string);
                             Ok(())
                         },
                         |_name, wert_ts| -> Result<(), fn(String) -> ParseWertFehler> {
                             let wert_string = wert_ts.to_string();
                             feld_invertiere_präfix = quote!(#wert_string);
+                            Ok(())
+                        },
+                        |_name, wert_ts| -> Result<(), fn(String) -> ParseWertFehler> {
+                            let wert_string = wert_ts.to_string();
+                            feld_invertiere_infix = quote!(#wert_string);
+                            Ok(())
+                        },
+                        |_name, wert_ts| -> Result<(), fn(String) -> ParseWertFehler> {
+                            let wert_string = wert_ts.to_string();
+                            feld_wert_infix = quote!(#wert_string);
+                            Ok(())
+                        },
+                        |_name, wert_ts| -> Result<(), fn(String) -> ParseWertFehler> {
+                            let wert_string = wert_ts.to_string();
+                            feld_meta_var = quote!(#wert_string);
                             Ok(())
                         },
                         |_name, opt_wert_ts| -> Result<(), fn(String) -> ParseWertFehler> {
@@ -576,20 +717,17 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         } else {
             quote!(Some(#hilfe_string))
         };
+        // TODO case sensitive für namen, präfix, infix
         let erstelle_beschreibung = quote!(
-            // TODO lang/kurz_präfix über Attribut einstellbar
             let beschreibung = #crate_name::Beschreibung::neu(
-                #sprache_ts.lang_präfix,
+                #feld_lang_präfix,
                 #lang,
-                #sprache_ts.kurz_präfix,
+                #feld_kurz_präfix,
                 #kurz,
                 #hilfe,
                 #standard,
             );
         );
-        // TODO invertiere_infix, wert_infix über Attribut
-        let feld_invertiere_infix = quote!(#sprache_ts.invertiere_infix);
-        let feld_wert_infix = quote!(#sprache_ts.wert_infix);
         let erstelle_args = match feld_argument {
             FeldArgument::EnumArgument => {
                 quote!({

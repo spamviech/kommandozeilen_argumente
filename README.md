@@ -83,28 +83,44 @@ Direkt am `struct` werden folgende Optionen unterstützt:
 - `hilfe` | `help`: erzeuge eine Hilfe-Text.
 - `hilfe(<opts>)`, `help(<opts>)`, `version(<opts>)`:
   Wie die Variante ohne opts, nur Kurzname ist standardmäßig deaktiviert. Mögliche Opts:
+  - `lang_präfix: <präfix>` | `long_prefix: <prefix>`: Präfix vor Langnamen.
   - `lang: <name>`, `long [<namen>]`: Setze Langnamen explizit.
+  - `kurz_präfix: <präfix>` | `short_prefix: <prefix>`: Präfix vor Kurznamen.
   - `kurz`: Setze Kurznamen als erstes Grapheme des originalen Langnamen.
   - `kurz: <name>`, `kurz: [<namen>]`: Setze Kurznamen explizit.
   - `sprache: <sprache>` | `language: <language>`: Sprache von Hilfe-Text und Standard-Namen.
-- `meta_var: <string>` | `meta_var: <string>`:
-  Setze Standardwert für in der Hilfe angezeigte Meta-Variable, Standard `WERT` oder `VALUE`.
+- `lang_präfix: <präfix>` | `long_prefix: <prefix>`:
+  Setze Standardwert für Präfix vor Langnamen, Standard `--`.
+- `kurz_präfix: <präfix>` | `short_prefix: <prefix>`:
+  Setze Standardwert für Präfix vor Kurznamen, Standard `-`.
 - `invertiere_präfix: <string>` | `invert_prefix: <string>`:
   Setze Standardwert für Präfix zum invertieren einer Flag, Standard `kein` oder `no`.
+- `invertiere_infix: <string>` | `invert_infix: <string>`:
+  Setze Infix nach Präfix zum invertieren einer Flag, Standard `-`.
+- `wert_infix: <string>` | `value_infix: <string>`:
+  Setze Infix zum Angeben des Wertes im selben Argument, Standard `=`.
+- `meta_var: <string>` | `meta_var: <string>`:
+  Setze Standardwert für in der Hilfe angezeigte Meta-Variable, Standard `WERT` oder `VALUE`.
 
 Vor Feldern werden folgende Optionen unterstützt:
 
-- `glätten`/`flatten`: verwende das Parse-Trait (übernehmen der konfigurierten Argumente).
-- `FromStr`: verwende das FromStr-Trait (benötigt Display für Wert und Fehler-Typ).
-- `benötigt`/`required`: entferne den konfigurierten Standard-Wert.
-- `lang: <name>`| `long: <name>`: bestimme Langname explizit.
-- `lang: [<namen>]` | `long: [<names>]`: bestimme Langnamen explizit (Komma-getrennte Liste).
+- `glätten`/`flatten`: Verwende das Parse-Trait (übernehmen der konfigurierten Argumente).
+- `FromStr`: Verwende das FromStr-Trait (benötigt Display für Wert und Fehler-Typ).
+- `benötigt`/`required`: Entferne den konfigurierten Standard-Wert.
+- `lang_präfix: <präfix>` | `long_prefix: <prefix>`: Präfix vor Langnamen.
+- `lang: <name>` | `long: <name>`: Bestimme Langname explizit.
+- `lang: [<namen>]` | `long: [<names>]`: Bestimme Langnamen explizit (Komma-getrennte Liste).
+- `kurz_präfix: <präfix>` | `short_prefix: <prefix>`: Präfix vor Kurznamen.
 - `kurz`/`short`: Verwende eine Kurzform, bestehend aus dem ersten Grapheme der Langform.
 - `kurz: <wert>"`/`short: <value>"`: Verwende die spezifizierte Kurzform.
-- `kurz: [<namen>]` | `short: [<names>]`: bestimme Kurzformen explizit (Komma-getrennte Liste).
-- `standard: <wert>` | `default: <value>`: setzte den Standard-Wert.
-- `meta_var: <string>`: setzte die in der Hilfe angezeigt Meta-Variable.
-- `invertiere_präfix: <string>` | `invert_prefix: <string>`: setze Präfix zum invertieren einer Flag.
+- `kurz: [<namen>]` | `short: [<names>]`: Bestimme Kurzformen explizit (Komma-getrennte Liste).
+- `standard: <wert>` | `default: <value>`: Setzte den Standard-Wert.
+- `invertiere_präfix: <string>` | `invert_prefix: <string>`: Setze Präfix zum invertieren einer Flag.
+- `invertiere_infix: <string>` | `invert_infix: <string>`:
+  Setze Infix nach Präfix zum invertieren einer Flag.
+- `wert_infix: <string>` | `value_infix: <string>`:
+  Setze Infix zum Angeben des Wertes im selben Argument.
+- `meta_var: <string>`: Setzte die in der Hilfe angezeigt Meta-Variable.
 
 ## Beispiel
 
@@ -120,10 +136,8 @@ kommandozeilen_argumente 0.1.0
 derive.exe [OPTIONEN]
 
 OPTIONEN:
-  --[kein]-flag                          Eine Flag mit 
-Standard-Einstellungen. [Standard: false]
-  --[kein]-(andere|namen) | -u           Eine Flag mit 
-alternativen Namen. [Standard: false]
+  --[kein]-flag                          Eine Flag mit Standard-Einstellungen. [Standard: false]
+  --[kein]-(andere|namen) | -u           Eine Flag mit alternativen Namen. [Standard: false]
   --[no]-benötigt         | -b           Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.
   --wert(=| )WERT                        Ein String-Wert.
   --aufzählung(=| )VAR    | -a[=| ]VAR   Ein Aufzählung-Wert mit Standard-Wert. [Erlaubte Werte: Eins, Zwei, Drei | Standard: Zwei]
