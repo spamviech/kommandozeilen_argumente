@@ -42,6 +42,7 @@ fn base_name() -> Ident {
 
 mod enum_argument;
 mod parse;
+mod split_argumente;
 
 /// Derive-Macro für das [Parse](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html)-Traits.
 ///
@@ -63,7 +64,7 @@ pub fn derive_parse(item: TokenStream) -> TokenStream {
 ///
 /// ## English
 /// Derive macro for the [EnumArgument](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html) trait.
-#[proc_macro_derive(EnumArgument)]
+#[proc_macro_derive(EnumArgument, attributes(kommandozeilen_argumente))]
 pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
     match enum_argument::derive_enum_argument(item.into()) {
         Ok(ts) => ts,
