@@ -2,7 +2,7 @@
 
 use std::{ffi::OsString, fmt::Display, iter, process};
 
-use kommandozeilen_argumente::{EnumArgument, Ergebnis, Parse};
+use kommandozeilen_argumente::{Argumente, EnumArgument, Ergebnis, Parse, ParseArgument};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
 enum Bla {
@@ -67,6 +67,34 @@ const DUMMY: kommandozeilen_argumente::Sprache = kommandozeilen_argumente::Sprac
     version_kurz: "dummy",
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Flag {
+    Active,
+    Inactive,
+}
+
+impl ParseArgument for Flag {
+    fn argumente<'t>(
+        beschreibung: kommandozeilen_argumente::Beschreibung<'t, Self>,
+        invertiere_präfix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
+        invertiere_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
+        _wert_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
+        _meta_var: &'t str,
+    ) -> kommandozeilen_argumente::Argumente<'t, Self, String> {
+        Argumente::flag(
+            beschreibung,
+            |b| if b { Flag::Active } else { Flag::Inactive },
+            invertiere_präfix,
+            invertiere_infix,
+            |f| format!("{f:?}"),
+        )
+    }
+
+    fn standard() -> Option<Self> {
+        Some(Flag::Inactive)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(language: DUMMY)]
 struct Inner {
@@ -81,8 +109,11 @@ struct Test2 {
     /// bla
     bla: Bla,
     /// flag
+    #[kommandozeilen_argumente(required, short, invertiere_präfix: ähm)]
+    flag: Flag,
+    /// bool-flag
     #[kommandozeilen_argumente(required, short, invertiere_präfix: möp)]
-    flag: bool,
+    bool_flag: bool,
     #[kommandozeilen_argumente(flatten)]
     inner: Inner,
 }
@@ -174,10 +205,15 @@ fn verschmelze_kurzformen() {
     }
     println!("--------------");
     let arg2 = Test2::kommandozeilen_argumente();
-    match arg2.parse(iter::once(OsString::from("-fi".to_owned()))) {
+    match arg2.parse(iter::once(OsString::from("-fb".to_owned()))) {
         (Ergebnis::Wert(test2), nicht_verwendet) => {
             let übrige = nicht_verwendet.iter().count();
-            let erwartet = Test2 { bla: Bla::Meh, inner: Inner { inner_flag: true }, flag: true };
+            let erwartet = Test2 {
+                bla: Bla::Meh,
+                inner: Inner { inner_flag: false },
+                flag: Flag::Active,
+                bool_flag: true,
+            };
             if übrige > 0 {
                 eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
                 process::exit(5);
