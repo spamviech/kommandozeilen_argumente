@@ -75,8 +75,8 @@ fn erstelle_version_methode(
     let crate_name = base_name();
     move |item, sprache| {
         let sprache_ts = feste_sprache.unwrap_or(sprache).token_stream();
-        let lang_standard = quote!(#sprache_ts.hilfe_lang);
-        let kurz_standard = quote!(#sprache_ts.hilfe_kurz);
+        let lang_standard = quote!(#sprache_ts.version_lang);
+        let kurz_standard = quote!(#sprache_ts.version_kurz);
         let (lang_präfix, lang_namen, kurz_präfix, kurz_namen) =
             namen.unwrap_or_else(|| (None, lang_standard, None, kurz_standard));
         let lang_präfix = if let Some(präfix_str) = lang_präfix {
