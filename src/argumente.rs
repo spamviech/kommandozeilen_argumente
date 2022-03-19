@@ -33,28 +33,20 @@ pub use crate::{combine, kombiniere};
 
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
-// TODO Standard-Wert, sofern nur der Name gegeben ist (unterschiedlich zu Name kommt nicht vor)
-//      z.B. nichts: -O0, -O: -O1, -O=N für explizite Angabe
-//      vgl. mit Flag-Argumenten, kann zu parse-Problemen wegen Mehrdeutigkeit führen
-// TODO case sensitive Argumente/alles case sensitive
-//  benötigt Unicode normalization (wird bisher von unicase übernommen?), auch optional?
-// TODO Verwende unicode normalization, bevor das erste Grapheme für Kurznamen extrahiert wird?
-//      sowohl für automatisch erzeugte, wie für überprüfte Kurznamen
-//      https://crates.io/crates/unicode-normalization
 // TODO Argument-Gruppen (nur eine dieser N Flags kann gleichzeitig aktiv sein)
 // TODO Feature-gates für automatische Hilfe, verschmelzen von flag-kurzformen, ...
 //      benötigen extra Felder in Argumente-Struktur, könnte Performance verbessern
-// TODO OneOf/Either für alternative Parse-Möglichkeiten
 // TODO tests mit Unicode-namen
-// TODO Einstellung, ob Namen case-sensitive geparst werden sollen
-//      genauso bei abgeleiteter EnumArgument-implementierung
-//      verwende dazu unicode_eq (allgemein normalisieren zu empfehlen)
-// TODO erlaube Präfixe für kurz "-", lang "--" und infix für invertiere_präfix "-",
-//      infix für wert "=" zu ersetzen
+// TODO OneOf/Either für alternative Parse-Möglichkeiten
+//      alternativ-Methode (analog kombinierte2), besondere Methode für Either-Typen?
+// TODO Standard-Wert, sofern nur der Name gegeben ist (unterschiedlich zu Name kommt nicht vor)
+//      z.B. nichts: -O0, -O: -O1, -O=N für explizite Angabe
+//      vgl. mit Flag-Argumenten, kann zu parse-Problemen wegen Mehrdeutigkeit führen
+//      kann durch alternativ-Methode erzeugt werden (erst Wert, dann Flag)
+//          dazu spezialisierte Methode bereitstellen
 // TODO Programm-Beschreibung in Hilfe-Text
-// TODO ersetze Cow<'t,str> durch &'t str
-//      Ich verändere sie nie, also sollten Referenzen genügen.
-//      Into<Cow<'t,str>>-Trait durch Deref<Target=str>/AsRef<str> ersetzen?
+// TODO Einstellung, ob Namen case-sensitive geparst werden sollen
+//      bisher nur in derive-Macros nicht implementiert
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<'t, T, E> {
