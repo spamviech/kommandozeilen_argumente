@@ -7,11 +7,9 @@ use quote::{quote, ToTokens};
 use syn::{parse2, Data, DataStruct, DeriveInput, Field, Ident};
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{
-    base_name,
-    split_argumente::{
-        genau_eines, split_klammer_argumente, Argument, ArgumentWert, SplitArgumenteFehler,
-    },
+use crate::split_argumente::{
+    base_name, genau_eines, split_klammer_argumente, Argument, ArgumentWert, Case,
+    SplitArgumenteFehler,
 };
 
 #[derive(Debug, Clone)]

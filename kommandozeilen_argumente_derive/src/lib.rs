@@ -32,17 +32,26 @@
     variant_size_differences
 )]
 
-use proc_macro::TokenStream;
-use quote::{format_ident, quote};
-use syn::Ident;
+use std::fmt::Display;
 
-fn base_name() -> Ident {
-    format_ident!("{}", "kommandozeilen_argumente")
-}
+use proc_macro::TokenStream;
+use proc_macro2::TokenStream as TokenStream2;
+use quote::quote;
 
 mod enum_argument;
 mod parse;
 mod split_argumente;
+
+fn unwrap_or_compile_error<Fehler: Display>(result: Result<TokenStream2, Fehler>) -> TokenStream {
+    let ts = match result {
+        Ok(ts) => ts,
+        Err(fehler) => {
+            let fehlermeldung = fehler.to_string();
+            quote!(compile_error! {#fehlermeldung })
+        },
+    };
+    ts.into()
+}
 
 /// Derive-Macro für das [Parse](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html)-Traits.
 ///
@@ -50,14 +59,7 @@ mod split_argumente;
 /// Derive macro for the [Parse](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html) trait.
 #[proc_macro_derive(Parse, attributes(kommandozeilen_argumente))]
 pub fn derive_parse(item: TokenStream) -> TokenStream {
-    match parse::derive_parse(item.into()) {
-        Ok(ts) => ts,
-        Err(fehler) => {
-            let fehlermeldung = fehler.to_string();
-            quote!(compile_error! {#fehlermeldung })
-        },
-    }
-    .into()
+    unwrap_or_compile_error(parse::derive_parse(item.into()))
 }
 
 /// Derive-Macro für das [EnumArgument](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html)-Trait.
@@ -66,12 +68,5 @@ pub fn derive_parse(item: TokenStream) -> TokenStream {
 /// Derive macro for the [EnumArgument](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html) trait.
 #[proc_macro_derive(EnumArgument, attributes(kommandozeilen_argumente))]
 pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
-    match enum_argument::derive_enum_argument(item.into()) {
-        Ok(ts) => ts,
-        Err(fehler) => {
-            let fehlermeldung = fehler.to_string();
-            quote!(compile_error! {#fehlermeldung })
-        },
-    }
-    .into()
+    unwrap_or_compile_error(enum_argument::derive_enum_argument(item.into()))
 }

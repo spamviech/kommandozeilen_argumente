@@ -1,11 +1,21 @@
-//! Datentypen und Funktionen um Komma-separierte Argumente aus einem [TokenStream] zu parsen.
+//! Datentypen und Funktionen um Komma-separierte Argumente aus einem [TokenStream] zu parsen,
+//! sowie einige allgemeine Utility-Funktionen/Typen.
 
 use std::{
     fmt::{self, Display, Formatter},
     iter,
 };
 
-use proc_macro2::{Delimiter, Punct, Spacing, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Ident, Punct, Spacing, TokenStream, TokenTree};
+use quote::{format_ident, quote, ToTokens};
+
+////////////////////////////////////////////////////////
+
+pub(crate) fn base_name() -> Ident {
+    format_ident!("{}", "kommandozeilen_argumente")
+}
+
+////////////////////////////////////////////////////////
 
 pub(crate) enum GenauEinesFehler<T, I> {
     Leer,
@@ -40,6 +50,33 @@ pub(crate) fn genau_eines<T, I: Iterator<Item = T>>(
         Ok(erstes)
     }
 }
+
+////////////////////////////////////////////////////////
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Case {
+    Sensitive,
+    Insensitive,
+}
+
+impl Default for Case {
+    fn default() -> Self {
+        Case::Insensitive
+    }
+}
+
+impl ToTokens for Case {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let crate_name = base_name();
+        let ts = match self {
+            Case::Sensitive => quote!(#crate_name::unicode::Case::Sensitive),
+            Case::Insensitive => quote!(#crate_name::unicode::Case::Insensitive),
+        };
+        tokens.extend(ts)
+    }
+}
+
+////////////////////////////////////////////////////////
 
 #[inline(always)]
 fn punct_is_char(punct: &Punct, c: char) -> bool {
@@ -202,7 +239,7 @@ fn tt_is_not_comma(tt: &TokenTree) -> bool {
 /// Argumente können Werte haben, getrennt durch `:`.
 /// Wert-Argumente können Listen (angegeben durch [], potentiell mit Kommas) sein.
 /// Argumente werden nicht weiter behandelt.
-pub(crate) fn split_argumente(
+fn split_argumente(
     parent: Vec<String>,
     args: &mut Vec<Argument>,
     args_ts: TokenStream,

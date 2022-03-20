@@ -3,12 +3,11 @@
 use std::fmt::{self, Display, Formatter};
 
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::quote;
 use syn::{parse2, Attribute, Data, DataEnum, DeriveInput, Fields, Ident, Variant};
 
-use crate::{
-    base_name,
-    split_argumente::{split_klammer_argumente, Argument, ArgumentWert, SplitArgumenteFehler},
+use crate::split_argumente::{
+    base_name, split_klammer_argumente, Argument, ArgumentWert, Case, SplitArgumenteFehler,
 };
 
 #[derive(Debug)]
@@ -81,29 +80,6 @@ impl From<syn::Error> for Fehler {
 impl From<SplitArgumenteFehler> for Fehler {
     fn from(input: SplitArgumenteFehler) -> Fehler {
         Fehler::SplitArgumente(input)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum Case {
-    Sensitive,
-    Insensitive,
-}
-
-impl Default for Case {
-    fn default() -> Self {
-        Case::Insensitive
-    }
-}
-
-impl ToTokens for Case {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let crate_name = base_name();
-        let ts = match self {
-            Case::Sensitive => quote!(#crate_name::unicode::Case::Sensitive),
-            Case::Insensitive => quote!(#crate_name::unicode::Case::Insensitive),
-        };
-        tokens.extend(ts)
     }
 }
 
