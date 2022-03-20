@@ -466,7 +466,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
     if !generics.params.is_empty() || has_where_clause {
         return Err(Generics { anzahl: generics.params.len(), where_clause: has_where_clause });
     }
-    let mut args: Vec<Argument> = Vec::new();
+    let mut args = Vec::new();
     for attr in attrs {
         if attr.path.is_ident("kommandozeilen_argumente") {
             split_klammer_argumente(Vec::new(), &mut args, attr.tokens)?;
@@ -641,7 +641,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                 }
             } else if attr.path.is_ident("kommandozeilen_argumente") {
                 let mut feld_args = Vec::new();
-                split_klammer_argumente(Vec::new(), &mut feld_args, attr.tokens)?;
+                split_klammer_argumente(vec![ident.to_string()], &mut feld_args, attr.tokens)?;
                 let (lang_namen, kurz_namen) = unwrap_or_call_return!(
                     parse_wert_arg(
                         feld_args,
