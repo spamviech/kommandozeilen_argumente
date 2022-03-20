@@ -40,7 +40,7 @@ use quote::quote;
 
 mod enum_argument;
 mod parse;
-mod split_argumente;
+mod utility;
 
 fn unwrap_or_compile_error<Fehler: Display>(result: Result<TokenStream2, Fehler>) -> TokenStream {
     let ts = match result {

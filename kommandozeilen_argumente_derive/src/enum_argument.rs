@@ -6,7 +6,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{parse2, Attribute, Data, DataEnum, DeriveInput, Fields, Ident, Variant};
 
-use crate::split_argumente::{
+use crate::utility::{
     base_name, split_klammer_argumente, Argument, ArgumentWert, Case, SplitArgumenteFehler,
 };
 
