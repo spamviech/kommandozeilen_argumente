@@ -3,10 +3,13 @@
 use std::fmt::{self, Display, Formatter};
 
 use proc_macro2::TokenStream;
-use quote::quote;
-use syn::{parse2, Data, DataEnum, DeriveInput, Fields, Ident};
+use quote::{quote, ToTokens};
+use syn::{parse2, Attribute, Data, DataEnum, DeriveInput, Fields, Ident, Variant};
 
-use crate::base_name;
+use crate::{
+    base_name,
+    split_argumente::{split_klammer_argumente, Argument, ArgumentWert, SplitArgumenteFehler},
+};
 
 #[derive(Debug)]
 pub(crate) enum TypNichtUnterstützt {
@@ -29,10 +32,13 @@ pub(crate) enum Fehler {
     KeinEnum { typ: TypNichtUnterstützt, input: TokenStream },
     Generics { anzahl: usize, where_clause: bool },
     DatenVariante { variante: Ident },
+    SplitArgumente(SplitArgumenteFehler),
+    NichtUnterstützt(Argument),
 }
 
 impl Display for Fehler {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        use ArgumentWert::*;
         use Fehler::*;
         match self {
             Syn(error) => write!(f, "{error}"),
@@ -49,6 +55,19 @@ impl Display for Fehler {
             DatenVariante { variante } => {
                 write!(f, "Nur Enums mit Unit-Varianten unterstützt, aber {variante} hält Daten.")
             },
+            SplitArgumente(fehler) => write!(f, "{fehler}"),
+            NichtUnterstützt(Argument { name, wert: KeinWert }) => {
+                write!(f, "Argument nicht unterstützt: {name}")
+            },
+            NichtUnterstützt(Argument { name, wert: wert @ Unterargument(_sub_args) }) => {
+                write!(f, "Unterargument von {name} nicht unterstützt: {wert}")
+            },
+            NichtUnterstützt(Argument { name, wert: wert @ Liste(_liste) }) => {
+                write!(f, "Listen-Argument {name} nicht unterstützt: {wert}")
+            },
+            NichtUnterstützt(Argument { name, wert: wert @ Stream(_ts) }) => {
+                write!(f, "Benanntes Argument {name} nicht unterstützt: {wert}")
+            },
         }
     }
 }
@@ -59,10 +78,71 @@ impl From<syn::Error> for Fehler {
     }
 }
 
+impl From<SplitArgumenteFehler> for Fehler {
+    fn from(input: SplitArgumenteFehler) -> Fehler {
+        Fehler::SplitArgumente(input)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Case {
+    Sensitive,
+    Insensitive,
+}
+
+impl Default for Case {
+    fn default() -> Self {
+        Case::Insensitive
+    }
+}
+
+impl ToTokens for Case {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let crate_name = base_name();
+        let ts = match self {
+            Case::Sensitive => quote!(#crate_name::unicode::Case::Sensitive),
+            Case::Insensitive => quote!(#crate_name::unicode::Case::Insensitive),
+        };
+        tokens.extend(ts)
+    }
+}
+
+fn parse_attributes(feld: Option<&Ident>, attrs: Vec<Attribute>) -> Result<Option<Case>, Fehler> {
+    let mut args = Vec::new();
+    for attr in attrs {
+        if attr.path.is_ident("kommandozeilen_argumente") {
+            split_klammer_argumente(
+                feld.iter().map(ToString::to_string).collect(),
+                &mut args,
+                attr.tokens,
+            )?;
+        }
+    }
+    let mut case = None;
+    for arg in args {
+        match arg {
+            Argument { name, wert: ArgumentWert::Stream(ts) } if name == "case" => {
+                match ts.to_string().as_str() {
+                    "sensitive" => case = Some(Case::Sensitive),
+                    "insensitive" => case = Some(Case::Insensitive),
+                    _ => {
+                        return Err(Fehler::NichtUnterstützt(Argument {
+                            name,
+                            wert: ArgumentWert::Stream(ts),
+                        }))
+                    },
+                }
+            },
+            _ => return Err(Fehler::NichtUnterstützt(arg)),
+        }
+    }
+    Ok(case)
+}
+
 pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fehler> {
     use Fehler::*;
     use TypNichtUnterstützt::*;
-    let DeriveInput { ident, data, generics, .. } = parse2(input.clone())?;
+    let DeriveInput { ident, data, generics, attrs, .. } = parse2(input.clone())?;
     let DataEnum { variants, .. } = match data {
         Data::Enum(data_enum) => data_enum,
         Data::Struct(_) => return Err(KeinEnum { typ: Struct, input }),
@@ -73,12 +153,16 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fe
     if !generics.params.is_empty() || has_where_clause {
         return Err(Generics { anzahl: generics.params.len(), where_clause: has_where_clause });
     }
+    let standard_case = parse_attributes(None, attrs)?;
     let mut varianten = Vec::new();
-    for variant in variants {
-        if let Fields::Unit = variant.fields {
-            varianten.push(variant.ident);
+    let mut cases = Vec::new();
+    for Variant { ident, fields, attrs, .. } in variants {
+        if let Fields::Unit = fields {
+            let case = parse_attributes(Some(&ident), attrs)?;
+            cases.push(case.or(standard_case).unwrap_or_default());
+            varianten.push(ident);
         } else {
-            return Err(DatenVariante { variante: variant.ident });
+            return Err(DatenVariante { variante: ident });
         }
     }
     let varianten_str: Vec<_> = varianten.iter().map(ToString::to_string).collect();
@@ -91,9 +175,7 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fe
             fn parse_enum(arg: &std::ffi::OsStr) -> Result<Self, #crate_name::ParseFehler<String>> {
                 if let Some(string) = arg.to_str() {
                     #(
-                        // TODO Case über Attribut einstellbar
-                        if #crate_name::unicode::Normalisiert::neu(#varianten_str)
-                            .eq(string, #crate_name::unicode::Case::Insensitive)
+                        if #crate_name::unicode::Normalisiert::neu(#varianten_str).eq(string, #cases)
                         {
                             Ok(Self::#varianten)
                         } else
