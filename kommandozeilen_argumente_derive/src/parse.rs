@@ -466,6 +466,9 @@ fn parse_wert_arg(
                 },
             },
             ArgumentWert::Unterargument(sub_args) => {
+                // TODO vermeide Clone, vermutlich über macros
+                let sub_args_clone = sub_args.clone();
+                let name_clone = name.clone();
                 type Verarbeiten<'t> = Box<
                     dyn 't
                         + FnOnce(
@@ -531,7 +534,7 @@ fn parse_wert_arg(
                 let mut sub_kurz_präfix = KurzPräfix::default();
                 let mut sub_kurz = KurzNamen::Keiner;
                 parse_wert_arg(
-                    sub_args,
+                    sub_args_clone,
                     Some(&mut sub_sprache),
                     None,
                     None,
@@ -556,7 +559,7 @@ fn parse_wert_arg(
                         ),
                         head,
                     ),
-                    None => (quote!(#name), &name),
+                    None => (quote!(#name_clone), &name_clone),
                 };
                 let kurz_namen = sub_kurz.to_vec_ts(erster);
                 verarbeiten(sub_sprache, sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen)?;
