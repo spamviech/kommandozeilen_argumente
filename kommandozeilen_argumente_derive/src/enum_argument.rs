@@ -98,16 +98,9 @@ fn parse_attributes(feld: Option<&Ident>, attrs: Vec<Attribute>) -> Result<Optio
     for arg in args {
         match arg {
             Argument { name, wert: ArgumentWert::Stream(ts) } if name == "case" => {
-                match ts.to_string().as_str() {
-                    "sensitive" => case = Some(Case::Sensitive),
-                    "insensitive" => case = Some(Case::Insensitive),
-                    _ => {
-                        return Err(Fehler::NichtUnterstützt(Argument {
-                            name,
-                            wert: ArgumentWert::Stream(ts),
-                        }))
-                    },
-                }
+                case = Some(Case::parse(ts).map_err(|ts| {
+                    Fehler::NichtUnterstützt(Argument { name, wert: ArgumentWert::Stream(ts) })
+                })?)
             },
             _ => return Err(Fehler::NichtUnterstützt(arg)),
         }

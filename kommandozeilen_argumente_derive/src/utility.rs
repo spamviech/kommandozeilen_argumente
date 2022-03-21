@@ -76,6 +76,16 @@ impl ToTokens for Case {
     }
 }
 
+impl Case {
+    pub(crate) fn parse(ts: TokenStream) -> Result<Case, TokenStream> {
+        match ts.to_string().as_str() {
+            "sensitive" => Ok(Case::Sensitive),
+            "insensitive" => Ok(Case::Insensitive),
+            _ => Err(ts),
+        }
+    }
+}
+
 ////////////////////////////////////////////////////////
 
 #[inline(always)]
