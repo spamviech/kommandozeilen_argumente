@@ -150,8 +150,8 @@ fn erstelle_hilfe_methode(
 
 #[derive(Debug)]
 pub(crate) enum ParseWertFehler {
-    NichtUnterstützt { arg_name: String, argument: Argument },
-    KeinLangName { arg_name: String, name: String },
+    NichtUnterstützt { arg_name: Option<String>, argument: Argument },
+    KeinLangName { arg_name: Option<String>, name: String },
 }
 
 impl Display for ParseWertFehler {
@@ -160,29 +160,49 @@ impl Display for ParseWertFehler {
         use ParseWertFehler::*;
         match self {
             NichtUnterstützt { arg_name, argument: Argument { name, wert: KeinWert } } => {
-                write!(f, "Argument für {arg_name} nicht unterstützt: {name}")
+                write!(f, "Argument ")?;
+                if let Some(arg_name) = arg_name {
+                    write!(f, "für {arg_name} ")?;
+                }
+                write!(f, "nicht unterstützt: {name}")
             },
             NichtUnterstützt {
                 arg_name,
                 argument: Argument { name, wert: wert @ Unterargument(_) },
             } => {
-                write!(f, "Unterargument von {name} für {arg_name} nicht unterstützt: {wert}")
+                write!(f, "Unterargument von {name} ")?;
+                if let Some(arg_name) = arg_name {
+                    write!(f, "für {arg_name} ")?;
+                }
+                write!(f, "nicht unterstützt: {wert}")
             },
             NichtUnterstützt { arg_name, argument: Argument { name, wert: wert @ Liste(_) } } => {
-                write!(f, "Listen-Argument {name} für {arg_name} nicht unterstützt: {wert}")
+                write!(f, "Listen-Argument {name} ")?;
+                if let Some(arg_name) = arg_name {
+                    write!(f, "für {arg_name} ")?;
+                }
+                write!(f, "nicht unterstützt: {wert}")
             },
             NichtUnterstützt { arg_name, argument: Argument { name, wert: wert @ Stream(_) } } => {
-                write!(f, "Benanntes Argument {name} für {arg_name} nicht unterstützt: {wert}")
+                write!(f, "Benanntes Argument {name} ")?;
+                if let Some(arg_name) = arg_name {
+                    write!(f, "für {arg_name} ")?;
+                }
+                write!(f, "nicht unterstützt: {wert}")
             },
             KeinLangName { arg_name, name } => {
-                write!(f, "Kein Langname für {arg_name} in expliziter Liste mit {name} angegeben!")
+                write!(f, "Kein Langname ")?;
+                if let Some(arg_name) = arg_name {
+                    write!(f, "für {arg_name} ")?;
+                }
+                write!(f, "in expliziter Liste mit {name} angegeben!")
             },
         }
     }
 }
 
 type LangNamen = Option<(String, Vec<String>)>;
-type ErstelleFehler = Box<dyn FnOnce(String) -> ParseWertFehler>;
+type ErstelleFehler = Box<dyn FnOnce(Option<String>) -> ParseWertFehler>;
 
 struct ErstelleHilfe(Option<Box<dyn FnOnce(TokenStream) -> TokenStream>>);
 struct ErstelleVersion(Option<Box<dyn FnOnce(TokenStream, Sprache) -> TokenStream>>);
@@ -226,7 +246,7 @@ macro_rules! vergleich_typen {
             impl $name {
                 fn token_stream(&self, sprache: &Sprache) -> TokenStream {
                     let crate_name = base_name();
-                    let string = if let Some(string) = self.string {
+                    let string = if let Some(string) = &self.string {
                         quote!(#string)
                     } else {
                         let sprache_ts = sprache.token_stream();
@@ -252,7 +272,7 @@ vergleich_typen! {
 }
 
 fn parse_wert_arg(
-    sub_args: Vec<Argument>,
+    args: Vec<Argument>,
     mut sprache: Option<&mut Option<Sprache>>,
     mut erstelle_hilfe: Option<&mut ErstelleHilfe>,
     mut erstelle_version: Option<&mut ErstelleVersion>,
@@ -263,7 +283,7 @@ fn parse_wert_arg(
     mut invertiere_präfix: Option<&mut InvertierePräfix>,
     mut invertiere_infix: Option<&mut InvertiereInfix>,
     mut wert_infix: Option<&mut WertInfix>,
-    mut meta_var: Option<&mut MetaVar>,
+    mut meta_var: Option<&mut Option<MetaVar>>,
     mut standard: Option<&mut Standard>,
     mut feld_argument: Option<&mut FeldArgument>,
 ) -> Result<(), ErstelleFehler> {
@@ -305,57 +325,63 @@ fn parse_wert_arg(
             }
         };
     }
-    for Argument { name, wert } in sub_args {
-        // TODO case sensitive für namen, präfix, infix
-        // case-sensitive, case-insensitive alleine?
-        // case: (in)sensitive
-        // case(lang_präfix: (in)sensitive, lang: ...)
+    for Argument { name, wert } in args {
         match wert {
-            ArgumentWert::KeinWert => {
-                let argument = Argument { name, wert };
-                match name.as_str() {
-                    "version" => setze_argument!(
-                        erstelle_version,
-                        ErstelleVersion(Some(Box::new(erstelle_version_methode(None, None)))),
-                        argument
-                    ),
-                    "hilfe" => setze_argument!(
-                        erstelle_hilfe,
-                        ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(Deutsch, None)))),
-                        argument
-                    ),
-                    "help" => setze_argument!(
-                        erstelle_hilfe,
-                        ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(English, None)))),
-                        argument
-                    ),
-                    "kurz" | "short" => setze_argument!(kurz_namen, KurzNamen::Auto, argument),
-                    "glätten" | "flatten" => {
-                        setze_argument!(feld_argument, FeldArgument::Parse, argument)
-                    },
-                    "FromStr" => setze_argument!(feld_argument, FeldArgument::FromStr, argument),
-                    "benötigt" | "required" => {
-                        setze_argument!(standard, Standard(quote!(None)), argument)
-                    },
-                    _ => return Err(Box::new(|arg_name| NichtUnterstützt { arg_name, argument })),
-                }
+            ArgumentWert::KeinWert => match name.as_str() {
+                "version" => setze_argument!(
+                    erstelle_version,
+                    ErstelleVersion(Some(Box::new(erstelle_version_methode(None, None)))),
+                    Argument { name, wert }
+                ),
+                "hilfe" => setze_argument!(
+                    erstelle_hilfe,
+                    ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(Deutsch, None)))),
+                    Argument { name, wert }
+                ),
+                "help" => setze_argument!(
+                    erstelle_hilfe,
+                    ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(English, None)))),
+                    Argument { name, wert }
+                ),
+                "kurz" | "short" => {
+                    setze_argument!(kurz_namen, KurzNamen::Auto, Argument { name, wert })
+                },
+                "glätten" | "flatten" => {
+                    setze_argument!(feld_argument, FeldArgument::Parse, Argument { name, wert })
+                },
+                "FromStr" => {
+                    setze_argument!(feld_argument, FeldArgument::FromStr, Argument { name, wert })
+                },
+                "benötigt" | "required" => {
+                    setze_argument!(standard, Standard(quote!(None)), Argument { name, wert })
+                },
+                _ => {
+                    return Err(Box::new(|arg_name| NichtUnterstützt {
+                        arg_name,
+                        argument: Argument { name, wert },
+                    }))
+                },
             },
             ArgumentWert::Liste(liste) => match name.as_str() {
                 "lang" | "long" => {
-                    let mut namen_iter = liste.into_iter().map(|ts| ts.to_string());
+                    let mut namen_iter = liste.iter().map(ToString::to_string);
                     let (head, tail) = if let Some(head) = namen_iter.next() {
                         (head, namen_iter.collect())
                     } else {
                         return Err(Box::new(|arg_name| KeinLangName { arg_name, name }));
                     };
-                    setze_argument!(lang_namen, Some((head, tail)), Argument { name, wert })
+                    setze_argument!(
+                        lang_namen,
+                        Some((head, tail)),
+                        Argument { name, wert: ArgumentWert::Liste(liste) }
+                    )
                 },
                 "kurz" | "short" => {
-                    let namen_iter = liste.into_iter().map(|ts| ts.to_string());
+                    let namen_iter = liste.iter().map(ToString::to_string);
                     setze_argument!(
                         kurz_namen,
                         KurzNamen::Namen(namen_iter.collect()),
-                        Argument { name, wert }
+                        Argument { name, wert: ArgumentWert::Liste(liste) }
                     )
                 },
                 _ => {
@@ -398,7 +424,7 @@ fn parse_wert_arg(
                 ),
                 "meta_var" => setze_argument!(
                     meta_var,
-                    MetaVar(ts),
+                    Some(MetaVar(ts)),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "standard" | "default" => setze_argument!(
@@ -417,13 +443,14 @@ fn parse_wert_arg(
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "case" => {
-                    let case = Case::parse(ts).map_err(|ts| {
-                        let fehler: ErstelleFehler = Box::new(|arg_name| NichtUnterstützt {
+                    let case = if let Some(case) = Case::parse(&ts) {
+                        case
+                    } else {
+                        return Err(Box::new(|arg_name| NichtUnterstützt {
                             arg_name,
                             argument: Argument { name, wert: ArgumentWert::Stream(ts) },
-                        });
-                        fehler
-                    })?;
+                        }));
+                    };
                     let argument = Argument { name, wert: ArgumentWert::Stream(ts) };
                     setze_vergleich_case!(lang_präfix, case, argument);
                     setze_vergleich_case!(kurz_präfix, case, argument);
@@ -438,35 +465,63 @@ fn parse_wert_arg(
                     }))
                 },
             },
-            ArgumentWert::Unterargument(sub_arg) => {
-                type Verarbeiten = Box<
-                    dyn FnOnce(Option<Sprache>, LangPräfix, TokenStream, KurzPräfix, TokenStream),
+            ArgumentWert::Unterargument(sub_args) => {
+                type Verarbeiten<'t> = Box<
+                    dyn 't
+                        + FnOnce(
+                            Option<Sprache>,
+                            LangPräfix,
+                            TokenStream,
+                            KurzPräfix,
+                            TokenStream,
+                        ) -> Result<(), ErstelleFehler>,
                 >;
-                let verarbeiten: Verarbeiten = match name.as_str() {
+                let verarbeiten: Verarbeiten<'_> = match name.as_str() {
                     "hilfe" | "help" => {
                         let standard_sprache = if name == "hilfe" { Deutsch } else { English };
                         Box::new(
                             |s_sprache, s_lang_präfix, lang_namen, s_kurz_präfix, kurz_namen| {
-                                erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(
-                                    s_sprache.unwrap_or(standard_sprache),
-                                    Some((s_lang_präfix, lang_namen, s_kurz_präfix, kurz_namen)),
-                                )))
+                                let präfix_und_namen =
+                                    (s_lang_präfix, lang_namen, s_kurz_präfix, kurz_namen);
+                                setze_argument!(
+                                    erstelle_hilfe,
+                                    ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
+                                        s_sprache.unwrap_or(standard_sprache),
+                                        Some(präfix_und_namen)
+                                    )))),
+                                    Argument { name, wert: ArgumentWert::Unterargument(sub_args) }
+                                );
+                                Ok(())
                             },
                         )
                     },
                     "version" => Box::new(
                         |sub_sprache, sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen| {
-                            erstelle_version = Some(Box::new(erstelle_version_methode(
-                                sub_sprache,
-                                Some((sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen)),
-                            )))
+                            let präfix_und_namen =
+                                (sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen);
+                            setze_argument!(
+                                erstelle_version,
+                                ErstelleVersion(Some(Box::new(erstelle_version_methode(
+                                    sub_sprache,
+                                    Some(präfix_und_namen)
+                                )))),
+                                Argument { name, wert: ArgumentWert::Unterargument(sub_args) }
+                            );
+                            Ok(())
                         },
                     ),
+                    // TODO case sensitive für namen, präfix, infix
+                    // case-sensitive, case-insensitive alleine?
+                    // case: (in)sensitive
+                    // case(lang_präfix: (in)sensitive, lang: ...)
                     "case" => todo!(),
                     _ => {
                         return Err(Box::new(|arg_name| NichtUnterstützt {
                             arg_name,
-                            argument: Argument { name, wert: ArgumentWert::Unterargument(sub_arg) },
+                            argument: Argument {
+                                name,
+                                wert: ArgumentWert::Unterargument(sub_args),
+                            },
                         }))
                     },
                 };
@@ -504,16 +559,7 @@ fn parse_wert_arg(
                     None => (quote!(#name), &name),
                 };
                 let kurz_namen = sub_kurz.to_vec_ts(erster);
-                verarbeiten(sub_sprache, sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen)
-            },
-            ArgumentWert::Unterargument(sub_arg) => match name.as_str() {
-                "case" => todo!(),
-                _ => {
-                    return Err(Box::new(|arg_name| NichtUnterstützt {
-                        arg_name,
-                        argument: Argument { name, wert: ArgumentWert::Unterargument(sub_arg) },
-                    }))
-                },
+                verarbeiten(sub_sprache, sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen)?;
             },
         }
     }
@@ -543,14 +589,12 @@ pub(crate) enum Fehler {
     ParseWert(ParseWertFehler),
     KeinStruct { typ: TypNichtUnterstützt, input: TokenStream },
     Generics { anzahl: usize, where_clause: bool },
-    NichtUnterstützt(Argument),
     FeldOhneName,
     LeererFeldName(Ident),
 }
 
 impl Display for Fehler {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use ArgumentWert::*;
         use Fehler::*;
         match self {
             Syn(error) => write!(f, "{error}"),
@@ -565,18 +609,6 @@ impl Display for Fehler {
                     write!(f, "und eine where-Klausel ")?;
                 }
                 write!(f, "bekommen.")
-            },
-            NichtUnterstützt(Argument { name, wert: KeinWert }) => {
-                write!(f, "Argument nicht unterstützt: {name}")
-            },
-            NichtUnterstützt(Argument { name, wert: wert @ Unterargument(_sub_args) }) => {
-                write!(f, "Unterargument von {name} nicht unterstützt: {wert}")
-            },
-            NichtUnterstützt(Argument { name, wert: wert @ Liste(_liste) }) => {
-                write!(f, "Listen-Argument {name} nicht unterstützt: {wert}")
-            },
-            NichtUnterstützt(Argument { name, wert: wert @ Stream(_ts) }) => {
-                write!(f, "Benanntes Argument {name} nicht unterstützt: {wert}")
             },
             FeldOhneName => f.write_str("Nur benannte Felder unterstützt."),
             LeererFeldName(ident) => write!(f, "Benanntes Feld mit leerem Namen: {ident}"),
@@ -638,9 +670,9 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
     // CARGO_PKG_AUTHORS — Colon separated list of authors from the manifest of your package.
     // CARGO_PKG_DESCRIPTION — The description from the manifest of your package.
     // CARGO_BIN_NAME — The name of the binary that is currently being compiled (if it is a binary). This name does not include any file extension, such as .exe
-    let mut erstelle_version: Option<Box<dyn FnOnce(TokenStream, Sprache) -> TokenStream>> = None;
-    let mut erstelle_hilfe: Option<Box<dyn FnOnce(TokenStream) -> TokenStream>> = None;
-    let mut sprache = English;
+    let mut erstelle_version: ErstelleVersion = ErstelleVersion(None);
+    let mut erstelle_hilfe: ErstelleHilfe = ErstelleHilfe(None);
+    let mut sprache = None;
     let mut lang_präfix = LangPräfix::default();
     let mut kurz_präfix = KurzPräfix::default();
     let mut invertiere_präfix = InvertierePräfix::default();
@@ -648,114 +680,26 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
     let mut wert_infix = WertInfix::default();
     let mut meta_var = None;
     let crate_name = base_name();
-    for Argument { name, wert } in args {
-        match wert {
-            ArgumentWert::KeinWert => match name.as_str() {
-                "version" => {
-                    erstelle_version = Some(Box::new(erstelle_version_methode(None, None)))
-                },
-                "hilfe" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(Deutsch, None))),
-                "help" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(English, None))),
-                _ => return Err(NichtUnterstützt(Argument { name, wert })),
-            },
-            ArgumentWert::Unterargument(sub_args) => {
-                let verarbeiten: Box<
-                    dyn FnOnce(Option<Sprache>, LangPräfix, TokenStream, KurzPräfix, TokenStream),
-                > = match name.as_str() {
-                    "hilfe" | "help" => {
-                        let standard_sprache = if name == "hilfe" { Deutsch } else { English };
-                        Box::new(
-                            |s_sprache, s_lang_präfix, lang_namen, s_kurz_präfix, kurz_namen| {
-                                erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(
-                                    s_sprache.unwrap_or(standard_sprache),
-                                    Some((s_lang_präfix, lang_namen, s_kurz_präfix, kurz_namen)),
-                                )))
-                            },
-                        )
-                    },
-                    "version" => Box::new(
-                        |sub_sprache, sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen| {
-                            erstelle_version = Some(Box::new(erstelle_version_methode(
-                                sub_sprache,
-                                Some((sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen)),
-                            )))
-                        },
-                    ),
-                    "case" => todo!(),
-                    _ => {
-                        return Err(NichtUnterstützt(Argument {
-                            name,
-                            wert: ArgumentWert::Unterargument(sub_args),
-                        }))
-                    },
-                };
-                let mut sub_sprache = None;
-                let mut sub_lang_präfix = LangPräfix::default();
-                let mut sub_lang = None;
-                let mut sub_kurz_präfix = KurzPräfix::default();
-                let mut sub_kurz = KurzNamen::Keiner;
-                unwrap_or_call_return!(
-                    parse_wert_arg(
-                        sub_args,
-                        Some(&mut sub_sprache),
-                        None,
-                        None,
-                        Some(&mut sub_lang_präfix),
-                        Some(&mut sub_lang),
-                        Some(&mut sub_kurz_präfix),
-                        Some(&mut sub_kurz),
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                    ),
-                    name
-                );
-                let (lang_namen, erster) = match sub_lang.as_ref() {
-                    Some((head, tail)) => (
-                        quote!(
-                            #crate_name::NonEmpty {
-                                head: #head,
-                                tail: vec![#(#tail),*]
-                            }
-                        ),
-                        head,
-                    ),
-                    None => (quote!(#name), &name),
-                };
-                let kurz_namen = sub_kurz.to_vec_ts(erster);
-                verarbeiten(sub_sprache, sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen)
-            },
-            wert @ ArgumentWert::Liste(_) => {
-                return Err(NichtUnterstützt(Argument { name, wert }))
-            },
-            ArgumentWert::Stream(ts) => match name.as_str() {
-                // TODO case sensitive für namen, präfix, infix
-                // case-sensitive, case-insensitive alleine?
-                // case: (in)sensitive
-                // case(lang_präfix: (in)sensitive, lang: ...)
-                "sprache" | "language" => sprache = Sprache::parse(ts),
-                "lang_präfix" | "long_prefix" => lang_präfix = LangPräfix::from(ts.to_string()),
-                "kurz_präfix" | "short_prefix" => kurz_präfix = KurzPräfix::from(ts.to_string()),
-                "invertiere_präfix" | "invert_prefix" => {
-                    invertiere_präfix = InvertierePräfix::from(ts.to_string())
-                },
-                "invertiere_infix" | "invert_infix" => {
-                    invertiere_infix = InvertiereInfix::from(ts.to_string())
-                },
-                "wert_infix" | "value_infix" => wert_infix = WertInfix::from(ts.to_string()),
-                "meta_var" => meta_var = Some(ts.to_string()),
-                "case" => todo!(),
-                _ => {
-                    return Err(NichtUnterstützt(
-                        Argument { name, wert: ArgumentWert::Stream(ts) },
-                    ))
-                },
-            },
-        }
-    }
+    unwrap_or_call_return!(
+        parse_wert_arg(
+            args,
+            Some(&mut sprache),
+            Some(&mut erstelle_hilfe),
+            Some(&mut erstelle_version),
+            Some(&mut lang_präfix),
+            None,
+            Some(&mut kurz_präfix),
+            None,
+            Some(&mut invertiere_präfix),
+            Some(&mut invertiere_infix),
+            Some(&mut wert_infix),
+            Some(&mut meta_var),
+            None,
+            None,
+        ),
+        None
+    );
+    let sprache = sprache.unwrap_or(English);
     let meta_var = if let Some(meta_var) = meta_var {
         quote!(#meta_var)
     } else {
@@ -778,7 +722,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         let mut feld_invertiere_präfix = invertiere_präfix.clone();
         let mut feld_invertiere_infix = invertiere_infix.clone();
         let mut feld_wert_infix = wert_infix.clone();
-        let mut feld_meta_var = MetaVar(meta_var.clone());
+        let mut feld_meta_var = None;
         let mut standard = Standard(quote!(#crate_name::parse::ParseArgument::standard()));
         let mut feld_argument = FeldArgument::EnumArgument;
         for attr in attrs {
@@ -814,7 +758,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                         Some(&mut standard),
                         Some(&mut feld_argument),
                     ),
-                    ident_str
+                    Some(ident_str)
                 );
                 let erster = match lang_namen.as_ref() {
                     Some((head, tail)) => {
@@ -839,6 +783,8 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         let feld_invertiere_präfix = feld_invertiere_präfix.token_stream(&sprache);
         let feld_invertiere_infix = feld_invertiere_infix.token_stream(&sprache);
         let feld_wert_infix = feld_wert_infix.token_stream(&sprache);
+        let feld_meta_var =
+            if let Some(MetaVar(ts)) = feld_meta_var { ts } else { meta_var.clone() };
         let mut hilfe_string = String::new();
         for teil_string in hilfe_lits {
             if !hilfe_string.is_empty() {
@@ -898,12 +844,12 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         )*
         #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*}, #(#idents),*)
     );
-    let nach_version = if let Some(version_hinzufügen) = erstelle_version {
+    let nach_version = if let ErstelleVersion(Some(version_hinzufügen)) = erstelle_version {
         version_hinzufügen(kombiniere, sprache)
     } else {
         kombiniere
     };
-    let nach_hilfe = if let Some(hilfe_hinzufügen) = erstelle_hilfe {
+    let nach_hilfe = if let ErstelleHilfe(Some(hilfe_hinzufügen)) = erstelle_hilfe {
         hilfe_hinzufügen(nach_version)
     } else {
         nach_version
