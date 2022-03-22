@@ -50,34 +50,6 @@ enum FeldArgument {
     Parse,
 }
 
-#[derive(Debug)]
-enum KurzNamen {
-    Keiner,
-    Auto,
-    Namen(Vec<String>),
-}
-
-impl KurzNamen {
-    fn to_vec(self, lang_name: &str) -> Vec<String> {
-        match self {
-            KurzNamen::Keiner => Vec::new(),
-            KurzNamen::Auto => {
-                vec![lang_name.graphemes(true).next().expect("Langname ohne Graphemes!").to_owned()]
-            },
-            KurzNamen::Namen(namen) => namen,
-        }
-    }
-
-    fn to_vec_ts(self, lang_name: &str) -> TokenStream {
-        let vec = self.to_vec(&lang_name);
-        if vec.is_empty() {
-            quote!(None::<&str>)
-        } else {
-            quote!(vec![#(#vec),*])
-        }
-    }
-}
-
 fn erstelle_version_methode(
     feste_sprache: Option<Sprache>,
     namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
@@ -201,7 +173,6 @@ impl Display for ParseWertFehler {
     }
 }
 
-type LangNamen = Option<(String, Vec<String>)>;
 type ErstelleFehler = Box<dyn FnOnce(Option<String>) -> ParseWertFehler>;
 
 struct ErstelleHilfe(Option<Box<dyn FnOnce(TokenStream) -> TokenStream>>);
@@ -271,6 +242,71 @@ vergleich_typen! {
     WertInfix(wert_infix),
 }
 
+#[derive(Debug)]
+struct LangNamen {
+    namen: Option<(String, Vec<String>)>,
+    case: Option<Case>,
+}
+
+impl Default for LangNamen {
+    fn default() -> Self {
+        LangNamen { namen: None, case: None }
+    }
+}
+
+#[derive(Debug)]
+enum KurzNamenEnum {
+    Keiner,
+    Auto,
+    Namen(Vec<String>),
+}
+
+#[derive(Debug)]
+struct KurzNamen {
+    namen: KurzNamenEnum,
+    case: Option<Case>,
+}
+
+impl Default for KurzNamen {
+    fn default() -> Self {
+        KurzNamen { namen: KurzNamenEnum::Keiner, case: None }
+    }
+}
+
+impl KurzNamen {
+    fn to_vec(self, lang_name: &str, lang_namen_case: Option<Case>) -> (Vec<String>, Option<Case>) {
+        match self.namen {
+            KurzNamenEnum::Keiner => (Vec::new(), self.case),
+            KurzNamenEnum::Auto => (
+                vec![lang_name
+                    .graphemes(true)
+                    .next()
+                    .expect("Langname ohne Graphemes!")
+                    .to_owned()],
+                self.case.or(lang_namen_case),
+            ),
+            KurzNamenEnum::Namen(namen) => (namen, self.case),
+        }
+    }
+
+    fn to_vec_ts(self, lang_name: &str, lang_namen_case: Option<Case>) -> TokenStream {
+        let (vec, case) = self.to_vec(lang_name, lang_namen_case);
+        if vec.is_empty() {
+            quote!(None::<&str>)
+        } else {
+            let crate_name = base_name();
+            if let Some(case) = case {
+                quote!(vec![#(#crate_name::unicode::Vergleich {
+                    string: #vec,
+                    case: #case,
+                }),*])
+            } else {
+                quote!(vec![#(#vec),*])
+            }
+        }
+    }
+}
+
 fn parse_wert_arg(
     args: Vec<Argument>,
     mut sprache: Option<&mut Option<Sprache>>,
@@ -301,10 +337,10 @@ fn parse_wert_arg(
             }
         };
     }
-    macro_rules! setze_vergleich_string {
-        ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
+    macro_rules! setze_argument_feld {
+        ($mut_var: expr, $feld:ident, $wert: expr, $sub_arg: expr) => {
             if let Some(var) = $mut_var.as_mut() {
-                var.string = Some($wert);
+                var.$feld = $wert;
             } else {
                 return Err(Box::new(|arg_name| NichtUnterstützt {
                     arg_name,
@@ -313,16 +349,19 @@ fn parse_wert_arg(
             }
         };
     }
-    macro_rules! setze_vergleich_case {
+    macro_rules! setze_argument_namen {
         ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
-            if let Some(var) = $mut_var.as_mut() {
-                var.case = Some($wert);
-            } else {
-                return Err(Box::new(|arg_name| NichtUnterstützt {
-                    arg_name,
-                    argument: $sub_arg,
-                }));
-            }
+            setze_argument_feld!($mut_var, namen, $wert, $sub_arg)
+        };
+    }
+    macro_rules! setze_argument_string {
+        ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
+            setze_argument_feld!($mut_var, string, Some($wert), $sub_arg)
+        };
+    }
+    macro_rules! setze_argument_case {
+        ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
+            setze_argument_feld!($mut_var, case, Some($wert), $sub_arg)
         };
     }
     for Argument { name, wert } in args {
@@ -344,7 +383,7 @@ fn parse_wert_arg(
                     Argument { name, wert }
                 ),
                 "kurz" | "short" => {
-                    setze_argument!(kurz_namen, KurzNamen::Auto, Argument { name, wert })
+                    setze_argument_namen!(kurz_namen, KurzNamenEnum::Auto, Argument { name, wert })
                 },
                 "glätten" | "flatten" => {
                     setze_argument!(feld_argument, FeldArgument::Parse, Argument { name, wert })
@@ -370,7 +409,7 @@ fn parse_wert_arg(
                     } else {
                         return Err(Box::new(|arg_name| KeinLangName { arg_name, name }));
                     };
-                    setze_argument!(
+                    setze_argument_namen!(
                         lang_namen,
                         Some((head, tail)),
                         Argument { name, wert: ArgumentWert::Liste(liste) }
@@ -378,9 +417,9 @@ fn parse_wert_arg(
                 },
                 "kurz" | "short" => {
                     let namen_iter = liste.iter().map(ToString::to_string);
-                    setze_argument!(
+                    setze_argument_namen!(
                         kurz_namen,
-                        KurzNamen::Namen(namen_iter.collect()),
+                        KurzNamenEnum::Namen(namen_iter.collect()),
                         Argument { name, wert: ArgumentWert::Liste(liste) }
                     )
                 },
@@ -397,27 +436,27 @@ fn parse_wert_arg(
                     Some(Sprache::parse(ts)),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
-                "lang_präfix" | "long_prefix" => setze_vergleich_string!(
+                "lang_präfix" | "long_prefix" => setze_argument_string!(
                     lang_präfix,
                     ts.to_string(),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
-                "kurz_präfix" | "short_prefix" => setze_vergleich_string!(
+                "kurz_präfix" | "short_prefix" => setze_argument_string!(
                     kurz_präfix,
                     ts.to_string(),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
-                "invertiere_präfix" | "invert_prefix" => setze_vergleich_string!(
+                "invertiere_präfix" | "invert_prefix" => setze_argument_string!(
                     invertiere_präfix,
                     ts.to_string(),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
-                "invertiere_infix" | "invert_infix" => setze_vergleich_string!(
+                "invertiere_infix" | "invert_infix" => setze_argument_string!(
                     invertiere_infix,
                     ts.to_string(),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
-                "wert_infix" | "value_infix" => setze_vergleich_string!(
+                "wert_infix" | "value_infix" => setze_argument_string!(
                     wert_infix,
                     ts.to_string(),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
@@ -432,14 +471,14 @@ fn parse_wert_arg(
                     Standard(quote!(Some(#ts))),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
-                "lang" | "long" => setze_argument!(
+                "lang" | "long" => setze_argument_namen!(
                     lang_namen,
                     Some((ts.to_string(), Vec::new())),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
-                "kurz" | "short" => setze_argument!(
+                "kurz" | "short" => setze_argument_namen!(
                     kurz_namen,
-                    KurzNamen::Namen(vec![ts.to_string()]),
+                    KurzNamenEnum::Namen(vec![ts.to_string()]),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "case" => {
@@ -452,11 +491,11 @@ fn parse_wert_arg(
                         }));
                     };
                     let argument = Argument { name, wert: ArgumentWert::Stream(ts) };
-                    setze_vergleich_case!(lang_präfix, case, argument);
-                    setze_vergleich_case!(kurz_präfix, case, argument);
-                    setze_vergleich_case!(invertiere_präfix, case, argument);
-                    setze_vergleich_case!(invertiere_infix, case, argument);
-                    setze_vergleich_case!(wert_infix, case, argument);
+                    setze_argument_case!(lang_präfix, case, argument);
+                    setze_argument_case!(kurz_präfix, case, argument);
+                    setze_argument_case!(invertiere_präfix, case, argument);
+                    setze_argument_case!(invertiere_infix, case, argument);
+                    setze_argument_case!(wert_infix, case, argument);
                 },
                 _ => {
                     return Err(Box::new(|arg_name| NichtUnterstützt {
@@ -468,7 +507,6 @@ fn parse_wert_arg(
             ArgumentWert::Unterargument(sub_args) => {
                 // TODO vermeide Clone, vermutlich über macros
                 let sub_args_clone = sub_args.clone();
-                let name_clone = name.clone();
                 type Verarbeiten<'t> = Box<
                     dyn 't
                         + FnOnce(
@@ -477,13 +515,19 @@ fn parse_wert_arg(
                             TokenStream,
                             KurzPräfix,
                             TokenStream,
+                            Argument,
                         ) -> Result<(), ErstelleFehler>,
                 >;
                 let verarbeiten: Verarbeiten<'_> = match name.as_str() {
                     "hilfe" | "help" => {
                         let standard_sprache = if name == "hilfe" { Deutsch } else { English };
                         Box::new(
-                            |s_sprache, s_lang_präfix, lang_namen, s_kurz_präfix, kurz_namen| {
+                            |s_sprache,
+                             s_lang_präfix,
+                             lang_namen,
+                             s_kurz_präfix,
+                             kurz_namen,
+                             argument| {
                                 let präfix_und_namen =
                                     (s_lang_präfix, lang_namen, s_kurz_präfix, kurz_namen);
                                 setze_argument!(
@@ -492,14 +536,19 @@ fn parse_wert_arg(
                                         s_sprache.unwrap_or(standard_sprache),
                                         Some(präfix_und_namen)
                                     )))),
-                                    Argument { name, wert: ArgumentWert::Unterargument(sub_args) }
+                                    argument
                                 );
                                 Ok(())
                             },
                         )
                     },
                     "version" => Box::new(
-                        |sub_sprache, sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen| {
+                        |sub_sprache,
+                         sub_lang_präfix,
+                         lang_namen,
+                         sub_kurz_präfix,
+                         kurz_namen,
+                         argument| {
                             let präfix_und_namen =
                                 (sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen);
                             setze_argument!(
@@ -508,7 +557,7 @@ fn parse_wert_arg(
                                     sub_sprache,
                                     Some(präfix_und_namen)
                                 )))),
-                                Argument { name, wert: ArgumentWert::Unterargument(sub_args) }
+                                argument
                             );
                             Ok(())
                         },
@@ -530,9 +579,9 @@ fn parse_wert_arg(
                 };
                 let mut sub_sprache = None;
                 let mut sub_lang_präfix = LangPräfix::default();
-                let mut sub_lang = None;
+                let mut sub_lang = LangNamen::default();
                 let mut sub_kurz_präfix = KurzPräfix::default();
-                let mut sub_kurz = KurzNamen::Keiner;
+                let mut sub_kurz = KurzNamen::default();
                 parse_wert_arg(
                     sub_args_clone,
                     Some(&mut sub_sprache),
@@ -549,7 +598,7 @@ fn parse_wert_arg(
                     None,
                     None,
                 )?;
-                let (lang_namen, erster) = match sub_lang.as_ref() {
+                let (lang_namen, erster) = match sub_lang.namen.as_ref() {
                     Some((head, tail)) => (
                         quote!(
                             #crate_name::NonEmpty {
@@ -559,10 +608,17 @@ fn parse_wert_arg(
                         ),
                         head,
                     ),
-                    None => (quote!(#name_clone), &name_clone),
+                    None => (quote!(#name), &name),
                 };
-                let kurz_namen = sub_kurz.to_vec_ts(erster);
-                verarbeiten(sub_sprache, sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen)?;
+                let kurz_namen = sub_kurz.to_vec_ts(erster, sub_lang.case);
+                verarbeiten(
+                    sub_sprache,
+                    sub_lang_präfix,
+                    lang_namen,
+                    sub_kurz_präfix,
+                    kurz_namen,
+                    Argument { name, wert: ArgumentWert::Unterargument(sub_args) },
+                )?;
             },
         }
     }
@@ -742,8 +798,8 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
             } else if attr.path.is_ident("kommandozeilen_argumente") {
                 let mut feld_args = Vec::new();
                 split_klammer_argumente(vec![ident.to_string()], &mut feld_args, attr.tokens)?;
-                let mut lang_namen = None;
-                let mut kurz_namen = KurzNamen::Keiner;
+                let mut lang_namen = LangNamen::default();
+                let mut kurz_namen = KurzNamen::default();
                 unwrap_or_call_return!(
                     parse_wert_arg(
                         feld_args,
@@ -763,7 +819,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                     ),
                     Some(ident_str)
                 );
-                let erster = match lang_namen.as_ref() {
+                let erster = match lang_namen.namen.as_ref() {
                     Some((head, tail)) => {
                         lang = quote!(
                             #crate_name::NonEmpty {
@@ -778,7 +834,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                         &ident_str
                     },
                 };
-                kurz = kurz_namen.to_vec_ts(erster);
+                kurz = kurz_namen.to_vec_ts(erster, lang_namen.case);
             }
         }
         let feld_lang_präfix = feld_lang_präfix.token_stream(&sprache);
