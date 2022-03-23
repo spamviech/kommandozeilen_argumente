@@ -10,7 +10,7 @@
   - `Parse::parse_vollständig_mit_sprache_aus_env`
 - Funktion ersetzt: `unicase_eq` -> `unicode_eq`
     Vor Vergleich beider Strings werden beide in Unicode Normalization Form C konvertiert.
-    Beachten der Groß-/Kleinschreibung wird über eine Parameter gesteuert.
+    Beachten der Groß-/Kleinschreibung wird über einen Parameter gesteuert.
 - Methode umbenannt: `Ergebnis::map` -> `Ergebnis::konvertiere`, `Ergebnis::convert`
 - Die `kombiniereN`-Funktionen werden explizit (über ein Macro) implementiert.
     Dadurch werden deutlich weniger Tupel ge- und entpackt,
