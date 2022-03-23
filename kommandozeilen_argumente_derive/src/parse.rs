@@ -8,7 +8,7 @@ use syn::{parse2, Data, DataStruct, DeriveInput, Field, Ident};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::utility::{
-    base_name, genau_eines, split_klammer_argumente, Argument, ArgumentWert, Case,
+    crate_name, genau_eines, split_klammer_argumente, Argument, ArgumentWert, Case,
     SplitArgumenteFehler,
 };
 
@@ -35,7 +35,7 @@ impl Sprache {
 
     fn token_stream(&self) -> TokenStream {
         use Sprache::*;
-        let crate_name = base_name();
+        let crate_name = crate_name();
         match self {
             Deutsch => quote!(#crate_name::Sprache::DEUTSCH),
             English => quote!(#crate_name::Sprache::ENGLISH),
@@ -54,7 +54,7 @@ fn erstelle_version_methode(
     feste_sprache: Option<Sprache>,
     namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
 ) -> impl FnOnce(TokenStream, Sprache) -> TokenStream {
-    let crate_name = base_name();
+    let crate_name = crate_name();
     move |item, standard_sprache| {
         let sprache = feste_sprache.unwrap_or(standard_sprache);
         let sprache_ts = sprache.token_stream();
@@ -89,7 +89,7 @@ fn erstelle_hilfe_methode(
     sprache: Sprache,
     namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
 ) -> impl Fn(TokenStream) -> TokenStream {
-    let crate_name = base_name();
+    let crate_name = crate_name();
     let sprache_ts = sprache.token_stream();
     let lang_standard = quote!(#sprache_ts.hilfe_lang);
     let kurz_standard = quote!(#sprache_ts.hilfe_kurz);
@@ -212,7 +212,7 @@ macro_rules! vergleich_typen {
 
             impl $name {
                 fn token_stream(&self, sprache: &Sprache) -> TokenStream {
-                    let crate_name = base_name();
+                    let crate_name = crate_name();
                     let string = if let Some(string) = &self.string {
                         quote!(#string)
                     } else {
@@ -290,7 +290,7 @@ impl KurzNamen {
         if vec.is_empty() {
             quote!(None::<&str>)
         } else {
-            let crate_name = base_name();
+            let crate_name = crate_name();
             if let Some(case) = case {
                 quote!(vec![#(#crate_name::unicode::Vergleich {
                     string: #vec,
@@ -320,7 +320,7 @@ fn parse_wert_arg(
     mut feld_argument: Option<&mut FeldArgument>,
 ) -> Result<(), ErstelleFehler> {
     use ParseWertFehler::*;
-    let crate_name = base_name();
+    let crate_name = crate_name();
     macro_rules! setze_argument {
         ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
             if let Some(var) = $mut_var.as_mut() {
@@ -771,7 +771,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
     let mut invertiere_infix = InvertiereInfix::default();
     let mut wert_infix = WertInfix::default();
     let mut meta_var = None;
-    let crate_name = base_name();
+    let crate_name = crate_name();
     unwrap_or_call_return!(
         parse_wert_arg(
             args,

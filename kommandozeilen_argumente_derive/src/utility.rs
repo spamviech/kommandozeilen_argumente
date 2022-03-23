@@ -11,7 +11,7 @@ use quote::{format_ident, quote, ToTokens};
 
 ////////////////////////////////////////////////////////
 
-pub(crate) fn base_name() -> Ident {
+pub(crate) fn crate_name() -> Ident {
     format_ident!("{}", "kommandozeilen_argumente")
 }
 
@@ -67,7 +67,7 @@ impl Default for Case {
 
 impl ToTokens for Case {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let crate_name = base_name();
+        let crate_name = crate_name();
         let ts = match self {
             Case::Sensitive => quote!(#crate_name::unicode::Case::Sensitive),
             Case::Insensitive => quote!(#crate_name::unicode::Case::Insensitive),

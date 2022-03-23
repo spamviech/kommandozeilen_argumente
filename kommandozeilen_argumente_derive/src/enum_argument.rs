@@ -7,7 +7,7 @@ use quote::quote;
 use syn::{parse2, Attribute, Data, DataEnum, DeriveInput, Fields, Ident, Variant};
 
 use crate::utility::{
-    base_name, split_klammer_argumente, Argument, ArgumentWert, Case, SplitArgumenteFehler,
+    crate_name, split_klammer_argumente, Argument, ArgumentWert, Case, SplitArgumenteFehler,
 };
 
 #[derive(Debug)]
@@ -117,7 +117,7 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fe
         Data::Struct(_) => return Err(KeinEnum { typ: Struct, input }),
         Data::Union(_) => return Err(KeinEnum { typ: Union, input }),
     };
-    let crate_name = base_name();
+    let crate_name = crate_name();
     let has_where_clause = generics.where_clause.is_some();
     if !generics.params.is_empty() || has_where_clause {
         return Err(Generics { anzahl: generics.params.len(), where_clause: has_where_clause });
