@@ -45,8 +45,6 @@ pub use crate::{combine, kombiniere};
 //      kann durch alternativ-Methode erzeugt werden (erst Wert, dann Flag)
 //          dazu spezialisierte Methode bereitstellen
 // TODO Programm-Beschreibung in Hilfe-Text
-// TODO Einstellung, ob Namen case-sensitive geparst werden sollen
-//      bisher nur in derive-Macros nicht implementiert
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<'t, T, E> {
