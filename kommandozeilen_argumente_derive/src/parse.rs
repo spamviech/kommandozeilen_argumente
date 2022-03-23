@@ -505,68 +505,85 @@ fn parse_wert_arg(
                 },
             },
             ArgumentWert::Unterargument(sub_args) => {
-                // TODO vermeide Clone, vermutlich über macros
-                let sub_args_clone = sub_args.clone();
-                type Verarbeiten<'t> = Box<
-                    dyn 't
-                        + FnOnce(
-                            Option<Sprache>,
-                            LangPräfix,
-                            TokenStream,
-                            KurzPräfix,
-                            TokenStream,
-                            Argument,
-                        ) -> Result<(), ErstelleFehler>,
-                >;
-                let verarbeiten: Verarbeiten<'_> = match name.as_str() {
-                    "hilfe" | "help" => {
+                macro_rules! rekursiv {
+                    ($sub_sprache:ident, $präfix_und_namen: ident) => {
+                        let mut $sub_sprache = None;
+                        let mut sub_lang_präfix = LangPräfix::default();
+                        let mut sub_lang = LangNamen::default();
+                        let mut sub_kurz_präfix = KurzPräfix::default();
+                        let mut sub_kurz = KurzNamen::default();
+                        let result = parse_wert_arg(
+                            sub_args,
+                            Some(&mut $sub_sprache),
+                            None,
+                            None,
+                            Some(&mut sub_lang_präfix),
+                            Some(&mut sub_lang),
+                            Some(&mut sub_kurz_präfix),
+                            Some(&mut sub_kurz),
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                        );
+                        if let Err(erstelle_fehler) = result {
+                            return Err(Box::new(|arg_name| match erstelle_fehler(arg_name) {
+                                NichtUnterstützt { arg_name, argument } => NichtUnterstützt {
+                                    arg_name,
+                                    argument: Argument {
+                                        name,
+                                        wert: ArgumentWert::Unterargument(vec![argument])
+                                    }
+                                },
+                                fehler => fehler,
+                            }))
+                        };
+                        let (sub_lang_ts, erster) = match sub_lang.namen.as_ref() {
+                            Some((head, tail)) => (
+                                quote!(
+                                    #crate_name::NonEmpty {
+                                        head: #head,
+                                        tail: vec![#(#tail),*]
+                                    }
+                                ),
+                                head,
+                            ),
+                            None => (quote!(#name), &name),
+                        };
+                        let sub_kurz_ts = sub_kurz.to_vec_ts(erster, sub_lang.case);
+                        let $präfix_und_namen =
+                            (sub_lang_präfix, sub_lang_ts, sub_kurz_präfix, sub_kurz_ts);
+                    }
+                }
+                match (name.as_str(), erstelle_hilfe.as_mut(), erstelle_version.as_mut()) {
+                    ("hilfe" | "help", Some(erstelle_hilfe), _) => {
+                        rekursiv!(sub_sprache, präfix_und_namen);
                         let standard_sprache = if name == "hilfe" { Deutsch } else { English };
-                        Box::new(
-                            |s_sprache,
-                             s_lang_präfix,
-                             lang_namen,
-                             s_kurz_präfix,
-                             kurz_namen,
-                             argument| {
-                                let präfix_und_namen =
-                                    (s_lang_präfix, lang_namen, s_kurz_präfix, kurz_namen);
-                                setze_argument!(
-                                    erstelle_hilfe,
-                                    ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
-                                        s_sprache.unwrap_or(standard_sprache),
-                                        Some(präfix_und_namen)
-                                    )))),
-                                    argument
-                                );
-                                Ok(())
-                            },
-                        )
+                        **erstelle_hilfe = ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
+                            sub_sprache.unwrap_or(standard_sprache),
+                            Some(präfix_und_namen),
+                        ))));
                     },
-                    "version" => Box::new(
-                        |sub_sprache,
-                         sub_lang_präfix,
-                         lang_namen,
-                         sub_kurz_präfix,
-                         kurz_namen,
-                         argument| {
-                            let präfix_und_namen =
-                                (sub_lang_präfix, lang_namen, sub_kurz_präfix, kurz_namen);
-                            setze_argument!(
-                                erstelle_version,
-                                ErstelleVersion(Some(Box::new(erstelle_version_methode(
-                                    sub_sprache,
-                                    Some(präfix_und_namen)
-                                )))),
-                                argument
-                            );
-                            Ok(())
-                        },
-                    ),
+                    ("version", _, Some(erstelle_version)) => {
+                        rekursiv!(sub_sprache, präfix_und_namen);
+                        **erstelle_version = ErstelleVersion(Some(Box::new(
+                            erstelle_version_methode(sub_sprache, Some(präfix_und_namen)),
+                        )));
+                    },
                     // TODO case sensitive für namen, präfix, infix
                     // case-sensitive, case-insensitive alleine?
                     // case: (in)sensitive
                     // case(lang_präfix: (in)sensitive, lang: ...)
-                    "case" => todo!(),
+                    ("case", _, _) => {
+                        // setze_argument_case!(lang_präfix, case, argument);
+                        // setze_argument_case!(kurz_präfix, case, argument);
+                        // setze_argument_case!(invertiere_präfix, case, argument);
+                        // setze_argument_case!(invertiere_infix, case, argument);
+                        // setze_argument_case!(wert_infix, case, argument);
+                        todo!()
+                    },
                     _ => {
                         return Err(Box::new(|arg_name| NichtUnterstützt {
                             arg_name,
@@ -576,49 +593,7 @@ fn parse_wert_arg(
                             },
                         }))
                     },
-                };
-                let mut sub_sprache = None;
-                let mut sub_lang_präfix = LangPräfix::default();
-                let mut sub_lang = LangNamen::default();
-                let mut sub_kurz_präfix = KurzPräfix::default();
-                let mut sub_kurz = KurzNamen::default();
-                parse_wert_arg(
-                    sub_args_clone,
-                    Some(&mut sub_sprache),
-                    None,
-                    None,
-                    Some(&mut sub_lang_präfix),
-                    Some(&mut sub_lang),
-                    Some(&mut sub_kurz_präfix),
-                    Some(&mut sub_kurz),
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                )?;
-                let (lang_namen, erster) = match sub_lang.namen.as_ref() {
-                    Some((head, tail)) => (
-                        quote!(
-                            #crate_name::NonEmpty {
-                                head: #head,
-                                tail: vec![#(#tail),*]
-                            }
-                        ),
-                        head,
-                    ),
-                    None => (quote!(#name), &name),
-                };
-                let kurz_namen = sub_kurz.to_vec_ts(erster, sub_lang.case);
-                verarbeiten(
-                    sub_sprache,
-                    sub_lang_präfix,
-                    lang_namen,
-                    sub_kurz_präfix,
-                    kurz_namen,
-                    Argument { name, wert: ArgumentWert::Unterargument(sub_args) },
-                )?;
+                }
             },
         }
     }
