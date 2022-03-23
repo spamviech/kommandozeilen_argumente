@@ -178,28 +178,24 @@ type ErstelleFehler = Box<dyn FnOnce(Option<String>) -> ParseWertFehler>;
 struct ErstelleHilfe(Option<Box<dyn FnOnce(TokenStream) -> TokenStream>>);
 struct ErstelleVersion(Option<Box<dyn FnOnce(TokenStream, Sprache) -> TokenStream>>);
 
-macro_rules! newtype_ts {
-    ($($name: ident),* $(,)?) => {
+macro_rules! create_newtype {
+    ($($name: ident : $type: ty),* $(,)?) => {
         $(
             #[derive(Debug, Clone)]
-            struct $name(TokenStream);
+            struct $name($type);
 
             impl ToTokens for $name {
                 fn to_tokens(&self, tokens: &mut TokenStream) {
                     self.0.to_tokens(tokens)
-                }
-
-                fn into_token_stream(self) -> TokenStream {
-                    self.0
                 }
             }
         )*
     };
 }
 
-newtype_ts! {
-    MetaVar,
-    Standard,
+create_newtype! {
+    MetaVar: String,
+    Standard: TokenStream,
 }
 
 macro_rules! vergleich_typen {
@@ -225,7 +221,7 @@ macro_rules! vergleich_typen {
                     };
                     let case = self.case.unwrap_or_default();
                     quote!(#crate_name::unicode::Vergleich {
-                        string: #string,
+                        string: #crate_name::unicode::Normalisiert::neu(#string),
                         case: #case,
                     })
                 }
@@ -463,7 +459,7 @@ fn parse_wert_arg(
                 ),
                 "meta_var" => setze_argument!(
                     meta_var,
-                    Some(MetaVar(ts)),
+                    Some(MetaVar(ts.to_string())),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "standard" | "default" => setze_argument!(
@@ -879,8 +875,11 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         let feld_invertiere_präfix = feld_invertiere_präfix.token_stream(&sprache);
         let feld_invertiere_infix = feld_invertiere_infix.token_stream(&sprache);
         let feld_wert_infix = feld_wert_infix.token_stream(&sprache);
-        let feld_meta_var =
-            if let Some(MetaVar(ts)) = feld_meta_var { ts } else { meta_var.clone() };
+        let feld_meta_var = if let Some(MetaVar(string)) = feld_meta_var {
+            quote!(#string)
+        } else {
+            meta_var.clone()
+        };
         let mut hilfe_string = String::new();
         for teil_string in hilfe_lits {
             if !hilfe_string.is_empty() {
