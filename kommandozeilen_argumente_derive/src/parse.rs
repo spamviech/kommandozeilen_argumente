@@ -492,7 +492,9 @@ fn parse_wert_arg(
                     };
                     let argument = Argument { name, wert: ArgumentWert::Stream(ts) };
                     setze_argument_case!(lang_präfix, case, argument);
+                    setze_argument_case!(lang_namen, case, argument);
                     setze_argument_case!(kurz_präfix, case, argument);
+                    setze_argument_case!(kurz_namen, case, argument);
                     setze_argument_case!(invertiere_präfix, case, argument);
                     setze_argument_case!(invertiere_infix, case, argument);
                     setze_argument_case!(wert_infix, case, argument);
@@ -572,17 +574,77 @@ fn parse_wert_arg(
                             erstelle_version_methode(sub_sprache, Some(präfix_und_namen)),
                         )));
                     },
-                    // TODO case sensitive für namen, präfix, infix
-                    // case-sensitive, case-insensitive alleine?
-                    // case: (in)sensitive
-                    // case(lang_präfix: (in)sensitive, lang: ...)
                     ("case", _, _) => {
-                        // setze_argument_case!(lang_präfix, case, argument);
-                        // setze_argument_case!(kurz_präfix, case, argument);
-                        // setze_argument_case!(invertiere_präfix, case, argument);
-                        // setze_argument_case!(invertiere_infix, case, argument);
-                        // setze_argument_case!(wert_infix, case, argument);
-                        todo!()
+                        for sub_arg in sub_args {
+                            if let Argument { name: sub_name, wert: ArgumentWert::Stream(ts) } =
+                                sub_arg
+                            {
+                                macro_rules! error_argument {
+                                    () => {
+                                        Argument {
+                                            name,
+                                            wert: ArgumentWert::Unterargument(vec![Argument {
+                                                name: sub_name,
+                                                wert: ArgumentWert::Stream(ts),
+                                            }]),
+                                        }
+                                    };
+                                }
+                                let case = if let Some(case) = Case::parse(&ts) {
+                                    case
+                                } else {
+                                    return Err(Box::new(|arg_name| NichtUnterstützt {
+                                        arg_name,
+                                        argument: error_argument!(),
+                                    }));
+                                };
+                                match sub_name.as_str() {
+                                    "lang_präfix" | "long_prefix" => {
+                                        setze_argument_case!(lang_präfix, case, error_argument!())
+                                    },
+                                    "lang" | "long" => {
+                                        setze_argument_case!(lang_namen, case, error_argument!())
+                                    },
+                                    "kurz_präfix" | "short_prefix" => {
+                                        setze_argument_case!(kurz_präfix, case, error_argument!())
+                                    },
+                                    "kurz" | "short" => {
+                                        setze_argument_case!(kurz_namen, case, error_argument!())
+                                    },
+                                    "invertiere_präfix" | "invert_prefix" => {
+                                        setze_argument_case!(
+                                            invertiere_präfix,
+                                            case,
+                                            error_argument!()
+                                        )
+                                    },
+                                    "invertiere_infix" | "invert_infix" => {
+                                        setze_argument_case!(
+                                            invertiere_infix,
+                                            case,
+                                            error_argument!()
+                                        )
+                                    },
+                                    "wert_infix" | "value_infix" => {
+                                        setze_argument_case!(wert_infix, case, error_argument!())
+                                    },
+                                    _ => {
+                                        return Err(Box::new(|arg_name| NichtUnterstützt {
+                                            arg_name,
+                                            argument: error_argument!(),
+                                        }))
+                                    },
+                                }
+                            } else {
+                                return Err(Box::new(|arg_name| NichtUnterstützt {
+                                    arg_name,
+                                    argument: Argument {
+                                        name,
+                                        wert: ArgumentWert::Unterargument(vec![sub_arg]),
+                                    },
+                                }));
+                            }
+                        }
                     },
                     _ => {
                         return Err(Box::new(|arg_name| NichtUnterstützt {

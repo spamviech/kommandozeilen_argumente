@@ -89,6 +89,19 @@ Direkt am `struct` werden folgende Optionen unterstützt:
   - `kurz`: Setze Kurznamen als erstes Grapheme des originalen Langnamen.
   - `kurz: <name>`, `kurz: [<namen>]`: Setze Kurznamen explizit.
   - `sprache: <sprache>` | `language: <language>`: Sprache von Hilfe-Text und Standard-Namen.
+- `case: sensitive`, `case: insensitive`:
+  Alle Strings (Namen, Präfix, Infix) werden mit/ohne Berücksichtigung von
+  Groß-/Kleinschreibung verglichen (Standard: `case: sensitive`).
+- `case(<opts>)`:
+  Genauere Einstellung zu Groß-/Kleinschreibung. Alle Opts haben die Form `<name>: <wert>`,
+  mit `<wert>` entweder `sensitive` oder `insensitive`. Erlaubte Namen:
+  - `lang_präfix` | `long_prefix`
+  - `lang` | `long`
+  - `kurz_präfix` | `short_prefix`
+  - `kurz` | `short`
+  - `invertiere_präfix` | `invert_prefix`
+  - `invertiere_infix` | `invert_infix`
+  - `wert_infix` | `value_infix`
 - `lang_präfix: <präfix>` | `long_prefix: <prefix>`:
   Setze Standardwert für Präfix vor Langnamen, Standard `--`.
 - `kurz_präfix: <präfix>` | `short_prefix: <prefix>`:
