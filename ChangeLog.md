@@ -2,6 +2,9 @@
 
 ## Unreleased changes
 
+- Normalisiere Namen und Prä-/Infixe, bevor diese mit Nutzereingaben verglichen werden.
+- Erlaube von Groß-/Kleinschreibung unabhängige Namen und Prä-/Infixe.
+- Erlaube Konfiguration aller Prä-/Infixe.
 - Unbenutzten `&self`-Parameter von folgenden Methoden entfernt:
   - `Parse::parse_vollständig_mit_sprache`
   - `Parse::parse_vollständig_mit_sprache_aus_env`
@@ -18,7 +21,7 @@
     Damit kann z.B. ein eigener Hilfe-Text erzeugt werden.
 - Stelle englische Synonyme für Typen, Macros, Funktionen und Methoden bereit.
 - kommandozeilen_argumente_derive verwendet syn-feature "derive" statt "full".
-- kommandozeilen_argumente_derive parsed Attribute direkt als TokenStream.
+- kommandozeilen_argumente_derive parsed Attribute direkt aus einem TokenStream.
 
 ## 0.1.3
 
