@@ -93,8 +93,7 @@ fn punct_is_char(punct: &Punct, c: char) -> bool {
     punct.as_char() == c && punct.spacing() == Spacing::Alone
 }
 
-// TODO entferne Clone-derive
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) enum ArgumentWert {
     KeinWert,
     Unterargument(Vec<Argument>),
@@ -138,8 +137,7 @@ impl Display for ArgumentWert {
     }
 }
 
-// TODO entferne Clone-derive
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct Argument {
     pub(crate) name: String,
     pub(crate) wert: ArgumentWert,
