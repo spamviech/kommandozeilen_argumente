@@ -24,7 +24,6 @@ name = "derive"
 required-features = ["derive"]
 
 [dependencies]
-cjk = "0.2.4"
 either = "1.6.1"
 itertools = "0.10.3"
 nonempty = "0.7.0"
