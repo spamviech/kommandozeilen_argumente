@@ -30,7 +30,7 @@ impl<'t, E> Argumente<'t, bool, E> {
     /// [flag_bool_deutsch](Argumente::flag_bool_deutsch)
     #[inline(always)]
     pub fn flag_bool_english(description: Description<'t, bool>) -> Arguments<'t, bool, E> {
-        Argumente::flag_bool_mit_sprache(description, Sprache::ENGLISH)
+        Argumente::flag_bool_mit_sprache(description, Sprache::ENGLISCH)
     }
 
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
@@ -54,7 +54,7 @@ impl<'t, E> Argumente<'t, bool, E> {
         description: Description<'t, bool>,
         language: Language,
     ) -> Arguments<'t, bool, E> {
-        Argumente::flag_bool_mit_sprache(description, language)
+        Argumente::flag_bool_mit_sprache(description, language.sprache())
     }
 
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
@@ -93,7 +93,7 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
         description: Description<'t, T>,
         convert: impl 't + Fn(bool) -> T,
     ) -> Argumente<'t, T, E> {
-        Argumente::flag_display_mit_sprache(description, convert, Sprache::ENGLISH)
+        Argumente::flag_display_mit_sprache(description, convert, Sprache::ENGLISCH)
     }
 
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
@@ -125,7 +125,7 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
         convert: impl 't + Fn(bool) -> T,
         language: Language,
     ) -> Arguments<'t, T, E> {
-        Argumente::flag_display_mit_sprache(description, convert, language)
+        Argumente::flag_display_mit_sprache(description, convert, language.sprache())
     }
 
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
@@ -173,7 +173,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         convert: impl 't + Fn(bool) -> T,
         display: impl Fn(&T) -> String,
     ) -> Argumente<'t, T, E> {
-        Argumente::flag_mit_sprache(description, convert, display, Sprache::ENGLISH)
+        Argumente::flag_mit_sprache(description, convert, display, Sprache::ENGLISCH)
     }
 
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
@@ -207,7 +207,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         display: impl Fn(&T) -> String,
         language: Language,
     ) -> Arguments<'t, T, E> {
-        Argumente::flag_mit_sprache(description, convert, display, language)
+        Argumente::flag_mit_sprache(description, convert, display, language.sprache())
     }
 
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.

@@ -139,7 +139,7 @@ impl<T, E: Display> Argumente<'_, T, E> {
         error_code: NonZeroI32,
         language: Language,
     ) -> T {
-        self.parse_vollständig_mit_sprache_aus_env(error_code, language)
+        self.parse_vollständig_mit_sprache_aus_env(error_code, language.sprache())
     }
 
     /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -232,7 +232,7 @@ impl<T, E: Display> Argumente<'_, T, E> {
         args: impl Iterator<Item = OsString>,
         error_code: NonZeroI32,
     ) -> T {
-        self.parse_vollständig_mit_sprache(args, error_code, Sprache::ENGLISH)
+        self.parse_complete_with_language(args, error_code, Language::ENGLISH)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -277,7 +277,7 @@ impl<T, E: Display> Argumente<'_, T, E> {
         error_code: NonZeroI32,
         language: Language,
     ) -> T {
-        self.parse_vollständig_mit_sprache(args, error_code, language)
+        self.parse_vollständig_mit_sprache(args, error_code, language.sprache())
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.

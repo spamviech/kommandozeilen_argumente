@@ -49,7 +49,12 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
         parse: impl 't + Fn(&str) -> Result<T, E>,
         language: Language,
     ) -> Arguments<'t, T, E> {
-        Argumente::wert_string_display_mit_sprache(description, possible_values, parse, language)
+        Argumente::wert_string_display_mit_sprache(
+            description,
+            possible_values,
+            parse,
+            language.sprache(),
+        )
     }
 
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
@@ -120,7 +125,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
         parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
         language: Language,
     ) -> Arguments<'t, T, E> {
-        Argumente::wert_display_mit_sprache(description, possible_values, parse, language)
+        Argumente::wert_display_mit_sprache(description, possible_values, parse, language.sprache())
     }
 
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
@@ -196,7 +201,13 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         display: impl Fn(&T) -> String,
         language: Language,
     ) -> Arguments<'t, T, E> {
-        Argumente::wert_string_mit_sprache(description, possible_values, parse, display, language)
+        Argumente::wert_string_mit_sprache(
+            description,
+            possible_values,
+            parse,
+            display,
+            language.sprache(),
+        )
     }
 
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
@@ -278,7 +289,13 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         display: impl Fn(&T) -> String,
         language: Language,
     ) -> Argumente<'t, T, E> {
-        Argumente::wert_mit_sprache(description, possible_values, parse, display, language)
+        Argumente::wert_mit_sprache(
+            description,
+            possible_values,
+            parse,
+            display,
+            language.sprache(),
+        )
     }
 
     /// Erzeuge ein Wert-Argument, ausgehend von der übergebenen `parse`-Funktion.
@@ -485,7 +502,7 @@ impl<'t, T: 't + Display + Clone + EnumArgument> Argumente<'t, T, String> {
         description: Description<'t, T>,
         language: Language,
     ) -> Arguments<'t, T, String> {
-        Argumente::wert_enum_display_mit_sprache(description, language)
+        Argumente::wert_enum_display_mit_sprache(description, language.sprache())
     }
 
     /// Erzeuge ein Wert-Argument für ein [EnumArgument].
@@ -539,7 +556,7 @@ impl<'t, T: 't + Display + Clone + EnumArgument> Argumente<'t, T, String> {
         display: impl Fn(&T) -> String,
         language: Language,
     ) -> Arguments<'t, T, String> {
-        Argumente::wert_enum_mit_sprache(description, display, language)
+        Argumente::wert_enum_mit_sprache(description, display, language.sprache())
     }
 
     /// Erzeuge ein Wert-Argument für ein [EnumArgument].
@@ -604,7 +621,11 @@ where
         possible_values: Option<NonEmpty<T>>,
         language: Language,
     ) -> Argumente<'t, T, String> {
-        Argumente::wert_from_str_display_mit_sprache(description, possible_values, language)
+        Argumente::wert_from_str_display_mit_sprache(
+            description,
+            possible_values,
+            language.sprache(),
+        )
     }
 
     /// Erzeuge ein Wert-Argument anhand der [FromStr]-Implementierung.
@@ -683,7 +704,7 @@ impl<'t, T: 't + Clone + FromStr, E: Clone> Argumente<'t, T, E> {
             possible_values,
             display,
             convert_error,
-            language,
+            language.sprache(),
         )
     }
 

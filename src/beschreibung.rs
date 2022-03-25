@@ -323,7 +323,7 @@ impl<'t, T> Beschreibung<'t, T> {
         default: Option<T>,
         language: Language,
     ) -> Beschreibung<'t, T> {
-        Beschreibung::neu_mit_sprache(long, short, help, default, language)
+        Beschreibung::neu_mit_sprache(long, short, help, default, language.sprache())
     }
 }
 

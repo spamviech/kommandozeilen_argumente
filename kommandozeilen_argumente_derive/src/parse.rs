@@ -37,9 +37,9 @@ impl Sprache {
         use Sprache::*;
         let crate_name = crate_name();
         match self {
-            Deutsch => quote!(#crate_name::Sprache::DEUTSCH),
-            English => quote!(#crate_name::Sprache::ENGLISH),
-            TokenStream(ts) => ts.clone(),
+            Deutsch => quote!(#crate_name::sprache::Sprache::DEUTSCH),
+            English => quote!(#crate_name::sprache::Sprache::ENGLISCH),
+            TokenStream(ts) => quote!(#crate_name::sprache::Sprache::from(#ts)),
         }
     }
 }
