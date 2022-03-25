@@ -9,7 +9,7 @@ use crate::{
     beschreibung::{Beschreibung, Description, Konfiguration},
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler},
     sprache::{Language, Sprache},
-    unicode::Vergleich,
+    unicode::{Compare, Vergleich},
 };
 
 #[cfg(any(feature = "derive", all(doc, not(doctest))))]
@@ -27,11 +27,8 @@ pub trait ParseArgument: Sized {
     /// `invertiere_präfix` ist für Flag-Argumente gedacht,
     /// `meta_var` für Wert-Argumente.
     ///
-    /// ## English
-    /// Create and [Arguments] with the configured properties.
-    ///
-    /// `invertiere_präfix` is intended as the prefix to invert flag arguments,
-    /// `meta_var` is intended as the meta-variable used in the help text for value arguments.
+    /// ## English synonym
+    /// [arguments](ParseArgument::arguments)
     fn argumente<'t>(
         beschreibung: Beschreibung<'t, Self>,
         invertiere_präfix: impl Into<Vergleich<'t>>,
@@ -40,11 +37,38 @@ pub trait ParseArgument: Sized {
         meta_var: &'t str,
     ) -> Argumente<'t, Self, String>;
 
+    /// Create and [Arguments] with the configured properties.
+    ///
+    /// `invertiere_präfix` is intended as the prefix to invert flag arguments,
+    /// `meta_var` is intended as the meta-variable used in the help text for value arguments.
+    ///
+    /// ## Deutsches Synonym
+    /// [argumente](ParseArgument::argumente)
+    #[inline(always)]
+    fn arguments<'t>(
+        description: Description<'t, Self>,
+        invert_prefix: impl Into<Compare<'t>>,
+        invert_infix: impl Into<Compare<'t>>,
+        value_infix: impl Into<Compare<'t>>,
+        meta_var: &'t str,
+    ) -> Argumente<'t, Self, String> {
+        ParseArgument::argumente(description, invert_prefix, invert_infix, value_infix, meta_var)
+    }
+
     /// Sollen Argumente dieses Typs normalerweise einen Standard-Wert haben?
     ///
-    /// ## English
-    /// Should arguments of this type have a default value if left unspecified?
+    /// ## English synonym
+    /// [default](ParseArgument::default)
     fn standard() -> Option<Self>;
+
+    /// Should arguments of this type have a default value if left unspecified?
+    ///
+    /// ## Deutsches Synonym
+    /// [standard](ParseArgument::standard)
+    #[inline(always)]
+    fn default() -> Option<Self> {
+        ParseArgument::standard()
+    }
 
     /// Erstelle ein [Argumente] für die übergebene [Beschreibung].
     ///
