@@ -45,7 +45,6 @@ pub use crate::{combine, kombiniere};
 //      vgl. mit Flag-Argumenten, kann zu parse-Problemen wegen Mehrdeutigkeit führen
 //      kann durch alternativ-Methode erzeugt werden (erst Wert, dann Flag)
 //          dazu spezialisierte Methode bereitstellen
-// TODO Programm-Beschreibung in Hilfe-Text
 
 /// Kommandozeilen-Argumente und ihre Beschreibung.
 pub struct Argumente<'t, T, E> {
