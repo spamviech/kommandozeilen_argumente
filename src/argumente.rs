@@ -484,6 +484,8 @@ impl<'t, T, E> Argumente<'t, T, E> {
     }
 
     /// Alle konfigurierten Kommandozeilen-Argumente.
+    /// Hiermit ist es möglich einen eigenen,
+    /// auf den konfigurierten Argumenten basierenden Hilfetext zu erzeugen.
     ///
     /// ## Deutsches Synonym
     /// [configurations](Argumente::configurations)
@@ -493,6 +495,7 @@ impl<'t, T, E> Argumente<'t, T, E> {
     }
 
     /// All configured command line arguments.
+    /// This function allows creating your own help text based on the configured arguments.
     ///
     /// ## English synonym
     /// [konfigurationen](Arguments::konfigurationen)
