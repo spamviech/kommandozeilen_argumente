@@ -28,23 +28,22 @@ Without a default value the argument must be used, resulting in a parse error ot
 
 ## Flags
 
-Flags sind Argumente ohne Wert, sie können entweder aktiviert oder deaktiviert sein.
-Meistens repräsentieren sie `bool`-Argumente, andere Typen werden aber ebenfalls unterstützt.
+Arguments without values are called flags, they can be active or inactive.
+In most cases they represent `bool` arguments, but other types are also supported.
 
-Angenommen Langnamen `flag`, Kurznamen `f` und invertiere_präfix `kein`,
-eine Flag kann mit `--flag` oder `-f` aktiviert
-und mit `--kein-flag` deaktiviert werden.
+A flag with long name `flag`, long_prefix `--`, short name `f`, short_prefix `-`,
+invert_prefix `no` and invert_prefix `-` can be activated with `--flag` or `-f`
+and deactivated with `--no-flag`.
 
-Existieren mehrere Flags mit Kurznamen `f`, `g` und `h`,
-so können alle gleichzeitig mit `-fgh` aktiviert werden.
+If several flags with short names `f`, `g` and `h` exist they can be activated together with `-fgh`.
 
-### Frühes Beenden
+### Early Exit
 
-Eine besondere Art von Flags führt zu frühem beenden.
-Sie können nicht deaktiviert werden und führen zu vorzeitigem Beenden unter Anzeigen einer Nachricht.
-Typische Anwendungsfälle sind Anzeigen der aktuellen Version oder des Hilfe-Textes.
+A special kind of flag argument causing an early exit.
+They can't be deactivated and cause an early exit with an associated message.
+Typical use cases are displaying of the current version or the help text.
 
-## Werte
+## Values
 
 Argumente können ebenfalls Werte spezifizieren.
 Bei Langnamen wird der Wert getrennt von einem Leerzeichen, oder `=`-Zeichen angegeben.

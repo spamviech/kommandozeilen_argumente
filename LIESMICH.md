@@ -32,8 +32,8 @@ Ohne Standard-Wert muss das Argument verwendet werden, ansonsten schlägt das Pa
 Flags sind Argumente ohne Wert, sie können entweder aktiviert oder deaktiviert sein.
 Meistens repräsentieren sie `bool`-Argumente, andere Typen werden aber ebenfalls unterstützt.
 
-Angenommen Langnamen `flag`, Kurznamen `f` und invertiere_präfix `kein`,
-eine Flag kann mit `--flag` oder `-f` aktiviert
+Eine Flag mit Langnamen `flag`, lang_präfix `--`, Kurznamen `f`, kurz_präfix `-`,
+invertiere_präfix `kein` und invertiere_infix `-` kann mit `--flag` oder `-f` aktiviert
 und mit `--kein-flag` deaktiviert werden.
 
 Existieren mehrere Flags mit Kurznamen `f`, `g` und `h`,
