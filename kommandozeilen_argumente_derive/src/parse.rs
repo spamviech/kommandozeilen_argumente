@@ -4,7 +4,7 @@ use std::fmt::{self, Display, Formatter};
 
 use proc_macro2::{TokenStream, TokenTree};
 use quote::{quote, ToTokens};
-use syn::{parse2, Data, DataStruct, DeriveInput, Field, Ident};
+use syn::{parse2, Data, DataStruct, DeriveInput, Field, Ident, LitStr};
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::utility::{
@@ -318,6 +318,14 @@ impl KurzNamen {
     }
 }
 
+fn literal_oder_to_string(token_stream: &TokenStream) -> String {
+    if let Ok(lit_str) = parse2::<LitStr>(token_stream.clone()) {
+        lit_str.value()
+    } else {
+        token_stream.to_string()
+    }
+}
+
 fn parse_wert_arg(
     args: Vec<Argument>,
     mut sprache: Option<&mut Option<Sprache>>,
@@ -423,8 +431,7 @@ fn parse_wert_arg(
             },
             ArgumentWert::Liste(liste) => match name.as_str() {
                 "lang" | "long" => {
-                    // TODO erkenne String-Literale
-                    let mut namen_iter = liste.iter().map(ToString::to_string);
+                    let mut namen_iter = liste.iter().map(literal_oder_to_string);
                     let (head, tail) = if let Some(head) = namen_iter.next() {
                         (head, namen_iter.collect())
                     } else {
@@ -437,8 +444,7 @@ fn parse_wert_arg(
                     )
                 },
                 "kurz" | "short" => {
-                    // TODO erkenne String-Literale
-                    let namen_iter = liste.iter().map(ToString::to_string);
+                    let namen_iter = liste.iter().map(literal_oder_to_string);
                     setze_argument_namen!(
                         kurz_namen,
                         KurzNamenEnum::Namen(namen_iter.collect()),
@@ -453,7 +459,6 @@ fn parse_wert_arg(
                 },
             },
             ArgumentWert::Stream(ts) => match name.as_str() {
-                // TODO erkenne String-Literale anstelle von ts.to_string()
                 "sprache" | "language" => setze_argument!(
                     sprache,
                     Some(Sprache::parse(ts)),
@@ -461,37 +466,37 @@ fn parse_wert_arg(
                 ),
                 "beschreibung" | "description" => setze_argument!(
                     programm_beschreibung,
-                    ProgrammBeschreibung(Some(ts.to_string())),
+                    ProgrammBeschreibung(Some(literal_oder_to_string(&ts))),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "lang_präfix" | "long_prefix" => setze_argument_string!(
                     lang_präfix,
-                    ts.to_string(),
+                    literal_oder_to_string(&ts),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "kurz_präfix" | "short_prefix" => setze_argument_string!(
                     kurz_präfix,
-                    ts.to_string(),
+                    literal_oder_to_string(&ts),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "invertiere_präfix" | "invert_prefix" => setze_argument_string!(
                     invertiere_präfix,
-                    ts.to_string(),
+                    literal_oder_to_string(&ts),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "invertiere_infix" | "invert_infix" => setze_argument_string!(
                     invertiere_infix,
-                    ts.to_string(),
+                    literal_oder_to_string(&ts),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "wert_infix" | "value_infix" => setze_argument_string!(
                     wert_infix,
-                    ts.to_string(),
+                    literal_oder_to_string(&ts),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "meta_var" => setze_argument!(
                     meta_var,
-                    Some(MetaVar(ts.to_string())),
+                    Some(MetaVar(literal_oder_to_string(&ts))),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "standard" | "default" => setze_argument!(
@@ -501,12 +506,12 @@ fn parse_wert_arg(
                 ),
                 "lang" | "long" => setze_argument_namen!(
                     lang_namen,
-                    Some((ts.to_string(), Vec::new())),
+                    Some((literal_oder_to_string(&ts), Vec::new())),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "kurz" | "short" => setze_argument_namen!(
                     kurz_namen,
-                    KurzNamenEnum::Namen(vec![ts.to_string()]),
+                    KurzNamenEnum::Namen(vec![literal_oder_to_string(&ts)]),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "case" => {
