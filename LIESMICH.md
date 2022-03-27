@@ -90,6 +90,9 @@ Direkt am `struct` werden folgende Optionen unterstützt:
   - `kurz`: Setze Kurznamen als erstes Grapheme des originalen Langnamen.
   - `kurz: <name>`, `kurz: [<namen>]`: Setze Kurznamen explizit.
   - `sprache: <sprache>` | `language: <language>`: Sprache von Hilfe-Text und Standard-Namen.
+  - `beschreibung: <programm-beschreibung>` | `description: <program_description>`:
+    Nur bei `hilfe(<opts>)` und `help(<opts>)` verfügbar.
+    Setze die im Hilfetext angezeigte Programm-Beschreibung.
 - `case: sensitive`, `case: insensitive`:
   Alle Strings (Namen, Präfix, Infix) werden mit/ohne Berücksichtigung von
   Groß-/Kleinschreibung verglichen (Standard: `case: sensitive`).
