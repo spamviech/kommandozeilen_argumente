@@ -97,7 +97,7 @@ pub trait ParseArgument: Sized {
         description: Description<'t, Self>,
         language: Language,
     ) -> Arguments<'t, Self, String> {
-        Self::argumente_mit_sprache(description, language.sprache())
+        Self::argumente_mit_sprache(description, language)
     }
 
     /// Erstelle ein [Argumente] für die übergebene [Beschreibung].
@@ -115,7 +115,7 @@ pub trait ParseArgument: Sized {
     /// [neu](ParseArgument::neu)
     #[inline(always)]
     fn new<'t>(beschreibung: Beschreibung<'t, Self>) -> Argumente<'t, Self, String> {
-        Self::arguments_with_language(beschreibung, Language::ENGLISH)
+        Self::argumente_mit_sprache(beschreibung, Sprache::ENGLISH)
     }
 }
 
@@ -527,7 +527,7 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::parse_vollständig_mit_sprache(args, error_code, language.sprache())
+        Self::parse_vollständig_mit_sprache(args, error_code, language)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -661,7 +661,7 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::parse_vollständig_mit_sprache_aus_env(error_code, language.sprache())
+        Self::parse_vollständig_mit_sprache_aus_env(error_code, language)
     }
 
     /// Parse [args_os](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.

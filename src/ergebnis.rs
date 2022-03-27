@@ -247,7 +247,7 @@ impl<E: Display> Fehler<'_, E> {
     /// [fehlermeldung](Fehler::fehlermeldung)
     #[inline(always)]
     pub fn error_message(&self) -> String {
-        self.create_error_message_with_language(Language::ENGLISH)
+        self.erstelle_fehlermeldung_mit_sprache(Language::ENGLISH)
     }
 
     /// Zeige den [Fehler] in Menschen-lesbarer Form an.
@@ -270,7 +270,7 @@ impl<E: Display> Fehler<'_, E> {
     /// [erstelle_fehlermeldung_mit_sprache](Fehler::erstelle_fehlermeldung_mit_sprache)
     #[inline(always)]
     pub fn create_error_message_with_language(&self, language: Language) -> String {
-        self.erstelle_fehlermeldung_mit_sprache(language.sprache())
+        self.erstelle_fehlermeldung_mit_sprache(language)
     }
 
     /// Zeige den Fehler in Menschen-lesbarer Form an.
