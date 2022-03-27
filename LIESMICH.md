@@ -1,7 +1,6 @@
 # kommandozeilen_argumente
 
-__Anmerkung__: Dies ist die englische Version, für die deutsche Version siehe `LIESMICH.md`.
-TODO english version
+__Note__: This is the german version, for the english version see `README.md`.
 
 Parser für Kommandozeilen-Argumente mit optionaler, automatischer Hilfe-Generierung.
 
