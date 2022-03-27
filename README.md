@@ -6,24 +6,25 @@ __Anmerkung__: Dies ist die englische ReadMe, für die deutsche Version siehe
 TODO english version
 
 Parser for command line arguments with optional automatic help generation.
-Parser für Kommandozeilen-Argumente mit optionaler, automatischer Hilfe-Generierung.
 
-Zum erstellen eines neuen Arguments werden assoziierte Funktionen bereitgestellt,
-der Ergebnistyp wird dabei durch eine Typ-Variable festgelegt.
-Argumente können mithilfe des `kombiniere!`-Macros, bzw. dedizierten `kombiniereN`-Funktionen,
-zu komplexeren Strukturen zusammengefasst werden,
-die zum parsen potentiell mehrere Argumente benötigen.
+Arguments are created with the provided associated functions,
+the result type is specified with a type variable.
+Arguments can be combined to more complex structures using more than one argument
+with the `combine!` macro, or one of the dedicated `combineN` functions.
 
-Ein Argument wird durch seinen Langnamen oder potentiellen Kurznamen identifiziert.
-Angabe eines Langnamens startet mit zwei Minus `--lang`.
-Angabe eines Kurznamens startet mit einem Minus `-k`.
-Für Kurznamen wird angenommen, dass sie nur ein [Grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes) lang sind.
+Arguments are identified by their long names and potentially their short names.
+Long names are usually given after two minus characters `--long`.
+Short names are usually given after one minus character `-short`.
+Short names are expected to consist of only one
+[Grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes).
 
-Alle verwendeten Strings, z.B. für die erzeugte Hilfe-Meldung, sind konfigurierbar.
-Sofern es relevant ist werden für Deutsch und Englisch spezialisierte Funktionen bereitgestellt.
+All Strings can be adjusted, e.g. description of an argument in the help message.
+Specialized functions for a german and english version are available if it is relevant.
+Additionally, german an english synonyms are available.
+Avoiding repetition of strings can be achieved using the `Language` type.
 
-Argumente können Standard-Werte haben, der verwendet wird sofern keiner ihrer Namen verwendet wird.
-Ohne Standard-Wert muss das Argument verwendet werden, ansonsten schlägt das Parsen fehl.
+An Argument can have a default value, which is used if none of its names are used.
+Without a default value the argument must be used, resulting in a parse error otherwise.
 
 ## Flags
 
@@ -54,6 +55,7 @@ Es ist möglich, alle erlaubten Werte im Hilfe-Text anzeigen zu lassen.
 
 Angenommen Langnamen `--wert` und Kurznamen `-w` für ein Zahlen-Argument,
 `--wert 3`, `--wert=3`, `-w 3`, `-w=3` und `-w3` werden alle mit Ergebnis `3` geparst.
+Anstelle von `=` kann auch ein anderes Infix konfiguriert werden.
 
 ## Feature "derive"
 
