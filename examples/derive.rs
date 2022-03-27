@@ -19,7 +19,7 @@ impl Display for Aufzählung {
 }
 
 #[derive(Debug, Parse)]
-#[kommandozeilen_argumente(hilfe, version, sprache: deutsch)]
+#[kommandozeilen_argumente(hilfe(beschreibung: "Programm-Beschreibung.", kurz), version, sprache: deutsch)]
 struct Args {
     /// Eine Flag mit Standard-Einstellungen.
     flag: bool,

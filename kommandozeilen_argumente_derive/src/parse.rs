@@ -88,6 +88,7 @@ fn erstelle_version_methode(
 fn erstelle_hilfe_methode(
     sprache: Sprache,
     namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
+    programm_beschreibung: ProgrammBeschreibung,
 ) -> impl Fn(TokenStream) -> TokenStream {
     let crate_name = crate_name();
     let sprache_ts = sprache.token_stream();
@@ -113,6 +114,7 @@ fn erstelle_hilfe_methode(
             #item.erstelle_hilfe_mit_sprache(
                 #beschreibung,
                 #crate_name::crate_name!(),
+                #programm_beschreibung,
                 Some(#crate_name::crate_version!()),
                 #sprache_ts
             )
@@ -174,6 +176,19 @@ impl Display for ParseWertFehler {
 }
 
 type ErstelleFehler = Box<dyn FnOnce(Option<String>) -> ParseWertFehler>;
+
+#[derive(Debug, Clone)]
+struct ProgrammBeschreibung(Option<String>);
+
+impl ToTokens for ProgrammBeschreibung {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if let Some(s) = &self.0 {
+            tokens.extend(quote!(Some(#s)))
+        } else {
+            tokens.extend(quote!(None))
+        }
+    }
+}
 
 struct ErstelleHilfe(Option<Box<dyn FnOnce(TokenStream) -> TokenStream>>);
 struct ErstelleVersion(Option<Box<dyn FnOnce(TokenStream, Sprache) -> TokenStream>>);
@@ -307,6 +322,7 @@ fn parse_wert_arg(
     args: Vec<Argument>,
     mut sprache: Option<&mut Option<Sprache>>,
     mut erstelle_hilfe: Option<&mut ErstelleHilfe>,
+    mut programm_beschreibung: Option<&mut ProgrammBeschreibung>,
     mut erstelle_version: Option<&mut ErstelleVersion>,
     mut lang_präfix: Option<&mut LangPräfix>,
     mut lang_namen: Option<&mut LangNamen>,
@@ -370,12 +386,20 @@ fn parse_wert_arg(
                 ),
                 "hilfe" => setze_argument!(
                     erstelle_hilfe,
-                    ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(Deutsch, None)))),
+                    ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
+                        Deutsch,
+                        None,
+                        ProgrammBeschreibung(None)
+                    )))),
                     Argument { name, wert }
                 ),
                 "help" => setze_argument!(
                     erstelle_hilfe,
-                    ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(English, None)))),
+                    ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
+                        English,
+                        None,
+                        ProgrammBeschreibung(None)
+                    )))),
                     Argument { name, wert }
                 ),
                 "kurz" | "short" => {
@@ -399,6 +423,7 @@ fn parse_wert_arg(
             },
             ArgumentWert::Liste(liste) => match name.as_str() {
                 "lang" | "long" => {
+                    // TODO erkenne String-Literale
                     let mut namen_iter = liste.iter().map(ToString::to_string);
                     let (head, tail) = if let Some(head) = namen_iter.next() {
                         (head, namen_iter.collect())
@@ -412,6 +437,7 @@ fn parse_wert_arg(
                     )
                 },
                 "kurz" | "short" => {
+                    // TODO erkenne String-Literale
                     let namen_iter = liste.iter().map(ToString::to_string);
                     setze_argument_namen!(
                         kurz_namen,
@@ -427,9 +453,15 @@ fn parse_wert_arg(
                 },
             },
             ArgumentWert::Stream(ts) => match name.as_str() {
+                // TODO erkenne String-Literale anstelle von ts.to_string()
                 "sprache" | "language" => setze_argument!(
                     sprache,
                     Some(Sprache::parse(ts)),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "beschreibung" | "description" => setze_argument!(
+                    programm_beschreibung,
+                    ProgrammBeschreibung(Some(ts.to_string())),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
                 "lang_präfix" | "long_prefix" => setze_argument_string!(
@@ -504,7 +536,7 @@ fn parse_wert_arg(
             },
             ArgumentWert::Unterargument(sub_args) => {
                 macro_rules! rekursiv {
-                    ($sub_sprache:ident, $präfix_und_namen: ident) => {
+                    ($programm_beschreibung:expr, $sub_sprache:ident, $präfix_und_namen: ident) => {
                         let mut $sub_sprache = None;
                         let mut sub_lang_präfix = LangPräfix::default();
                         let mut sub_lang = LangNamen::default();
@@ -514,6 +546,7 @@ fn parse_wert_arg(
                             sub_args,
                             Some(&mut $sub_sprache),
                             None,
+                            $programm_beschreibung,
                             None,
                             Some(&mut sub_lang_präfix),
                             Some(&mut sub_lang),
@@ -557,15 +590,21 @@ fn parse_wert_arg(
                 }
                 match (name.as_str(), erstelle_hilfe.as_mut(), erstelle_version.as_mut()) {
                     ("hilfe" | "help", Some(erstelle_hilfe), _) => {
-                        rekursiv!(sub_sprache, präfix_und_namen);
+                        let mut sub_programm_beschreibung = ProgrammBeschreibung(None);
+                        rekursiv!(
+                            Some(&mut sub_programm_beschreibung),
+                            sub_sprache,
+                            präfix_und_namen
+                        );
                         let standard_sprache = if name == "hilfe" { Deutsch } else { English };
                         **erstelle_hilfe = ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
                             sub_sprache.unwrap_or(standard_sprache),
                             Some(präfix_und_namen),
+                            sub_programm_beschreibung,
                         ))));
                     },
                     ("version", _, Some(erstelle_version)) => {
-                        rekursiv!(sub_sprache, präfix_und_namen);
+                        rekursiv!(None, sub_sprache, präfix_und_namen);
                         **erstelle_version = ErstelleVersion(Some(Box::new(
                             erstelle_version_methode(sub_sprache, Some(präfix_und_namen)),
                         )));
@@ -762,8 +801,8 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
     // CARGO_PKG_AUTHORS — Colon separated list of authors from the manifest of your package.
     // CARGO_PKG_DESCRIPTION — The description from the manifest of your package.
     // CARGO_BIN_NAME — The name of the binary that is currently being compiled (if it is a binary). This name does not include any file extension, such as .exe
-    let mut erstelle_version: ErstelleVersion = ErstelleVersion(None);
-    let mut erstelle_hilfe: ErstelleHilfe = ErstelleHilfe(None);
+    let mut erstelle_version = ErstelleVersion(None);
+    let mut erstelle_hilfe = ErstelleHilfe(None);
     let mut sprache = None;
     let mut lang_präfix = LangPräfix::default();
     let mut kurz_präfix = KurzPräfix::default();
@@ -777,6 +816,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
             args,
             Some(&mut sprache),
             Some(&mut erstelle_hilfe),
+            None,
             Some(&mut erstelle_version),
             Some(&mut lang_präfix),
             None,
@@ -836,6 +876,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                 unwrap_or_call_return!(
                     parse_wert_arg(
                         feld_args,
+                        None,
                         None,
                         None,
                         None,

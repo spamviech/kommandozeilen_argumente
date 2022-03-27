@@ -17,6 +17,7 @@ fn hilfe_test() {
             Sprache::DEUTSCH,
         )),
         "programm",
+        Some("Mein Tolles Programm."),
         "0.test",
     );
     match arg.parse(iter::once(OsString::from("--hilfe".to_owned()))) {

@@ -148,18 +148,19 @@ können im [GitHub-Repository](https://github.com/spamviech/kommandozeilen_argum
 In beiden Fällen wird folgender Hilfe-Text erzeugt:
 
 ```cmd
-kommandozeilen_argumente 0.1.0
+kommandozeilen_argumente 0.2.0
+Programm-Beschreibung.
 
-derive.exe [OPTIONEN]
+funktion.exe [OPTIONEN]
 
 OPTIONEN:
-  --[kein]-flag                          Eine Flag mit Standard-Einstellungen. [Standard: false]
-  --[kein]-(andere|namen) | -u           Eine Flag mit alternativen Namen. [Standard: false]
-  --[no]-benötigt         | -b           Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.
-  --wert(=| )WERT                        Ein String-Wert.
-  --aufzählung(=| )VAR    | -a[=| ]VAR   Ein Aufzählung-Wert mit Standard-Wert. [Erlaubte Werte: Eins, Zwei, Drei | Standard: Zwei]
-  --version               | -v           Zeige die aktuelle Version an.
-  --hilfe                 | -h           Zeige diesen Text an.
+  --[kein]-flag                         Eine Flag mit Standard-Einstellungen [Standard: false]  
+  --[kein]-(andere|namen) | -u          Eine Flag mit Standard-Einstellungen [Standard: false]  
+  --[no]-benötigt         | -b          Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.
+  --wert(=| )WERT                       Ein String-Wert.
+  --aufzählung(=| )VAR    | -a[=| ]VAR  Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable. [Erlaubte Werte: Eins, Zwei, Drei | Standard: Zwei]
+  --version               | -v          Zeige die aktuelle Version an.
+  --hilfe                 | -h          Zeige diesen Text an.
 ```
 
 ## (Noch) Fehlende Features
