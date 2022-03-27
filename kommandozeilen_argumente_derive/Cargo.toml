@@ -14,11 +14,11 @@ description = "derive-Macros für das kommandozeilen_argumente crate."
 proc-macro = true
 
 [dependencies]
-quote = "1.0.9"
+quote = "1.0.17"
 proc-macro2 = "1.0.36"
 unicode-segmentation = "1.8.0"
 
 [dependencies.syn]
-version = "1.0.86"
+version = "1.0.89"
 features = ["derive", "parsing", "proc-macro"]
 default_features = false
