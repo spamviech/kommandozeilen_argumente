@@ -1,6 +1,7 @@
 # kommandozeilen_argumente
 
-__Anmerkung__: Dies ist die englische Version, für die deutsche Version siehe `LIESMICH.md`.
+__Anmerkung__: Dies ist die englische ReadMe, für die deutsche Version siehe
+[LIESMICH.md](https://github.com/spamviech/kommandozeilen_argumente/blob/main/LIESMICH.md).
 TODO english version
 
 Parser für Kommandozeilen-Argumente mit optionaler, automatischer Hilfe-Generierung.

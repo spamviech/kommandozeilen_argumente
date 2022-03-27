@@ -1,6 +1,7 @@
 # kommandozeilen_argumente
 
-__Note__: This is the german version, for the english version see `README.md`.
+__Note__: This is the german ReadMe, for the english version see
+[README.md](https://github.com/spamviech/kommandozeilen_argumente/blob/main/README.md).
 
 Parser für Kommandozeilen-Argumente mit optionaler, automatischer Hilfe-Generierung.
 

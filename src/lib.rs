@@ -1,9 +1,5 @@
-//! Parsen von Kommandozeilen-Argumenten, inklusiver automatisch generierter (deutscher) Hilfe.
-// TODO more glorious documentation, including examples; both german and english
-// should be possible with `#![doc = include_str!(documentation.txt)]`
-// maybe even `#![doc = include_str!(README.md)]`
-
-// Enable all warnings except box_pointers, non_ascii_idents, unstable_features
+#![doc = include_str!("../README.md")]
+// Aktiviere alle Warnungen außer box_pointers, non_ascii_idents, unstable_features
 #![warn(
     absolute_paths_not_starting_with_crate,
     elided_lifetimes_in_paths,
@@ -35,6 +31,7 @@
     unused_results,
     variant_size_differences
 )]
+// Verwende doc_cfg für bessere Dokumentation von feature-gated derive Macros.
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 
 #[doc(no_inline)]
