@@ -458,10 +458,10 @@ pub trait EnumArgument: Sized {
         Self::varianten()
     }
 
-    /// Versuche einen Wert ausgehend vom übergebenen [OsStr] zu erzeugen.
+    /// Versuche einen Wert ausgehend vom übergebenen [OsString] zu erzeugen.
     ///
     /// ## English
-    /// Try to parse a value from the given [OsStr].
+    /// Try to parse a value from the given [OsString].
     fn parse_enum(arg: OsString) -> Result<Self, ParseFehler<String>>;
 }
 
