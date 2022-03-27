@@ -59,7 +59,6 @@ pub struct Beschreibung<'t, T> {
     pub standard: Option<T>,
 }
 
-// TODO english fields
 /// Description of a command line argument.
 ///
 /// ## Deutsches Synonym
@@ -126,7 +125,6 @@ pub(crate) fn contains_prefix<'t>(
     collection.into_iter().filter_map(|ziel| ziel.strip_als_präfix(input))
 }
 
-// TODO english method synonym
 /// Mindestens ein String als Definition für den vollen Namen.
 ///
 /// ## English
@@ -195,7 +193,6 @@ impl<'t, S: AsRef<str>> LangNamen<'t> for &'t NonEmpty<S> {
     }
 }
 
-// TODO english method synonym
 /// Beliebige Anzahl an Strings für den kurzen Namen.
 ///
 /// ## English
@@ -387,7 +384,6 @@ pub enum Konfiguration<'t> {
     },
 }
 
-// TODO english variants/fields
 /// Configuration of a command line argument.
 ///
 /// ## Deutsches Synonym

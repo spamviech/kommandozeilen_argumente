@@ -33,7 +33,6 @@ pub enum Ergebnis<'t, T, E> {
     Fehler(NonEmpty<Fehler<'t, E>>),
 }
 
-// TODO english variants
 /// Result when parsing command line arguments.
 ///
 /// ## Deutsches Synonym
@@ -94,7 +93,6 @@ pub struct Namen<'t> {
     pub kurz: Vec<Normalisiert<'t>>,
 }
 
-// TODO english fields
 /// All names of an argument.
 ///
 /// ## Deutsches Synonym
@@ -184,7 +182,6 @@ pub enum Fehler<'t, E> {
     },
 }
 
-// TODO english variants/fields
 /// Possible errors when parsing command line arguments.
 ///
 /// ## Deutsches Synonym
@@ -228,7 +225,6 @@ pub enum ParseFehler<E> {
     ParseFehler(E),
 }
 
-// TODO english variants
 /// Possible errors when parsing an [OsStr].
 ///
 /// ## Deutsches Synonym
