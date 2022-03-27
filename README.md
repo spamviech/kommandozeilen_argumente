@@ -45,16 +45,21 @@ Typical use cases are displaying of the current version or the help text.
 
 ## Values
 
-Argumente können ebenfalls Werte spezifizieren.
-Bei Langnamen wird der Wert getrennt von einem Leerzeichen, oder `=`-Zeichen angegeben.
-Bei Kurznamen kann der Wert auch direkt im Anschluss an den Namen angegeben werden.
-Die Konvertierung des Wertes wird aus `&OsStr` versucht.
+Arguments can specify values.
+When specified with a long name, the value can be given after a space or the `=` character.
+Using a short name it is possible to specify it directly after the name.
+The value is parsed from a `OsString`.
 
-Es ist möglich, alle erlaubten Werte im Hilfe-Text anzeigen zu lassen.
+It is possible to show all allowed values in the generated help text.
 
-Angenommen Langnamen `--wert` und Kurznamen `-w` für ein Zahlen-Argument,
-`--wert 3`, `--wert=3`, `-w 3`, `-w=3` und `-w3` werden alle mit Ergebnis `3` geparst.
-Anstelle von `=` kann auch ein anderes Infix konfiguriert werden.
+A value argument with long name `value`, long_prefix `--`, short name `v`, short_prefix `-`
+and value_infix `=` for a number type is parsed with result `3` for each of the following inputs:
+
+- `--value 3`
+- `--value=3`
+- `-v 3`
+- `-v=3`
+- `-v3`
 
 ## Feature "derive"
 

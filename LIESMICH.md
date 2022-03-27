@@ -50,13 +50,18 @@ Typische Anwendungsfälle sind Anzeigen der aktuellen Version oder des Hilfe-Tex
 Argumente können ebenfalls Werte spezifizieren.
 Bei Langnamen wird der Wert getrennt von einem Leerzeichen, oder `=`-Zeichen angegeben.
 Bei Kurznamen kann der Wert auch direkt im Anschluss an den Namen angegeben werden.
-Die Konvertierung des Wertes wird aus `&OsStr` versucht.
+Die Konvertierung des Wertes wird aus `OsString` versucht.
 
 Es ist möglich, alle erlaubten Werte im Hilfe-Text anzeigen zu lassen.
 
-Angenommen Langnamen `--wert` und Kurznamen `-w` für ein Zahlen-Argument,
-`--wert 3`, `--wert=3`, `-w 3`, `-w=3` und `-w3` werden alle mit Ergebnis `3` geparst.
-Anstelle von `=` kann auch ein anderes Infix konfiguriert werden.
+Ein Wert-Argument mit LangNamen `wert`, lang_präfix `--`, KurzNamen `w`, kurz_präfix `-` und
+wert_infix `=` für ein Zahlenargument wird für jede der folgenden Eingaben als `3` geparst:
+
+- `--wert 3`
+- `--wert=3`
+- `-w 3`
+- `-w=3`
+- `-w3`
 
 ## Feature "derive"
 
