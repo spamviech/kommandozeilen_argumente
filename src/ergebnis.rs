@@ -206,7 +206,7 @@ pub(crate) fn namen_regex_hinzufügen<S: AsRef<str>>(string: &mut String, head: 
     }
 }
 
-/// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr].
+/// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr](std::ffi::OsStr).
 ///
 /// ## English synonym
 /// [ParseError]
@@ -225,7 +225,7 @@ pub enum ParseFehler<E> {
     ParseFehler(E),
 }
 
-/// Possible errors when parsing an [OsStr].
+/// Possible errors when parsing an [OsStr](std::ffi::OsStr).
 ///
 /// ## Deutsches Synonym
 /// [ParseFehler]
