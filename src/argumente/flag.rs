@@ -1,6 +1,6 @@
 //! Flag-Argumente.
 
-use std::{convert::identity, ffi::OsStr, fmt::Display, iter};
+use std::{convert::identity, fmt::Display, iter};
 
 use itertools::Itertools;
 use nonempty::NonEmpty;
@@ -244,7 +244,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                 let mut ergebnis = None;
                 let mut nicht_verwendet = Vec::new();
                 for arg in args {
-                    if let Some(string) = arg.and_then(OsStr::to_str) {
+                    if let Some(string) = arg.as_ref().and_then(|os_string| os_string.to_str()) {
                         let normalisiert = Normalisiert::neu(string);
                         if let Some(lang_str) = name_lang_präfix.strip_als_präfix(&normalisiert) {
                             if contains_str(&name_lang, lang_str) {

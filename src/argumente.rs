@@ -2,8 +2,9 @@
 
 use std::{
     collections::HashMap,
+    convert::identity,
     env,
-    ffi::{OsStr, OsString},
+    ffi::OsString,
     fmt::{Debug, Display},
     num::NonZeroI32,
     process,
@@ -50,9 +51,8 @@ pub use crate::{combine, kombiniere};
 pub struct Argumente<'t, T, E> {
     pub(crate) konfigurationen: Vec<Konfiguration<'t>>,
     pub(crate) flag_kurzformen: HashMap<Vergleich<'t>, Vec<Vergleich<'t>>>,
-    pub(crate) parse: Box<
-        dyn 't + for<'s> Fn(Vec<Option<&'s OsStr>>) -> (Ergebnis<'t, T, E>, Vec<Option<&'s OsStr>>),
-    >,
+    pub(crate) parse:
+        Box<dyn 't + Fn(Vec<Option<OsString>>) -> (Ergebnis<'t, T, E>, Vec<Option<OsString>>)>,
 }
 
 /// Command line [Arguments] and their [crate::beschreibung::Description].
@@ -475,12 +475,10 @@ impl<'t, T, E> Argumente<'t, T, E> {
             }
             vec![arg]
         };
-        let angepasste_args: Vec<OsString> =
-            args.flat_map(ersetze_verschmolzene_kurzformen).collect();
-        let args_os_str =
-            angepasste_args.iter().map(|os_string| Some(os_string.as_os_str())).collect();
-        let (ergebnis, nicht_verwendet) = parse(args_os_str);
-        (ergebnis, nicht_verwendet.into_iter().filter_map(|opt| opt.map(OsStr::to_owned)).collect())
+        let angepasste_args: Vec<_> =
+            args.flat_map(ersetze_verschmolzene_kurzformen).map(Some).collect();
+        let (ergebnis, nicht_verwendet) = parse(angepasste_args);
+        (ergebnis, nicht_verwendet.into_iter().filter_map(identity).collect())
     }
 
     /// Alle konfigurierten Kommandozeilen-Argumente.

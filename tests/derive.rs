@@ -1,26 +1,31 @@
 //! Tests zum Parsen von Kommandozeilen-Argumenten, erzeugt über das derive-Feature.
 
-use std::{ffi::OsString, fmt::Display, iter, process};
+use std::{
+    ffi::OsString,
+    fmt::{self, Debug, Display, Formatter},
+    iter, process,
+};
 
 use kommandozeilen_argumente::{Argumente, EnumArgument, Ergebnis, Parse, ParseArgument};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
+#[kommandozeilen_argumente(case: insensitive)]
 enum Bla {
     Meh,
     Muh,
 }
 
 impl Display for Bla {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Debug::fmt(self, f)
     }
 }
 
 #[test]
 fn arg_enum_derive() {
     assert_eq!(Bla::varianten(), vec![Bla::Meh, Bla::Muh]);
-    let os_string: OsString = "Meh".to_owned().into();
-    let parse_res = Bla::parse_enum(os_string.as_os_str());
+    let os_string: OsString = "meh".to_owned().into();
+    let parse_res = Bla::parse_enum(os_string);
     assert_eq!(parse_res, Ok(Bla::Meh));
 }
 

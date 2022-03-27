@@ -882,7 +882,7 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
                 let mut nachrichten: Vec<Cow<'t, str>> = Vec::new();
                 let mut zeige_nachricht = || nachrichten.push(nachricht_cow.clone());
                 for arg in args {
-                    if let Some(string) = arg.and_then(OsStr::to_str) {
+                    if let Some(string) = arg.as_ref().and_then(|os_string| os_string.to_str()) {
                         let normalisiert = Normalisiert::neu(string);
                         if let Some(lang_str) = name_lang_präfix.strip_als_präfix(&normalisiert) {
                             if contains_str(&name_lang, lang_str) {

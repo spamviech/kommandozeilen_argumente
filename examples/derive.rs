@@ -6,6 +6,7 @@ use std::{
 use kommandozeilen_argumente::{EnumArgument, Parse};
 
 #[derive(Debug, Clone, EnumArgument)]
+#[kommandozeilen_argumente(case: insensitive)]
 enum Aufzählung {
     Eins,
     Zwei,

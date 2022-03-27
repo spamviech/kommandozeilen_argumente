@@ -1,6 +1,6 @@
 //! Wert-Argumente.
 
-use std::{collections::HashMap, convert::AsRef, ffi::OsStr, fmt::Display, str::FromStr};
+use std::{collections::HashMap, ffi::OsString, fmt::Display, str::FromStr};
 
 use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
@@ -97,7 +97,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
     pub fn wert_display_mit_sprache(
         beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
+        parse: impl 't + Fn(OsString) -> Result<T, ParseError<E>>,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
         Argumente::wert_display(
@@ -117,7 +117,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
     pub fn value_display_with_language(
         description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
+        parse: impl 't + Fn(OsString) -> Result<T, ParseError<E>>,
         language: Language,
     ) -> Arguments<'t, T, E> {
         Argumente::wert_display_mit_sprache(description, possible_values, parse, language)
@@ -133,7 +133,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
+        parse: impl 't + Fn(OsString) -> Result<T, ParseError<E>>,
     ) -> Argumente<'t, T, E> {
         Argumente::wert(
             beschreibung,
@@ -155,7 +155,7 @@ impl<'t, T: 't + Clone + Display, E: Clone> Argumente<'t, T, E> {
         value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
+        parse: impl 't + Fn(OsString) -> Result<T, ParseError<E>>,
     ) -> Arguments<'t, T, E> {
         Argumente::wert_display(description, value_infix, meta_var, possible_values, parse)
     }
@@ -252,7 +252,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     pub fn wert_mit_sprache(
         beschreibung: Beschreibung<'t, T>,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
+        parse: impl 't + Fn(OsString) -> Result<T, ParseError<E>>,
         anzeige: impl Fn(&T) -> String,
         sprache: Sprache,
     ) -> Argumente<'t, T, E> {
@@ -274,7 +274,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     pub fn value_with_language(
         description: Description<'t, T>,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
+        parse: impl 't + Fn(OsString) -> Result<T, ParseError<E>>,
         display: impl Fn(&T) -> String,
         language: Language,
     ) -> Argumente<'t, T, E> {
@@ -290,7 +290,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
+        parse: impl 't + Fn(OsString) -> Result<T, ParseError<E>>,
         anzeige: impl Fn(&T) -> String,
     ) -> Argumente<'t, T, E> {
         let name_lang_präfix = beschreibung.lang_präfix.clone();
@@ -328,7 +328,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                 let mut fehler = Vec::new();
                 let mut name_ohne_wert = false;
                 let mut nicht_verwendet = Vec::new();
-                let mut parse_auswerten = |arg: Option<&OsStr>| {
+                let mut parse_auswerten = |arg: Option<OsString>| {
                     if let Some(wert_os_str) = arg {
                         match parse(wert_os_str) {
                             Ok(wert) => ergebnis = Some(wert),
@@ -349,7 +349,9 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                         name_ohne_wert = false;
                         nicht_verwendet.push(None);
                         continue;
-                    } else if let Some(string) = arg.and_then(OsStr::to_str) {
+                    } else if let Some(string) =
+                        arg.as_ref().and_then(|os_string| os_string.to_str())
+                    {
                         let normalisiert = Normalisiert::neu(string);
                         if let Some(lang) = name_lang_präfix.strip_als_präfix(&normalisiert) {
                             let lang_normalisiert = Normalisiert::neu_borrowed_unchecked(lang);
@@ -364,7 +366,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                                 } else if let Some(wert_graphemes) =
                                     wert_infix_vergleich.strip_als_präfix(&suffix_normalisiert)
                                 {
-                                    parse_auswerten(Some(wert_graphemes.as_ref()));
+                                    parse_auswerten(Some(wert_graphemes.to_owned().into()));
                                     nicht_verwendet.push(None);
                                     continue 'args;
                                 }
@@ -389,7 +391,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                                             .strip_als_präfix(&kurz_normalisiert)
                                             .unwrap_or(rest)
                                     };
-                                    parse_auswerten(Some(wert_str.as_ref()));
+                                    parse_auswerten(Some(wert_str.to_owned().into()));
                                     nicht_verwendet.push(None);
                                     continue 'args;
                                 }
@@ -421,7 +423,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
         possible_values: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(&OsStr) -> Result<T, ParseError<E>>,
+        parse: impl 't + Fn(OsString) -> Result<T, ParseError<E>>,
         display: impl Fn(&T) -> String,
     ) -> Arguments<'t, T, E> {
         Argumente::wert(description, value_infix, meta_var, possible_values, parse, display)
@@ -460,7 +462,7 @@ pub trait EnumArgument: Sized {
     ///
     /// ## English
     /// Try to parse a value from the given [OsStr].
-    fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>>;
+    fn parse_enum(arg: OsString) -> Result<Self, ParseFehler<String>>;
 }
 
 impl<'t, T: 't + Display + Clone + EnumArgument> Argumente<'t, T, String> {

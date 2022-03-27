@@ -141,7 +141,7 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fe
                 vec![#(Self::#varianten),*]
             }
 
-            fn parse_enum(arg: &std::ffi::OsStr) -> Result<Self, #crate_name::ParseFehler<String>> {
+            fn parse_enum(arg: std::ffi::OsString) -> Result<Self, #crate_name::ParseFehler<String>> {
                 if let Some(string) = arg.to_str() {
                     #(
                         if #crate_name::unicode::Normalisiert::neu(#varianten_str).eq(string, #cases)
@@ -155,7 +155,7 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fe
                         )
                     }
                 } else {
-                    Err(#crate_name::ParseFehler::InvaliderString(arg.to_owned()))
+                    Err(#crate_name::ParseFehler::InvaliderString(arg))
                 }
             }
         }

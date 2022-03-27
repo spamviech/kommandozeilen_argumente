@@ -1,4 +1,5 @@
 use std::{
+    ffi::OsString,
     fmt::{Debug, Display},
     num::NonZeroI32,
 };
@@ -21,12 +22,10 @@ impl EnumArgument for Aufzählung {
         vec![Eins, Zwei, Drei]
     }
 
-    fn parse_enum(
-        arg: &std::ffi::OsStr,
-    ) -> Result<Self, kommandozeilen_argumente::ParseFehler<String>> {
+    fn parse_enum(arg: OsString) -> Result<Self, kommandozeilen_argumente::ParseFehler<String>> {
         use Aufzählung::*;
         if let Some(string) = arg.to_str() {
-            // Vergleich-Strings enthalten nur ASCII-characters,
+            // Vergleich-Strings enthalten nur ASCII-Zeichen,
             // alle anderen können demnach ignoriert werden.
             let lowercase = string.to_ascii_lowercase();
             match lowercase.as_str() {
@@ -36,7 +35,7 @@ impl EnumArgument for Aufzählung {
                 _ => Err(ParseFehler::ParseFehler(format!("Unbekannte Variante: {}", string))),
             }
         } else {
-            Err(ParseFehler::InvaliderString(arg.to_owned()))
+            Err(ParseFehler::InvaliderString(arg))
         }
     }
 }
