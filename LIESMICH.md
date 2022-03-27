@@ -11,13 +11,18 @@ Argumente können mithilfe des `kombiniere!`-Macros, bzw. dedizierten `kombinier
 zu komplexeren Strukturen zusammengefasst werden,
 die zum parsen potentiell mehrere Argumente benötigen.
 
-Ein Argument wird durch seinen Langnamen oder potentiellen Kurznamen identifiziert.
-Angabe eines Langnamens startet mit zwei Minus `--lang`.
-Angabe eines Kurznamens startet mit einem Minus `-k`.
-Für Kurznamen wird angenommen, dass sie nur ein [Grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes) lang sind.
+Ein Argument wird durch seine Langnamen oder potentiellen Kurznamen identifiziert.
+Angabe eines Langnamens startet normalerweise mit zwei Minus `--lang`.
+Angabe eines Kurznamens startet normalerweise mit einem Minus `-k`.
+Für Kurznamen wird angenommen, dass sie nur ein
+[Grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes)
+lang sind.
 
 Alle verwendeten Strings, z.B. für die erzeugte Hilfe-Meldung, sind konfigurierbar.
 Sofern es relevant ist werden für Deutsch und Englisch spezialisierte Funktionen bereitgestellt.
+Außerdem werden Synonyme in Deutsch und Englisch angeboten.
+Eine Wiederholung der Strings kann über den `Sprache`-Typ und die darin enthaltenen
+Standard-Werte vermieden werden.
 
 Argumente können Standard-Werte haben, der verwendet wird sofern keiner ihrer Namen verwendet wird.
 Ohne Standard-Wert muss das Argument verwendet werden, ansonsten schlägt das Parsen fehl.
@@ -51,6 +56,7 @@ Es ist möglich, alle erlaubten Werte im Hilfe-Text anzeigen zu lassen.
 
 Angenommen Langnamen `--wert` und Kurznamen `-w` für ein Zahlen-Argument,
 `--wert 3`, `--wert=3`, `-w 3`, `-w=3` und `-w3` werden alle mit Ergebnis `3` geparst.
+Anstelle von `=` kann auch ein anderes Infix konfiguriert werden.
 
 ## Feature "derive"
 
