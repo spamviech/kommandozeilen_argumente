@@ -126,8 +126,8 @@ fn write_argument_wert(f: &mut Formatter<'_>, colon: bool, wert: &ArgumentWert) 
     match wert {
         KeinWert => Ok(()),
         Unterargument(args) => write_liste(f, if colon { ": (" } else { "(" }, args, ")"),
-        Liste(tts) => write_liste(f, if colon { ": [" } else { "[" }, tts.clone(), "]"),
-        Stream(ts) => write!(f, "{ts}"),
+        Liste(tts) => write_liste(f, if colon { ": [" } else { "[" }, tts, "]"),
+        Stream(ts) => write!(f, "{}{ts}", if colon { ": " } else { "" }),
     }
 }
 
