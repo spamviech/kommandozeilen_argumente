@@ -177,5 +177,4 @@ Drei | Standard: Zwei]
 - Unterargumente (subcommands)
 - Positions-basierte Argumente
 - Unterschiedlicher Standard-Wert für Name ohne Wert und Name kommt nicht vor
-- Argumente unter Berücksichtigung von Groß- und Kleinschreibung
 - Argument-Gruppen (nur eine dieser N Flags kann gleichzeitig aktiv sein)
