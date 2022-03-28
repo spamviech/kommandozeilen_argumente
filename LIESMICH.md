@@ -69,11 +69,8 @@ Mit aktiviertem `derive`-Feature können die akzeptieren Kommandozeilen-Argument
 automatisch erzeugt werden.
 Dazu wird das `Parse`-Trait für ein `struct` mit benannten Feldern implementiert.
 
-Die Namen werden aus den Feld-Namen erzeugt,
-der Langname ist der vollständige Feldname,
-der Kurzname das erste Grapheme des Feldnamens.
-
-Als Beschreibung im erzeugten Hilfe-Text wird der docstring des jeweiligen Feldes verwendet.
+Als LangName wird der Feld-Name, als Beschreibung im erzeugten Hilfe-Text wird
+der docstring des jeweiligen Feldes verwendet.
 
 Zum parsen wird das `ParseArgument`-Trait verwendet.
 Es ist implementiert für `bool`, `String`, Zahlentypen (`i8`, `u8`, `i16`, `u16`, ..., `f32`, `f64`),
@@ -91,8 +88,8 @@ Direkt am `struct` werden folgende Optionen unterstützt:
 - `sprache: <sprache>` | `language: <language>`:
   Standard-Einstellung für einige Strings, Standard: `english`.
   Vorgefertigte Sprachen für `deutsch`, `englisch` und `english`.
-- `version`: erzeuge eine `--version` Flag.
-- `hilfe` | `help`: erzeuge eine Hilfe-Text.
+- `version`: erzeuge eine `--version`, `-v` Flag.
+- `hilfe` | `help`: erzeuge eine Flag, die einen Hilfe-Text anzeigt.
 - `hilfe(<opts>)`, `help(<opts>)`, `version(<opts>)`:
   Wie die Variante ohne opts, nur Kurzname ist standardmäßig deaktiviert. Mögliche Opts:
   - `lang_präfix: <präfix>` | `long_prefix: <prefix>`: Präfix vor Langnamen.
@@ -106,7 +103,7 @@ Direkt am `struct` werden folgende Optionen unterstützt:
     Setze die im Hilfetext angezeigte Programm-Beschreibung.
 - `case: sensitive`, `case: insensitive`:
   Alle Strings (Namen, Präfix, Infix) werden mit/ohne Berücksichtigung von
-  Groß-/Kleinschreibung verglichen (Standard: `case: sensitive`).
+  Groß-/Kleinschreibung verglichen, Standard: `case: sensitive`.
 - `case(<opts>)`:
   Genauere Einstellung zu Groß-/Kleinschreibung. Alle Opts haben die Form `<name>: <wert>`,
   mit `<wert>` entweder `sensitive` oder `insensitive`. Erlaubte Namen:
@@ -118,22 +115,22 @@ Direkt am `struct` werden folgende Optionen unterstützt:
   - `invertiere_infix` | `invert_infix`
   - `wert_infix` | `value_infix`
 - `lang_präfix: <präfix>` | `long_prefix: <prefix>`:
-  Setze Standardwert für Präfix vor Langnamen, Standard `--`.
+  Setze Standardwert für Präfix vor Langnamen, Standard: `--`.
 - `kurz_präfix: <präfix>` | `short_prefix: <prefix>`:
-  Setze Standardwert für Präfix vor Kurznamen, Standard `-`.
+  Setze Standardwert für Präfix vor Kurznamen, Standard: `-`.
 - `invertiere_präfix: <string>` | `invert_prefix: <string>`:
-  Setze Standardwert für Präfix zum invertieren einer Flag, Standard `kein` oder `no`.
+  Setze Standardwert für Präfix zum invertieren einer Flag, Standard: `kein` oder `no`.
 - `invertiere_infix: <string>` | `invert_infix: <string>`:
-  Setze Infix nach Präfix zum invertieren einer Flag, Standard `-`.
+  Setze Infix nach Präfix zum invertieren einer Flag, Standard: `-`.
 - `wert_infix: <string>` | `value_infix: <string>`:
-  Setze Infix zum Angeben des Wertes im selben Argument, Standard `=`.
+  Setze Infix zum Angeben des Wertes im selben Argument, Standard: `=`.
 - `meta_var: <string>` | `meta_var: <string>`:
-  Setze Standardwert für in der Hilfe angezeigte Meta-Variable, Standard `WERT` oder `VALUE`.
+  Setze Standardwert für in der Hilfe angezeigte Meta-Variable, Standard: `WERT` oder `VALUE`.
 
 Vor Feldern werden folgende Optionen unterstützt:
 
-- `glätten`/`flatten`: Verwende das Parse-Trait (übernehmen der konfigurierten Argumente).
-- `FromStr`: Verwende das FromStr-Trait (benötigt Display für Wert und Fehler-Typ).
+- `glätten`/`flatten`: Verwende das `Parse`-Trait (übernehmen der konfigurierten Argumente).
+- `FromStr`: Verwende das `FromStr`-Trait (benötigt Display für Wert und Fehler-Typ).
 - `benötigt`/`required`: Entferne den konfigurierten Standard-Wert.
 - `lang_präfix: <präfix>` | `long_prefix: <prefix>`: Präfix vor Langnamen.
 - `lang: <name>` | `long: <name>`: Bestimme Langname explizit.

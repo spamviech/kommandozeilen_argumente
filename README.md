@@ -63,51 +63,47 @@ and value_infix `=` for a number type is parsed with result `3` for each of the 
 
 ## Feature "derive"
 
-Mit aktiviertem `derive`-Feature können die akzeptieren Kommandozeilen-Argumente
-automatisch erzeugt werden.
-Dazu wird das `Parse`-Trait für ein `struct` mit benannten Feldern implementiert.
+Accepted command line arguments can be produced automatically using the `derive` feature.
+It allows deriving an implementation of the `Parse` trait for a `struct` with named fields.
 
-Die Namen werden aus den Feld-Namen erzeugt,
-der Langname ist der vollständige Feldname,
-der Kurzname das erste Grapheme des Feldnamens.
+The long name of the argument is the field name,
+the description in the help text is the docstring of the field.
 
-Als Beschreibung im erzeugten Hilfe-Text wird der docstring des jeweiligen Feldes verwendet.
+The argument is parsed according to the `ParseArgument` trait.
+Instances exist for `bool`, `String`, number types (`i8`, `u8`, `i16`, `u16`, ..., `f32`, `f64`),
+`Option<T>` and instances of the `EnumArgument` trait.
+`bool` fields produce flag arguments which are off by default.
+Every other (provided) type produces a value argument; `Option<T>` has default value `None`,
+all other types produce required arguments.
+It is possible to derive an implementation of the `EnumArgument` trait for `enum` types holding no data.
+Types used as a `ParseArgument` must be an instance of `Display`.
 
-Zum parsen wird das `ParseArgument`-Trait verwendet.
-Es ist implementiert für `bool`, `String`, Zahlentypen (`i8`, `u8`, `i16`, `u16`, ..., `f32`, `f64`),
-`Option<T>` und Typen, die das `EnumArgument`-Trait implementieren.
-Flag-Argumente werden für `bool`-Argumente erzeugt; diese sind standardmäßig deaktiviert.
-Alle anderen Implementierungen erzeugen Wert-Argumente; `Option<T>` sind standardmäßig `None`,
-alle anderen sind benötigte Argumente.
-Das `EnumArgument`-Trait kann automatisch für ein `enum`, das keine Daten hält abgeleitet werden.
-Für eine Verwendung als `ParseArgument` wird zusätzlich eine `Display`-Implementierung benötigt.
+The default behaviour can be changed using `#[kommandozeilen_argumente(<Optionen>)]` attributes.
 
-Das Standard-Verhalten kann über `#[kommandozeilen_argumente(<Optionen>)]`-Attribute beeinflusst werden.
-
-Direkt am `struct` werden folgende Optionen unterstützt:
+The following options are supported at the `struct` declaration.
 
 - `sprache: <sprache>` | `language: <language>`:
-  Standard-Einstellung für einige Strings, Standard: `english`.
-  Vorgefertigte Sprachen für `deutsch`, `englisch` und `english`.
-- `version`: erzeuge eine `--version` Flag.
-- `hilfe` | `help`: erzeuge eine Hilfe-Text.
+  Default value for some strings, default: `english`.
+  Builtin languages for `deutsch`, `englisch` and `english`.
+- `version`: create a `--version`, `-v` flag.
+- `hilfe` | `help`: create a help text flag.
 - `hilfe(<opts>)`, `help(<opts>)`, `version(<opts>)`:
-  Wie die Variante ohne opts, nur Kurzname ist standardmäßig deaktiviert. Mögliche Opts:
-  - `lang_präfix: <präfix>` | `long_prefix: <prefix>`: Präfix vor Langnamen.
-  - `lang: <name>`, `long [<namen>]`: Setze Langnamen explizit.
-  - `kurz_präfix: <präfix>` | `short_prefix: <prefix>`: Präfix vor Kurznamen.
-  - `kurz`: Setze Kurznamen als erstes Grapheme des originalen Langnamen.
-  - `kurz: <name>`, `kurz: [<namen>]`: Setze Kurznamen explizit.
-  - `sprache: <sprache>` | `language: <language>`: Sprache von Hilfe-Text und Standard-Namen.
+  Similar to the variant without ops, but short name is off by default. Possible Opts:
+  - `lang_präfix: <präfix>` | `long_prefix: <prefix>`: Prefix before long name.
+  - `lang: <name>`, `long [<namen>]`: Overwrite long name.
+  - `kurz_präfix: <präfix>` | `short_prefix: <prefix>`: Prefix before short name.
+  - `kurz`: Set short name as first Grapheme of the first long name.
+  - `kurz: <name>`, `kurz: [<namen>]`: Overwrite short name.
+  - `sprache: <sprache>` | `language: <language>`: Language of the help text and default names.
   - `beschreibung: <programm-beschreibung>` | `description: <program_description>`:
-    Nur bei `hilfe(<opts>)` und `help(<opts>)` verfügbar.
-    Setze die im Hilfetext angezeigte Programm-Beschreibung.
+    Only supported for `hilfe(<opts>)` and `help(<opts>)`.
+    Set the program description shown in the help text.
 - `case: sensitive`, `case: insensitive`:
-  Alle Strings (Namen, Präfix, Infix) werden mit/ohne Berücksichtigung von
-  Groß-/Kleinschreibung verglichen (Standard: `case: sensitive`).
+  All Strings (Names, prefix, infix) are parse case-sensitive or -insensitive,
+  default: `case: sensitive`.
 - `case(<opts>)`:
-  Genauere Einstellung zu Groß-/Kleinschreibung. Alle Opts haben die Form `<name>: <wert>`,
-  mit `<wert>` entweder `sensitive` oder `insensitive`. Erlaubte Namen:
+  Specific control about case-sensitivity. All opts have the form `<name>: <value>`,
+  `<value>` must be one of `sensitive` and `insensitive`. Allowed Names:
   - `lang_präfix` | `long_prefix`
   - `lang` | `long`
   - `kurz_präfix` | `short_prefix`
@@ -116,45 +112,49 @@ Direkt am `struct` werden folgende Optionen unterstützt:
   - `invertiere_infix` | `invert_infix`
   - `wert_infix` | `value_infix`
 - `lang_präfix: <präfix>` | `long_prefix: <prefix>`:
-  Setze Standardwert für Präfix vor Langnamen, Standard `--`.
+  Overwrite default value for prefix before long names, default: `--`.
 - `kurz_präfix: <präfix>` | `short_prefix: <prefix>`:
-  Setze Standardwert für Präfix vor Kurznamen, Standard `-`.
+  Overwrite default value for prefix before short names, default: `-`.
 - `invertiere_präfix: <string>` | `invert_prefix: <string>`:
-  Setze Standardwert für Präfix zum invertieren einer Flag, Standard `kein` oder `no`.
+  Overwrite default value for prefix to invert a flag, default: `kein` or `no`.
 - `invertiere_infix: <string>` | `invert_infix: <string>`:
-  Setze Infix nach Präfix zum invertieren einer Flag, Standard `-`.
+  Overwrite default value for infix after prefix to invert a flag, default `-`.
 - `wert_infix: <string>` | `value_infix: <string>`:
-  Setze Infix zum Angeben des Wertes im selben Argument, Standard `=`.
+  Overwrite default value for infix to give a value in the same argument, default `=`.
 - `meta_var: <string>` | `meta_var: <string>`:
-  Setze Standardwert für in der Hilfe angezeigte Meta-Variable, Standard `WERT` oder `VALUE`.
+  Overwrite default value for the meta variable shown in the help text, default: `WERT` or `VALUE`.
 
-Vor Feldern werden folgende Optionen unterstützt:
+Field support the following options:
 
-- `glätten`/`flatten`: Verwende das Parse-Trait (übernehmen der konfigurierten Argumente).
-- `FromStr`: Verwende das FromStr-Trait (benötigt Display für Wert und Fehler-Typ).
-- `benötigt`/`required`: Entferne den konfigurierten Standard-Wert.
-- `lang_präfix: <präfix>` | `long_prefix: <prefix>`: Präfix vor Langnamen.
-- `lang: <name>` | `long: <name>`: Bestimme Langname explizit.
-- `lang: [<namen>]` | `long: [<names>]`: Bestimme Langnamen explizit (Komma-getrennte Liste).
-- `kurz_präfix: <präfix>` | `short_prefix: <prefix>`: Präfix vor Kurznamen.
-- `kurz`/`short`: Verwende eine Kurzform, bestehend aus dem ersten Grapheme der Langform.
-- `kurz: <wert>"`/`short: <value>"`: Verwende die spezifizierte Kurzform.
-- `kurz: [<namen>]` | `short: [<names>]`: Bestimme Kurzformen explizit (Komma-getrennte Liste).
-- `standard: <wert>` | `default: <value>`: Setzte den Standard-Wert.
-- `invertiere_präfix: <string>` | `invert_prefix: <string>`: Setze Präfix zum invertieren einer Flag.
+- `glätten`/`flatten`: Use the `Parse` trait (include the configured arguments).
+- `FromStr`: Use the `FromStr` trait (`Display` instance required for both value and error type).
+- `benötigt`/`required`: Don't use the configured default value.
+- `lang_präfix: <präfix>` | `long_prefix: <prefix>`: Prefix before long name.
+- `lang: <name>` | `long: <name>`: Overwrite long name.
+- `lang: [<namen>]` | `long: [<names>]`: Set multiple long names (comma separated list).
+- `kurz_präfix: <präfix>` | `short_prefix: <prefix>`: Prefix before short name.
+- `kurz`/`short`: Set short name as first Grapheme of the first long name.
+- `kurz: <wert>"`/`short: <value>"`: Overwrite the short name.
+- `kurz: [<namen>]` | `short: [<names>]`: Set multiple short names (comma separated list).
+- `standard: <wert>` | `default: <value>`: Overwrite default value.
+- `invertiere_präfix: <string>` | `invert_prefix: <string>`: Overwrite prefix to invert a flag.
 - `invertiere_infix: <string>` | `invert_infix: <string>`:
-  Setze Infix nach Präfix zum invertieren einer Flag.
+  Overwrite infix after prefix to invert a flag.
 - `wert_infix: <string>` | `value_infix: <string>`:
-  Setze Infix zum Angeben des Wertes im selben Argument.
-- `meta_var: <string>`: Setzte die in der Hilfe angezeigt Meta-Variable.
+  Overwrite infix to give the value in the same argument.
+- `meta_var: <string>`: Overwrite meta variable used in the help text.
 
-## Beispiel
+## Example
 
-Ein einfaches Beispiel für ein `struct` mit 3 Flags und 2 Werten, erstellt über das
-[Funktions-API](https://github.com/spamviech/kommandozeilen_argumente/blob/main/examples/funktion.rs),
-bzw. [derive-API](https://github.com/spamviech/kommandozeilen_argumente/blob/main/examples/derive.rs)
-können im [GitHub-Repository](https://github.com/spamviech/kommandozeilen_argumente/) eingesehen werden.
-In beiden Fällen wird folgender Hilfe-Text erzeugt:
+A simple example for a `struct` with 3 flags and 2 value, created using the
+[function API](https://github.com/spamviech/kommandozeilen_argumente/blob/main/examples/function.rs)
+and the
+[derive API](https://github.com/spamviech/kommandozeilen_argumente/blob/main/examples/deriveEN.rs)
+are available in the
+[GitHub repository](https://github.com/spamviech/kommandozeilen_argumente/).
+Both cases produce the following help text:
+
+TODO english version
 
 ```cmd
 kommandozeilen_argumente 0.2.0
@@ -172,10 +172,9 @@ OPTIONEN:
   --hilfe                 | -h          Zeige diesen Text an.
 ```
 
-## (Noch) Fehlende Features
+## Missing (planned) Features
 
-- Unterargumente (subcommands)
-- Positions-basierte Argumente
-- Unterschiedlicher Standard-Wert für Name ohne Wert und Name kommt nicht vor
-- Argumente unter Berücksichtigung von Groß- und Kleinschreibung
-- Argument-Gruppen (nur eine dieser N Flags kann gleichzeitig aktiv sein)
+- subcommands
+- position-based arguments
+- Different default value for name without value and name doesn't appear
+- argument-groups (only one of these N flags can be active)
