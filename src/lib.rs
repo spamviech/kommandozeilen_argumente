@@ -1,4 +1,4 @@
-#![doc = include_str!("../README.md")]
+#![doc = include_str!("../LIESMICH.md")]
 // Aktiviere alle Warnungen außer box_pointers, non_ascii_idents, unstable_features
 #![warn(
     absolute_paths_not_starting_with_crate,
