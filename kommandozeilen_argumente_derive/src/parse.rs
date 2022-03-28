@@ -1,12 +1,15 @@
 //! Implementierung für das derive-Macro des Parse-Traits.
 
-use proc_macro2::{LexError, TokenStream};
-use quote::quote;
-use syn::{Field, ItemStruct};
+use std::fmt::{self, Display, Formatter};
+
+use proc_macro2::{TokenStream, TokenTree};
+use quote::{quote, ToTokens};
+use syn::{parse2, Data, DataStruct, DeriveInput, Field, Ident, LitStr};
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::{
-    base_name, compile_error_return, unwrap_option_or_compile_error, unwrap_result_or_compile_error,
+use crate::utility::{
+    crate_name, genau_eines, split_klammer_argumente, Argument, ArgumentWert, Case,
+    SplitArgumenteFehler,
 };
 
 #[derive(Debug, Clone)]
@@ -18,162 +21,27 @@ enum Sprache {
 use Sprache::{Deutsch, English};
 
 impl Sprache {
-    fn token_stream(self) -> TokenStream {
+    fn parse(ts: TokenStream) -> Sprache {
+        match genau_eines(ts.into_iter()) {
+            Ok(TokenTree::Ident(ident)) => match ident.to_string().as_str() {
+                "deutsch" | "german" => Deutsch,
+                "englisch" | "english" => English,
+                _ => Sprache::TokenStream(TokenTree::Ident(ident).into()),
+            },
+            Ok(tt) => Sprache::TokenStream(tt.into()),
+            Err(fehler) => Sprache::TokenStream(fehler.collect()),
+        }
+    }
+
+    fn token_stream(&self) -> TokenStream {
         use Sprache::*;
-        let crate_name = base_name();
+        let crate_name = crate_name();
         match self {
             Deutsch => quote!(#crate_name::Sprache::DEUTSCH),
             English => quote!(#crate_name::Sprache::ENGLISH),
-            TokenStream(ts) => ts,
+            TokenStream(ts) => ts.clone(),
         }
     }
-}
-
-fn parse_klammer_arg(string: &str) -> Option<(&str, &str)> {
-    parse_allgemeines_klammer_arg(string, '(', ')')
-}
-
-fn parse_eckige_klammer_arg(string: &str) -> Option<(&str, &str)> {
-    parse_allgemeines_klammer_arg(string, '[', ']')
-}
-
-fn parse_allgemeines_klammer_arg(
-    string: &str,
-    öffnen: char,
-    schließen: char,
-) -> Option<(&str, &str)> {
-    string
-        .split_once(öffnen)
-        .and_then(|(name, wert)| wert.strip_suffix(schließen).map(|wert| (name.trim(), wert)))
-}
-
-fn string_präfix(string: &str, bis: usize) -> &str {
-    if bis < string.len() {
-        &string[0..bis]
-    } else {
-        string
-    }
-}
-
-fn string_suffix(string: &str, von: usize) -> &str {
-    if von < string.len() {
-        &string[von..]
-    } else {
-        ""
-    }
-}
-
-fn find_or_len(string: &str, c: char) -> usize {
-    string.find(c).unwrap_or_else(|| string.len())
-}
-
-#[test]
-fn test_split_argumente() {
-    let mut args: Vec<&str> = Vec::new();
-    let args_str = "(hello(hi), world: [it's, a, big, world!])";
-    split_argumente(&mut args, args_str).expect("Argumente sind wohlgeformt");
-    assert_eq!(args, vec!["hello(hi)", "world: [it's, a, big, world!]"])
-}
-
-fn split_argumente<'t, S: From<&'t str>>(
-    args: &mut Vec<S>,
-    args_str: &'t str,
-) -> Result<(), String> {
-    // Argumente getrennt durch Kommas, Unterargumente mit () angegeben, potentiell mit Kommas.
-    // Argumente können Listen (angegeben durch [], potentiell mit Kommas) sein.
-    // In einem Argument müssen alle Klammern geschlossen sein.
-    // Zusätzliche schließende Klammern werden ignoriert.
-    // Argumente werden nicht weiter behandelt.
-    // Implementiert als Kellerautomat für simple, Kontext-freie Grammatik
-    let mut rest = args_str;
-    'arg_suche: while !rest.is_empty() {
-        let mut suffix_start = 0;
-        let mut suffix = rest;
-        macro_rules! verkürze_suffix {
-            ($sub_start: expr) => {
-                suffix_start += $sub_start;
-                suffix = string_suffix(suffix, $sub_start);
-            };
-        }
-        macro_rules! arg_speichern {
-            ($ix: expr) => {
-                let ix = suffix_start + $ix;
-                let trimmed = string_präfix(&rest, ix).trim();
-                if trimmed.is_empty() {
-                    if let "" | "," = rest.trim() {
-                        // Ignoriere extra Komma am Ende
-                        rest = "";
-                    } else {
-                        return Err(format!("Leeres Argument: {}", args_str));
-                    }
-                } else {
-                    args.push(S::from(trimmed));
-                    rest = string_suffix(&rest, ix + 1);
-                }
-                continue 'arg_suche
-            };
-        }
-        loop {
-            let nächstes_komma = find_or_len(suffix, ',');
-            let nächste_runde_klammer = find_or_len(suffix, '(');
-            let nächste_eckige_klammer = find_or_len(suffix, '[');
-            let nächste_klammer = nächste_runde_klammer.min(nächste_eckige_klammer);
-            if nächste_klammer < nächstes_komma {
-                let schließende_klammer =
-                    if nächste_runde_klammer < nächste_eckige_klammer { ')' } else { ']' };
-                let mut zu_schließende_klammern = vec![schließende_klammer];
-                verkürze_suffix!(nächste_klammer + 1);
-                while !zu_schließende_klammern.is_empty() {
-                    if suffix.is_empty() {
-                        return Err(format!("Nicht geschlossene Klammer: {}", rest));
-                    }
-                    let öffnende_runde_klammer = find_or_len(suffix, '(');
-                    let öffnende_eckige_klammer = find_or_len(suffix, '[');
-                    let öffnende_klammer = öffnende_runde_klammer.min(öffnende_eckige_klammer);
-                    let erwartete_klammer =
-                        zu_schließende_klammern.pop().expect("!zu_schließende_klammern.is_empty()");
-                    let schließende_klammer = find_or_len(suffix, erwartete_klammer);
-                    if schließende_klammer < öffnende_klammer {
-                        verkürze_suffix!(schließende_klammer + 1);
-                    } else {
-                        zu_schließende_klammern.push(erwartete_klammer);
-                        let schließende_klammer =
-                            if öffnende_runde_klammer < öffnende_eckige_klammer {
-                                ')'
-                            } else {
-                                ']'
-                            };
-                        zu_schließende_klammern.push(schließende_klammer);
-                        verkürze_suffix!(öffnende_klammer + 1);
-                    }
-                }
-            } else {
-                arg_speichern!(nächstes_komma);
-            }
-        }
-    }
-    Ok(())
-}
-
-fn split_klammer_argumente<'t, S: From<&'t str>>(
-    args: &mut Vec<S>,
-    args_str: &'t str,
-) -> Result<(), String> {
-    let stripped = if let Some(("", stripped)) = parse_klammer_arg(args_str) {
-        stripped
-    } else {
-        return Err(format!("Argumente nicht in Klammern eingeschlossen: {}", args_str));
-    };
-    split_argumente(args, stripped)
-}
-
-macro_rules! split_klammer_argumente {
-    ($args: expr, $stripped: expr) => {
-        if let Err(fehler) = split_klammer_argumente(&mut $args, $stripped) {
-            let compile_error = quote!(compile_error! {#fehler });
-            return compile_error;
-        }
-    };
 }
 
 enum FeldArgument {
@@ -182,42 +50,36 @@ enum FeldArgument {
     Parse,
 }
 
-#[derive(Debug)]
-enum KurzNamen<'t> {
-    Keiner,
-    Auto,
-    Namen(Vec<&'t str>),
-}
-
-impl<'t> KurzNamen<'t> {
-    fn to_vec(self, lang_name: &'t str) -> Vec<&'t str> {
-        match self {
-            KurzNamen::Keiner => Vec::new(),
-            KurzNamen::Auto => {
-                vec![lang_name.graphemes(true).next().expect("Langname ohne Graphemes!")]
-            },
-            KurzNamen::Namen(namen) => namen,
-        }
-    }
-}
-
 fn erstelle_version_methode(
     feste_sprache: Option<Sprache>,
-    namen: Option<(TokenStream, TokenStream)>,
+    namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
 ) -> impl FnOnce(TokenStream, Sprache) -> TokenStream {
-    let crate_name = base_name();
-    move |item, sprache| {
-        let sprache_ts = feste_sprache.unwrap_or(sprache).token_stream();
-        let (lang_namen, kurz_namen) = namen.unwrap_or_else(|| {
-            (quote!(#sprache_ts.version_lang), quote!(#sprache_ts.version_kurz))
+    let crate_name = crate_name();
+    move |item, standard_sprache| {
+        let sprache = feste_sprache.unwrap_or(standard_sprache);
+        let sprache_ts = sprache.token_stream();
+        let lang_standard = quote!(#sprache_ts.version_lang);
+        let kurz_standard = quote!(#sprache_ts.version_kurz);
+        let (lang_präfix, lang_namen, kurz_präfix, kurz_namen) = namen.unwrap_or_else(|| {
+            (LangPräfix::default(), lang_standard, KurzPräfix::default(), kurz_standard)
         });
-        quote!(
-            #item.version_mit_namen_und_sprache(
+        let lang_präfix = lang_präfix.token_stream(&sprache);
+        let kurz_präfix = kurz_präfix.token_stream(&sprache);
+        let beschreibung = quote!(
+            #crate_name::Beschreibung::neu(
+                #lang_präfix,
                 #lang_namen,
+                #kurz_präfix,
                 #kurz_namen,
+                Some(#sprache_ts.version_beschreibung),
+                None,
+            )
+        );
+        quote!(
+            #item.zeige_version(
+                #beschreibung,
                 #crate_name::crate_name!(),
                 #crate_name::crate_version!(),
-                #sprache_ts,
             )
         )
     }
@@ -225,19 +87,34 @@ fn erstelle_version_methode(
 
 fn erstelle_hilfe_methode(
     sprache: Sprache,
-    namen: Option<(TokenStream, TokenStream)>,
+    namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
+    programm_beschreibung: ProgrammBeschreibung,
 ) -> impl Fn(TokenStream) -> TokenStream {
-    let crate_name = base_name();
+    let crate_name = crate_name();
     let sprache_ts = sprache.token_stream();
     let lang_standard = quote!(#sprache_ts.hilfe_lang);
     let kurz_standard = quote!(#sprache_ts.hilfe_kurz);
-    let (lang_namen, kurz_namen) = namen.unwrap_or_else(|| (lang_standard, kurz_standard));
+    let (lang_präfix, lang_namen, kurz_präfix, kurz_namen) = namen.unwrap_or_else(|| {
+        (LangPräfix::default(), lang_standard, KurzPräfix::default(), kurz_standard)
+    });
+    let lang_präfix = lang_präfix.token_stream(&sprache);
+    let kurz_präfix = kurz_präfix.token_stream(&sprache);
+    let beschreibung = quote!(
+        #crate_name::Beschreibung::neu(
+            #lang_präfix,
+            #lang_namen,
+            #kurz_präfix,
+            #kurz_namen,
+            Some(#sprache_ts.hilfe_beschreibung),
+            None,
+        )
+    );
     move |item| {
         quote!(
-            #item.hilfe_mit_namen_und_sprache(
-                #lang_namen,
-                #kurz_namen,
+            #item.erstelle_hilfe_mit_sprache(
+                #beschreibung,
                 #crate_name::crate_name!(),
+                #programm_beschreibung,
                 Some(#crate_name::crate_version!()),
                 #sprache_ts
             )
@@ -245,143 +122,681 @@ fn erstelle_hilfe_methode(
     }
 }
 
-fn parse_wert_arg(
-    arg_name: &str,
-    wert_string: &str,
-    mut setze_sprache: impl FnMut(Sprache, &str) -> Result<(), String>,
-    setze_lang_namen: impl FnOnce(TokenStream),
-    setze_kurz_namen: impl FnOnce(TokenStream),
-    mut setze_meta_var: impl FnMut(&str, &str, &str) -> Result<(), String>,
-    mut setze_invertiere_präfix: impl FnMut(&str, &str, &str) -> Result<(), String>,
-    mut setze_standard: impl FnMut(Option<&str>, &str, &str) -> Result<(), String>,
-    mut feld_argument: Option<&mut FeldArgument>,
-) -> Result<(), String> {
-    let crate_name = base_name();
-    let mut sub_args = Vec::new();
-    split_argumente(&mut sub_args, wert_string)?;
-    let mut lang_namen = None;
-    let mut kurz_namen = KurzNamen::Keiner;
-    macro_rules! setze_feld_argument {
-        ($wert: expr, $sub_arg: expr) => {
-            if let Some(var) = feld_argument.as_mut() {
-                **var = $wert
+#[derive(Debug)]
+pub(crate) enum ParseWertFehler {
+    NichtUnterstützt { arg_name: Option<String>, argument: Argument },
+    KeinLangName { arg_name: Option<String>, name: String },
+}
+
+impl Display for ParseWertFehler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        use ArgumentWert::*;
+        use ParseWertFehler::*;
+        match self {
+            NichtUnterstützt { arg_name, argument: Argument { name, wert: KeinWert } } => {
+                write!(f, "Argument ")?;
+                if let Some(arg_name) = arg_name {
+                    write!(f, "für {arg_name} ")?;
+                }
+                write!(f, "nicht unterstützt: {name}")
+            },
+            NichtUnterstützt {
+                arg_name,
+                argument: Argument { name, wert: wert @ Unterargument(_) },
+            } => {
+                write!(f, "Unterargument von {name} ")?;
+                if let Some(arg_name) = arg_name {
+                    write!(f, "für {arg_name} ")?;
+                }
+                write!(f, "nicht unterstützt: {wert}")
+            },
+            NichtUnterstützt { arg_name, argument: Argument { name, wert: wert @ Liste(_) } } => {
+                write!(f, "Listen-Argument {name} ")?;
+                if let Some(arg_name) = arg_name {
+                    write!(f, "für {arg_name} ")?;
+                }
+                write!(f, "nicht unterstützt: {wert}")
+            },
+            NichtUnterstützt { arg_name, argument: Argument { name, wert: wert @ Stream(_) } } => {
+                write!(f, "Benanntes Argument {name} ")?;
+                if let Some(arg_name) = arg_name {
+                    write!(f, "für {arg_name} ")?;
+                }
+                write!(f, "nicht unterstützt: {wert}")
+            },
+            KeinLangName { arg_name, name } => {
+                write!(f, "Kein Langname ")?;
+                if let Some(arg_name) = arg_name {
+                    write!(f, "für {arg_name} ")?;
+                }
+                write!(f, "in expliziter Liste mit {name} angegeben!")
+            },
+        }
+    }
+}
+
+type ErstelleFehler = Box<dyn FnOnce(Option<String>) -> ParseWertFehler>;
+
+#[derive(Debug, Clone)]
+struct ProgrammBeschreibung(Option<String>);
+
+impl ToTokens for ProgrammBeschreibung {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if let Some(s) = &self.0 {
+            tokens.extend(quote!(Some(#s)))
+        } else {
+            tokens.extend(quote!(None))
+        }
+    }
+}
+
+struct ErstelleHilfe(Option<Box<dyn FnOnce(TokenStream) -> TokenStream>>);
+struct ErstelleVersion(Option<Box<dyn FnOnce(TokenStream, Sprache) -> TokenStream>>);
+
+macro_rules! create_newtype {
+    ($($name: ident : $type: ty),* $(,)?) => {
+        $(
+            #[derive(Debug, Clone)]
+            struct $name($type);
+
+            impl ToTokens for $name {
+                fn to_tokens(&self, tokens: &mut TokenStream) {
+                    self.0.to_tokens(tokens)
+                }
+            }
+        )*
+    };
+}
+
+create_newtype! {
+    MetaVar: String,
+    Standard: TokenStream,
+}
+
+macro_rules! vergleich_typen {
+    ($($name: ident ($sprache_ident: ident)),* $(,)?) => {
+        $(
+            #[derive(Debug, Clone)]
+            struct $name { string: Option<String>, case: Option<Case> }
+
+            impl Default for $name {
+                fn default() -> Self {
+                    $name { string: None, case: None }
+                }
+            }
+
+            impl $name {
+                fn token_stream(&self, sprache: &Sprache) -> TokenStream {
+                    let crate_name = crate_name();
+                    let string = if let Some(string) = &self.string {
+                        quote!(#string)
+                    } else {
+                        let sprache_ts = sprache.token_stream();
+                        quote!(#sprache_ts.$sprache_ident)
+                    };
+                    let case = self.case.unwrap_or_default();
+                    quote!(#crate_name::unicode::Vergleich {
+                        string: #crate_name::unicode::Normalisiert::neu(#string),
+                        case: #case,
+                    })
+                }
+            }
+        )*
+    };
+}
+
+vergleich_typen! {
+    LangPräfix(lang_präfix),
+    KurzPräfix(kurz_präfix),
+    InvertierePräfix(invertiere_präfix),
+    InvertiereInfix(invertiere_infix),
+    WertInfix(wert_infix),
+}
+
+#[derive(Debug)]
+struct LangNamen {
+    namen: Option<(String, Vec<String>)>,
+    case: Option<Case>,
+}
+
+impl Default for LangNamen {
+    fn default() -> Self {
+        LangNamen { namen: None, case: None }
+    }
+}
+
+#[derive(Debug)]
+enum KurzNamenEnum {
+    Keiner,
+    Auto,
+    Namen(Vec<String>),
+}
+
+#[derive(Debug)]
+struct KurzNamen {
+    namen: KurzNamenEnum,
+    case: Option<Case>,
+}
+
+impl Default for KurzNamen {
+    fn default() -> Self {
+        KurzNamen { namen: KurzNamenEnum::Keiner, case: None }
+    }
+}
+
+impl KurzNamen {
+    fn to_vec(self, lang_name: &str, lang_namen_case: Option<Case>) -> (Vec<String>, Option<Case>) {
+        match self.namen {
+            KurzNamenEnum::Keiner => (Vec::new(), self.case),
+            KurzNamenEnum::Auto => (
+                vec![lang_name
+                    .graphemes(true)
+                    .next()
+                    .expect("Langname ohne Graphemes!")
+                    .to_owned()],
+                self.case.or(lang_namen_case),
+            ),
+            KurzNamenEnum::Namen(namen) => (namen, self.case),
+        }
+    }
+
+    fn to_vec_ts(self, lang_name: &str, lang_namen_case: Option<Case>) -> TokenStream {
+        let (vec, case) = self.to_vec(lang_name, lang_namen_case);
+        if vec.is_empty() {
+            quote!(None::<&str>)
+        } else {
+            let crate_name = crate_name();
+            if let Some(case) = case {
+                quote!(vec![#(#crate_name::unicode::Vergleich {
+                    string: #vec,
+                    case: #case,
+                }),*])
             } else {
-                return Err(format!("Argument nicht unterstützt: {}", $sub_arg));
+                quote!(vec![#(#vec),*])
+            }
+        }
+    }
+}
+
+fn literal_oder_to_string(token_stream: &TokenStream) -> String {
+    if let Ok(lit_str) = parse2::<LitStr>(token_stream.clone()) {
+        lit_str.value()
+    } else {
+        token_stream.to_string()
+    }
+}
+
+fn parse_wert_arg(
+    args: Vec<Argument>,
+    mut sprache: Option<&mut Option<Sprache>>,
+    mut erstelle_hilfe: Option<&mut ErstelleHilfe>,
+    mut programm_beschreibung: Option<&mut ProgrammBeschreibung>,
+    mut erstelle_version: Option<&mut ErstelleVersion>,
+    mut lang_präfix: Option<&mut LangPräfix>,
+    mut lang_namen: Option<&mut LangNamen>,
+    mut kurz_präfix: Option<&mut KurzPräfix>,
+    mut kurz_namen: Option<&mut KurzNamen>,
+    mut invertiere_präfix: Option<&mut InvertierePräfix>,
+    mut invertiere_infix: Option<&mut InvertiereInfix>,
+    mut wert_infix: Option<&mut WertInfix>,
+    mut meta_var: Option<&mut Option<MetaVar>>,
+    mut standard: Option<&mut Standard>,
+    mut feld_argument: Option<&mut FeldArgument>,
+) -> Result<(), ErstelleFehler> {
+    use ParseWertFehler::*;
+    let crate_name = crate_name();
+    macro_rules! setze_argument {
+        ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
+            if let Some(var) = $mut_var.as_mut() {
+                **var = $wert;
+            } else {
+                return Err(Box::new(|arg_name| NichtUnterstützt {
+                    arg_name,
+                    argument: $sub_arg,
+                }));
             }
         };
     }
-    for sub_arg in sub_args.iter() {
-        match *sub_arg {
-            "kurz" | "short" => kurz_namen = KurzNamen::Auto,
-            "glätten" | "flatten" => setze_feld_argument!(FeldArgument::Parse, sub_arg),
-            "FromStr" => setze_feld_argument!(FeldArgument::FromStr, sub_arg),
-            "benötigt" | "required" => setze_standard(None, sub_arg, sub_arg)?,
-            string => {
-                if let Some((s_arg_name, s_wert_string)) = string.split_once(':') {
-                    let mut werte = Vec::new();
-                    let wert_trimmed = s_wert_string.trim();
-                    if let Some(("", werte_str)) = parse_eckige_klammer_arg(wert_trimmed) {
-                        split_argumente(&mut werte, werte_str)?
+    macro_rules! setze_argument_feld {
+        ($mut_var: expr, $feld:ident, $wert: expr, $sub_arg: expr) => {
+            if let Some(var) = $mut_var.as_mut() {
+                var.$feld = $wert;
+            } else {
+                return Err(Box::new(|arg_name| NichtUnterstützt {
+                    arg_name,
+                    argument: $sub_arg,
+                }));
+            }
+        };
+    }
+    macro_rules! setze_argument_namen {
+        ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
+            setze_argument_feld!($mut_var, namen, $wert, $sub_arg)
+        };
+    }
+    macro_rules! setze_argument_string {
+        ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
+            setze_argument_feld!($mut_var, string, Some($wert), $sub_arg)
+        };
+    }
+    macro_rules! setze_argument_case {
+        ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
+            setze_argument_feld!($mut_var, case, Some($wert), $sub_arg)
+        };
+    }
+    for Argument { name, wert } in args {
+        match wert {
+            ArgumentWert::KeinWert => match name.as_str() {
+                "version" => setze_argument!(
+                    erstelle_version,
+                    ErstelleVersion(Some(Box::new(erstelle_version_methode(None, None)))),
+                    Argument { name, wert }
+                ),
+                "hilfe" => setze_argument!(
+                    erstelle_hilfe,
+                    ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
+                        Deutsch,
+                        None,
+                        ProgrammBeschreibung(None)
+                    )))),
+                    Argument { name, wert }
+                ),
+                "help" => setze_argument!(
+                    erstelle_hilfe,
+                    ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
+                        English,
+                        None,
+                        ProgrammBeschreibung(None)
+                    )))),
+                    Argument { name, wert }
+                ),
+                "kurz" | "short" => {
+                    setze_argument_namen!(kurz_namen, KurzNamenEnum::Auto, Argument { name, wert })
+                },
+                "glätten" | "flatten" => {
+                    setze_argument!(feld_argument, FeldArgument::Parse, Argument { name, wert })
+                },
+                "FromStr" => {
+                    setze_argument!(feld_argument, FeldArgument::FromStr, Argument { name, wert })
+                },
+                "benötigt" | "required" => {
+                    setze_argument!(standard, Standard(quote!(None)), Argument { name, wert })
+                },
+                _ => {
+                    return Err(Box::new(|arg_name| NichtUnterstützt {
+                        arg_name,
+                        argument: Argument { name, wert },
+                    }))
+                },
+            },
+            ArgumentWert::Liste(liste) => match name.as_str() {
+                "lang" | "long" => {
+                    let mut namen_iter = liste.iter().map(literal_oder_to_string);
+                    let (head, tail) = if let Some(head) = namen_iter.next() {
+                        (head, namen_iter.collect())
                     } else {
-                        werte.push(wert_trimmed)
-                    }
-                    let trimmed = s_arg_name.trim();
-                    match trimmed {
-                        "sprache" | "language" => {
-                            let sprache = match wert_trimmed {
-                                "deutsch" | "german" => Deutsch,
-                                "englisch" | "english" => English,
-                                _ => Sprache::TokenStream(
-                                    wert_trimmed
-                                        .parse()
-                                        .map_err(|err: LexError| err.to_string())?,
+                        return Err(Box::new(|arg_name| KeinLangName { arg_name, name }));
+                    };
+                    setze_argument_namen!(
+                        lang_namen,
+                        Some((head, tail)),
+                        Argument { name, wert: ArgumentWert::Liste(liste) }
+                    )
+                },
+                "kurz" | "short" => {
+                    let namen_iter = liste.iter().map(literal_oder_to_string);
+                    setze_argument_namen!(
+                        kurz_namen,
+                        KurzNamenEnum::Namen(namen_iter.collect()),
+                        Argument { name, wert: ArgumentWert::Liste(liste) }
+                    )
+                },
+                _ => {
+                    return Err(Box::new(|arg_name| NichtUnterstützt {
+                        arg_name,
+                        argument: Argument { name, wert: ArgumentWert::Liste(liste) },
+                    }))
+                },
+            },
+            ArgumentWert::Stream(ts) => match name.as_str() {
+                "sprache" | "language" => setze_argument!(
+                    sprache,
+                    Some(Sprache::parse(ts)),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "beschreibung" | "description" => setze_argument!(
+                    programm_beschreibung,
+                    ProgrammBeschreibung(Some(literal_oder_to_string(&ts))),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "lang_präfix" | "long_prefix" => setze_argument_string!(
+                    lang_präfix,
+                    literal_oder_to_string(&ts),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "kurz_präfix" | "short_prefix" => setze_argument_string!(
+                    kurz_präfix,
+                    literal_oder_to_string(&ts),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "invertiere_präfix" | "invert_prefix" => setze_argument_string!(
+                    invertiere_präfix,
+                    literal_oder_to_string(&ts),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "invertiere_infix" | "invert_infix" => setze_argument_string!(
+                    invertiere_infix,
+                    literal_oder_to_string(&ts),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "wert_infix" | "value_infix" => setze_argument_string!(
+                    wert_infix,
+                    literal_oder_to_string(&ts),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "meta_var" => setze_argument!(
+                    meta_var,
+                    Some(MetaVar(literal_oder_to_string(&ts))),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "standard" | "default" => setze_argument!(
+                    standard,
+                    Standard(quote!(Some(#ts))),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "lang" | "long" => setze_argument_namen!(
+                    lang_namen,
+                    Some((literal_oder_to_string(&ts), Vec::new())),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "kurz" | "short" => setze_argument_namen!(
+                    kurz_namen,
+                    KurzNamenEnum::Namen(vec![literal_oder_to_string(&ts)]),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "case" => {
+                    let case = if let Some(case) = Case::parse(&ts) {
+                        case
+                    } else {
+                        return Err(Box::new(|arg_name| NichtUnterstützt {
+                            arg_name,
+                            argument: Argument { name, wert: ArgumentWert::Stream(ts) },
+                        }));
+                    };
+                    let argument = Argument { name, wert: ArgumentWert::Stream(ts) };
+                    setze_argument_case!(lang_präfix, case, argument);
+                    setze_argument_case!(lang_namen, case, argument);
+                    setze_argument_case!(kurz_präfix, case, argument);
+                    setze_argument_case!(kurz_namen, case, argument);
+                    setze_argument_case!(invertiere_präfix, case, argument);
+                    setze_argument_case!(invertiere_infix, case, argument);
+                    setze_argument_case!(wert_infix, case, argument);
+                },
+                _ => {
+                    return Err(Box::new(|arg_name| NichtUnterstützt {
+                        arg_name,
+                        argument: Argument { name, wert: ArgumentWert::Stream(ts) },
+                    }))
+                },
+            },
+            ArgumentWert::Unterargument(sub_args) => {
+                macro_rules! rekursiv {
+                    ($programm_beschreibung:expr, $sub_sprache:ident, $präfix_und_namen: ident) => {
+                        let mut $sub_sprache = None;
+                        let mut sub_lang_präfix = LangPräfix::default();
+                        let mut sub_lang = LangNamen::default();
+                        let mut sub_kurz_präfix = KurzPräfix::default();
+                        let mut sub_kurz = KurzNamen::default();
+                        let result = parse_wert_arg(
+                            sub_args,
+                            Some(&mut $sub_sprache),
+                            None,
+                            $programm_beschreibung,
+                            None,
+                            Some(&mut sub_lang_präfix),
+                            Some(&mut sub_lang),
+                            Some(&mut sub_kurz_präfix),
+                            Some(&mut sub_kurz),
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                        );
+                        if let Err(erstelle_fehler) = result {
+                            return Err(Box::new(|arg_name| match erstelle_fehler(arg_name) {
+                                NichtUnterstützt { arg_name, argument } => NichtUnterstützt {
+                                    arg_name,
+                                    argument: Argument {
+                                        name,
+                                        wert: ArgumentWert::Unterargument(vec![argument])
+                                    }
+                                },
+                                fehler => fehler,
+                            }))
+                        };
+                        let (sub_lang_ts, erster) = match sub_lang.namen.as_ref() {
+                            Some((head, tail)) => (
+                                quote!(
+                                    #crate_name::NonEmpty {
+                                        head: #head,
+                                        tail: vec![#(#tail),*]
+                                    }
                                 ),
-                            };
-                            setze_sprache(sprache, sub_arg)?
-                        },
-                        "standard" | "default" => {
-                            setze_standard(Some(wert_trimmed), trimmed, string)?
-                        },
-                        "meta_var" => setze_meta_var(wert_trimmed, trimmed, string)?,
-                        "invertiere_präfix" | "invert_prefix" => {
-                            setze_invertiere_präfix(wert_trimmed, trimmed, string)?
-                        },
-                        "lang" | "long" => {
-                            let mut namen_iter = werte.into_iter();
-                            let (head, tail) = if let Some(head) = namen_iter.next() {
-                                (head, namen_iter.collect())
-                            } else {
-                                return Err(format!("Kein LangName für {}!", arg_name));
-                            };
-                            lang_namen = Some((head, tail))
-                        },
-                        "kurz" | "short" => kurz_namen = KurzNamen::Namen(werte),
-                        _ => {
-                            return Err(format!(
-                                "Benanntes Argument {} für {} nicht unterstützt: {}",
-                                trimmed, arg_name, string
-                            ))
-                        },
+                                head,
+                            ),
+                            None => (quote!(#name), &name),
+                        };
+                        let sub_kurz_ts = sub_kurz.to_vec_ts(erster, sub_lang.case);
+                        let $präfix_und_namen =
+                            (sub_lang_präfix, sub_lang_ts, sub_kurz_präfix, sub_kurz_ts);
                     }
-                } else {
-                    return Err(format!(
-                        "Argument für {} nicht unterstützt: {}",
-                        arg_name, sub_arg
-                    ));
+                }
+                match (name.as_str(), erstelle_hilfe.as_mut(), erstelle_version.as_mut()) {
+                    ("hilfe" | "help", Some(erstelle_hilfe), _) => {
+                        let mut sub_programm_beschreibung = ProgrammBeschreibung(None);
+                        rekursiv!(
+                            Some(&mut sub_programm_beschreibung),
+                            sub_sprache,
+                            präfix_und_namen
+                        );
+                        let standard_sprache = if name == "hilfe" { Deutsch } else { English };
+                        **erstelle_hilfe = ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
+                            sub_sprache.unwrap_or(standard_sprache),
+                            Some(präfix_und_namen),
+                            sub_programm_beschreibung,
+                        ))));
+                    },
+                    ("version", _, Some(erstelle_version)) => {
+                        rekursiv!(None, sub_sprache, präfix_und_namen);
+                        **erstelle_version = ErstelleVersion(Some(Box::new(
+                            erstelle_version_methode(sub_sprache, Some(präfix_und_namen)),
+                        )));
+                    },
+                    ("case", _, _) => {
+                        for sub_arg in sub_args {
+                            if let Argument { name: sub_name, wert: ArgumentWert::Stream(ts) } =
+                                sub_arg
+                            {
+                                macro_rules! error_argument {
+                                    () => {
+                                        Argument {
+                                            name,
+                                            wert: ArgumentWert::Unterargument(vec![Argument {
+                                                name: sub_name,
+                                                wert: ArgumentWert::Stream(ts),
+                                            }]),
+                                        }
+                                    };
+                                }
+                                let case = if let Some(case) = Case::parse(&ts) {
+                                    case
+                                } else {
+                                    return Err(Box::new(|arg_name| NichtUnterstützt {
+                                        arg_name,
+                                        argument: error_argument!(),
+                                    }));
+                                };
+                                match sub_name.as_str() {
+                                    "lang_präfix" | "long_prefix" => {
+                                        setze_argument_case!(lang_präfix, case, error_argument!())
+                                    },
+                                    "lang" | "long" => {
+                                        setze_argument_case!(lang_namen, case, error_argument!())
+                                    },
+                                    "kurz_präfix" | "short_prefix" => {
+                                        setze_argument_case!(kurz_präfix, case, error_argument!())
+                                    },
+                                    "kurz" | "short" => {
+                                        setze_argument_case!(kurz_namen, case, error_argument!())
+                                    },
+                                    "invertiere_präfix" | "invert_prefix" => {
+                                        setze_argument_case!(
+                                            invertiere_präfix,
+                                            case,
+                                            error_argument!()
+                                        )
+                                    },
+                                    "invertiere_infix" | "invert_infix" => {
+                                        setze_argument_case!(
+                                            invertiere_infix,
+                                            case,
+                                            error_argument!()
+                                        )
+                                    },
+                                    "wert_infix" | "value_infix" => {
+                                        setze_argument_case!(wert_infix, case, error_argument!())
+                                    },
+                                    _ => {
+                                        return Err(Box::new(|arg_name| NichtUnterstützt {
+                                            arg_name,
+                                            argument: error_argument!(),
+                                        }))
+                                    },
+                                }
+                            } else {
+                                return Err(Box::new(|arg_name| NichtUnterstützt {
+                                    arg_name,
+                                    argument: Argument {
+                                        name,
+                                        wert: ArgumentWert::Unterargument(vec![sub_arg]),
+                                    },
+                                }));
+                            }
+                        }
+                    },
+                    _ => {
+                        return Err(Box::new(|arg_name| NichtUnterstützt {
+                            arg_name,
+                            argument: Argument {
+                                name,
+                                wert: ArgumentWert::Unterargument(sub_args),
+                            },
+                        }))
+                    },
                 }
             },
         }
     }
-    let (head, tail) = lang_namen.unwrap_or((arg_name, Vec::new()));
-    let lang_namen = quote!(
-        #crate_name::NonEmpty {
-            head: #head.to_owned(),
-            tail: vec![#(#tail.to_owned()),*]
-        }
-    );
-    setze_lang_namen(lang_namen);
-    let kurz_namen_iter = kurz_namen.to_vec(head).into_iter();
-    let kurz_namen = quote!(vec![#(#kurz_namen_iter.to_owned()),*]);
-    setze_kurz_namen(kurz_namen);
     Ok(())
 }
 
-fn wert_argument_error_message<'t>(
-    arg_name: &'t str,
-) -> impl 't + Fn(&str, &str, &str) -> Result<(), String> {
-    move |_wert, ignored, string| {
-        Err(format!(
-            "Benanntes Argument {} für {} nicht unterstützt: {}",
-            ignored, arg_name, string
-        ))
+#[derive(Debug)]
+pub(crate) enum TypNichtUnterstützt {
+    Enum,
+    Union,
+}
+
+impl Display for TypNichtUnterstützt {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        use TypNichtUnterstützt::*;
+        f.write_str(match self {
+            Enum => "enum",
+            Union => "union",
+        })
     }
 }
 
-fn sprache_error_message<'t>() -> impl 't + Fn(Sprache, &str) -> Result<(), String> {
-    move |_sprache, string| Err(format!("Argument nicht unterstützt: {}", string))
+#[derive(Debug)]
+pub(crate) enum Fehler {
+    Syn(syn::Error),
+    SplitArgumente(SplitArgumenteFehler),
+    ParseWert(ParseWertFehler),
+    KeinStruct { typ: TypNichtUnterstützt, input: TokenStream },
+    Generics { anzahl: usize, where_clause: bool },
+    FeldOhneName,
+    LeererFeldName(Ident),
 }
 
-fn standard_error_message<'t>(
-    arg_name: &'t str,
-) -> impl 't + Fn(Option<&str>, &str, &str) -> Result<(), String> {
-    move |_wert, ignored, string| {
-        Err(format!(
-            "Benanntes Argument {} für {} nicht unterstützt: {}",
-            ignored, arg_name, string
-        ))
+impl Display for Fehler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        use Fehler::*;
+        match self {
+            Syn(error) => write!(f, "{error}"),
+            SplitArgumente(fehler) => write!(f, "{fehler}"),
+            ParseWert(fehler) => write!(f, "{fehler}"),
+            KeinStruct { typ, input } => {
+                write!(f, "Nur structs unterstützt, aber {typ} bekommen: {input}")
+            },
+            Generics { anzahl, where_clause } => {
+                write!(f, "Nur Structs ohne Generics unterstützt, aber {anzahl} Parameter ")?;
+                if *where_clause {
+                    write!(f, "und eine where-Klausel ")?;
+                }
+                write!(f, "bekommen.")
+            },
+            FeldOhneName => f.write_str("Nur benannte Felder unterstützt."),
+            LeererFeldName(ident) => write!(f, "Benanntes Feld mit leerem Namen: {ident}"),
+        }
     }
 }
 
-pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
-    if !item_struct.generics.params.is_empty() {
-        compile_error_return!("Nur Structs ohne Generics unterstützt.");
+impl From<syn::Error> for Fehler {
+    fn from(input: syn::Error) -> Fehler {
+        Fehler::Syn(input)
     }
-    let item_ty = &item_struct.ident;
-    let mut args: Vec<String> = Vec::new();
-    for attr in &item_struct.attrs {
+}
+
+impl From<SplitArgumenteFehler> for Fehler {
+    fn from(input: SplitArgumenteFehler) -> Fehler {
+        Fehler::SplitArgumente(input)
+    }
+}
+
+impl From<ParseWertFehler> for Fehler {
+    fn from(input: ParseWertFehler) -> Fehler {
+        Fehler::ParseWert(input)
+    }
+}
+
+macro_rules! unwrap_or_call_return {
+    ($result:expr $(, $($arg:expr)+)? $(,)?) => {
+        match $result {
+            Ok(wert) => wert,
+            Err(f) => return Err(f($($($arg)+)?).into()),
+        }
+    };
+}
+
+pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
+    use Fehler::*;
+    use TypNichtUnterstützt::*;
+    let derive_input: DeriveInput = parse2(input.clone())?;
+    let DataStruct { fields, .. } = match derive_input.data {
+        Data::Struct(data_struct) => data_struct,
+        Data::Enum(_) => return Err(KeinStruct { typ: Enum, input }),
+        Data::Union(_) => return Err(KeinStruct { typ: Union, input }),
+    };
+    let DeriveInput { ident, generics, attrs, .. } = derive_input;
+    let has_where_clause = generics.where_clause.is_some();
+    if !generics.params.is_empty() || has_where_clause {
+        return Err(Generics { anzahl: generics.params.len(), where_clause: has_where_clause });
+    }
+    let mut args = Vec::new();
+    for attr in attrs {
         if attr.path.is_ident("kommandozeilen_argumente") {
-            let args_str = attr.tokens.to_string();
-            split_klammer_argumente!(args, &args_str);
+            split_klammer_argumente(Vec::new(), &mut args, attr.tokens)?;
         }
     }
     // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
@@ -391,167 +806,126 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
     // CARGO_PKG_AUTHORS — Colon separated list of authors from the manifest of your package.
     // CARGO_PKG_DESCRIPTION — The description from the manifest of your package.
     // CARGO_BIN_NAME — The name of the binary that is currently being compiled (if it is a binary). This name does not include any file extension, such as .exe
-    let mut erstelle_version: Option<Box<dyn FnOnce(TokenStream, Sprache) -> TokenStream>> = None;
-    let mut erstelle_hilfe: Option<Box<dyn FnOnce(TokenStream) -> TokenStream>> = None;
-    let mut sprache = English;
-    let mut invertiere_präfix = None;
+    let mut erstelle_version = ErstelleVersion(None);
+    let mut erstelle_hilfe = ErstelleHilfe(None);
+    let mut sprache = None;
+    let mut lang_präfix = LangPräfix::default();
+    let mut kurz_präfix = KurzPräfix::default();
+    let mut invertiere_präfix = InvertierePräfix::default();
+    let mut invertiere_infix = InvertiereInfix::default();
+    let mut wert_infix = WertInfix::default();
     let mut meta_var = None;
-    let crate_name = base_name();
-    for arg in args {
-        match arg.as_str() {
-            "version" => erstelle_version = Some(Box::new(erstelle_version_methode(None, None))),
-            "hilfe" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(Deutsch, None))),
-            "help" => erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(English, None))),
-            string => {
-                if let Some((arg_name, wert_string)) = parse_klammer_arg(string) {
-                    let mut sub_sprache = None;
-                    let mut lang_namen = quote!();
-                    let mut kurz_namen = quote!();
-                    unwrap_result_or_compile_error!(parse_wert_arg(
-                        arg_name,
-                        wert_string,
-                        |sprache, _string| {
-                            sub_sprache = Some(sprache);
-                            Ok(())
-                        },
-                        |namen| { lang_namen = namen },
-                        |namen| { kurz_namen = namen },
-                        wert_argument_error_message(arg_name),
-                        wert_argument_error_message(arg_name),
-                        standard_error_message(arg_name),
-                        None,
-                    ));
-                    match arg_name {
-                        "hilfe" | "help" => {
-                            let standard_sprache =
-                                if arg_name == "hilfe" { Deutsch } else { English };
-                            erstelle_hilfe = Some(Box::new(erstelle_hilfe_methode(
-                                sub_sprache.unwrap_or(standard_sprache),
-                                Some((lang_namen, kurz_namen)),
-                            )))
-                        },
-                        "version" => {
-                            erstelle_version = Some(Box::new(erstelle_version_methode(
-                                sub_sprache,
-                                Some((lang_namen, kurz_namen)),
-                            )))
-                        },
-                        trimmed => {
-                            compile_error_return!(
-                                "Benanntes Argument(Klammer) {:?} nicht unterstützt: {:?}",
-                                trimmed,
-                                string,
-                            )
-                        },
-                    }
-                } else if let Some((arg_name, wert_string)) = string.split_once(':') {
-                    let wert_trimmed = wert_string.trim();
-                    match arg_name.trim() {
-                        "sprache" | "language" => {
-                            sprache = match wert_trimmed {
-                                "deutsch" | "german" => Deutsch,
-                                "englisch" | "english" => English,
-                                _ => Sprache::TokenStream(unwrap_result_or_compile_error!(
-                                    wert_trimmed.parse()
-                                )),
-                            }
-                        },
-                        "invertiere_präfix" | "invert_prefix" => {
-                            invertiere_präfix = Some(wert_trimmed.to_owned())
-                        },
-                        "meta_var" => meta_var = Some(wert_trimmed.to_owned()),
-                        trimmed => {
-                            compile_error_return!(
-                                "Benanntes Argument(Doppelpunkt) {} nicht unterstützt: {:?}",
-                                trimmed,
-                                string,
-                            )
-                        },
-                    }
-                } else {
-                    compile_error_return!("Argument nicht unterstützt: {}", arg)
-                }
-            },
-        }
-    }
-    let sprache_ts = sprache.clone().token_stream();
-    let invertiere_präfix = if let Some(präfix) = invertiere_präfix {
-        quote!(#präfix)
-    } else {
-        quote!(#sprache_ts.invertiere_präfix)
-    };
+    let crate_name = crate_name();
+    unwrap_or_call_return!(
+        parse_wert_arg(
+            args,
+            Some(&mut sprache),
+            Some(&mut erstelle_hilfe),
+            None,
+            Some(&mut erstelle_version),
+            Some(&mut lang_präfix),
+            None,
+            Some(&mut kurz_präfix),
+            None,
+            Some(&mut invertiere_präfix),
+            Some(&mut invertiere_infix),
+            Some(&mut wert_infix),
+            Some(&mut meta_var),
+            None,
+            None,
+        ),
+        None
+    );
+    let sprache = sprache.unwrap_or(English);
     let meta_var = if let Some(meta_var) = meta_var {
         quote!(#meta_var)
     } else {
+        let sprache_ts = sprache.token_stream();
         quote!(#sprache_ts.meta_var)
     };
     let mut tuples = Vec::new();
-    for field in item_struct.fields {
+    for field in fields {
         let Field { attrs, ident, .. } = field;
         let mut hilfe_lits = Vec::new();
-        let ident = unwrap_option_or_compile_error!(ident, "Nur benannte Felder unterstützt.");
+        let ident = ident.ok_or(FeldOhneName)?;
         let ident_str = ident.to_string();
         if ident_str.is_empty() {
-            compile_error_return!("Benanntes Feld mit leerem Namen: {}", ident_str)
+            return Err(LeererFeldName(ident));
         }
-        let mut lang = quote!(#ident_str.to_owned());
-        let mut kurz = quote!(None);
-        let mut standard = quote!(#crate_name::parse::ParseArgument::standard());
-        let mut feld_argument = FeldArgument::EnumArgument;
+        let mut lang = quote!(#ident_str);
+        let mut kurz = quote!(None::<&str>);
+        let mut feld_lang_präfix = lang_präfix.clone();
+        let mut feld_kurz_präfix = kurz_präfix.clone();
         let mut feld_invertiere_präfix = invertiere_präfix.clone();
-        let mut feld_meta_var = meta_var.clone();
+        let mut feld_invertiere_infix = invertiere_infix.clone();
+        let mut feld_wert_infix = wert_infix.clone();
+        let mut feld_meta_var = None;
+        let mut standard = Standard(quote!(#crate_name::parse::ParseArgument::standard()));
+        let mut feld_argument = FeldArgument::EnumArgument;
         for attr in attrs {
             if attr.path.is_ident("doc") {
                 let args_str = attr.tokens.to_string();
                 if let Some(stripped) =
                     args_str.strip_prefix("= \"").and_then(|s| s.strip_suffix('"'))
                 {
-                    let trimmed = stripped.trim().to_owned();
+                    let trimmed = stripped.trim();
                     if !trimmed.is_empty() {
-                        hilfe_lits.push(trimmed);
+                        hilfe_lits.push(trimmed.to_owned());
                     }
                 }
             } else if attr.path.is_ident("kommandozeilen_argumente") {
-                let args_string = attr.tokens.to_string();
-                if let Some(("", args_str)) = parse_klammer_arg(&args_string) {
-                    let trimmed = args_str.trim();
-                    unwrap_result_or_compile_error!(parse_wert_arg(
-                        &ident_str,
-                        trimmed,
-                        sprache_error_message(),
-                        |namen| { lang = namen },
-                        |namen| { kurz = namen },
-                        |wert_string, _, _| {
-                            feld_meta_var = quote!(#wert_string);
-                            Ok(())
-                        },
-                        |wert_string, _, _| {
-                            feld_invertiere_präfix = quote!(#wert_string);
-                            Ok(())
-                        },
-                        |opt_wert_string, _sub_arg_name, _string| {
-                            standard = match opt_wert_string {
-                                None => quote!(None),
-                                Some(wert_string) => {
-                                    let ts: TokenStream = wert_string
-                                        .parse()
-                                        .map_err(|err: LexError| err.to_string())?;
-                                    quote!(Some(#ts))
-                                },
-                            };
-                            Ok(())
-                        },
+                let mut feld_args = Vec::new();
+                split_klammer_argumente(vec![ident.to_string()], &mut feld_args, attr.tokens)?;
+                let mut lang_namen = LangNamen::default();
+                let mut kurz_namen = KurzNamen::default();
+                unwrap_or_call_return!(
+                    parse_wert_arg(
+                        feld_args,
+                        None,
+                        None,
+                        None,
+                        None,
+                        Some(&mut feld_lang_präfix),
+                        Some(&mut lang_namen),
+                        Some(&mut feld_kurz_präfix),
+                        Some(&mut kurz_namen),
+                        Some(&mut feld_invertiere_präfix),
+                        Some(&mut feld_invertiere_infix),
+                        Some(&mut feld_wert_infix),
+                        Some(&mut feld_meta_var),
+                        Some(&mut standard),
                         Some(&mut feld_argument),
-                    ));
-                } else {
-                    compile_error_return!(
-                        "Argument für {} nicht in Klammern eingeschlossen: {}",
-                        ident_str,
-                        args_string
-                    )
-                }
+                    ),
+                    Some(ident_str)
+                );
+                let erster = match lang_namen.namen.as_ref() {
+                    Some((head, tail)) => {
+                        lang = quote!(
+                            #crate_name::NonEmpty {
+                                head: #head,
+                                tail: vec![#(#tail),*]
+                            }
+                        );
+                        head
+                    },
+                    None => {
+                        lang = quote!(#ident_str);
+                        &ident_str
+                    },
+                };
+                kurz = kurz_namen.to_vec_ts(erster, lang_namen.case);
             }
         }
+        let feld_lang_präfix = feld_lang_präfix.token_stream(&sprache);
+        let feld_kurz_präfix = feld_kurz_präfix.token_stream(&sprache);
+        let feld_invertiere_präfix = feld_invertiere_präfix.token_stream(&sprache);
+        let feld_invertiere_infix = feld_invertiere_infix.token_stream(&sprache);
+        let feld_wert_infix = feld_wert_infix.token_stream(&sprache);
+        let feld_meta_var = if let Some(MetaVar(string)) = feld_meta_var {
+            quote!(#string)
+        } else {
+            meta_var.clone()
+        };
         let mut hilfe_string = String::new();
         for teil_string in hilfe_lits {
             if !hilfe_string.is_empty() {
@@ -560,13 +934,15 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
             hilfe_string.push_str(&teil_string);
         }
         let hilfe = if hilfe_string.is_empty() {
-            quote!(None)
+            quote!(None::<&str>)
         } else {
-            quote!(Some(#hilfe_string.to_owned()))
+            quote!(Some(#hilfe_string))
         };
         let erstelle_beschreibung = quote!(
             let beschreibung = #crate_name::Beschreibung::neu(
+                #feld_lang_präfix,
                 #lang,
+                #feld_kurz_präfix,
                 #kurz,
                 #hilfe,
                 #standard,
@@ -579,6 +955,8 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                     #crate_name::ParseArgument::argumente(
                         beschreibung,
                         #feld_invertiere_präfix,
+                        #feld_invertiere_infix,
+                        #feld_wert_infix,
                         #feld_meta_var
                     )
                 })
@@ -588,7 +966,8 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
                     #erstelle_beschreibung
                     #crate_name::Argumente::wert_from_str_display(
                         beschreibung,
-                        #feld_meta_var.to_owned(),
+                        #feld_wert_infix,
+                        #feld_meta_var,
                         None,
                     )
                 })
@@ -604,25 +983,26 @@ pub(crate) fn derive_parse(item_struct: ItemStruct) -> TokenStream {
         #(
             let #idents = #erstelle_args;
         )*
-        #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*} => #(#idents),*)
+        #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*}, #(#idents),*)
     );
-    let nach_version = if let Some(version_hinzufügen) = erstelle_version {
+    let nach_version = if let ErstelleVersion(Some(version_hinzufügen)) = erstelle_version {
         version_hinzufügen(kombiniere, sprache)
     } else {
         kombiniere
     };
-    let nach_hilfe = if let Some(hilfe_hinzufügen) = erstelle_hilfe {
+    let nach_hilfe = if let ErstelleHilfe(Some(hilfe_hinzufügen)) = erstelle_hilfe {
         hilfe_hinzufügen(nach_version)
     } else {
         nach_version
     };
-    quote! {
-        impl #crate_name::Parse for #item_ty {
+    let ts = quote! {
+        impl #crate_name::Parse for #ident {
             type Fehler = String;
 
-            fn kommandozeilen_argumente() -> #crate_name::Argumente<Self, Self::Fehler> {
+            fn kommandozeilen_argumente<'t>() -> #crate_name::Argumente<'t, Self, Self::Fehler> {
                 #nach_hilfe
             }
         }
-    }
+    };
+    Ok(ts)
 }

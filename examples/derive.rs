@@ -6,6 +6,7 @@ use std::{
 use kommandozeilen_argumente::{EnumArgument, Parse};
 
 #[derive(Debug, Clone, EnumArgument)]
+#[kommandozeilen_argumente(case: insensitive)]
 enum Aufzählung {
     Eins,
     Zwei,
@@ -19,7 +20,8 @@ impl Display for Aufzählung {
 }
 
 #[derive(Debug, Parse)]
-#[kommandozeilen_argumente(hilfe, version, sprache: deutsch)]
+#[kommandozeilen_argumente(hilfe(beschreibung: "Programm-Beschreibung.", kurz))]
+#[kommandozeilen_argumente(version, sprache: deutsch)]
 struct Args {
     /// Eine Flag mit Standard-Einstellungen.
     flag: bool,
@@ -31,8 +33,8 @@ struct Args {
     benötigt: bool,
     /// Ein String-Wert.
     wert: String,
-    /// Ein Aufzählung-Wert mit Standard-Wert.
-    #[kommandozeilen_argumente(kurz, standard: Aufzählung::Zwei)]
+    /// Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable.
+    #[kommandozeilen_argumente(kurz, standard: Aufzählung::Zwei, meta_var: VAR)]
     aufzählung: Aufzählung,
 }
 

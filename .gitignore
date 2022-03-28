@@ -12,3 +12,4 @@ Cargo.lock
 
 # VSCode settings
 /.vscode/
+/kommandozeilen_argumente_derive/.vscode/

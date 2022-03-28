@@ -1,6 +1,5 @@
-//! Parsen von Kommandozeilen-Argumenten, inklusiver automatisch generierter (deutscher) Hilfe.
-
-// Enable all warnings except box_pointers, non_ascii_idents, unstable_features
+#![doc = include_str!("../LIESMICH.md")]
+// Aktiviere alle Warnungen außer box_pointers, non_ascii_idents, unstable_features
 #![warn(
     absolute_paths_not_starting_with_crate,
     elided_lifetimes_in_paths,
@@ -32,15 +31,17 @@
     unused_results,
     variant_size_differences
 )]
-#![cfg_attr(doc, feature(doc_cfg))]
+// Verwende doc_cfg für bessere Dokumentation von feature-gated derive Macros.
+#![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 
+#[doc(no_inline)]
 pub use nonempty::NonEmpty;
-#[cfg(any(feature = "derive", doc))]
-#[cfg_attr(doc, doc(cfg(feature = "derive")))]
-pub use unicase::eq as unicase_eq;
 
 #[macro_export]
 /// Crate Name spezifiziert in Cargo.toml.
+///
+/// ## English
+/// Crate name specified in Cargo.toml.
 macro_rules! crate_name {
     () => {
         env!("CARGO_PKG_NAME")
@@ -49,6 +50,9 @@ macro_rules! crate_name {
 
 #[macro_export]
 /// Crate Version spezifiziert in Cargo.toml.
+///
+/// ## English
+/// Crate version specified in Cargo.toml.
 macro_rules! crate_version {
     () => {
         env!("CARGO_PKG_VERSION")
@@ -60,13 +64,15 @@ pub mod beschreibung;
 pub mod ergebnis;
 pub mod parse;
 pub mod sprache;
+pub mod unicode;
 
 #[doc(inline)]
-#[cfg_attr(doc, doc(cfg(feature = "derive")))]
+#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use self::{
-    argumente::{wert::EnumArgument, Argumente},
-    beschreibung::Beschreibung,
-    ergebnis::{Ergebnis, Fehler, ParseFehler},
+    argumente::{wert::EnumArgument, Argumente, Arguments},
+    beschreibung::{Beschreibung, Configuration, Description, Konfiguration},
+    ergebnis::{Ergebnis, Error, Fehler, ParseError, ParseFehler, Result},
     parse::{Parse, ParseArgument},
-    sprache::Sprache,
+    sprache::{Language, Sprache},
+    unicode::{Case, Compare, Normalisiert, Normalized, Vergleich},
 };
