@@ -159,14 +159,15 @@ In beiden Fällen wird folgender Hilfe-Text erzeugt:
 kommandozeilen_argumente 0.2.0
 Programm-Beschreibung.
 
-funktion.exe [OPTIONEN]
+derive.exe [OPTIONEN]
 
 OPTIONEN:
-  --[kein]-flag                         Eine Flag mit Standard-Einstellungen [Standard: false]  
-  --[kein]-(andere|namen) | -u          Eine Flag mit Standard-Einstellungen [Standard: false]  
+  --[kein]-flag                         Eine Flag mit Standard-Einstellungen. [Standard: false]
+  --[kein]-(andere|namen) | -u          Eine Flag mit alternativen Namen. [Standard: false]
   --[no]-benötigt         | -b          Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.
   --wert(=| )WERT                       Ein String-Wert.
-  --aufzählung(=| )VAR    | -a[=| ]VAR  Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable. [Erlaubte Werte: Eins, Zwei, Drei | Standard: Zwei]
+  --aufzählung(=| )VAR    | -a[=| ]VAR  Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable. [Erlaubte Werte: Eins, Zwei, 
+Drei | Standard: Zwei]
   --version               | -v          Zeige die aktuelle Version an.
   --hilfe                 | -h          Zeige diesen Text an.
 ```

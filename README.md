@@ -149,27 +149,25 @@ Field support the following options:
 A simple example for a `struct` with 3 flags and 2 value, created using the
 [function API](https://github.com/spamviech/kommandozeilen_argumente/blob/main/examples/function.rs)
 and the
-[derive API](https://github.com/spamviech/kommandozeilen_argumente/blob/main/examples/deriveEN.rs)
+[derive API](https://github.com/spamviech/kommandozeilen_argumente/blob/main/examples/derive_en.rs)
 are available in the
 [GitHub repository](https://github.com/spamviech/kommandozeilen_argumente/).
 Both cases produce the following help text:
 
-TODO english version
-
 ```cmd
 kommandozeilen_argumente 0.2.0
-Programm-Beschreibung.
+program description.
 
-funktion.exe [OPTIONEN]
+derive_en.exe [OPTIONS]
 
-OPTIONEN:
-  --[kein]-flag                         Eine Flag mit Standard-Einstellungen [Standard: false]  
-  --[kein]-(andere|namen) | -u          Eine Flag mit Standard-Einstellungen [Standard: false]  
-  --[no]-benötigt         | -b          Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.
-  --wert(=| )WERT                       Ein String-Wert.
-  --aufzählung(=| )VAR    | -a[=| ]VAR  Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable. [Erlaubte Werte: Eins, Zwei, Drei | Standard: Zwei]
-  --version               | -v          Zeige die aktuelle Version an.
-  --hilfe                 | -h          Zeige diesen Text an.
+OPTIONS:
+  --[no]-flag                         A flag with default settings. [Default: false]
+  --[no]-(other|names)  | -u          A flag with alternative names. [Default: false]
+  --[kein]-required     | -r          A flag without default value, with alternative prefix to invert the flag.
+  --value(=| )VALUE                   A String value.
+  --enumeration(=| )VAR | -e[=| ]VAR  An Enumeration-value with default value and alternative meta variable. [Possible values: One, Two, Three | Default: Two]
+  --version             | -v          Show the current version.
+  --help                | -h          Show this text.
 ```
 
 ## Missing (planned) Features

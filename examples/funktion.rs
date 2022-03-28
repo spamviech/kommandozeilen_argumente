@@ -72,7 +72,7 @@ fn main() {
         Beschreibung::neu_mit_sprache(
             "flag",
             None::<&str>,
-            Some("Eine Flag mit Standard-Einstellungen"),
+            Some("Eine Flag mit Standard-Einstellungen."),
             Some(false),
             sprache,
         ),
@@ -82,7 +82,7 @@ fn main() {
         Beschreibung::neu_mit_sprache(
             NonEmpty { head: "andere", tail: vec!["namen"] },
             "u",
-            Some("Eine Flag mit Standard-Einstellungen"),
+            Some("Eine Flag mit alternativen Namen."),
             Some(false),
             sprache,
         ),
