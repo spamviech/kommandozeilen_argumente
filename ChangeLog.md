@@ -2,6 +2,8 @@
 
 ## Unreleased changes
 
+## 0.2.0
+
 - Normalisiere Namen und Prä-/Infixe, bevor diese mit Nutzereingaben verglichen werden.
 - Erlaube von Groß-/Kleinschreibung unabhängige Namen und Prä-/Infixe.
 - Erlaube Konfiguration aller Prä-/Infixe.
