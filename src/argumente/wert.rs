@@ -290,7 +290,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
         mögliche_werte: Option<NonEmpty<T>>,
-        parse: impl 't + Fn(OsString) -> Result<T, ParseError<E>>,
+        parse: impl 't + Fn(OsString) -> Result<T, ParseFehler<E>>,
         anzeige: impl Fn(&T) -> String,
     ) -> Argumente<'t, T, E> {
         let name_lang_präfix = beschreibung.lang_präfix.clone();
