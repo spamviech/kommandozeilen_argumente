@@ -501,3 +501,215 @@ impl<'t, T, E> Argumente<'t, T, E> {
         self.konfigurationen.iter()
     }
 }
+
+// ----------------------------------TEST------------------------------------------------------
+
+/// test
+pub mod test {
+    #![allow(missing_docs)]
+
+    use std::{borrow::Cow, ffi::OsString};
+
+    use nonempty::NonEmpty;
+
+    use crate::{beschreibung::Beschreibung, ergebnis::ParseFehler, unicode::Vergleich};
+
+    /// Es handelt sich um ein Flag-Argument.
+    ///
+    /// ## English
+    /// It is a flag argument.
+    #[derive(Debug)]
+    pub struct Flag<'t, T, Bool, Anzeige>
+    where
+        Bool: Fn(bool) -> T,
+        Anzeige: Fn(&T) -> String,
+    {
+        /// Allgemeine Beschreibung des Arguments.
+        ///
+        /// ## English
+        /// General description of the argument.
+        pub beschreibung: Beschreibung<'t, T>,
+
+        /// Präfix invertieren des Flag-Arguments.
+        ///
+        /// ## English
+        /// Prefix to invert the flag argument.
+        pub invertiere_präfix_infix: Vergleich<'t>,
+
+        /// Infix zum invertieren des Flag-Arguments.
+        ///
+        /// ## English
+        /// Infix to invert the flag argument.
+        pub invertiere_infix: Vergleich<'t>,
+
+        /// Erzeuge einen Wert aus einer [bool].
+        ///
+        /// ## English
+        /// Create a value from a [bool].
+        pub konvertiere: Bool,
+
+        /// Anzeige eines Wertes (default value).
+        ///
+        /// ## English
+        /// Display a value (default value).
+        pub anzeige: Anzeige,
+    }
+
+    /// Es handelt sich um ein Flag-Argument, das zu frühem beenden führt.
+    ///
+    /// ## English
+    /// It is a flag argument, causing an early exit.
+    #[derive(Debug)]
+    pub struct FrühesBeenden<'t, T> {
+        /// Allgemeine Beschreibung des Arguments.
+        ///
+        /// ## English
+        /// General description of the argument.
+        pub beschreibung: Beschreibung<'t, T>,
+
+        /// Die angezeigte Nachricht.
+        ///
+        /// ## English
+        /// The message.
+        pub nachricht: Cow<'t, str>,
+    }
+
+    /// Es handelt sich um ein Wert-Argument.
+    ///
+    /// ## English
+    /// It is a value argument.
+    #[derive(Debug)]
+    pub struct Wert<'t, T, Parse, Fehler, Anzeige>
+    where
+        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Anzeige: Fn(&T) -> String,
+    {
+        /// Allgemeine Beschreibung des Arguments.
+        ///
+        /// ## English
+        /// General description of the argument.
+        pub beschreibung: Beschreibung<'t, String>,
+
+        /// Infix um einen Wert im selben Argument wie den Namen anzugeben.
+        ///
+        /// ## English
+        /// Infix to give a value in the same argument as the name.
+        pub wert_infix: Vergleich<'t>,
+
+        /// Meta-Variable im Hilfe-Text.
+        ///
+        /// ## English
+        /// Meta-variable used in the help-text.
+        pub meta_var: &'t str,
+
+        /// String-Darstellung der erlaubten Werte.
+        ///
+        /// ## English
+        /// String-representation of the allowed values.
+        pub mögliche_werte: Option<NonEmpty<T>>,
+
+        /// Parse einen Wert aus einem [OsString].
+        ///
+        /// ## English
+        /// Parse a value from an [OsString].
+        pub parse: Parse,
+
+        /// Anzeige eines Wertes (standard/mögliche Werte).
+        ///
+        /// ## English
+        /// Display a value (default/possible values).
+        pub anzeige: Anzeige,
+    }
+
+    /// Konfiguration eines einzelnen Kommandozeilen-Arguments.
+    ///
+    /// ## English
+    /// TODO
+    #[derive(Debug)]
+    pub enum EinzelArgument<'t, T, Bool, Parse, Fehler, Anzeige>
+    where
+        Bool: Fn(bool) -> T,
+        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Anzeige: Fn(&T) -> String,
+    {
+        /// Es handelt sich um ein Flag-Argument.
+        ///
+        /// ## English
+        /// It is a flag argument.
+        Flag(Flag<'t, T, Bool, Anzeige>),
+
+        /// Es handelt sich um ein Flag-Argument, das zu frühem beenden führt.
+        ///
+        /// ## English
+        /// It is a flag argument, causing an early exit.
+        FrühesBeenden(FrühesBeenden<'t, T>),
+
+        /// Es handelt sich um ein Wert-Argument.
+        ///
+        /// ## English
+        /// It is a value argument.
+        Wert(Wert<'t, T, Parse, Fehler, Anzeige>),
+    }
+
+    // TODO standard-implementierung, basierend auf Sprache?
+    /// Trait zum simulieren einer Rank-2 Funktion.
+    ///
+    /// # English
+    /// TODO
+    pub trait HilfeText<Bool, Parse, Fehler, Anzeige> {
+        fn erzeuge_hilfe_text<S>(
+            arg: &EinzelArgument<'_, S, Bool, Parse, Fehler, Anzeige>,
+        ) -> String
+        where
+            Bool: Fn(bool) -> S,
+            Parse: Fn(OsString) -> Result<S, ParseFehler<Fehler>>,
+            Anzeige: Fn(&S) -> String;
+    }
+
+    /// Erlaube kombinieren mehrerer Argumente.
+    ///
+    /// ## English
+    /// TODO
+    pub trait Kombiniere<T, Bool, Parse, Fehler, Anzeige> {
+        fn parse(
+            &self,
+            args: impl Iterator<Item = OsString>,
+        ) -> (crate::Ergebnis<'_, T, Fehler>, Vec<OsString>);
+
+        /// Erzeuge den Hilfetext für die enthaltenen [Einzelargumente](EinzelArgument).
+        fn erzeuge_hilfe_text<F: HilfeText<Bool, Parse, Fehler, Anzeige>>(
+            &self,
+            f: F,
+        ) -> Vec<String>;
+    }
+
+    /// Konfiguration eines Kommandozeilen-Arguments.
+    ///
+    /// ## English synonym
+    /// [Configuration]
+    #[derive(Debug)]
+    pub enum ArgTest<'t, T, Bool, Parse, Fehler, Anzeige, K>
+    where
+        Bool: Fn(bool) -> T,
+        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Anzeige: Fn(&T) -> String,
+        K: Kombiniere<T, Bool, Parse, Fehler, Anzeige>,
+    {
+        /// Ein einzelnes Argument.
+        ///
+        /// ## English
+        /// A single argument.
+        EinzelArgument(EinzelArgument<'t, T, Bool, Parse, Fehler, Anzeige>),
+
+        // TODO Kombiniere ähnlich wie aktuell versteckt;
+        // erlaube Hilfe-Text erstellen durch Iteration über alle Einzelargumente (rekursiv)
+        // mithilfe z.B. des IteriereArg-Traits.
+        Kombiniere {
+            kombiniere: K,
+        },
+
+        Alternativ {
+            alternativen: Box<NonEmpty<ArgTest<'t, T, Bool, Parse, Fehler, Anzeige, K>>>,
+        },
+    }
+}
