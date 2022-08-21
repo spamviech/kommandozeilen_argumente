@@ -511,6 +511,7 @@ pub mod test {
     use std::{borrow::Cow, ffi::OsString};
 
     use nonempty::NonEmpty;
+    use void::Void;
 
     use crate::{beschreibung::Beschreibung, ergebnis::ParseFehler, unicode::Vergleich};
 
@@ -534,7 +535,7 @@ pub mod test {
         ///
         /// ## English
         /// Prefix to invert the flag argument.
-        pub invertiere_präfix_infix: Vergleich<'t>,
+        pub invertiere_präfix: Vergleich<'t>,
 
         /// Infix zum invertieren des Flag-Arguments.
         ///
@@ -560,12 +561,12 @@ pub mod test {
     /// ## English
     /// It is a flag argument, causing an early exit.
     #[derive(Debug)]
-    pub struct FrühesBeenden<'t, T> {
+    pub struct FrühesBeenden<'t> {
         /// Allgemeine Beschreibung des Arguments.
         ///
         /// ## English
         /// General description of the argument.
-        pub beschreibung: Beschreibung<'t, T>,
+        pub beschreibung: Beschreibung<'t, Void>,
 
         /// Die angezeigte Nachricht.
         ///
@@ -642,13 +643,108 @@ pub mod test {
         ///
         /// ## English
         /// It is a flag argument, causing an early exit.
-        FrühesBeenden(FrühesBeenden<'t, T>),
+        FrühesBeenden(FrühesBeenden<'t>),
 
         /// Es handelt sich um ein Wert-Argument.
         ///
         /// ## English
         /// It is a value argument.
         Wert(Wert<'t, T, Parse, Fehler, Anzeige>),
+    }
+
+    fn möglichkeiten_als_regex(head: &Vergleich<'_>, tail: &[Vergleich<'_>], s: &mut String) {
+        if !tail.is_empty() {
+            s.push('(')
+        }
+        s.push_str(head.as_ref());
+        for l in tail {
+            s.push('|');
+            s.push_str(l.as_ref());
+        }
+        if !tail.is_empty() {
+            s.push(')')
+        }
+    }
+
+    impl<T, Bool, Parse, Fehler, Anzeige> EinzelArgument<'_, T, Bool, Parse, Fehler, Anzeige>
+    where
+        Bool: Fn(bool) -> T,
+        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Anzeige: Fn(&T) -> String,
+    {
+        fn parse(
+            &self,
+            args: impl Iterator<Item = OsString>,
+        ) -> (crate::Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            match self {
+                EinzelArgument::Flag(Flag {
+                    beschreibung:
+                        Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe: _, standard },
+                    invertiere_präfix,
+                    invertiere_infix,
+                    konvertiere,
+                    anzeige,
+                }) => todo!(),
+                EinzelArgument::FrühesBeenden(FrühesBeenden {
+                    beschreibung:
+                        Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe: _, standard },
+                    nachricht,
+                }) => {
+                    todo!()
+                },
+                EinzelArgument::Wert(Wert {
+                    beschreibung:
+                        Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe: _, standard },
+                    wert_infix,
+                    meta_var,
+                    mögliche_werte,
+                    parse,
+                    anzeige,
+                }) => todo!(),
+            }
+        }
+
+        /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
+        fn erzeuge_hilfe_text(&self) -> (String, Option<Cow<'_, str>>) {
+            let mut hilfe_text = String::new();
+            let cow = match self {
+                EinzelArgument::Flag(Flag {
+                    beschreibung:
+                        Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
+                    invertiere_präfix,
+                    invertiere_infix,
+                    konvertiere: _,
+                    anzeige,
+                }) => todo!(),
+                EinzelArgument::FrühesBeenden(FrühesBeenden {
+                    beschreibung:
+                        Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
+                    nachricht: _,
+                }) => {
+                    hilfe_text.push_str(lang_präfix.as_ref());
+                    let NonEmpty { head, tail } = lang;
+                    möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
+                    if let Some((h, t)) = kurz.split_first() {
+                        hilfe_text.push_str(kurz_präfix.as_ref());
+                        möglichkeiten_als_regex(h, t, &mut hilfe_text);
+                    }
+                    if let Some(v) = standard {
+                        void::unreachable(*v)
+                    }
+                    hilfe.map(Cow::Borrowed)
+                },
+                EinzelArgument::Wert(Wert {
+                    beschreibung:
+                        Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
+                    wert_infix,
+                    meta_var,
+                    mögliche_werte,
+                    parse: _,
+                    anzeige,
+                }) => todo!(),
+            };
+            (hilfe_text, cow)
+        }
     }
 
     // TODO standard-implementierung, basierend auf Sprache?
