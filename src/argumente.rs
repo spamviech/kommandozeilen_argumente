@@ -704,10 +704,11 @@ pub mod test {
             }
         }
 
+        // [Sprache::standard] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
-        fn erzeuge_hilfe_text(&self) -> (String, Option<Cow<'_, str>>) {
+        pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
             let mut hilfe_text = String::new();
-            let cow = match self {
+            let cow: Option<Cow<'_, str>> = match self {
                 EinzelArgument::Flag(Flag {
                     beschreibung:
                         Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
@@ -715,7 +716,34 @@ pub mod test {
                     invertiere_infix,
                     konvertiere: _,
                     anzeige,
-                }) => todo!(),
+                }) => {
+                    hilfe_text.push_str(lang_präfix.as_ref());
+                    hilfe_text.push('[');
+                    hilfe_text.push_str(invertiere_präfix.as_ref());
+                    hilfe_text.push_str(invertiere_infix.as_ref());
+                    hilfe_text.push(']');
+                    let NonEmpty { head, tail } = lang;
+                    möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
+                    if let Some((h, t)) = kurz.split_first() {
+                        hilfe_text.push_str(kurz_präfix.as_ref());
+                        möglichkeiten_als_regex(h, t, &mut hilfe_text);
+                    }
+                    match (hilfe, standard) {
+                        (None, None) => None,
+                        (None, Some(standard)) => {
+                            Some(Cow::Owned(format!("{meta_standard}: {}", anzeige(standard))))
+                        },
+                        (Some(hilfe), None) => Some(Cow::Borrowed(hilfe)),
+                        (Some(hilfe), Some(standard)) => {
+                            let mut hilfe_text = (*hilfe).to_owned();
+                            hilfe_text.push(' ');
+                            hilfe_text.push_str(meta_standard);
+                            hilfe_text.push_str(": ");
+                            hilfe_text.push_str(&anzeige(standard));
+                            Some(Cow::Owned(hilfe_text))
+                        },
+                    }
+                },
                 EinzelArgument::FrühesBeenden(FrühesBeenden {
                     beschreibung:
                         Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
