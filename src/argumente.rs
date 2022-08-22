@@ -515,6 +515,8 @@ pub mod test {
 
     use crate::{beschreibung::Beschreibung, ergebnis::ParseFehler, unicode::Vergleich};
 
+    use super::frühes_beenden;
+
     /// Es handelt sich um ein Flag-Argument.
     ///
     /// ## English
@@ -556,6 +558,51 @@ pub mod test {
         pub anzeige: Anzeige,
     }
 
+    impl<T, Bool, Anzeige> Flag<'_, T, Bool, Anzeige>
+    where
+        Bool: Fn(bool) -> T,
+        Anzeige: Fn(&T) -> String,
+    {
+        pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
+            let Flag {
+                beschreibung:
+                    Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
+                invertiere_präfix,
+                invertiere_infix,
+                konvertiere: _,
+                anzeige,
+            } = self;
+            let mut hilfe_text = String::new();
+            hilfe_text.push_str(lang_präfix.as_ref());
+            hilfe_text.push('[');
+            hilfe_text.push_str(invertiere_präfix.as_ref());
+            hilfe_text.push_str(invertiere_infix.as_ref());
+            hilfe_text.push(']');
+            let NonEmpty { head, tail } = lang;
+            möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
+            if let Some((h, t)) = kurz.split_first() {
+                hilfe_text.push_str(kurz_präfix.as_ref());
+                möglichkeiten_als_regex(h, t, &mut hilfe_text);
+            }
+            let cow: Option<Cow<'_, str>> = match (hilfe, standard) {
+                (None, None) => None,
+                (None, Some(standard)) => {
+                    Some(Cow::Owned(format!("{meta_standard}: {}", anzeige(standard))))
+                },
+                (Some(hilfe), None) => Some(Cow::Borrowed(hilfe)),
+                (Some(hilfe), Some(standard)) => {
+                    let mut hilfe_text = (*hilfe).to_owned();
+                    hilfe_text.push(' ');
+                    hilfe_text.push_str(meta_standard);
+                    hilfe_text.push_str(": ");
+                    hilfe_text.push_str(&anzeige(standard));
+                    Some(Cow::Owned(hilfe_text))
+                },
+            };
+            (hilfe_text, cow)
+        }
+    }
+
     /// Es handelt sich um ein Flag-Argument, das zu frühem beenden führt.
     ///
     /// ## English
@@ -573,6 +620,29 @@ pub mod test {
         /// ## English
         /// The message.
         pub nachricht: Cow<'t, str>,
+    }
+
+    impl FrühesBeenden<'_> {
+        pub fn erzeuge_hilfe_text(&self) -> (String, Option<Cow<'_, str>>) {
+            let FrühesBeenden {
+                beschreibung:
+                    Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
+                nachricht: _,
+            } = self;
+            let mut hilfe_text = String::new();
+            hilfe_text.push_str(lang_präfix.as_ref());
+            let NonEmpty { head, tail } = lang;
+            möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
+            if let Some((h, t)) = kurz.split_first() {
+                hilfe_text.push_str(kurz_präfix.as_ref());
+                möglichkeiten_als_regex(h, t, &mut hilfe_text);
+            }
+            if let Some(v) = standard {
+                void::unreachable(*v)
+            }
+            let cow = hilfe.map(Cow::Borrowed);
+            (hilfe_text, cow)
+        }
     }
 
     /// Es handelt sich um ein Wert-Argument.
@@ -620,6 +690,25 @@ pub mod test {
         /// ## English
         /// Display a value (default/possible values).
         pub anzeige: Anzeige,
+    }
+
+    impl<T, Parse, Fehler, Anzeige> Wert<'_, T, Parse, Fehler, Anzeige>
+    where
+        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Anzeige: Fn(&T) -> String,
+    {
+        pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
+            let Wert {
+                beschreibung:
+                    Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
+                wert_infix,
+                meta_var,
+                mögliche_werte,
+                parse: _,
+                anzeige,
+            } = self;
+            todo!()
+        }
     }
 
     /// Konfiguration eines einzelnen Kommandozeilen-Arguments.
@@ -677,101 +766,24 @@ pub mod test {
             args: impl Iterator<Item = OsString>,
         ) -> (crate::Ergebnis<'_, T, Fehler>, Vec<OsString>) {
             match self {
-                EinzelArgument::Flag(Flag {
-                    beschreibung:
-                        Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe: _, standard },
-                    invertiere_präfix,
-                    invertiere_infix,
-                    konvertiere,
-                    anzeige,
-                }) => todo!(),
-                EinzelArgument::FrühesBeenden(FrühesBeenden {
-                    beschreibung:
-                        Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe: _, standard },
-                    nachricht,
-                }) => {
+                EinzelArgument::Flag(flag) => todo!(),
+                EinzelArgument::FrühesBeenden(frühes_beenden) => {
                     todo!()
                 },
-                EinzelArgument::Wert(Wert {
-                    beschreibung:
-                        Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe: _, standard },
-                    wert_infix,
-                    meta_var,
-                    mögliche_werte,
-                    parse,
-                    anzeige,
-                }) => todo!(),
+                EinzelArgument::Wert(wert) => todo!(),
             }
         }
 
         // [Sprache::standard] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
         pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
-            let mut hilfe_text = String::new();
-            let cow: Option<Cow<'_, str>> = match self {
-                EinzelArgument::Flag(Flag {
-                    beschreibung:
-                        Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
-                    invertiere_präfix,
-                    invertiere_infix,
-                    konvertiere: _,
-                    anzeige,
-                }) => {
-                    hilfe_text.push_str(lang_präfix.as_ref());
-                    hilfe_text.push('[');
-                    hilfe_text.push_str(invertiere_präfix.as_ref());
-                    hilfe_text.push_str(invertiere_infix.as_ref());
-                    hilfe_text.push(']');
-                    let NonEmpty { head, tail } = lang;
-                    möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
-                    if let Some((h, t)) = kurz.split_first() {
-                        hilfe_text.push_str(kurz_präfix.as_ref());
-                        möglichkeiten_als_regex(h, t, &mut hilfe_text);
-                    }
-                    match (hilfe, standard) {
-                        (None, None) => None,
-                        (None, Some(standard)) => {
-                            Some(Cow::Owned(format!("{meta_standard}: {}", anzeige(standard))))
-                        },
-                        (Some(hilfe), None) => Some(Cow::Borrowed(hilfe)),
-                        (Some(hilfe), Some(standard)) => {
-                            let mut hilfe_text = (*hilfe).to_owned();
-                            hilfe_text.push(' ');
-                            hilfe_text.push_str(meta_standard);
-                            hilfe_text.push_str(": ");
-                            hilfe_text.push_str(&anzeige(standard));
-                            Some(Cow::Owned(hilfe_text))
-                        },
-                    }
+            match self {
+                EinzelArgument::Flag(flag) => flag.erzeuge_hilfe_text(meta_standard),
+                EinzelArgument::FrühesBeenden(frühes_beenden) => {
+                    frühes_beenden.erzeuge_hilfe_text()
                 },
-                EinzelArgument::FrühesBeenden(FrühesBeenden {
-                    beschreibung:
-                        Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
-                    nachricht: _,
-                }) => {
-                    hilfe_text.push_str(lang_präfix.as_ref());
-                    let NonEmpty { head, tail } = lang;
-                    möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
-                    if let Some((h, t)) = kurz.split_first() {
-                        hilfe_text.push_str(kurz_präfix.as_ref());
-                        möglichkeiten_als_regex(h, t, &mut hilfe_text);
-                    }
-                    if let Some(v) = standard {
-                        void::unreachable(*v)
-                    }
-                    hilfe.map(Cow::Borrowed)
-                },
-                EinzelArgument::Wert(Wert {
-                    beschreibung:
-                        Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
-                    wert_infix,
-                    meta_var,
-                    mögliche_werte,
-                    parse: _,
-                    anzeige,
-                }) => todo!(),
-            };
-            (hilfe_text, cow)
+                EinzelArgument::Wert(wert) => wert.erzeuge_hilfe_text(meta_standard),
+            }
         }
     }
 
