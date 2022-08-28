@@ -513,7 +513,11 @@ pub mod test {
     use nonempty::NonEmpty;
     use void::Void;
 
-    use crate::{beschreibung::Beschreibung, ergebnis::ParseFehler, unicode::Vergleich};
+    use crate::{
+        beschreibung::Beschreibung,
+        ergebnis::{Ergebnis, ParseFehler},
+        unicode::Vergleich,
+    };
 
     /// Es handelt sich um ein Flag-Argument.
     ///
@@ -808,7 +812,7 @@ pub mod test {
         fn parse(
             &self,
             args: impl Iterator<Item = OsString>,
-        ) -> (crate::Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
             match self {
                 EinzelArgument::Flag(flag) => todo!(),
                 EinzelArgument::FrühesBeenden(frühes_beenden) => {
@@ -843,13 +847,34 @@ pub mod test {
     /// # English
     /// TODO
     pub trait HilfeText<Bool, Parse, Fehler, Anzeige> {
-        fn erzeuge_hilfe_text<S>(
-            arg: &EinzelArgument<'_, S, Bool, Parse, Fehler, Anzeige>,
-        ) -> String
+        fn erzeuge_hilfe_text<'t, S>(
+            arg: &'t EinzelArgument<'t, S, Bool, Parse, Fehler, Anzeige>,
+            meta_standard: &'t str,
+            meta_erlaubte_werte: &'t str,
+        ) -> (String, Option<Cow<'t, str>>)
         where
             Bool: Fn(bool) -> S,
             Parse: Fn(OsString) -> Result<S, ParseFehler<Fehler>>,
             Anzeige: Fn(&S) -> String;
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct Standard;
+
+    impl<Bool, Parse, Fehler, Anzeige> HilfeText<Bool, Parse, Fehler, Anzeige> for Standard {
+        #[inline(always)]
+        fn erzeuge_hilfe_text<'t, S>(
+            arg: &'t EinzelArgument<'t, S, Bool, Parse, Fehler, Anzeige>,
+            meta_standard: &'t str,
+            meta_erlaubte_werte: &'t str,
+        ) -> (String, Option<Cow<'t, str>>)
+        where
+            Bool: Fn(bool) -> S,
+            Parse: Fn(OsString) -> Result<S, ParseFehler<Fehler>>,
+            Anzeige: Fn(&S) -> String,
+        {
+            arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)
+        }
     }
 
     /// Erlaube kombinieren mehrerer Argumente.
@@ -860,13 +885,89 @@ pub mod test {
         fn parse(
             &self,
             args: impl Iterator<Item = OsString>,
-        ) -> (crate::Ergebnis<'_, T, Fehler>, Vec<OsString>);
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>);
 
         /// Erzeuge den Hilfetext für die enthaltenen [Einzelargumente](EinzelArgument).
-        fn erzeuge_hilfe_text<F: HilfeText<Bool, Parse, Fehler, Anzeige>>(
+        fn erzeuge_hilfe_text<H: HilfeText<Bool, Parse, Fehler, Anzeige>>(
             &self,
-            f: F,
-        ) -> Vec<String>;
+            meta_standard: &str,
+            meta_erlaubte_werte: &str,
+        ) -> Vec<(String, Option<Cow<'_, str>>)>;
+    }
+
+    impl<T, Bool, Parse, Fehler, Anzeige> Kombiniere<T, Bool, Parse, Fehler, Anzeige> for Void {
+        fn parse(
+            &self,
+            _args: impl Iterator<Item = OsString>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            void::unreachable(*self)
+        }
+
+        fn erzeuge_hilfe_text<H: HilfeText<Bool, Parse, Fehler, Anzeige>>(
+            &self,
+            _meta_standard: &str,
+            _meta_erlaubte_werte: &str,
+        ) -> Vec<(String, Option<Cow<'_, str>>)> {
+            void::unreachable(*self)
+        }
+    }
+
+    impl<
+            F,
+            T,
+            Bool,
+            Parse,
+            Fehler,
+            Anzeige,
+            T0,
+            Bool0,
+            Parse0,
+            Fehler0,
+            Anzeige0,
+            K0,
+            T1,
+            Bool1,
+            Parse1,
+            Fehler1,
+            Anzeige1,
+            K1,
+        > Kombiniere<T, Bool, Parse, Fehler, Anzeige>
+        for (
+            F,
+            ArgTest<'_, T0, Bool0, Parse0, Fehler0, Anzeige0, K0>,
+            ArgTest<'_, T1, Bool1, Parse1, Fehler1, Anzeige1, K1>,
+        )
+    where
+        F: Fn(T0, T1) -> T,
+        Bool0: Fn(bool) -> T0,
+        Parse0: Fn(OsString) -> Result<T0, ParseFehler<Fehler0>>,
+        Anzeige0: Fn(&T0) -> String,
+        K0: Kombiniere<T0, Bool0, Parse0, Fehler0, Anzeige0>,
+        Bool1: Fn(bool) -> T1,
+        Parse1: Fn(OsString) -> Result<T1, ParseFehler<Fehler1>>,
+        Anzeige1: Fn(&T1) -> String,
+        K1: Kombiniere<T1, Bool1, Parse1, Fehler1, Anzeige1>,
+    {
+        fn parse(
+            &self,
+            args: impl Iterator<Item = OsString>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            let (f, a0, a1) = self;
+            let (e0, nicht_verwendet0) = a0.parse(args);
+            let (e1, nicht_verwendet1) = a1.parse(nicht_verwendet0.into_iter());
+            todo!();
+        }
+
+        fn erzeuge_hilfe_text<H: HilfeText<Bool, Parse, Fehler, Anzeige>>(
+            &self,
+            meta_standard: &str,
+            meta_erlaubte_werte: &str,
+        ) -> Vec<(String, Option<Cow<'_, str>>)> {
+            let (_f, a0, a1) = self;
+            let mut hilfe_texte = a0.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte);
+            hilfe_texte.extend(a1.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte));
+            hilfe_texte
+        }
     }
 
     /// Konfiguration eines Kommandozeilen-Arguments.
@@ -897,5 +998,30 @@ pub mod test {
         Alternativ {
             alternativen: Box<NonEmpty<ArgTest<'t, T, Bool, Parse, Fehler, Anzeige, K>>>,
         },
+    }
+
+    impl<T, Bool, Parse, Fehler, Anzeige, K> ArgTest<'_, T, Bool, Parse, Fehler, Anzeige, K>
+    where
+        Bool: Fn(bool) -> T,
+        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Anzeige: Fn(&T) -> String,
+        K: Kombiniere<T, Bool, Parse, Fehler, Anzeige>,
+    {
+        fn parse(
+            &self,
+            args: impl Iterator<Item = OsString>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            todo!()
+        }
+
+        // [Sprache::standard] kann als meta_standard verwendet werden.
+        /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
+        pub fn erzeuge_hilfe_text<H: HilfeText<Bool, Parse, Fehler, Anzeige>>(
+            &self,
+            meta_standard: &str,
+            meta_erlaubte_werte: &str,
+        ) -> Vec<(String, Option<Cow<'_, str>>)> {
+            todo!()
+        }
     }
 }
