@@ -846,8 +846,8 @@ pub mod test {
     ///
     /// # English
     /// TODO
-    pub trait HilfeText<Bool, Parse, Fehler, Anzeige> {
-        fn erzeuge_hilfe_text<'t, S>(
+    pub trait HilfeText {
+        fn erzeuge_hilfe_text<'t, S, Bool, Parse, Fehler, Anzeige>(
             arg: &'t EinzelArgument<'t, S, Bool, Parse, Fehler, Anzeige>,
             meta_standard: &'t str,
             meta_erlaubte_werte: &'t str,
@@ -861,9 +861,9 @@ pub mod test {
     #[derive(Debug, Clone, Copy)]
     pub struct Standard;
 
-    impl<Bool, Parse, Fehler, Anzeige> HilfeText<Bool, Parse, Fehler, Anzeige> for Standard {
+    impl HilfeText for Standard {
         #[inline(always)]
-        fn erzeuge_hilfe_text<'t, S>(
+        fn erzeuge_hilfe_text<'t, S, Bool, Parse, Fehler, Anzeige>(
             arg: &'t EinzelArgument<'t, S, Bool, Parse, Fehler, Anzeige>,
             meta_standard: &'t str,
             meta_erlaubte_werte: &'t str,
@@ -888,7 +888,7 @@ pub mod test {
         ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>);
 
         /// Erzeuge den Hilfetext für die enthaltenen [Einzelargumente](EinzelArgument).
-        fn erzeuge_hilfe_text<H: HilfeText<Bool, Parse, Fehler, Anzeige>>(
+        fn erzeuge_hilfe_text<H: HilfeText>(
             &self,
             meta_standard: &str,
             meta_erlaubte_werte: &str,
@@ -903,7 +903,7 @@ pub mod test {
             void::unreachable(*self)
         }
 
-        fn erzeuge_hilfe_text<H: HilfeText<Bool, Parse, Fehler, Anzeige>>(
+        fn erzeuge_hilfe_text<H: HilfeText>(
             &self,
             _meta_standard: &str,
             _meta_erlaubte_werte: &str,
@@ -958,7 +958,7 @@ pub mod test {
             todo!();
         }
 
-        fn erzeuge_hilfe_text<H: HilfeText<Bool, Parse, Fehler, Anzeige>>(
+        fn erzeuge_hilfe_text<H: HilfeText>(
             &self,
             meta_standard: &str,
             meta_erlaubte_werte: &str,
@@ -1016,7 +1016,7 @@ pub mod test {
 
         // [Sprache::standard] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
-        pub fn erzeuge_hilfe_text<H: HilfeText<Bool, Parse, Fehler, Anzeige>>(
+        pub fn erzeuge_hilfe_text<H: HilfeText>(
             &self,
             meta_standard: &str,
             meta_erlaubte_werte: &str,
