@@ -1043,7 +1043,33 @@ pub mod test {
             &self,
             args: impl Iterator<Item = OsString>,
         ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
-            todo!()
+            use ArgTest::*;
+            use Ergebnis::*;
+            match self {
+                EinzelArgument(arg) => arg.parse(args),
+                Kombiniere { kombiniere } => kombiniere.parse(args),
+                Alternativ { alternativen } => {
+                    let NonEmpty { head, tail } = alternativen.as_ref();
+                    let args_vec: Vec<_> = args.into_iter().collect();
+                    tail.iter().fold(
+                        head.parse(args_vec.clone().into_iter()),
+                        |(ergebnis, nicht_verwendet), arg| match ergebnis {
+                            Fehler(mut fehler0) => match arg.parse(args_vec.clone().into_iter()) {
+                                (Fehler(fehler1), nicht_verwendet1) => {
+                                    fehler0.extend(fehler1);
+                                    let von_keinem_verwendet = nicht_verwendet
+                                        .into_iter()
+                                        .filter(|os_string| nicht_verwendet1.contains(os_string))
+                                        .collect();
+                                    (Fehler(fehler0), von_keinem_verwendet)
+                                },
+                                end_ergebnis => end_ergebnis,
+                            },
+                            ergebnis => (ergebnis, nicht_verwendet),
+                        },
+                    )
+                },
+            }
         }
 
         // [Sprache::standard] kann als meta_standard verwendet werden.
@@ -1053,7 +1079,18 @@ pub mod test {
             meta_standard: &str,
             meta_erlaubte_werte: &str,
         ) -> Vec<(String, Option<Cow<'_, str>>)> {
-            todo!()
+            match self {
+                ArgTest::EinzelArgument(arg) => {
+                    vec![arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)]
+                },
+                ArgTest::Kombiniere { kombiniere } => {
+                    kombiniere.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte)
+                },
+                ArgTest::Alternativ { alternativen } => alternativen
+                    .iter()
+                    .flat_map(|arg| arg.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte))
+                    .collect(),
+            }
         }
     }
 }
