@@ -565,6 +565,13 @@ pub mod test {
         Bool: Fn(bool) -> T,
         Anzeige: Fn(&T) -> String,
     {
+        fn parse<Fehler>(
+            &self,
+            args: impl Iterator<Item = OsString>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            todo!()
+        }
+
         pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
             let Flag {
                 beschreibung:
@@ -626,6 +633,13 @@ pub mod test {
     }
 
     impl FrühesBeenden<'_> {
+        fn parse<T, Fehler>(
+            &self,
+            args: impl Iterator<Item = OsString>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            todo!()
+        }
+
         pub fn erzeuge_hilfe_text(&self) -> (String, Option<Cow<'_, str>>) {
             let FrühesBeenden {
                 beschreibung:
@@ -717,6 +731,13 @@ pub mod test {
         Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
         Anzeige: Fn(&T) -> String,
     {
+        fn parse(
+            &self,
+            args: impl Iterator<Item = OsString>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            todo!()
+        }
+
         pub fn erzeuge_hilfe_text(
             &self,
             meta_standard: &str,
@@ -852,11 +873,9 @@ pub mod test {
             args: impl Iterator<Item = OsString>,
         ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
             match self {
-                EinzelArgument::Flag(flag) => todo!(),
-                EinzelArgument::FrühesBeenden(frühes_beenden) => {
-                    todo!()
-                },
-                EinzelArgument::Wert(wert) => todo!(),
+                EinzelArgument::Flag(flag) => flag.parse(args),
+                EinzelArgument::FrühesBeenden(frühes_beenden) => frühes_beenden.parse(args),
+                EinzelArgument::Wert(wert) => wert.parse(args),
             }
         }
 
