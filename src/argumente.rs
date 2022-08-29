@@ -696,6 +696,22 @@ pub mod test {
         pub anzeige: Anzeige,
     }
 
+    fn zeige_elemente<'t, T: 't, Anzeige: Fn(&T) -> String>(
+        s: &mut String,
+        anzeige: &Anzeige,
+        elemente: impl IntoIterator<Item = &'t T>,
+    ) {
+        let mut erstes = true;
+        for element in elemente {
+            if erstes {
+                erstes = false;
+            } else {
+                s.push_str(", ");
+            }
+            s.push_str(&anzeige(element));
+        }
+    }
+
     impl<T, Parse, Fehler, Anzeige> Wert<'_, T, Parse, Fehler, Anzeige>
     where
         Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
@@ -732,27 +748,49 @@ pub mod test {
                 hilfe_text.push(']');
                 hilfe_text.push_str(meta_var);
             }
+            // TODO a lot of code duplication...
             let cow: Option<Cow<'_, str>> = match (hilfe, standard, mögliche_werte) {
                 (None, None, None) => None,
-                (None, None, Some(mögliche_werte)) => todo!(),
+                (None, None, Some(mögliche_werte)) => {
+                    let mut s = format!("[{meta_erlaubte_werte}: ");
+                    zeige_elemente(&mut s, &self.anzeige, mögliche_werte);
+                    s.push(']');
+                    Some(Cow::Owned(s))
+                },
                 (None, Some(standard), None) => {
-                    Some(Cow::Owned(format!("{meta_standard}: {}", anzeige(standard))))
+                    Some(Cow::Owned(format!("[{meta_standard}: {}]", anzeige(standard))))
                 },
                 (None, Some(standard), Some(mögliche_werte)) => {
-                    todo!()
+                    let mut s =
+                        format!("[{meta_standard}: {}, {meta_erlaubte_werte}: ", anzeige(standard));
+                    zeige_elemente(&mut s, &self.anzeige, mögliche_werte);
+                    s.push(']');
+                    Some(Cow::Owned(s))
                 },
                 (Some(hilfe), None, None) => Some(Cow::Borrowed(hilfe)),
-                (Some(hilfe), None, Some(mögliche_werte)) => todo!(),
+                (Some(hilfe), None, Some(mögliche_werte)) => {
+                    let mut s = format!("{hilfe} [{meta_erlaubte_werte}: ");
+                    zeige_elemente(&mut s, &self.anzeige, mögliche_werte);
+                    s.push(']');
+                    Some(Cow::Owned(s))
+                },
                 (Some(hilfe), Some(standard), None) => {
-                    let mut hilfe_text = (*hilfe).to_owned();
-                    hilfe_text.push(' ');
-                    hilfe_text.push_str(meta_standard);
-                    hilfe_text.push_str(": ");
-                    hilfe_text.push_str(&anzeige(standard));
-                    Some(Cow::Owned(hilfe_text))
+                    let mut s = (*hilfe).to_owned();
+                    s.push_str(" [");
+                    s.push_str(meta_standard);
+                    s.push_str(": ");
+                    s.push_str(&anzeige(standard));
+                    s.push(']');
+                    Some(Cow::Owned(s))
                 },
                 (Some(hilfe), Some(standard), Some(mögliche_werte)) => {
-                    todo!()
+                    let mut s = format!(
+                        "{hilfe} [{meta_standard}: {}, {meta_erlaubte_werte}: ",
+                        anzeige(standard)
+                    );
+                    zeige_elemente(&mut s, &self.anzeige, mögliche_werte);
+                    s.push(']');
+                    Some(Cow::Owned(s))
                 },
             };
             (hilfe_text, cow)
