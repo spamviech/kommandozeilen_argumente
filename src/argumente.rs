@@ -912,50 +912,44 @@ pub mod test {
         }
     }
 
-    impl<
-            F,
-            T,
-            Bool,
-            Parse,
-            Fehler,
-            Anzeige,
-            T0,
-            Bool0,
-            Parse0,
-            Fehler0,
-            Anzeige0,
-            K0,
-            T1,
-            Bool1,
-            Parse1,
-            Fehler1,
-            Anzeige1,
-            K1,
-        > Kombiniere<T, Bool, Parse, Fehler, Anzeige>
-        for (
-            F,
-            ArgTest<'_, T0, Bool0, Parse0, Fehler0, Anzeige0, K0>,
-            ArgTest<'_, T1, Bool1, Parse1, Fehler1, Anzeige1, K1>,
-        )
+    impl<F, T, B, P, Fehler, A, T0, B0, P0, A0, K0, T1, B1, P1, A1, K1>
+        Kombiniere<T, B, P, Fehler, A>
+        for (F, ArgTest<'_, T0, B0, P0, Fehler, A0, K0>, ArgTest<'_, T1, B1, P1, Fehler, A1, K1>)
     where
         F: Fn(T0, T1) -> T,
-        Bool0: Fn(bool) -> T0,
-        Parse0: Fn(OsString) -> Result<T0, ParseFehler<Fehler0>>,
-        Anzeige0: Fn(&T0) -> String,
-        K0: Kombiniere<T0, Bool0, Parse0, Fehler0, Anzeige0>,
-        Bool1: Fn(bool) -> T1,
-        Parse1: Fn(OsString) -> Result<T1, ParseFehler<Fehler1>>,
-        Anzeige1: Fn(&T1) -> String,
-        K1: Kombiniere<T1, Bool1, Parse1, Fehler1, Anzeige1>,
+        B0: Fn(bool) -> T0,
+        P0: Fn(OsString) -> Result<T0, ParseFehler<Fehler>>,
+        A0: Fn(&T0) -> String,
+        K0: Kombiniere<T0, B0, P0, Fehler, A0>,
+        B1: Fn(bool) -> T1,
+        P1: Fn(OsString) -> Result<T1, ParseFehler<Fehler>>,
+        A1: Fn(&T1) -> String,
+        K1: Kombiniere<T1, B1, P1, Fehler, A1>,
     {
         fn parse(
             &self,
             args: impl Iterator<Item = OsString>,
         ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            use Ergebnis::*;
+
             let (f, a0, a1) = self;
             let (e0, nicht_verwendet0) = a0.parse(args);
             let (e1, nicht_verwendet1) = a1.parse(nicht_verwendet0.into_iter());
-            todo!();
+            let ergebnis = match (e0, e1) {
+                (Wert(w0), Wert(w1)) => Wert(f(w0, w1)),
+                (Wert(_w0), FrühesBeenden(n1)) => FrühesBeenden(n1),
+                (Wert(_w0), Fehler(f1)) => Fehler(f1),
+                (FrühesBeenden(n0), Wert(_w1)) => FrühesBeenden(n0),
+                (FrühesBeenden(n0), FrühesBeenden(_n1)) => FrühesBeenden(n0),
+                (FrühesBeenden(_n0), Fehler(f1)) => Fehler(f1),
+                (Fehler(f0), Wert(_w1)) => Fehler(f0),
+                (Fehler(f0), FrühesBeenden(_n1)) => Fehler(f0),
+                (Fehler(mut f0), Fehler(f1)) => {
+                    f0.extend(f1);
+                    Fehler(f0)
+                },
+            };
+            (ergebnis, nicht_verwendet1)
         }
 
         fn erzeuge_hilfe_text<H: HilfeText>(
