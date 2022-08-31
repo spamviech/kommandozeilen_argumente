@@ -514,10 +514,72 @@ pub mod test {
     use void::Void;
 
     use crate::{
-        beschreibung::Beschreibung,
         ergebnis::{Ergebnis, ParseFehler},
         unicode::Vergleich,
     };
+
+    /// Vollständige Definition des Namens eines [Arguments](EinzelArgument).
+    ///
+    /// ## English
+    /// Full definition for the name of an [argument](EinzelArgument).
+    #[derive(Debug, Clone)]
+    pub struct Name<'t> {
+        /// Präfix vor dem LangNamen.
+        ///
+        /// ## English
+        /// Prefix before the long name.
+        pub lang_präfix: Vergleich<'t>,
+
+        /// Voller Name, wird nach `lang_präfix` angegeben.
+        ///
+        /// ## English
+        /// Full Name, given after `lang_präfix`.
+        pub lang: NonEmpty<Vergleich<'t>>,
+
+        /// Präfix vor dem KurzNamen.
+        ///
+        /// ## English
+        /// Prefix before the short name.
+        pub kurz_präfix: Vergleich<'t>,
+
+        /// Kurzer Name, wird nach `kurz_präfix` angegeben.
+        /// Bei Flag-Argumenten können KurzNamen mit identischen `kurz_präfix` zusammen angegeben werden,
+        /// zum Beispiel "-fgh".
+        /// Kurznamen länger als ein [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
+        /// werden nicht unterstützt.
+        ///
+        /// ## English
+        /// Short name, given after `short_präfix`.
+        /// Flag arguments with identical `kurz_präfix` may be given at once, e.g. "-fgh".
+        /// Short names longer than a [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
+        /// are not supported.
+        pub kurz: Vec<Vergleich<'t>>,
+    }
+
+    /// Beschreibung eines [Kommandozeilen-Arguments](EinzelArgument).
+    ///
+    /// ## English synonym
+    /// [Description]
+    #[derive(Debug, Clone)]
+    pub struct Beschreibung<'t, T> {
+        /// Namen um das Argument zu verwenden.
+        ///
+        /// ## English
+        /// Name to use the argument.
+        pub name: Name<'t>,
+
+        /// Im automatischen Hilfetext angezeigte Beschreibung.
+        ///
+        /// ## English
+        /// Description shown in the automatically created help text.
+        pub hilfe: Option<&'t str>,
+
+        /// Standard-Wert falls kein passendes Kommandozeilen-Argument verwendet wurde.
+        ///
+        /// ## English
+        /// Default value if no fitting command line argument has been used.
+        pub standard: Option<T>,
+    }
 
     /// Es handelt sich um ein Flag-Argument.
     ///
@@ -574,13 +636,10 @@ pub mod test {
 
         pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
             let Flag {
-                beschreibung:
-                    Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
-                invertiere_präfix,
-                invertiere_infix,
-                konvertiere: _,
-                anzeige,
+                beschreibung, invertiere_präfix, invertiere_infix, konvertiere: _, anzeige
             } = self;
+            let Beschreibung { name, hilfe, standard } = beschreibung;
+            let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
             let mut hilfe_text = String::new();
             hilfe_text.push_str(lang_präfix.as_ref());
             hilfe_text.push('[');
@@ -641,11 +700,9 @@ pub mod test {
         }
 
         pub fn erzeuge_hilfe_text(&self) -> (String, Option<Cow<'_, str>>) {
-            let FrühesBeenden {
-                beschreibung:
-                    Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
-                nachricht: _,
-            } = self;
+            let FrühesBeenden { beschreibung, nachricht: _ } = self;
+            let Beschreibung { name, hilfe, standard } = beschreibung;
+            let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
             let mut hilfe_text = String::new();
             hilfe_text.push_str(lang_präfix.as_ref());
             let NonEmpty { head, tail } = lang;
@@ -743,15 +800,10 @@ pub mod test {
             meta_standard: &str,
             meta_erlaubte_werte: &str,
         ) -> (String, Option<Cow<'_, str>>) {
-            let Wert {
-                beschreibung:
-                    Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard },
-                wert_infix,
-                meta_var,
-                mögliche_werte,
-                parse: _,
-                anzeige,
-            } = self;
+            let Wert { beschreibung, wert_infix, meta_var, mögliche_werte, parse: _, anzeige } =
+                self;
+            let Beschreibung { name, hilfe, standard } = beschreibung;
+            let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
             let mut hilfe_text = String::new();
             hilfe_text.push_str(lang_präfix.as_ref());
             let NonEmpty { head, tail } = lang;
