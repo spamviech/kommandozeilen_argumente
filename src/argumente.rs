@@ -796,13 +796,7 @@ pub mod test {
                     Some(Cow::Owned(s))
                 },
                 (Some(hilfe), Some(standard), None) => {
-                    let mut s = (*hilfe).to_owned();
-                    s.push_str(" [");
-                    s.push_str(meta_standard);
-                    s.push_str(": ");
-                    s.push_str(&anzeige(standard));
-                    s.push(']');
-                    Some(Cow::Owned(s))
+                    Some(Cow::Owned(format!("{hilfe} [{meta_standard}: {}]", anzeige(standard))))
                 },
                 (Some(hilfe), Some(standard), Some(mögliche_werte)) => {
                     let mut s = format!(
