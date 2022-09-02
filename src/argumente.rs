@@ -571,7 +571,7 @@ pub mod test {
             if let Some(string) = arg.to_str() {
                 let normalisiert = Normalisiert::neu(string);
                 if let Some(lang_str) = &lang_präfix.strip_als_präfix_n(&normalisiert) {
-                    if contains_str(lang, lang_str.as_ref()) {
+                    if contains_str(lang, lang_str.as_str()) {
                         return Ok(name_gefunden());
                     } else if let Some(e) = parse_invertiert(lang, lang_str) {
                         return Ok(e);
@@ -579,7 +579,7 @@ pub mod test {
                 } else if name_kurz_existiert {
                     if let Some(kurz_graphemes) = kurz_präfix.strip_als_präfix_n(&normalisiert) {
                         if kurz_graphemes
-                            .as_ref()
+                            .as_str()
                             .graphemes(true)
                             .exactly_one()
                             .map(|name| contains_str(kurz, name))
@@ -606,7 +606,7 @@ pub mod test {
                         if let Some(negiert) =
                             invertiere_infix.strip_als_präfix_n(&infix_name_normalisiert)
                         {
-                            if contains_str(lang, negiert.as_ref()) {
+                            if contains_str(lang, negiert.as_str()) {
                                 return Some(false);
                             }
                         }
@@ -616,6 +616,7 @@ pub mod test {
             self.parse_flag_aux(|| true, parse_invertiert, arg)
         }
 
+        #[inline(always)]
         pub fn parse_frühes_beenden(&self, arg: OsString) -> Result<(), OsString> {
             self.parse_flag_aux(|| (), |_, _| None, arg)
         }
@@ -714,16 +715,16 @@ pub mod test {
             let Beschreibung { name, hilfe, standard } = beschreibung;
             let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
             let mut hilfe_text = String::new();
-            hilfe_text.push_str(lang_präfix.as_ref());
+            hilfe_text.push_str(lang_präfix.as_str());
             hilfe_text.push('[');
-            hilfe_text.push_str(invertiere_präfix.as_ref());
-            hilfe_text.push_str(invertiere_infix.as_ref());
+            hilfe_text.push_str(invertiere_präfix.as_str());
+            hilfe_text.push_str(invertiere_infix.as_str());
             hilfe_text.push(']');
             let NonEmpty { head, tail } = lang;
             möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
             if let Some((h, t)) = kurz.split_first() {
                 hilfe_text.push_str(" | ");
-                hilfe_text.push_str(kurz_präfix.as_ref());
+                hilfe_text.push_str(kurz_präfix.as_str());
                 möglichkeiten_als_regex(h, t, &mut hilfe_text);
             }
             let cow: Option<Cow<'_, str>> = match (hilfe, standard) {
@@ -777,12 +778,12 @@ pub mod test {
             let Beschreibung { name, hilfe, standard } = beschreibung;
             let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
             let mut hilfe_text = String::new();
-            hilfe_text.push_str(lang_präfix.as_ref());
+            hilfe_text.push_str(lang_präfix.as_str());
             let NonEmpty { head, tail } = lang;
             möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
             if let Some((h, t)) = kurz.split_first() {
                 hilfe_text.push_str(" | ");
-                hilfe_text.push_str(kurz_präfix.as_ref());
+                hilfe_text.push_str(kurz_präfix.as_str());
                 möglichkeiten_als_regex(h, t, &mut hilfe_text);
             }
             if let Some(v) = standard {
@@ -878,19 +879,19 @@ pub mod test {
             let Beschreibung { name, hilfe, standard } = beschreibung;
             let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
             let mut hilfe_text = String::new();
-            hilfe_text.push_str(lang_präfix.as_ref());
+            hilfe_text.push_str(lang_präfix.as_str());
             let NonEmpty { head, tail } = lang;
             möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
             hilfe_text.push_str("( |");
-            hilfe_text.push_str(wert_infix.as_ref());
+            hilfe_text.push_str(wert_infix.as_str());
             hilfe_text.push(')');
             hilfe_text.push_str(meta_var);
             if let Some((h, t)) = kurz.split_first() {
                 hilfe_text.push_str(" | ");
-                hilfe_text.push_str(kurz_präfix.as_ref());
+                hilfe_text.push_str(kurz_präfix.as_str());
                 möglichkeiten_als_regex(h, t, &mut hilfe_text);
                 hilfe_text.push_str("[ |");
-                hilfe_text.push_str(wert_infix.as_ref());
+                hilfe_text.push_str(wert_infix.as_str());
                 hilfe_text.push(']');
                 hilfe_text.push_str(meta_var);
             }
@@ -971,10 +972,10 @@ pub mod test {
         if !tail.is_empty() {
             s.push('(')
         }
-        s.push_str(head.as_ref());
+        s.push_str(head.as_str());
         for l in tail {
             s.push('|');
-            s.push_str(l.as_ref());
+            s.push_str(l.as_str());
         }
         if !tail.is_empty() {
             s.push(')')
@@ -1187,7 +1188,7 @@ pub mod test {
                 EinzelArgument(arg) => arg.parse(args),
                 Kombiniere { kombiniere } => kombiniere.parse(args),
                 Alternativ { alternativen } => {
-                    let NonEmpty { head, tail } = alternativen.as_ref();
+                    let NonEmpty { head, tail } = alternativen.as_str();
                     let args_vec: Vec<_> = args.into_iter().collect();
                     tail.iter().fold(
                         head.parse(args_vec.clone().into_iter()),
