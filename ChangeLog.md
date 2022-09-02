@@ -2,6 +2,8 @@
 
 ## Unreleased changes
 
+- Normalisiert::as_str hinzugefügt.
+
 ## 0.2.0
 
 - Normalisiere Namen und Prä-/Infixe, bevor diese mit Nutzereingaben verglichen werden.
