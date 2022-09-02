@@ -508,14 +508,17 @@ impl<'t, T, E> Argumente<'t, T, E> {
 pub mod test {
     #![allow(missing_docs)]
 
-    use std::{borrow::Cow, ffi::OsString};
+    use std::{borrow::Cow, ffi::OsString, iter};
 
+    use itertools::Itertools;
     use nonempty::NonEmpty;
+    use unicode_segmentation::UnicodeSegmentation;
     use void::Void;
 
     use crate::{
+        beschreibung::{contains_prefix, contains_str},
         ergebnis::{Ergebnis, ParseFehler},
-        unicode::Vergleich,
+        unicode::{Normalisiert, Vergleich},
     };
 
     /// Vollständige Definition des Namens eines [Arguments](EinzelArgument).
@@ -554,6 +557,76 @@ pub mod test {
         /// Short names longer than a [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
         /// are not supported.
         pub kurz: Vec<Vergleich<'t>>,
+    }
+
+    impl Name<'_> {
+        fn parse_flag_aux<E>(
+            &self,
+            name_gefunden: impl FnOnce() -> E,
+            parse_invertiert: impl FnOnce(&NonEmpty<Vergleich<'_>>, &Normalisiert<'_>) -> Option<E>,
+            arg: OsString,
+        ) -> Result<E, OsString> {
+            let Name { lang_präfix, lang, kurz_präfix, kurz } = self;
+            let name_kurz_existiert = !kurz.is_empty();
+            if let Some(string) = arg.to_str() {
+                let normalisiert = Normalisiert::neu(string);
+                if let Some(lang_str) = &lang_präfix.strip_als_präfix_n(&normalisiert) {
+                    if contains_str(lang, lang_str.as_ref()) {
+                        return Ok(name_gefunden());
+                    } else if let Some(e) = parse_invertiert(lang, lang_str) {
+                        return Ok(e);
+                    }
+                } else if name_kurz_existiert {
+                    if let Some(kurz_graphemes) = kurz_präfix.strip_als_präfix_n(&normalisiert) {
+                        if kurz_graphemes
+                            .as_ref()
+                            .graphemes(true)
+                            .exactly_one()
+                            .map(|name| contains_str(kurz, name))
+                            .unwrap_or(false)
+                        {
+                            return Ok(name_gefunden());
+                        }
+                    }
+                }
+            }
+            return Err(arg);
+        }
+
+        pub fn parse_flag(
+            &self,
+            invertiere_präfix: &Vergleich<'_>,
+            invertiere_infix: &Vergleich<'_>,
+            arg: OsString,
+        ) -> Result<bool, OsString> {
+            let parse_invertiert =
+                |lang: &NonEmpty<Vergleich<'_>>, lang_str: &Normalisiert<'_>| -> Option<bool> {
+                    if let Some(infix_name) = invertiere_präfix.strip_als_präfix_n(&lang_str) {
+                        let infix_name_normalisiert = infix_name;
+                        if let Some(negiert) =
+                            invertiere_infix.strip_als_präfix_n(&infix_name_normalisiert)
+                        {
+                            if contains_str(lang, negiert.as_ref()) {
+                                return Some(false);
+                            }
+                        }
+                    }
+                    None
+                };
+            self.parse_flag_aux(|| true, parse_invertiert, arg)
+        }
+
+        pub fn parse_frühes_beenden(&self, arg: OsString) -> Result<(), OsString> {
+            self.parse_flag_aux(|| (), |_, _| None, arg)
+        }
+
+        pub fn parse_mit_wert(
+            &self,
+            wert_infix: &Vergleich<'_>,
+            arg: OsString,
+        ) -> Result<Option<OsString>, OsString> {
+            todo!()
+        }
     }
 
     /// Beschreibung eines [Kommandozeilen-Arguments](EinzelArgument).
