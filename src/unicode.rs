@@ -20,11 +20,12 @@ pub struct Normalisiert<'t>(Cow<'t, str>);
 impl AsRef<str> for Normalisiert<'_> {
     #[inline(always)]
     fn as_ref(&self) -> &str {
-        self.0.as_ref()
+        self.as_str()
     }
 }
 
 impl<'t, S: Into<Cow<'t, str>>> From<S> for Normalisiert<'t> {
+    #[inline(always)]
     fn from(input: S) -> Self {
         Normalisiert::neu(input)
     }
@@ -51,7 +52,6 @@ impl<'t> Normalisiert<'t> {
     ///
     /// ## English synonym
     /// [new](Normalized::new)
-    #[inline(always)]
     pub fn neu(s: impl Into<Cow<'t, str>>) -> Normalisiert<'t> {
         let cow = s.into();
         let normalisiert = match is_nfc_quick(cow.chars()) {
@@ -75,6 +75,15 @@ impl<'t> Normalisiert<'t> {
     #[inline(always)]
     pub fn new(s: impl Into<Cow<'t, str>>) -> Normalized<'t> {
         Normalisiert::neu(s)
+    }
+
+    /// Erhalte den String slice, der den normalisierten Unicode String enthält.
+    ///
+    /// ## English
+    /// Extracts a string slice containing the normalized unicode string.
+    #[inline(always)]
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
     }
 
     /// Überprüfe ob zwei Strings nach Unicode Normalisierung identisch sind,
@@ -224,5 +233,24 @@ impl Vergleich<'_> {
             .rev()
             .find(|(präfix, _ix)| self.eq(präfix))
             .map(|(_präfix, ix)| &string_str[*ix..string_länge])
+    }
+
+    /// Versuche einen String vom Anfang des anderen Strings zu entfernen.
+    pub(crate) fn strip_als_präfix_n<'t>(
+        &self,
+        string: &'t Normalisiert<'t>,
+    ) -> Option<Normalisiert<'t>> {
+        let string_str = string.as_ref();
+        let string_länge = string_str.len();
+        let mut graphemes_indices = string_str.grapheme_indices(true);
+        let mut präfixe = vec![(string_str, string_länge)];
+        while let Some((ix, _str)) = graphemes_indices.next_back() {
+            präfixe.push((graphemes_indices.as_str(), ix))
+        }
+        präfixe
+            .iter()
+            .rev()
+            .find(|(präfix, _ix)| self.eq(präfix))
+            .map(|(_präfix, ix)| Normalisiert(Cow::Borrowed(&string_str[*ix..string_länge])))
     }
 }
