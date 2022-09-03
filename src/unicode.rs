@@ -197,7 +197,7 @@ impl<'t> From<(Normalisiert<'t>, Case)> for Vergleich<'t> {
 impl AsRef<str> for Vergleich<'_> {
     #[inline(always)]
     fn as_ref(&self) -> &str {
-        self.string.as_ref()
+        self.as_str()
     }
 }
 
@@ -217,6 +217,15 @@ impl Vergleich<'_> {
     pub fn eq(&self, gesucht: &str) -> bool {
         let Vergleich { string, case } = self;
         string.eq(gesucht, *case)
+    }
+
+    /// Erhalte den String slice, der den normalisierten Unicode String enthält.
+    ///
+    /// ## English
+    /// Extracts a string slice containing the normalized unicode string.
+    #[inline(always)]
+    pub fn as_str(&self) -> &str {
+        self.string.as_ref()
     }
 
     /// Versuche einen String vom Anfang des anderen Strings zu entfernen.
