@@ -590,7 +590,7 @@ pub mod test {
                     }
                 }
             }
-            return Err(arg);
+            Err(arg)
         }
 
         pub fn parse_flag(
@@ -626,7 +626,46 @@ pub mod test {
             wert_infix: &Vergleich<'_>,
             arg: OsString,
         ) -> Result<Option<OsString>, OsString> {
-            todo!()
+            let Name { lang_präfix, lang, kurz_präfix, kurz } = self;
+            let kurz_existiert = !kurz.is_empty();
+            if let Some(string) = arg.to_str() {
+                let normalisiert = Normalisiert::neu(string);
+                if let Some(lang_str) = lang_präfix.strip_als_präfix_n(&normalisiert) {
+                    let suffixe = contains_prefix(lang, &lang_str);
+                    for suffix in suffixe {
+                        let suffix_normalisiert = Normalisiert::neu_borrowed_unchecked(suffix);
+                        if suffix.is_empty() {
+                            return Ok(None);
+                        } else if let Some(wert_graphemes) =
+                            wert_infix.strip_als_präfix_n(&suffix_normalisiert)
+                        {
+                            return Ok(Some(wert_graphemes.as_str().to_owned().into()));
+                        }
+                    }
+                } else if kurz_existiert {
+                    if let Some(kurz_str) = kurz_präfix.strip_als_präfix_n(&normalisiert) {
+                        let mut kurz_graphemes = kurz_str.as_str().graphemes(true);
+                        if kurz_graphemes
+                            .next()
+                            .map(|name| contains_str(kurz, name))
+                            .unwrap_or(false)
+                        {
+                            let rest =
+                                Normalisiert::neu_borrowed_unchecked(kurz_graphemes.as_str());
+                            let wert_str = if rest.as_str().is_empty() {
+                                None
+                            } else {
+                                let wert_str = wert_infix
+                                    .strip_als_präfix_n(&rest)
+                                    .unwrap_or_else(|| rest.clone());
+                                Some(wert_str.as_str().to_owned().into())
+                            };
+                            return Ok(wert_str);
+                        }
+                    }
+                }
+            }
+            Err(arg)
         }
     }
 
@@ -1188,7 +1227,7 @@ pub mod test {
                 EinzelArgument(arg) => arg.parse(args),
                 Kombiniere { kombiniere } => kombiniere.parse(args),
                 Alternativ { alternativen } => {
-                    let NonEmpty { head, tail } = alternativen.as_str();
+                    let NonEmpty { head, tail } = alternativen.as_ref();
                     let args_vec: Vec<_> = args.into_iter().collect();
                     tail.iter().fold(
                         head.parse(args_vec.clone().into_iter()),
