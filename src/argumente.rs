@@ -517,7 +517,7 @@ pub mod test {
 
     use crate::{
         beschreibung::{contains_prefix, contains_str},
-        ergebnis::{Ergebnis, ParseFehler},
+        ergebnis::{Ergebnis, Fehler, ParseFehler},
         unicode::{Normalisiert, Vergleich},
     };
 
@@ -737,16 +737,63 @@ pub mod test {
 
     impl<T, Bool, Anzeige> Flag<'_, T, Bool, Anzeige>
     where
+        T: Clone,
         Bool: Fn(bool) -> T,
         Anzeige: Fn(&T) -> String,
     {
-        fn parse<Fehler>(
+        fn parse<F>(
             &self,
-            args: impl Iterator<Item = OsString>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
-            todo!()
+            args: impl Iterator<Item = Option<OsString>>,
+        ) -> (Ergebnis<'_, T, F>, Vec<Option<OsString>>) {
+            let Flag {
+                beschreibung, invertiere_präfix, invertiere_infix, konvertiere, anzeige: _
+            } = self;
+            let Beschreibung { name, hilfe: _, standard } = beschreibung;
+            let mut nicht_verwendet = Vec::new();
+            let mut iter = args.into_iter();
+            while let Some(arg) = iter.next() {
+                if let Some(arg) = arg {
+                    match name.parse_flag(invertiere_präfix, invertiere_infix, arg) {
+                        Ok(b) => {
+                            nicht_verwendet.push(None);
+                            nicht_verwendet.extend(iter);
+                            return (Ergebnis::Wert(konvertiere(b)), nicht_verwendet);
+                        },
+                        Err(arg) => nicht_verwendet.push(Some(arg)),
+                    }
+                } else {
+                    nicht_verwendet.push(None)
+                }
+            }
+            let ergebnis = if let Some(wert) = standard {
+                Ergebnis::Wert(wert.clone())
+            } else {
+                // FIXME Fehler-Typ anpassen
+                let fehler = Fehler::FehlendeFlag {
+                    namen: crate::ergebnis::Namen {
+                        lang_präfix: name.lang_präfix.string.clone(),
+                        lang: name.lang.clone().map(|Vergleich { string, case: _ }| string),
+                        kurz_präfix: name.kurz_präfix.string.clone(),
+                        kurz: name
+                            .kurz
+                            .iter()
+                            .map(|Vergleich { string, case: _ }| string.clone())
+                            .collect(),
+                    },
+                    invertiere_präfix: invertiere_präfix.string.clone(),
+                    invertiere_infix: invertiere_infix.string.clone(),
+                };
+                Ergebnis::Fehler(NonEmpty::singleton(fehler))
+            };
+            (ergebnis, nicht_verwendet)
         }
+    }
 
+    impl<T, Bool, Anzeige> Flag<'_, T, Bool, Anzeige>
+    where
+        Bool: Fn(bool) -> T,
+        Anzeige: Fn(&T) -> String,
+    {
         pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
             let Flag {
                 beschreibung, invertiere_präfix, invertiere_infix, konvertiere: _, anzeige
@@ -807,8 +854,8 @@ pub mod test {
     impl FrühesBeenden<'_> {
         fn parse<T, Fehler>(
             &self,
-            args: impl Iterator<Item = OsString>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            args: impl Iterator<Item = Option<OsString>>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>) {
             todo!()
         }
 
@@ -903,8 +950,8 @@ pub mod test {
     {
         fn parse(
             &self,
-            args: impl Iterator<Item = OsString>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            args: impl Iterator<Item = Option<OsString>>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>) {
             todo!()
         }
 
@@ -1023,21 +1070,29 @@ pub mod test {
 
     impl<T, Bool, Parse, Fehler, Anzeige> EinzelArgument<'_, T, Bool, Parse, Fehler, Anzeige>
     where
+        T: Clone,
         Bool: Fn(bool) -> T,
         Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
         Anzeige: Fn(&T) -> String,
     {
         fn parse(
             &self,
-            args: impl Iterator<Item = OsString>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            args: impl Iterator<Item = Option<OsString>>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>) {
             match self {
                 EinzelArgument::Flag(flag) => flag.parse(args),
                 EinzelArgument::FrühesBeenden(frühes_beenden) => frühes_beenden.parse(args),
                 EinzelArgument::Wert(wert) => wert.parse(args),
             }
         }
+    }
 
+    impl<T, Bool, Parse, Fehler, Anzeige> EinzelArgument<'_, T, Bool, Parse, Fehler, Anzeige>
+    where
+        Bool: Fn(bool) -> T,
+        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Anzeige: Fn(&T) -> String,
+    {
         // [Sprache::standard] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
         pub fn erzeuge_hilfe_text(
@@ -1100,8 +1155,8 @@ pub mod test {
     pub trait Kombiniere<T, Bool, Parse, Fehler, Anzeige> {
         fn parse(
             &self,
-            args: impl Iterator<Item = OsString>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>);
+            args: impl Iterator<Item = Option<OsString>>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>);
 
         /// Erzeuge den Hilfetext für die enthaltenen [Einzelargumente](EinzelArgument).
         fn erzeuge_hilfe_text<H: HilfeText>(
@@ -1114,8 +1169,8 @@ pub mod test {
     impl<T, Bool, Parse, Fehler, Anzeige> Kombiniere<T, Bool, Parse, Fehler, Anzeige> for Void {
         fn parse(
             &self,
-            _args: impl Iterator<Item = OsString>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            _args: impl Iterator<Item = Option<OsString>>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>) {
             void::unreachable(*self)
         }
 
@@ -1132,6 +1187,8 @@ pub mod test {
         Kombiniere<T, B, P, Fehler, A>
         for (F, ArgTest<'_, T0, B0, P0, Fehler, A0, K0>, ArgTest<'_, T1, B1, P1, Fehler, A1, K1>)
     where
+        T0: Clone,
+        T1: Clone,
         F: Fn(T0, T1) -> T,
         B0: Fn(bool) -> T0,
         P0: Fn(OsString) -> Result<T0, ParseFehler<Fehler>>,
@@ -1144,8 +1201,8 @@ pub mod test {
     {
         fn parse(
             &self,
-            args: impl Iterator<Item = OsString>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            args: impl Iterator<Item = Option<OsString>>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>) {
             use Ergebnis::*;
 
             let (f, a0, a1) = self;
@@ -1212,6 +1269,7 @@ pub mod test {
 
     impl<T, Bool, Parse, Fehler, Anzeige, K> ArgTest<'_, T, Bool, Parse, Fehler, Anzeige, K>
     where
+        T: Clone,
         Bool: Fn(bool) -> T,
         Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
         Anzeige: Fn(&T) -> String,
@@ -1219,8 +1277,8 @@ pub mod test {
     {
         fn parse(
             &self,
-            args: impl Iterator<Item = OsString>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<OsString>) {
+            args: impl Iterator<Item = Option<OsString>>,
+        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>) {
             use ArgTest::*;
             use Ergebnis::*;
             match self {
@@ -1249,7 +1307,15 @@ pub mod test {
                 },
             }
         }
+    }
 
+    impl<T, Bool, Parse, Fehler, Anzeige, K> ArgTest<'_, T, Bool, Parse, Fehler, Anzeige, K>
+    where
+        Bool: Fn(bool) -> T,
+        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Anzeige: Fn(&T) -> String,
+        K: Kombiniere<T, Bool, Parse, Fehler, Anzeige>,
+    {
         // [Sprache::standard] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
         pub fn erzeuge_hilfe_text<H: HilfeText>(
