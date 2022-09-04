@@ -772,11 +772,37 @@ pub mod test {
     }
 
     impl<'t> FrühesBeenden<'t> {
-        fn parse<T, Fehler>(
+        fn parse<F>(
             self,
             args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
-            todo!()
+        ) -> (Ergebnis<'t, (), F>, Vec<Option<OsString>>) {
+            let FrühesBeenden { beschreibung, nachricht } = self;
+            let Beschreibung { name, hilfe: _, standard } = beschreibung;
+            let mut nicht_verwendet = Vec::new();
+            let mut iter = args.into_iter();
+            while let Some(arg) = iter.next() {
+                if let Some(arg) = arg {
+                    match name.parse_frühes_beenden(arg) {
+                        Ok(()) => {
+                            nicht_verwendet.push(None);
+                            nicht_verwendet.extend(iter);
+                            return (
+                                Ergebnis::FrühesBeenden(NonEmpty::singleton(nachricht)),
+                                nicht_verwendet,
+                            );
+                        },
+                        Err(arg) => nicht_verwendet.push(Some(arg)),
+                    }
+                } else {
+                    nicht_verwendet.push(None)
+                }
+            }
+            let ergebnis = if let Some(wert) = standard {
+                void::unreachable(wert)
+            } else {
+                Ergebnis::Wert(())
+            };
+            (ergebnis, nicht_verwendet)
         }
 
         pub fn erzeuge_hilfe_text(&self) -> (String, Option<Cow<'_, str>>) {
