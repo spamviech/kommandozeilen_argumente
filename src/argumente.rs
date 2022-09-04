@@ -672,16 +672,15 @@ pub mod test {
         pub anzeige: Anzeige,
     }
 
-    impl<T, Bool, Anzeige> Flag<'_, T, Bool, Anzeige>
+    impl<'t, T, Bool, Anzeige> Flag<'t, T, Bool, Anzeige>
     where
-        T: Clone,
         Bool: Fn(bool) -> T,
         Anzeige: Fn(&T) -> String,
     {
         fn parse<F>(
-            &self,
+            self,
             args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'_, T, F>, Vec<Option<OsString>>) {
+        ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
             let Flag {
                 beschreibung, invertiere_präfix, invertiere_infix, konvertiere, anzeige: _
             } = self;
@@ -690,7 +689,7 @@ pub mod test {
             let mut iter = args.into_iter();
             while let Some(arg) = iter.next() {
                 if let Some(arg) = arg {
-                    match name.parse_flag(invertiere_präfix, invertiere_infix, arg) {
+                    match name.parse_flag(&invertiere_präfix, &invertiere_infix, arg) {
                         Ok(b) => {
                             nicht_verwendet.push(None);
                             nicht_verwendet.extend(iter);
@@ -703,7 +702,7 @@ pub mod test {
                 }
             }
             let ergebnis = if let Some(wert) = standard {
-                Ergebnis::Wert(wert.clone())
+                Ergebnis::Wert(wert)
             } else {
                 let fehler = Fehler::FehlendeFlag {
                     name: name.clone(),
@@ -714,13 +713,7 @@ pub mod test {
             };
             (ergebnis, nicht_verwendet)
         }
-    }
 
-    impl<T, Bool, Anzeige> Flag<'_, T, Bool, Anzeige>
-    where
-        Bool: Fn(bool) -> T,
-        Anzeige: Fn(&T) -> String,
-    {
         pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
             let Flag {
                 beschreibung, invertiere_präfix, invertiere_infix, konvertiere: _, anzeige
@@ -778,11 +771,11 @@ pub mod test {
         pub nachricht: Cow<'t, str>,
     }
 
-    impl FrühesBeenden<'_> {
+    impl<'t> FrühesBeenden<'t> {
         fn parse<T, Fehler>(
-            &self,
+            self,
             args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>) {
+        ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
             todo!()
         }
 
@@ -870,15 +863,15 @@ pub mod test {
         }
     }
 
-    impl<T, Parse, Fehler, Anzeige> Wert<'_, T, Parse, Fehler, Anzeige>
+    impl<'t, T, Parse, Fehler, Anzeige> Wert<'t, T, Parse, Fehler, Anzeige>
     where
         Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
         Anzeige: Fn(&T) -> String,
     {
         fn parse(
-            &self,
+            self,
             args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>) {
+        ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
             todo!()
         }
 
@@ -995,31 +988,23 @@ pub mod test {
         }
     }
 
-    impl<T, Bool, Parse, Fehler, Anzeige> EinzelArgument<'_, T, Bool, Parse, Fehler, Anzeige>
+    impl<'t, T, Bool, Parse, Fehler, Anzeige> EinzelArgument<'t, T, Bool, Parse, Fehler, Anzeige>
     where
-        T: Clone,
         Bool: Fn(bool) -> T,
         Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
         Anzeige: Fn(&T) -> String,
     {
         fn parse(
-            &self,
+            self,
             args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>) {
+        ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
             match self {
                 EinzelArgument::Flag(flag) => flag.parse(args),
                 EinzelArgument::FrühesBeenden(frühes_beenden) => frühes_beenden.parse(args),
                 EinzelArgument::Wert(wert) => wert.parse(args),
             }
         }
-    }
 
-    impl<T, Bool, Parse, Fehler, Anzeige> EinzelArgument<'_, T, Bool, Parse, Fehler, Anzeige>
-    where
-        Bool: Fn(bool) -> T,
-        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
-        Anzeige: Fn(&T) -> String,
-    {
         // [Sprache::standard] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
         pub fn erzeuge_hilfe_text(
@@ -1079,11 +1064,11 @@ pub mod test {
     ///
     /// ## English
     /// TODO
-    pub trait Kombiniere<T, Bool, Parse, Fehler, Anzeige> {
+    pub trait Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> {
         fn parse(
-            &self,
+            self,
             args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>);
+        ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>);
 
         /// Erzeuge den Hilfetext für die enthaltenen [Einzelargumente](EinzelArgument).
         fn erzeuge_hilfe_text<H: HilfeText>(
@@ -1093,12 +1078,12 @@ pub mod test {
         ) -> Vec<(String, Option<Cow<'_, str>>)>;
     }
 
-    impl<T, Bool, Parse, Fehler, Anzeige> Kombiniere<T, Bool, Parse, Fehler, Anzeige> for Void {
+    impl<'t, T, Bool, Parse, Fehler, Anzeige> Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> for Void {
         fn parse(
-            &self,
+            self,
             _args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>) {
-            void::unreachable(*self)
+        ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
+            void::unreachable(self)
         }
 
         fn erzeuge_hilfe_text<H: HilfeText>(
@@ -1110,26 +1095,24 @@ pub mod test {
         }
     }
 
-    impl<F, T, B, P, Fehler, A, T0, B0, P0, A0, K0, T1, B1, P1, A1, K1>
-        Kombiniere<T, B, P, Fehler, A>
-        for (F, ArgTest<'_, T0, B0, P0, Fehler, A0, K0>, ArgTest<'_, T1, B1, P1, Fehler, A1, K1>)
+    impl<'t, 't0: 't, 't1: 't, F, T, B, P, Fehler, A, T0, B0, P0, A0, K0, T1, B1, P1, A1, K1>
+        Kombiniere<'t, T, B, P, Fehler, A>
+        for (F, ArgTest<'t0, T0, B0, P0, Fehler, A0, K0>, ArgTest<'t1, T1, B1, P1, Fehler, A1, K1>)
     where
-        T0: Clone,
-        T1: Clone,
         F: Fn(T0, T1) -> T,
         B0: Fn(bool) -> T0,
         P0: Fn(OsString) -> Result<T0, ParseFehler<Fehler>>,
         A0: Fn(&T0) -> String,
-        K0: Kombiniere<T0, B0, P0, Fehler, A0>,
+        K0: Kombiniere<'t0, T0, B0, P0, Fehler, A0>,
         B1: Fn(bool) -> T1,
         P1: Fn(OsString) -> Result<T1, ParseFehler<Fehler>>,
         A1: Fn(&T1) -> String,
-        K1: Kombiniere<T1, B1, P1, Fehler, A1>,
+        K1: Kombiniere<'t1, T1, B1, P1, Fehler, A1>,
     {
         fn parse(
-            &self,
+            self,
             args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>) {
+        ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
             use Ergebnis::*;
 
             let (f, a0, a1) = self;
@@ -1174,7 +1157,7 @@ pub mod test {
         Bool: Fn(bool) -> T,
         Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
         Anzeige: Fn(&T) -> String,
-        K: Kombiniere<T, Bool, Parse, Fehler, Anzeige>,
+        K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
     {
         /// Ein einzelnes Argument.
         ///
@@ -1194,27 +1177,26 @@ pub mod test {
         },
     }
 
-    impl<T, Bool, Parse, Fehler, Anzeige, K> ArgTest<'_, T, Bool, Parse, Fehler, Anzeige, K>
+    impl<'t, T, Bool, Parse, Fehler, Anzeige, K> ArgTest<'t, T, Bool, Parse, Fehler, Anzeige, K>
     where
-        T: Clone,
         Bool: Fn(bool) -> T,
         Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
         Anzeige: Fn(&T) -> String,
-        K: Kombiniere<T, Bool, Parse, Fehler, Anzeige>,
+        K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
     {
         fn parse(
-            &self,
+            self,
             args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'_, T, Fehler>, Vec<Option<OsString>>) {
+        ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
             use ArgTest::*;
             use Ergebnis::*;
             match self {
                 EinzelArgument(arg) => arg.parse(args),
                 Kombiniere { kombiniere } => kombiniere.parse(args),
                 Alternativ { alternativen } => {
-                    let NonEmpty { head, tail } = alternativen.as_ref();
+                    let NonEmpty { head, tail } = *alternativen;
                     let args_vec: Vec<_> = args.into_iter().collect();
-                    tail.iter().fold(
+                    tail.into_iter().fold(
                         head.parse(args_vec.clone().into_iter()),
                         |(ergebnis, nicht_verwendet), arg| match ergebnis {
                             Fehler(mut fehler0) => match arg.parse(args_vec.clone().into_iter()) {
@@ -1234,15 +1216,7 @@ pub mod test {
                 },
             }
         }
-    }
 
-    impl<T, Bool, Parse, Fehler, Anzeige, K> ArgTest<'_, T, Bool, Parse, Fehler, Anzeige, K>
-    where
-        Bool: Fn(bool) -> T,
-        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
-        Anzeige: Fn(&T) -> String,
-        K: Kombiniere<T, Bool, Parse, Fehler, Anzeige>,
-    {
         // [Sprache::standard] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
         pub fn erzeuge_hilfe_text<H: HilfeText>(
