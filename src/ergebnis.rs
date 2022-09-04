@@ -6,6 +6,7 @@ use either::Either;
 use nonempty::NonEmpty;
 
 use crate::{
+    beschreibung::Name,
     sprache::{Language, Sprache},
     unicode::Normalisiert,
 };
@@ -62,43 +63,6 @@ impl<'t, T, E> Ergebnis<'t, T, E> {
     }
 }
 
-/// Alle Namen eines Arguments.
-///
-/// ## English synonym
-/// [Names]
-#[derive(Debug, Clone)]
-pub struct Namen<'t> {
-    /// Präfix vor dem LangNamen.
-    ///
-    /// ## English
-    /// Prefix before the long name.
-    pub lang_präfix: Normalisiert<'t>,
-
-    /// Vollständiger Name.
-    ///
-    /// ## English
-    /// Full name.
-    pub lang: NonEmpty<Normalisiert<'t>>,
-
-    /// Präfix vor dem KurzNamen.
-    ///
-    /// ## English
-    /// Prefix before the short name.
-    pub kurz_präfix: Normalisiert<'t>,
-
-    /// Kurzform des Namen.
-    ///
-    /// ## English
-    /// Short form of the name.
-    pub kurz: Vec<Normalisiert<'t>>,
-}
-
-/// All names of an argument.
-///
-/// ## Deutsches Synonym
-/// [Namen]
-pub type Names<'t> = Namen<'t>;
-
 /// Fehlerquellen beim Parsen von Kommandozeilen-Argumenten.
 ///
 /// ## English synonym
@@ -114,7 +78,7 @@ pub enum Fehler<'t, E> {
         ///
         /// ## English
         /// All names of the flag argument.
-        namen: Namen<'t>,
+        name: Name<'t>,
 
         /// Präfix zum invertieren des Flag-Arguments.
         ///
@@ -137,7 +101,7 @@ pub enum Fehler<'t, E> {
         ///
         /// ## English
         /// All names of the value argument.
-        namen: Namen<'t>,
+        name: Name<'t>,
 
         /// Infix um einen Wert im selben Argument wie den Namen anzugeben.
         ///
@@ -160,7 +124,7 @@ pub enum Fehler<'t, E> {
         ///
         /// ## English
         /// All names of the value argument.
-        namen: Namen<'t>,
+        name: Name<'t>,
 
         /// Infix um einen Wert im selben Argument wie den Namen anzugeben.
         ///
@@ -286,7 +250,7 @@ impl<E: Display> Fehler<'_, E> {
     ) -> String {
         fn fehlermeldung(
             fehler_beschreibung: &str,
-            Namen { lang_präfix, lang, kurz_präfix, kurz }: &Namen<'_>,
+            Name { lang_präfix, lang, kurz_präfix, kurz }: &Name<'_>,
             flag_oder_wert: Either<
                 (&Normalisiert<'_>, &Normalisiert<'_>),
                 (&Normalisiert<'_>, &str),
@@ -324,15 +288,15 @@ impl<E: Display> Fehler<'_, E> {
             fehlermeldung
         }
         match self {
-            Fehler::FehlendeFlag { namen, invertiere_präfix, invertiere_infix } => fehlermeldung(
+            Fehler::FehlendeFlag { name, invertiere_präfix, invertiere_infix } => fehlermeldung(
                 fehlende_flag,
-                namen,
+                name,
                 Either::Left((invertiere_präfix, invertiere_infix)),
             ),
-            Fehler::FehlenderWert { namen, wert_infix, meta_var } => {
-                fehlermeldung(fehlender_wert, namen, Either::Right((wert_infix, meta_var)))
+            Fehler::FehlenderWert { name, wert_infix, meta_var } => {
+                fehlermeldung(fehlender_wert, name, Either::Right((wert_infix, meta_var)))
             },
-            Fehler::Fehler { namen, wert_infix, meta_var, fehler } => {
+            Fehler::Fehler { name, wert_infix, meta_var, fehler } => {
                 let (fehler_art, fehler_anzeige) = match fehler {
                     ParseFehler::InvaliderString(os_string) => {
                         (invalider_string, format!("{:?}", os_string))
@@ -340,7 +304,7 @@ impl<E: Display> Fehler<'_, E> {
                     ParseFehler::ParseFehler(fehler) => (parse_fehler, fehler.to_string()),
                 };
                 let mut fehlermeldung =
-                    fehlermeldung(fehler_art, namen, Either::Right((wert_infix, meta_var)));
+                    fehlermeldung(fehler_art, name, Either::Right((wert_infix, meta_var)));
                 fehlermeldung.push('\n');
                 fehlermeldung.push_str(&fehler_anzeige);
                 fehlermeldung

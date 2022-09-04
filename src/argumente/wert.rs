@@ -7,8 +7,8 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     argumente::{Argumente, Arguments},
-    beschreibung::{contains_prefix, contains_str, Beschreibung, Description, Konfiguration},
-    ergebnis::{Ergebnis, Fehler, Namen, ParseError, ParseFehler},
+    beschreibung::{contains_prefix, contains_str, Beschreibung, Description, Konfiguration, Name},
+    ergebnis::{Ergebnis, Fehler, ParseError, ParseFehler},
     sprache::{Language, Sprache},
     unicode::{Compare, Normalisiert, Vergleich},
 };
@@ -309,17 +309,14 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
             }],
             flag_kurzformen: HashMap::new(),
             parse: Box::new(move |args| {
-                let fehler_namen = || Namen {
-                    lang_präfix: name_lang_präfix.string.clone(),
-                    lang: name_lang.clone().map(|Vergleich { string, case: _ }| string),
-                    kurz_präfix: name_kurz_präfix.string.clone(),
-                    kurz: name_kurz
-                        .iter()
-                        .map(|Vergleich { string, case: _ }| string.clone())
-                        .collect(),
+                let fehler_namen = || Name {
+                    lang_präfix: name_lang_präfix.clone(),
+                    lang: name_lang.clone(),
+                    kurz_präfix: name_kurz_präfix.clone(),
+                    kurz: name_kurz.clone(),
                 };
                 let fehler_kein_wert = || Fehler::FehlenderWert {
-                    namen: fehler_namen(),
+                    name: fehler_namen(),
                     wert_infix: wert_infix_vergleich.string.clone(),
                     meta_var,
                 };
@@ -333,7 +330,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                         match parse(wert_os_str) {
                             Ok(wert) => ergebnis = Some(wert),
                             Err(parse_fehler) => fehler.push(Fehler::Fehler {
-                                namen: fehler_namen(),
+                                name: fehler_namen(),
                                 wert_infix: wert_infix_vergleich.string.clone(),
                                 meta_var,
                                 fehler: parse_fehler,
