@@ -170,10 +170,10 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
-        let name_lang_präfix = beschreibung.lang_präfix.clone();
-        let name_lang = beschreibung.lang.clone();
-        let name_kurz_präfix = beschreibung.kurz_präfix.clone();
-        let name_kurz = beschreibung.kurz.clone();
+        let name_lang_präfix = beschreibung.name.lang_präfix.clone();
+        let name_lang = beschreibung.name.lang.clone();
+        let name_kurz_präfix = beschreibung.name.kurz_präfix.clone();
+        let name_kurz = beschreibung.name.kurz.clone();
         let wert_infix_vergleich = wert_infix.into();
         let Argumente { parse, .. } = T::argumente(
             Beschreibung::neu(

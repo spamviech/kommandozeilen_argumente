@@ -221,12 +221,13 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         invertiere_infix: impl Into<Vergleich<'t>>,
         anzeige: impl Fn(&T) -> String,
     ) -> Argumente<'t, T, E> {
-        let name_lang_präfix = beschreibung.lang_präfix.clone();
-        let name_lang = beschreibung.lang.clone();
-        let name_kurz_präfix = beschreibung.kurz_präfix.clone();
-        let name_kurz = beschreibung.kurz.clone();
+        let name_lang_präfix = beschreibung.name.lang_präfix.clone();
+        let name_lang = beschreibung.name.lang.clone();
+        let name_kurz_präfix = beschreibung.name.kurz_präfix.clone();
+        let name_kurz = beschreibung.name.kurz.clone();
         let flag_kurzformen =
-            iter::once((beschreibung.kurz_präfix.clone(), beschreibung.kurz.clone())).collect();
+            iter::once((beschreibung.name.kurz_präfix.clone(), beschreibung.name.kurz.clone()))
+                .collect();
         let invertiere_präfix_vergleich = invertiere_präfix.into();
         let invertiere_infix_vergleich = invertiere_infix.into();
         let (beschreibung, standard) = beschreibung.als_string_beschreibung_allgemein(anzeige);

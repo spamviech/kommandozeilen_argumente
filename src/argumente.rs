@@ -516,48 +516,10 @@ pub mod test {
     use void::Void;
 
     use crate::{
-        beschreibung::{contains_prefix, contains_str},
+        beschreibung::{contains_prefix, contains_str, Beschreibung, Name},
         ergebnis::{Ergebnis, Fehler, ParseFehler},
         unicode::{Normalisiert, Vergleich},
     };
-
-    /// Vollständige Definition des Namens eines [Arguments](EinzelArgument).
-    ///
-    /// ## English
-    /// Full definition for the name of an [argument](EinzelArgument).
-    #[derive(Debug, Clone)]
-    pub struct Name<'t> {
-        /// Präfix vor dem LangNamen.
-        ///
-        /// ## English
-        /// Prefix before the long name.
-        pub lang_präfix: Vergleich<'t>,
-
-        /// Voller Name, wird nach `lang_präfix` angegeben.
-        ///
-        /// ## English
-        /// Full Name, given after `lang_präfix`.
-        pub lang: NonEmpty<Vergleich<'t>>,
-
-        /// Präfix vor dem KurzNamen.
-        ///
-        /// ## English
-        /// Prefix before the short name.
-        pub kurz_präfix: Vergleich<'t>,
-
-        /// Kurzer Name, wird nach `kurz_präfix` angegeben.
-        /// Bei Flag-Argumenten können KurzNamen mit identischen `kurz_präfix` zusammen angegeben werden,
-        /// zum Beispiel "-fgh".
-        /// Kurznamen länger als ein [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
-        /// werden nicht unterstützt.
-        ///
-        /// ## English
-        /// Short name, given after `short_präfix`.
-        /// Flag arguments with identical `kurz_präfix` may be given at once, e.g. "-fgh".
-        /// Short names longer than a [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
-        /// are not supported.
-        pub kurz: Vec<Vergleich<'t>>,
-    }
 
     impl Name<'_> {
         fn parse_flag_aux<E>(
@@ -593,7 +555,7 @@ pub mod test {
             Err(arg)
         }
 
-        pub fn parse_flag(
+        fn parse_flag(
             &self,
             invertiere_präfix: &Vergleich<'_>,
             invertiere_infix: &Vergleich<'_>,
@@ -617,11 +579,11 @@ pub mod test {
         }
 
         #[inline(always)]
-        pub fn parse_frühes_beenden(&self, arg: OsString) -> Result<(), OsString> {
+        fn parse_frühes_beenden(&self, arg: OsString) -> Result<(), OsString> {
             self.parse_flag_aux(|| (), |_, _| None, arg)
         }
 
-        pub fn parse_mit_wert(
+        fn parse_mit_wert(
             &self,
             wert_infix: &Vergleich<'_>,
             arg: OsString,
@@ -667,31 +629,6 @@ pub mod test {
             }
             Err(arg)
         }
-    }
-
-    /// Beschreibung eines [Kommandozeilen-Arguments](EinzelArgument).
-    ///
-    /// ## English synonym
-    /// [Description]
-    #[derive(Debug, Clone)]
-    pub struct Beschreibung<'t, T> {
-        /// Namen um das Argument zu verwenden.
-        ///
-        /// ## English
-        /// Name to use the argument.
-        pub name: Name<'t>,
-
-        /// Im automatischen Hilfetext angezeigte Beschreibung.
-        ///
-        /// ## English
-        /// Description shown in the automatically created help text.
-        pub hilfe: Option<&'t str>,
-
-        /// Standard-Wert falls kein passendes Kommandozeilen-Argument verwendet wurde.
-        ///
-        /// ## English
-        /// Default value if no fitting command line argument has been used.
-        pub standard: Option<T>,
     }
 
     /// Es handelt sich um ein Flag-Argument.
