@@ -9,12 +9,12 @@ use crate::{
     unicode::{Case, Compare, Normalisiert, Vergleich},
 };
 
-/// Beschreibung eines Kommandozeilen-Arguments.
+/// Vollständige Definition des Namens eines [Arguments](EinzelArgument).
 ///
-/// ## English synonym
-/// [Description]
+/// ## English
+/// Full definition for the name of an [argument](EinzelArgument).
 #[derive(Debug, Clone)]
-pub struct Beschreibung<'t, T> {
+pub struct Name<'t> {
     /// Präfix vor dem LangNamen.
     ///
     /// ## English
@@ -45,6 +45,19 @@ pub struct Beschreibung<'t, T> {
     /// Short names longer than a [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// are not supported.
     pub kurz: Vec<Vergleich<'t>>,
+}
+
+/// Beschreibung eines [Kommandozeilen-Arguments](EinzelArgument).
+///
+/// ## English synonym
+/// [Description]
+#[derive(Debug, Clone)]
+pub struct Beschreibung<'t, T> {
+    /// Namen um das Argument zu verwenden.
+    ///
+    /// ## English
+    /// Name to use the argument.
+    pub name: Name<'t>,
 
     /// Im automatischen Hilfetext angezeigte Beschreibung.
     ///
@@ -77,10 +90,15 @@ impl<'t, T> Beschreibung<'t, T> {
         self,
         anzeige: impl Fn(&T) -> String,
     ) -> (Beschreibung<'t, String>, Option<T>) {
-        let Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard } = self;
+        let Beschreibung { name: Name { lang_präfix, lang, kurz_präfix, kurz }, hilfe, standard } =
+            self;
         let standard_str = standard.as_ref().map(anzeige);
         (
-            Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard: standard_str },
+            Beschreibung {
+                name: Name { lang_präfix, lang, kurz_präfix, kurz },
+                hilfe,
+                standard: standard_str,
+            },
             standard,
         )
     }
@@ -90,15 +108,8 @@ impl<'t, T> Beschreibung<'t, T> {
     /// ## English synonym
     /// [convert](Description::convert)
     pub fn konvertiere<S>(self, konvertiere: impl FnOnce(T) -> S) -> Beschreibung<'t, S> {
-        let Beschreibung { lang_präfix, lang, kurz_präfix, kurz, hilfe, standard } = self;
-        Beschreibung {
-            lang_präfix,
-            lang,
-            kurz_präfix,
-            kurz,
-            hilfe,
-            standard: standard.map(konvertiere),
-        }
+        let Beschreibung { name, hilfe, standard } = self;
+        Beschreibung { name, hilfe, standard: standard.map(konvertiere) }
     }
 
     /// Convert a [Description] to a different type.
@@ -271,10 +282,12 @@ impl<'t, T> Beschreibung<'t, T> {
         standard: Option<T>,
     ) -> Beschreibung<'t, T> {
         Beschreibung {
-            lang_präfix: lang_präfix.into(),
-            lang: lang.lang_namen(),
-            kurz_präfix: kurz_präfix.into(),
-            kurz: kurz.kurz_namen(),
+            name: Name {
+                lang_präfix: lang_präfix.into(),
+                lang: lang.lang_namen(),
+                kurz_präfix: kurz_präfix.into(),
+                kurz: kurz.kurz_namen(),
+            },
             hilfe,
             standard,
         }

@@ -293,10 +293,10 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
         parse: impl 't + Fn(OsString) -> Result<T, ParseFehler<E>>,
         anzeige: impl Fn(&T) -> String,
     ) -> Argumente<'t, T, E> {
-        let name_lang_präfix = beschreibung.lang_präfix.clone();
-        let name_lang = beschreibung.lang.clone();
-        let name_kurz_präfix = beschreibung.kurz_präfix.clone();
-        let name_kurz = beschreibung.kurz.clone();
+        let name_lang_präfix = beschreibung.name.lang_präfix.clone();
+        let name_lang = beschreibung.name.lang.clone();
+        let name_kurz_präfix = beschreibung.name.kurz_präfix.clone();
+        let name_kurz = beschreibung.name.kurz.clone();
         let (beschreibung, standard) = beschreibung.als_string_beschreibung_allgemein(&anzeige);
         let wert_infix_vergleich = wert_infix.into();
         Argumente {

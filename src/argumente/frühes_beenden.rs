@@ -733,7 +733,7 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
                 },
             };
             let lang_regex =
-                lang_regex(&beschreibung.lang_präfix, &beschreibung.lang, flag_oder_wert);
+                lang_regex(&beschreibung.name.lang_präfix, &beschreibung.name.lang, flag_oder_wert);
             let lang_regex_breite = lang_regex.graphemes(true).count();
             max_lang_regex_breite = max_lang_regex_breite.max(lang_regex_breite);
             lang_regex_vec.push((
@@ -776,8 +776,8 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
                 max_lang_regex_breite,
                 lang_regex,
                 lang_regex_breite,
-                &beschreibung.kurz_präfix,
-                &beschreibung.kurz,
+                &beschreibung.name.kurz_präfix,
+                &beschreibung.name.kurz,
                 flag_oder_wert,
             );
             let name_regex_breite = name_regex.graphemes(true).count();
@@ -859,15 +859,15 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
         nachricht: impl Into<Cow<'t, str>>,
     ) -> Argumente<'t, T, E> {
         let Argumente { mut konfigurationen, mut flag_kurzformen, parse } = self;
-        let name_lang_präfix = beschreibung.lang_präfix.clone();
-        let name_lang = beschreibung.lang.clone();
-        let name_kurz_präfix = beschreibung.kurz_präfix.clone();
-        let name_kurz = beschreibung.kurz.clone();
+        let name_lang_präfix = beschreibung.name.lang_präfix.clone();
+        let name_lang = beschreibung.name.lang.clone();
+        let name_kurz_präfix = beschreibung.name.kurz_präfix.clone();
+        let name_kurz = beschreibung.name.kurz.clone();
         let (beschreibung_string, _standard) = beschreibung.als_string_beschreibung();
         flag_kurzformen
-            .entry(beschreibung_string.kurz_präfix.clone())
+            .entry(beschreibung_string.name.kurz_präfix.clone())
             .or_insert(Vec::new())
-            .extend(beschreibung_string.kurz.iter().cloned());
+            .extend(beschreibung_string.name.kurz.iter().cloned());
         konfigurationen.push(Konfiguration::Flag {
             beschreibung: beschreibung_string,
             invertiere_präfix_infix: None,
