@@ -705,18 +705,8 @@ pub mod test {
             let ergebnis = if let Some(wert) = standard {
                 Ergebnis::Wert(wert.clone())
             } else {
-                // FIXME Fehler-Typ anpassen
                 let fehler = Fehler::FehlendeFlag {
-                    namen: crate::ergebnis::Namen {
-                        lang_präfix: name.lang_präfix.string.clone(),
-                        lang: name.lang.clone().map(|Vergleich { string, case: _ }| string),
-                        kurz_präfix: name.kurz_präfix.string.clone(),
-                        kurz: name
-                            .kurz
-                            .iter()
-                            .map(|Vergleich { string, case: _ }| string.clone())
-                            .collect(),
-                    },
+                    name: name.clone(),
                     invertiere_präfix: invertiere_präfix.string.clone(),
                     invertiere_infix: invertiere_infix.string.clone(),
                 };

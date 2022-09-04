@@ -8,8 +8,8 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
     argumente::{Argumente, Arguments},
-    beschreibung::{contains_str, Beschreibung, Description, Konfiguration},
-    ergebnis::{Ergebnis, Fehler, Namen},
+    beschreibung::{contains_str, Beschreibung, Description, Konfiguration, Name},
+    ergebnis::{Ergebnis, Fehler},
     sprache::{Language, Sprache},
     unicode::{Normalisiert, Vergleich},
 };
@@ -292,14 +292,11 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                     Ergebnis::Wert(wert.clone())
                 } else {
                     let fehler = Fehler::FehlendeFlag {
-                        namen: Namen {
-                            lang_präfix: name_lang_präfix.string.clone(),
-                            lang: name_lang.clone().map(|Vergleich { string, case: _ }| string),
-                            kurz_präfix: name_kurz_präfix.string.clone(),
-                            kurz: name_kurz
-                                .iter()
-                                .map(|Vergleich { string, case: _ }| string.clone())
-                                .collect(),
+                        name: Name {
+                            lang_präfix: name_lang_präfix.clone(),
+                            lang: name_lang.clone(),
+                            kurz_präfix: name_kurz_präfix.clone(),
+                            kurz: name_kurz.clone(),
                         },
                         invertiere_präfix: invertiere_präfix_vergleich.string.clone(),
                         invertiere_infix: invertiere_infix_vergleich.string.clone(),

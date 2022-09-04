@@ -9,10 +9,10 @@ use crate::{
     unicode::{Case, Compare, Normalisiert, Vergleich},
 };
 
-/// Vollständige Definition des Namens eines [Arguments](EinzelArgument).
+/// Alle Namen eines Arguments.
 ///
 /// ## English
-/// Full definition for the name of an [argument](EinzelArgument).
+/// All names of an argument.
 #[derive(Debug, Clone)]
 pub struct Name<'t> {
     /// Präfix vor dem LangNamen.

@@ -199,36 +199,31 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
             });
         type F<'s, T> =
             Box<dyn 's + Fn(NonEmpty<Fehler<'_, String>>) -> Ergebnis<'_, Option<T>, String>>;
-        let verwende_standard: F<'t, T> =
-            if let Some(standard) = option_standard {
-                Box::new(move |fehler_sammlung| {
-                    let mut fehler_iter =
-                        fehler_sammlung.into_iter().filter_map(|fehler| match fehler {
-                            Fehler::FehlenderWert { namen, wert_infix, meta_var } => {
-                                let passender_lang_name = namen.lang.iter().eq(name_lang
-                                    .iter()
-                                    .map(|Vergleich { string, case: _ }| string));
-                                let passender_kurz_name = namen.kurz.iter().eq(name_kurz
-                                    .iter()
-                                    .map(|Vergleich { string, case: _ }| string));
-                                if passender_lang_name && passender_kurz_name {
-                                    None
-                                } else {
-                                    Some(Fehler::FehlenderWert { namen, wert_infix, meta_var })
-                                }
-                            },
-                            fehler => Some(fehler),
-                        });
-                    if let Some(head) = fehler_iter.next() {
-                        let tail = fehler_iter.collect();
-                        Ergebnis::Fehler(NonEmpty { head, tail })
-                    } else {
-                        Ergebnis::Wert(standard.clone())
-                    }
-                })
-            } else {
-                Box::new(|e| Ergebnis::Fehler(e))
-            };
+        let verwende_standard: F<'t, T> = if let Some(standard) = option_standard {
+            Box::new(move |fehler_sammlung| {
+                let mut fehler_iter =
+                    fehler_sammlung.into_iter().filter_map(|fehler| match fehler {
+                        Fehler::FehlenderWert { name, wert_infix, meta_var } => {
+                            let passender_lang_name = name.lang.iter().eq(name_lang.iter());
+                            let passender_kurz_name = name.kurz.iter().eq(name_kurz.iter());
+                            if passender_lang_name && passender_kurz_name {
+                                None
+                            } else {
+                                Some(Fehler::FehlenderWert { name, wert_infix, meta_var })
+                            }
+                        },
+                        fehler => Some(fehler),
+                    });
+                if let Some(head) = fehler_iter.next() {
+                    let tail = fehler_iter.collect();
+                    Ergebnis::Fehler(NonEmpty { head, tail })
+                } else {
+                    Ergebnis::Wert(standard.clone())
+                }
+            })
+        } else {
+            Box::new(|e| Ergebnis::Fehler(e))
+        };
         Argumente {
             konfigurationen: vec![Konfiguration::Wert {
                 beschreibung: beschreibung_string,
