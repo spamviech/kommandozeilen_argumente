@@ -771,10 +771,10 @@ pub mod test {
     }
 
     impl<'t> FrühesBeenden<'t> {
-        fn parse<T, F>(
+        fn parse<F>(
             self,
             args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
+        ) -> (Ergebnis<'t, (), F>, Vec<Option<OsString>>) {
             let FrühesBeenden { beschreibung, nachricht } = self;
             let Beschreibung { name, hilfe: _, standard } = beschreibung;
             let mut nicht_verwendet = Vec::new();
@@ -798,8 +798,7 @@ pub mod test {
             let ergebnis = if let Some(wert) = standard {
                 void::unreachable(wert)
             } else {
-                let wert = todo!("Wert");
-                Ergebnis::Wert(wert)
+                Ergebnis::Wert(())
             };
             (ergebnis, nicht_verwendet)
         }
@@ -1021,7 +1020,7 @@ pub mod test {
         ///
         /// ## English
         /// It is a flag argument, causing an early exit.
-        FrühesBeenden(FrühesBeenden<'t>),
+        FrühesBeenden { frühes_beenden: FrühesBeenden<'t>, wert: T },
 
         /// Es handelt sich um ein Wert-Argument.
         ///
@@ -1056,7 +1055,10 @@ pub mod test {
         ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
             match self {
                 EinzelArgument::Flag(flag) => flag.parse(args),
-                EinzelArgument::FrühesBeenden(frühes_beenden) => frühes_beenden.parse(args),
+                EinzelArgument::FrühesBeenden { frühes_beenden, wert } => {
+                    let (ergebnis, nicht_verwendet) = frühes_beenden.parse(args);
+                    (ergebnis.konvertiere(|()| wert), nicht_verwendet)
+                },
                 EinzelArgument::Wert(wert) => wert.parse(args),
             }
         }
@@ -1070,7 +1072,7 @@ pub mod test {
         ) -> (String, Option<Cow<'_, str>>) {
             match self {
                 EinzelArgument::Flag(flag) => flag.erzeuge_hilfe_text(meta_standard),
-                EinzelArgument::FrühesBeenden(frühes_beenden) => {
+                EinzelArgument::FrühesBeenden { frühes_beenden, wert: _ } => {
                     frühes_beenden.erzeuge_hilfe_text()
                 },
                 EinzelArgument::Wert(wert) => {
