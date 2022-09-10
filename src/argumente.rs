@@ -526,17 +526,17 @@ pub mod test {
             &self,
             name_gefunden: impl FnOnce() -> E,
             parse_invertiert: impl FnOnce(&NonEmpty<Vergleich<'_>>, &Normalisiert<'_>) -> Option<E>,
-            arg: OsString,
-        ) -> Result<E, OsString> {
+            arg: &OsString,
+        ) -> Option<E> {
             let Name { lang_präfix, lang, kurz_präfix, kurz } = self;
             let name_kurz_existiert = !kurz.is_empty();
             if let Some(string) = arg.to_str() {
                 let normalisiert = Normalisiert::neu(string);
                 if let Some(lang_str) = &lang_präfix.strip_als_präfix_n(&normalisiert) {
                     if contains_str(lang, lang_str.as_str()) {
-                        return Ok(name_gefunden());
+                        return Some(name_gefunden());
                     } else if let Some(e) = parse_invertiert(lang, lang_str) {
-                        return Ok(e);
+                        return Some(e);
                     }
                 } else if name_kurz_existiert {
                     if let Some(kurz_graphemes) = kurz_präfix.strip_als_präfix_n(&normalisiert) {
@@ -547,20 +547,20 @@ pub mod test {
                             .map(|name| contains_str(kurz, name))
                             .unwrap_or(false)
                         {
-                            return Ok(name_gefunden());
+                            return Some(name_gefunden());
                         }
                     }
                 }
             }
-            Err(arg)
+            None
         }
 
         fn parse_flag(
             &self,
             invertiere_präfix: &Vergleich<'_>,
             invertiere_infix: &Vergleich<'_>,
-            arg: OsString,
-        ) -> Result<bool, OsString> {
+            arg: &OsString,
+        ) -> Option<bool> {
             let parse_invertiert =
                 |lang: &NonEmpty<Vergleich<'_>>, lang_str: &Normalisiert<'_>| -> Option<bool> {
                     if let Some(infix_name) = invertiere_präfix.strip_als_präfix_n(&lang_str) {
@@ -579,15 +579,15 @@ pub mod test {
         }
 
         #[inline(always)]
-        fn parse_frühes_beenden(&self, arg: OsString) -> Result<(), OsString> {
-            self.parse_flag_aux(|| (), |_, _| None, arg)
+        fn parse_frühes_beenden(&self, arg: &OsString) -> bool {
+            self.parse_flag_aux(|| (), |_, _| None, arg).is_some()
         }
 
         fn parse_mit_wert(
             &self,
             wert_infix: &Vergleich<'_>,
-            arg: OsString,
-        ) -> Result<Option<OsString>, OsString> {
+            arg: &OsString,
+        ) -> Option<Option<OsString>> {
             let Name { lang_präfix, lang, kurz_präfix, kurz } = self;
             let kurz_existiert = !kurz.is_empty();
             if let Some(string) = arg.to_str() {
@@ -597,11 +597,11 @@ pub mod test {
                     for suffix in suffixe {
                         let suffix_normalisiert = Normalisiert::neu_borrowed_unchecked(suffix);
                         if suffix.is_empty() {
-                            return Ok(None);
+                            return Some(None);
                         } else if let Some(wert_graphemes) =
                             wert_infix.strip_als_präfix_n(&suffix_normalisiert)
                         {
-                            return Ok(Some(wert_graphemes.as_str().to_owned().into()));
+                            return Some(Some(OsString::from(wert_graphemes.as_str().to_owned())));
                         }
                     }
                 } else if kurz_existiert {
@@ -620,14 +620,14 @@ pub mod test {
                                 let wert_str = wert_infix
                                     .strip_als_präfix_n(&rest)
                                     .unwrap_or_else(|| rest.clone());
-                                Some(wert_str.as_str().to_owned().into())
+                                Some(OsString::from(wert_str.as_str().to_owned()))
                             };
-                            return Ok(wert_str);
+                            return Some(wert_str);
                         }
                     }
                 }
             }
-            Err(arg)
+            None
         }
     }
 
@@ -687,18 +687,17 @@ pub mod test {
             let Beschreibung { name, hilfe: _, standard } = beschreibung;
             let mut nicht_verwendet = Vec::new();
             let mut iter = args.into_iter();
-            while let Some(arg) = iter.next() {
-                if let Some(arg) = arg {
-                    match name.parse_flag(&invertiere_präfix, &invertiere_infix, arg) {
-                        Ok(b) => {
-                            nicht_verwendet.push(None);
-                            nicht_verwendet.extend(iter);
-                            return (Ergebnis::Wert(konvertiere(b)), nicht_verwendet);
-                        },
-                        Err(arg) => nicht_verwendet.push(Some(arg)),
+            while let Some(arg_opt) = iter.next() {
+                if let Some(arg) = &arg_opt {
+                    if let Some(b) = name.parse_flag(&invertiere_präfix, &invertiere_infix, &arg) {
+                        nicht_verwendet.push(None);
+                        nicht_verwendet.extend(iter);
+                        return (Ergebnis::Wert(konvertiere(b)), nicht_verwendet);
+                    } else {
+                        nicht_verwendet.push(arg_opt)
                     }
                 } else {
-                    nicht_verwendet.push(None)
+                    nicht_verwendet.push(arg_opt)
                 }
             }
             let ergebnis = if let Some(wert) = standard {
@@ -780,21 +779,20 @@ pub mod test {
             let Beschreibung { name, hilfe: _, standard } = beschreibung;
             let mut nicht_verwendet = Vec::new();
             let mut iter = args.into_iter();
-            while let Some(arg) = iter.next() {
-                if let Some(arg) = arg {
-                    match name.parse_frühes_beenden(arg) {
-                        Ok(()) => {
-                            nicht_verwendet.push(None);
-                            nicht_verwendet.extend(iter);
-                            return (
-                                Ergebnis::FrühesBeenden(NonEmpty::singleton(nachricht)),
-                                nicht_verwendet,
-                            );
-                        },
-                        Err(arg) => nicht_verwendet.push(Some(arg)),
+            while let Some(arg_opt) = iter.next() {
+                if let Some(arg) = &arg_opt {
+                    if name.parse_frühes_beenden(&arg) {
+                        nicht_verwendet.push(None);
+                        nicht_verwendet.extend(iter);
+                        return (
+                            Ergebnis::FrühesBeenden(NonEmpty::singleton(nachricht)),
+                            nicht_verwendet,
+                        );
+                    } else {
+                        nicht_verwendet.push(arg_opt)
                     }
                 } else {
-                    nicht_verwendet.push(None)
+                    nicht_verwendet.push(arg_opt)
                 }
             }
             let ergebnis = if let Some(wert) = standard {
@@ -904,19 +902,18 @@ pub mod test {
             let Beschreibung { name, hilfe: _, standard } = beschreibung;
             let mut nicht_verwendet = Vec::new();
             let mut iter = args.into_iter();
-            while let Some(arg) = iter.next() {
-                if let Some(arg) = arg {
-                    match name.parse_mit_wert(&wert_infix, arg) {
-                        Ok(wert) => {
-                            // nicht_verwendet.push(None);
-                            // nicht_verwendet.extend(iter);
-                            // return (
-                            //     Ergebnis::FrühesBeenden(NonEmpty::singleton(nachricht)),
-                            //     nicht_verwendet,
-                            // );
-                            todo!()
-                        },
-                        Err(arg) => nicht_verwendet.push(Some(arg)),
+            while let Some(arg_opt) = iter.next() {
+                if let Some(arg) = &arg_opt {
+                    if let Some(wert) = name.parse_mit_wert(&wert_infix, arg) {
+                        // nicht_verwendet.push(None);
+                        // nicht_verwendet.extend(iter);
+                        // return (
+                        //     Ergebnis::FrühesBeenden(NonEmpty::singleton(nachricht)),
+                        //     nicht_verwendet,
+                        // );
+                        todo!()
+                    } else {
+                        nicht_verwendet.push(arg_opt)
                     }
                 } else {
                     nicht_verwendet.push(None)
