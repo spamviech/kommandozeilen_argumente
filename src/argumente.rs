@@ -508,7 +508,10 @@ impl<'t, T, E> Argumente<'t, T, E> {
 pub mod test {
     #![allow(missing_docs)]
 
-    use std::{borrow::Cow, ffi::OsString};
+    use std::{
+        borrow::Cow,
+        ffi::{OsStr, OsString},
+    };
 
     use itertools::Itertools;
     use nonempty::NonEmpty;
@@ -526,7 +529,7 @@ pub mod test {
             &self,
             name_gefunden: impl FnOnce() -> E,
             parse_invertiert: impl FnOnce(&NonEmpty<Vergleich<'_>>, &Normalisiert<'_>) -> Option<E>,
-            arg: &OsString,
+            arg: &OsStr,
         ) -> Option<E> {
             let Name { lang_präfix, lang, kurz_präfix, kurz } = self;
             let name_kurz_existiert = !kurz.is_empty();
@@ -559,7 +562,7 @@ pub mod test {
             &self,
             invertiere_präfix: &Vergleich<'_>,
             invertiere_infix: &Vergleich<'_>,
-            arg: &OsString,
+            arg: &OsStr,
         ) -> Option<bool> {
             let parse_invertiert =
                 |lang: &NonEmpty<Vergleich<'_>>, lang_str: &Normalisiert<'_>| -> Option<bool> {
@@ -579,14 +582,15 @@ pub mod test {
         }
 
         #[inline(always)]
-        fn parse_frühes_beenden(&self, arg: &OsString) -> bool {
+        fn parse_frühes_beenden(&self, arg: &OsStr) -> bool {
             self.parse_flag_aux(|| (), |_, _| None, arg).is_some()
         }
 
+        // TODO return a Cow<'t, OsStr>?
         fn parse_mit_wert(
             &self,
             wert_infix: &Vergleich<'_>,
-            arg: &OsString,
+            arg: &OsStr,
         ) -> Option<Option<OsString>> {
             let Name { lang_präfix, lang, kurz_präfix, kurz } = self;
             let kurz_existiert = !kurz.is_empty();
@@ -831,7 +835,7 @@ pub mod test {
     #[derive(Debug)]
     pub struct Wert<'t, T, Parse, Fehler, Anzeige>
     where
-        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
         Anzeige: Fn(&T) -> String,
     {
         /// Allgemeine Beschreibung des Arguments.
@@ -889,33 +893,56 @@ pub mod test {
 
     impl<'t, T, Parse, F, Anzeige> Wert<'t, T, Parse, F, Anzeige>
     where
-        Parse: Fn(OsString) -> Result<T, ParseFehler<F>>,
+        Parse: Fn(&OsStr) -> Result<T, ParseFehler<F>>,
         Anzeige: Fn(&T) -> String,
     {
-        fn parse(
+        fn parse<I: Iterator<Item = Option<OsString>>>(
             self,
-            args: impl Iterator<Item = Option<OsString>>,
+            args: I,
         ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
             let Wert { beschreibung, wert_infix, meta_var, mögliche_werte: _, parse, anzeige: _ } =
                 self;
             let Beschreibung { name, hilfe: _, standard } = beschreibung;
             let mut nicht_verwendet = Vec::new();
             let mut iter = args.into_iter();
+            let mut name_ohne_wert = None;
+            let parse_wert = |arg: &OsStr,
+                              mut nicht_verwendet: Vec<_>,
+                              name: Name<'t>,
+                              wert_infix: Vergleich<'t>,
+                              iter: I|
+             -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
+                nicht_verwendet.push(None);
+                nicht_verwendet.extend(iter);
+                let ergebnis = match parse(arg) {
+                    Ok(wert) => Ergebnis::Wert(wert),
+                    Err(fehler) => Ergebnis::Fehler(NonEmpty::singleton(Fehler::Fehler {
+                        name,
+                        wert_infix: wert_infix.string,
+                        meta_var,
+                        fehler,
+                    })),
+                };
+                (ergebnis, nicht_verwendet)
+            };
             while let Some(arg_opt) = iter.next() {
                 if let Some(arg) = &arg_opt {
-                    if let Some(wert) = name.parse_mit_wert(&wert_infix, arg) {
-                        // nicht_verwendet.push(None);
-                        // nicht_verwendet.extend(iter);
-                        // return (
-                        //     Ergebnis::FrühesBeenden(NonEmpty::singleton(nachricht)),
-                        //     nicht_verwendet,
-                        // );
-                        todo!()
+                    if let Some(_name_arg) = name_ohne_wert.take() {
+                        return parse_wert(arg, nicht_verwendet, name, wert_infix, iter);
+                    } else if let Some(wert_opt) = name.parse_mit_wert(&wert_infix, arg) {
+                        if let Some(wert_str) = wert_opt {
+                            return parse_wert(&wert_str, nicht_verwendet, name, wert_infix, iter);
+                        } else {
+                            name_ohne_wert = Some(arg_opt);
+                        }
                     } else {
                         nicht_verwendet.push(arg_opt)
                     }
                 } else {
-                    nicht_verwendet.push(None)
+                    if let Some(name) = name_ohne_wert.take() {
+                        nicht_verwendet.push(name);
+                    }
+                    nicht_verwendet.push(arg_opt);
                 }
             }
             let ergebnis = if let Some(wert) = standard {
@@ -1007,7 +1034,7 @@ pub mod test {
     pub enum EinzelArgument<'t, T, Bool, Parse, Fehler, Anzeige>
     where
         Bool: Fn(bool) -> T,
-        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
         Anzeige: Fn(&T) -> String,
     {
         /// Es handelt sich um ein Flag-Argument.
@@ -1046,7 +1073,7 @@ pub mod test {
     impl<'t, T, Bool, Parse, Fehler, Anzeige> EinzelArgument<'t, T, Bool, Parse, Fehler, Anzeige>
     where
         Bool: Fn(bool) -> T,
-        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
         Anzeige: Fn(&T) -> String,
     {
         fn parse(
@@ -1095,7 +1122,7 @@ pub mod test {
         ) -> (String, Option<Cow<'t, str>>)
         where
             Bool: Fn(bool) -> S,
-            Parse: Fn(OsString) -> Result<S, ParseFehler<Fehler>>,
+            Parse: Fn(&OsStr) -> Result<S, ParseFehler<Fehler>>,
             Anzeige: Fn(&S) -> String;
     }
 
@@ -1111,7 +1138,7 @@ pub mod test {
         ) -> (String, Option<Cow<'t, str>>)
         where
             Bool: Fn(bool) -> S,
-            Parse: Fn(OsString) -> Result<S, ParseFehler<Fehler>>,
+            Parse: Fn(&OsStr) -> Result<S, ParseFehler<Fehler>>,
             Anzeige: Fn(&S) -> String,
         {
             arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)
@@ -1161,12 +1188,12 @@ pub mod test {
         't1: 't,
         K: Fn(T0, T1) -> T,
         B0: Fn(bool) -> T0,
-        P0: Fn(OsString) -> Result<T0, ParseFehler<F0>>,
+        P0: Fn(&OsStr) -> Result<T0, ParseFehler<F0>>,
         F0: Into<F>,
         A0: Fn(&T0) -> String,
         K0: Kombiniere<'t0, T0, B0, P0, F0, A0>,
         B1: Fn(bool) -> T1,
-        P1: Fn(OsString) -> Result<T1, ParseFehler<F1>>,
+        P1: Fn(&OsStr) -> Result<T1, ParseFehler<F1>>,
         F1: Into<F>,
         A1: Fn(&T1) -> String,
         K1: Kombiniere<'t1, T1, B1, P1, F1, A1>,
@@ -1222,7 +1249,7 @@ pub mod test {
     pub enum ArgTest<'t, T, Bool, Parse, Fehler, Anzeige, K>
     where
         Bool: Fn(bool) -> T,
-        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
         Anzeige: Fn(&T) -> String,
         K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
     {
@@ -1247,7 +1274,7 @@ pub mod test {
     impl<'t, T, Bool, Parse, Fehler, Anzeige, K> ArgTest<'t, T, Bool, Parse, Fehler, Anzeige, K>
     where
         Bool: Fn(bool) -> T,
-        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
         Anzeige: Fn(&T) -> String,
         K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
     {
