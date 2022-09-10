@@ -1153,24 +1153,28 @@ pub mod test {
         }
     }
 
-    impl<'t, 't0: 't, 't1: 't, F, T, B, P, Fehler, A, T0, B0, P0, A0, K0, T1, B1, P1, A1, K1>
-        Kombiniere<'t, T, B, P, Fehler, A>
-        for (F, ArgTest<'t0, T0, B0, P0, Fehler, A0, K0>, ArgTest<'t1, T1, B1, P1, Fehler, A1, K1>)
+    impl<'t, 't0, 't1, K, T, B, P, F, A, T0, B0, P0, F0, A0, K0, T1, B1, P1, F1, A1, K1>
+        Kombiniere<'t, T, B, P, F, A>
+        for (K, ArgTest<'t0, T0, B0, P0, F0, A0, K0>, ArgTest<'t1, T1, B1, P1, F1, A1, K1>)
     where
-        F: Fn(T0, T1) -> T,
+        't0: 't,
+        't1: 't,
+        K: Fn(T0, T1) -> T,
         B0: Fn(bool) -> T0,
-        P0: Fn(OsString) -> Result<T0, ParseFehler<Fehler>>,
+        P0: Fn(OsString) -> Result<T0, ParseFehler<F0>>,
+        F0: Into<F>,
         A0: Fn(&T0) -> String,
-        K0: Kombiniere<'t0, T0, B0, P0, Fehler, A0>,
+        K0: Kombiniere<'t0, T0, B0, P0, F0, A0>,
         B1: Fn(bool) -> T1,
-        P1: Fn(OsString) -> Result<T1, ParseFehler<Fehler>>,
+        P1: Fn(OsString) -> Result<T1, ParseFehler<F1>>,
+        F1: Into<F>,
         A1: Fn(&T1) -> String,
-        K1: Kombiniere<'t1, T1, B1, P1, Fehler, A1>,
+        K1: Kombiniere<'t1, T1, B1, P1, F1, A1>,
     {
         fn parse(
             self,
             args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
+        ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
             use Ergebnis::*;
 
             let (f, a0, a1) = self;
@@ -1179,15 +1183,20 @@ pub mod test {
             let ergebnis = match (e0, e1) {
                 (Wert(w0), Wert(w1)) => Wert(f(w0, w1)),
                 (Wert(_w0), FrühesBeenden(n1)) => FrühesBeenden(n1),
-                (Wert(_w0), Fehler(f1)) => Fehler(f1),
+                (Wert(_w0), Fehler(f1)) => Fehler(f1.map(|fehler| fehler.konvertiere(F1::into))),
                 (FrühesBeenden(n0), Wert(_w1)) => FrühesBeenden(n0),
                 (FrühesBeenden(n0), FrühesBeenden(_n1)) => FrühesBeenden(n0),
-                (FrühesBeenden(_n0), Fehler(f1)) => Fehler(f1),
-                (Fehler(f0), Wert(_w1)) => Fehler(f0),
-                (Fehler(f0), FrühesBeenden(_n1)) => Fehler(f0),
-                (Fehler(mut f0), Fehler(f1)) => {
-                    f0.extend(f1);
-                    Fehler(f0)
+                (FrühesBeenden(_n0), Fehler(f1)) => {
+                    Fehler(f1.map(|fehler| fehler.konvertiere(F1::into)))
+                },
+                (Fehler(f0), Wert(_w1)) => Fehler(f0.map(|fehler| fehler.konvertiere(F0::into))),
+                (Fehler(f0), FrühesBeenden(_n1)) => {
+                    Fehler(f0.map(|fehler| fehler.konvertiere(F0::into)))
+                },
+                (Fehler(f0), Fehler(f1)) => {
+                    let mut f = f0.map(|fehler| fehler.konvertiere(F0::into));
+                    f.extend(f1.into_iter().map(|fehler| fehler.konvertiere(F1::into)));
+                    Fehler(f)
                 },
             };
             (ergebnis, nicht_verwendet1)

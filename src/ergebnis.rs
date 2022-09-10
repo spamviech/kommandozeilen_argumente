@@ -152,6 +152,43 @@ pub enum Fehler<'t, E> {
 /// [Fehler]
 pub type Error<'t, E> = Fehler<'t, E>;
 
+impl<'t, E> Fehler<'t, E> {
+    /// Konvertiere einen Fehler mit der spezifizierten Funktion.
+    ///
+    /// ## English synonym
+    /// [convert](Result::convert)
+    pub fn konvertiere<F>(self, f: impl FnOnce(E) -> F) -> Fehler<'t, F> {
+        match self {
+            Fehler::FehlendeFlag { name, invertiere_präfix, invertiere_infix } => {
+                Fehler::FehlendeFlag { name, invertiere_präfix, invertiere_infix }
+            },
+            Fehler::FehlenderWert { name, wert_infix, meta_var } => {
+                Fehler::FehlenderWert { name, wert_infix, meta_var }
+            },
+            Fehler::Fehler { name, wert_infix, meta_var, fehler } => {
+                let fehler = match fehler {
+                    ParseFehler::InvaliderString(os_string) => {
+                        ParseFehler::InvaliderString(os_string)
+                    },
+                    ParseFehler::ParseFehler(parse_fehler) => {
+                        ParseFehler::ParseFehler(f(parse_fehler))
+                    },
+                };
+                Fehler::Fehler { name, wert_infix, meta_var, fehler }
+            },
+        }
+    }
+
+    /// Convert an error using the specified function.
+    ///
+    /// ## Deutsches Synonym
+    /// [konvertiere](Ergebnis::konvertiere)
+    #[inline(always)]
+    pub fn convert<F>(self, f: impl FnOnce(E) -> F) -> Error<'t, F> {
+        self.konvertiere(f)
+    }
+}
+
 pub(crate) fn namen_regex_hinzufügen<S: AsRef<str>>(string: &mut String, head: &S, tail: &[S]) {
     if !tail.is_empty() {
         string.push('(')
@@ -169,31 +206,6 @@ pub(crate) fn namen_regex_hinzufügen<S: AsRef<str>>(string: &mut String, head: 
         string.push(')')
     }
 }
-
-/// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr](std::ffi::OsStr).
-///
-/// ## English synonym
-/// [ParseError]
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[allow(single_use_lifetimes)]
-pub enum ParseFehler<E> {
-    /// Die Konvertierung in ein [&str](str) ist fehlgeschlagen.
-    ///
-    /// ## English
-    /// Conversion to a [&str](str) failed.
-    InvaliderString(OsString),
-    /// Fehler beim Parsen des Strings.
-    ///
-    /// ## English
-    /// Error while parsing the string.
-    ParseFehler(E),
-}
-
-/// Possible errors when parsing an [OsStr](std::ffi::OsStr).
-///
-/// ## Deutsches Synonym
-/// [ParseFehler]
-pub type ParseError<E> = ParseFehler<E>;
 
 impl<E: Display> Fehler<'_, E> {
     /// Zeige den Fehler in Menschen-lesbarer Form an.
@@ -327,3 +339,28 @@ impl<E: Display> Fehler<'_, E> {
         self.erstelle_fehlermeldung(missing_flag, missing_value, parse_error, invalid_string)
     }
 }
+
+/// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr](std::ffi::OsStr).
+///
+/// ## English synonym
+/// [ParseError]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(single_use_lifetimes)]
+pub enum ParseFehler<E> {
+    /// Die Konvertierung in ein [&str](str) ist fehlgeschlagen.
+    ///
+    /// ## English
+    /// Conversion to a [&str](str) failed.
+    InvaliderString(OsString),
+    /// Fehler beim Parsen des Strings.
+    ///
+    /// ## English
+    /// Error while parsing the string.
+    ParseFehler(E),
+}
+
+/// Possible errors when parsing an [OsStr](std::ffi::OsStr).
+///
+/// ## Deutsches Synonym
+/// [ParseFehler]
+pub type ParseError<E> = ParseFehler<E>;
