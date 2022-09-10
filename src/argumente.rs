@@ -508,7 +508,7 @@ impl<'t, T, E> Argumente<'t, T, E> {
 pub mod test {
     #![allow(missing_docs)]
 
-    use std::{borrow::Cow, ffi::OsString, iter};
+    use std::{borrow::Cow, ffi::OsString};
 
     use itertools::Itertools;
     use nonempty::NonEmpty;
@@ -705,9 +705,9 @@ pub mod test {
                 Ergebnis::Wert(wert)
             } else {
                 let fehler = Fehler::FehlendeFlag {
-                    name: name.clone(),
-                    invertiere_präfix: invertiere_präfix.string.clone(),
-                    invertiere_infix: invertiere_infix.string.clone(),
+                    name,
+                    invertiere_präfix: invertiere_präfix.string,
+                    invertiere_infix: invertiere_infix.string,
                 };
                 Ergebnis::Fehler(NonEmpty::singleton(fehler))
             };
@@ -772,10 +772,10 @@ pub mod test {
     }
 
     impl<'t> FrühesBeenden<'t> {
-        fn parse<F>(
+        fn parse<T, F>(
             self,
             args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'t, (), F>, Vec<Option<OsString>>) {
+        ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
             let FrühesBeenden { beschreibung, nachricht } = self;
             let Beschreibung { name, hilfe: _, standard } = beschreibung;
             let mut nicht_verwendet = Vec::new();
@@ -800,7 +800,8 @@ pub mod test {
             let ergebnis = if let Some(wert) = standard {
                 void::unreachable(wert)
             } else {
-                Ergebnis::Wert(())
+                let wert = todo!("Wert");
+                Ergebnis::Wert(wert)
             };
             (ergebnis, nicht_verwendet)
         }
@@ -889,16 +890,48 @@ pub mod test {
         }
     }
 
-    impl<'t, T, Parse, Fehler, Anzeige> Wert<'t, T, Parse, Fehler, Anzeige>
+    impl<'t, T, Parse, F, Anzeige> Wert<'t, T, Parse, F, Anzeige>
     where
-        Parse: Fn(OsString) -> Result<T, ParseFehler<Fehler>>,
+        Parse: Fn(OsString) -> Result<T, ParseFehler<F>>,
         Anzeige: Fn(&T) -> String,
     {
         fn parse(
             self,
             args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
-            todo!()
+        ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
+            let Wert { beschreibung, wert_infix, meta_var, mögliche_werte: _, parse, anzeige: _ } =
+                self;
+            let Beschreibung { name, hilfe: _, standard } = beschreibung;
+            let mut nicht_verwendet = Vec::new();
+            let mut iter = args.into_iter();
+            while let Some(arg) = iter.next() {
+                if let Some(arg) = arg {
+                    match name.parse_mit_wert(&wert_infix, arg) {
+                        Ok(wert) => {
+                            // nicht_verwendet.push(None);
+                            // nicht_verwendet.extend(iter);
+                            // return (
+                            //     Ergebnis::FrühesBeenden(NonEmpty::singleton(nachricht)),
+                            //     nicht_verwendet,
+                            // );
+                            todo!()
+                        },
+                        Err(arg) => nicht_verwendet.push(Some(arg)),
+                    }
+                } else {
+                    nicht_verwendet.push(None)
+                }
+            }
+            let ergebnis = if let Some(wert) = standard {
+                Ergebnis::Wert(wert)
+            } else {
+                Ergebnis::Fehler(NonEmpty::singleton(Fehler::FehlenderWert {
+                    name,
+                    wert_infix: wert_infix.string,
+                    meta_var,
+                }))
+            };
+            (ergebnis, nicht_verwendet)
         }
 
         pub fn erzeuge_hilfe_text(
