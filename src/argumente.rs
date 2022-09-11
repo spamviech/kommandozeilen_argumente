@@ -797,7 +797,7 @@ pub mod test {
     /// Konfiguration eines einzelnen Kommandozeilen-Arguments.
     ///
     /// ## English
-    /// TODO
+    /// Configuration of a single command line argument.
     #[derive(Debug)]
     pub enum EinzelArgument<'t, T, Bool, Parse, Anzeige> {
         /// Es handelt sich um ein Flag-Argument.
@@ -866,7 +866,7 @@ pub mod test {
     /// Trait zum simulieren einer Rank-2 Funktion.
     ///
     /// # English
-    /// TODO
+    /// Trait to simulate a rank-2 function.
     pub trait HilfeText {
         fn erzeuge_hilfe_text<'t, S, Bool, Parse, Anzeige>(
             arg: &'t EinzelArgument<'t, S, Bool, Parse, Anzeige>,
@@ -897,7 +897,7 @@ pub mod test {
     /// Erlaube kombinieren mehrerer Argumente.
     ///
     /// ## English
-    /// TODO
+    /// Allow combining multiple arguments.
     pub trait Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> {
         fn parse(
             self,
