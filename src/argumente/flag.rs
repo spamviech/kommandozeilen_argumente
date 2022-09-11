@@ -1,6 +1,6 @@
 //! Flag-Argumente.
 
-use std::{convert::identity, fmt::Display, iter};
+use std::{borrow::Cow, convert::identity, ffi::OsString, fmt::Display, iter};
 
 use itertools::Itertools;
 use nonempty::NonEmpty;
@@ -306,5 +306,124 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                 (ergebnis, nicht_verwendet)
             }),
         }
+    }
+}
+
+// TODO Hilfs-funktionen zum einfachren erstellen (mit_sprache, etc.)
+/// Es handelt sich um ein Flag-Argument.
+///
+/// ## English
+/// It is a flag argument.
+#[derive(Debug)]
+pub struct Flag<'t, T, Bool, Anzeige>
+where
+    Bool: Fn(bool) -> T,
+    Anzeige: Fn(&T) -> String,
+{
+    /// Allgemeine Beschreibung des Arguments.
+    ///
+    /// ## English
+    /// General description of the argument.
+    pub beschreibung: Beschreibung<'t, T>,
+
+    /// Präfix invertieren des Flag-Arguments.
+    ///
+    /// ## English
+    /// Prefix to invert the flag argument.
+    pub invertiere_präfix: Vergleich<'t>,
+
+    /// Infix zum invertieren des Flag-Arguments.
+    ///
+    /// ## English
+    /// Infix to invert the flag argument.
+    pub invertiere_infix: Vergleich<'t>,
+
+    /// Erzeuge einen Wert aus einer [bool].
+    ///
+    /// ## English
+    /// Create a value from a [bool].
+    pub konvertiere: Bool,
+
+    /// Anzeige eines Wertes (default value).
+    ///
+    /// ## English
+    /// Display a value (default value).
+    pub anzeige: Anzeige,
+}
+
+impl<'t, T, Bool, Anzeige> Flag<'t, T, Bool, Anzeige>
+where
+    Bool: Fn(bool) -> T,
+    Anzeige: Fn(&T) -> String,
+{
+    pub fn parse<F>(
+        self,
+        args: impl Iterator<Item = Option<OsString>>,
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
+        let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere, anzeige: _ } =
+            self;
+        let Beschreibung { name, hilfe: _, standard } = beschreibung;
+        let mut nicht_verwendet = Vec::new();
+        let mut iter = args.into_iter();
+        while let Some(arg_opt) = iter.next() {
+            if let Some(arg) = &arg_opt {
+                if let Some(b) = name.parse_flag(&invertiere_präfix, &invertiere_infix, &arg) {
+                    nicht_verwendet.push(None);
+                    nicht_verwendet.extend(iter);
+                    return (Ergebnis::Wert(konvertiere(b)), nicht_verwendet);
+                } else {
+                    nicht_verwendet.push(arg_opt)
+                }
+            } else {
+                nicht_verwendet.push(arg_opt)
+            }
+        }
+        let ergebnis = if let Some(wert) = standard {
+            Ergebnis::Wert(wert)
+        } else {
+            let fehler = Fehler::FehlendeFlag {
+                name,
+                invertiere_präfix: invertiere_präfix.string,
+                invertiere_infix: invertiere_infix.string,
+            };
+            Ergebnis::Fehler(NonEmpty::singleton(fehler))
+        };
+        (ergebnis, nicht_verwendet)
+    }
+
+    pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
+        let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere: _, anzeige } =
+            self;
+        let Beschreibung { name, hilfe, standard } = beschreibung;
+        let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
+        let mut hilfe_text = String::new();
+        hilfe_text.push_str(lang_präfix.as_str());
+        hilfe_text.push('[');
+        hilfe_text.push_str(invertiere_präfix.as_str());
+        hilfe_text.push_str(invertiere_infix.as_str());
+        hilfe_text.push(']');
+        let NonEmpty { head, tail } = lang;
+        Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
+        if let Some((h, t)) = kurz.split_first() {
+            hilfe_text.push_str(" | ");
+            hilfe_text.push_str(kurz_präfix.as_str());
+            Name::möglichkeiten_als_regex(h, t, &mut hilfe_text);
+        }
+        let cow: Option<Cow<'_, str>> = match (hilfe, standard) {
+            (None, None) => None,
+            (None, Some(standard)) => {
+                Some(Cow::Owned(format!("{meta_standard}: {}", anzeige(standard))))
+            },
+            (Some(hilfe), None) => Some(Cow::Borrowed(hilfe)),
+            (Some(hilfe), Some(standard)) => {
+                let mut hilfe_text = (*hilfe).to_owned();
+                hilfe_text.push(' ');
+                hilfe_text.push_str(meta_standard);
+                hilfe_text.push_str(": ");
+                hilfe_text.push_str(&anzeige(standard));
+                Some(Cow::Owned(hilfe_text))
+            },
+        };
+        (hilfe_text, cow)
     }
 }

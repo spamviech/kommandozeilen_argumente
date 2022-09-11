@@ -179,6 +179,25 @@ impl Name<'_> {
         }
         None
     }
+
+    /// Füge eine Regex-Darstellung der Langnamen zum übergebenen String hinzu.
+    pub(crate) fn möglichkeiten_als_regex(
+        head: &Vergleich<'_>,
+        tail: &[Vergleich<'_>],
+        s: &mut String,
+    ) {
+        if !tail.is_empty() {
+            s.push('(')
+        }
+        s.push_str(head.as_str());
+        for l in tail {
+            s.push('|');
+            s.push_str(l.as_str());
+        }
+        if !tail.is_empty() {
+            s.push(')')
+        }
+    }
 }
 
 /// Beschreibung eines [Kommandozeilen-Arguments](EinzelArgument).
