@@ -601,11 +601,7 @@ pub mod test {
     /// ## English
     /// It is a value argument.
     #[derive(Debug)]
-    pub struct Wert<'t, T, Parse, Fehler, Anzeige>
-    where
-        Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
-        Anzeige: Fn(&T) -> String,
-    {
+    pub struct Wert<'t, T, Parse, Anzeige> {
         /// Allgemeine Beschreibung des Arguments.
         ///
         /// ## English
@@ -659,10 +655,9 @@ pub mod test {
         }
     }
 
-    impl<'t, T, Parse, F, Anzeige> Wert<'t, T, Parse, F, Anzeige>
+    impl<'t, T, Parse, F, Anzeige> Wert<'t, T, Parse, Anzeige>
     where
         Parse: Fn(&OsStr) -> Result<T, ParseFehler<F>>,
-        Anzeige: Fn(&T) -> String,
     {
         fn parse<I: Iterator<Item = Option<OsString>>>(
             self,
@@ -724,7 +719,12 @@ pub mod test {
             };
             (ergebnis, nicht_verwendet)
         }
+    }
 
+    impl<T, Parse, Anzeige> Wert<'_, T, Parse, Anzeige>
+    where
+        Anzeige: Fn(&T) -> String,
+    {
         pub fn erzeuge_hilfe_text(
             &self,
             meta_standard: &str,
@@ -799,12 +799,7 @@ pub mod test {
     /// ## English
     /// TODO
     #[derive(Debug)]
-    pub enum EinzelArgument<'t, T, Bool, Parse, Fehler, Anzeige>
-    where
-        Bool: Fn(bool) -> T,
-        Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
-        Anzeige: Fn(&T) -> String,
-    {
+    pub enum EinzelArgument<'t, T, Bool, Parse, Anzeige> {
         /// Es handelt sich um ein Flag-Argument.
         ///
         /// ## English
@@ -821,14 +816,13 @@ pub mod test {
         ///
         /// ## English
         /// It is a value argument.
-        Wert(Wert<'t, T, Parse, Fehler, Anzeige>),
+        Wert(Wert<'t, T, Parse, Anzeige>),
     }
 
-    impl<'t, T, Bool, Parse, Fehler, Anzeige> EinzelArgument<'t, T, Bool, Parse, Fehler, Anzeige>
+    impl<'t, T, Bool, Parse, Fehler, Anzeige> EinzelArgument<'t, T, Bool, Parse, Anzeige>
     where
         Bool: Fn(bool) -> T,
         Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
-        Anzeige: Fn(&T) -> String,
     {
         fn parse(
             self,
@@ -843,7 +837,12 @@ pub mod test {
                 EinzelArgument::Wert(wert) => wert.parse(args),
             }
         }
+    }
 
+    impl<T, Bool, Parse, Anzeige> EinzelArgument<'_, T, Bool, Parse, Anzeige>
+    where
+        Anzeige: Fn(&T) -> String,
+    {
         // [Sprache::standard] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
         pub fn erzeuge_hilfe_text(
@@ -869,14 +868,12 @@ pub mod test {
     /// # English
     /// TODO
     pub trait HilfeText {
-        fn erzeuge_hilfe_text<'t, S, Bool, Parse, Fehler, Anzeige>(
-            arg: &'t EinzelArgument<'t, S, Bool, Parse, Fehler, Anzeige>,
+        fn erzeuge_hilfe_text<'t, S, Bool, Parse, Anzeige>(
+            arg: &'t EinzelArgument<'t, S, Bool, Parse, Anzeige>,
             meta_standard: &'t str,
             meta_erlaubte_werte: &'t str,
         ) -> (String, Option<Cow<'t, str>>)
         where
-            Bool: Fn(bool) -> S,
-            Parse: Fn(&OsStr) -> Result<S, ParseFehler<Fehler>>,
             Anzeige: Fn(&S) -> String;
     }
 
@@ -885,14 +882,12 @@ pub mod test {
 
     impl HilfeText for Standard {
         #[inline(always)]
-        fn erzeuge_hilfe_text<'t, S, Bool, Parse, Fehler, Anzeige>(
-            arg: &'t EinzelArgument<'t, S, Bool, Parse, Fehler, Anzeige>,
+        fn erzeuge_hilfe_text<'t, S, Bool, Parse, Anzeige>(
+            arg: &'t EinzelArgument<'t, S, Bool, Parse, Anzeige>,
             meta_standard: &'t str,
             meta_erlaubte_werte: &'t str,
         ) -> (String, Option<Cow<'t, str>>)
         where
-            Bool: Fn(bool) -> S,
-            Parse: Fn(&OsStr) -> Result<S, ParseFehler<Fehler>>,
             Anzeige: Fn(&S) -> String,
         {
             arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)
@@ -936,7 +931,7 @@ pub mod test {
 
     impl<'t, 't0, 't1, K, T, B, P, F, A, T0, B0, P0, F0, A0, K0, T1, B1, P1, F1, A1, K1>
         Kombiniere<'t, T, B, P, F, A>
-        for (K, ArgTest<'t0, T0, B0, P0, F0, A0, K0>, ArgTest<'t1, T1, B1, P1, F1, A1, K1>)
+        for (K, ArgTest<'t0, T0, B0, P0, A0, K0>, ArgTest<'t1, T1, B1, P1, A1, K1>)
     where
         't0: 't,
         't1: 't,
@@ -1000,18 +995,12 @@ pub mod test {
     /// ## English synonym
     /// [Configuration]
     #[derive(Debug)]
-    pub enum ArgTest<'t, T, Bool, Parse, Fehler, Anzeige, K>
-    where
-        Bool: Fn(bool) -> T,
-        Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
-        Anzeige: Fn(&T) -> String,
-        K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
-    {
+    pub enum ArgTest<'t, T, Bool, Parse, Anzeige, K> {
         /// Ein einzelnes Argument.
         ///
         /// ## English
         /// A single argument.
-        EinzelArgument(EinzelArgument<'t, T, Bool, Parse, Fehler, Anzeige>),
+        EinzelArgument(EinzelArgument<'t, T, Bool, Parse, Anzeige>),
 
         // TODO Kombiniere ähnlich wie aktuell versteckt;
         // erlaube Hilfe-Text erstellen durch Iteration über alle Einzelargumente (rekursiv)
@@ -1021,15 +1010,14 @@ pub mod test {
         },
 
         Alternativ {
-            alternativen: Box<NonEmpty<ArgTest<'t, T, Bool, Parse, Fehler, Anzeige, K>>>,
+            alternativen: Box<NonEmpty<ArgTest<'t, T, Bool, Parse, Anzeige, K>>>,
         },
     }
 
-    impl<'t, T, Bool, Parse, Fehler, Anzeige, K> ArgTest<'t, T, Bool, Parse, Fehler, Anzeige, K>
+    impl<'t, T, Bool, Parse, Fehler, Anzeige, K> ArgTest<'t, T, Bool, Parse, Anzeige, K>
     where
         Bool: Fn(bool) -> T,
         Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
-        Anzeige: Fn(&T) -> String,
         K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
     {
         fn parse(
@@ -1064,7 +1052,15 @@ pub mod test {
                 },
             }
         }
+    }
 
+    impl<'t, T, Bool, Parse, Fehler, Anzeige, K> ArgTest<'t, T, Bool, Parse, Anzeige, K>
+    where
+        // this is required to restrict the Fehler type parameter...
+        Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
+        Anzeige: Fn(&T) -> String,
+        K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
+    {
         // [Sprache::standard] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
         pub fn erzeuge_hilfe_text<H: HilfeText>(
