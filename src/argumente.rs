@@ -929,6 +929,33 @@ pub mod test {
         }
     }
 
+    impl<'t, F, T0, T1, B0, B1, P0, P1, Fehler, A0, A1, K0> Kombiniere<'t, T1, B1, P1, Fehler, A1>
+        for (F, ArgTest<'t, T0, B0, P0, A0, K0>)
+    where
+        F: Fn(T0) -> T1,
+        B0: Fn(bool) -> T0,
+        A0: Fn(&T0) -> String,
+        P0: Fn(&OsStr) -> Result<T0, ParseFehler<Fehler>>,
+        K0: Kombiniere<'t, T0, B0, P0, Fehler, A0>,
+    {
+        fn parse(
+            self,
+            args: impl Iterator<Item = Option<OsString>>,
+        ) -> (Ergebnis<'t, T1, Fehler>, Vec<Option<OsString>>) {
+            let (f, argument) = self;
+            let (ergebnis, nicht_verwendet) = argument.parse(args);
+            (ergebnis.konvertiere(f), nicht_verwendet)
+        }
+
+        fn erzeuge_hilfe_text<H: HilfeText>(
+            &self,
+            meta_standard: &str,
+            meta_erlaubte_werte: &str,
+        ) -> Vec<(String, Option<Cow<'_, str>>)> {
+            self.1.erzeuge_hilfe_text::<H, Fehler>(meta_standard, meta_erlaubte_werte)
+        }
+    }
+
     impl<'t, 't0, 't1, K, T, B, P, F, A, T0, B0, P0, F0, A0, K0, T1, B1, P1, F1, A1, K1>
         Kombiniere<'t, T, B, P, F, A>
         for (K, ArgTest<'t0, T0, B0, P0, A0, K0>, ArgTest<'t1, T1, B1, P1, A1, K1>)
