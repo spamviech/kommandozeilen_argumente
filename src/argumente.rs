@@ -586,12 +586,11 @@ pub mod test {
             self.parse_flag_aux(|| (), |_, _| None, arg).is_some()
         }
 
-        // TODO return a Cow<'t, OsStr>?
-        fn parse_mit_wert(
+        fn parse_mit_wert<'t>(
             &self,
             wert_infix: &Vergleich<'_>,
-            arg: &OsStr,
-        ) -> Option<Option<OsString>> {
+            arg: &'t OsStr,
+        ) -> Option<Option<Cow<'t, OsStr>>> {
             let Name { lang_präfix, lang, kurz_präfix, kurz } = self;
             let kurz_existiert = !kurz.is_empty();
             if let Some(string) = arg.to_str() {
@@ -605,7 +604,19 @@ pub mod test {
                         } else if let Some(wert_graphemes) =
                             wert_infix.strip_als_präfix_n(&suffix_normalisiert)
                         {
-                            return Some(Some(OsString::from(wert_graphemes.as_str().to_owned())));
+                            let wert_str = wert_graphemes.as_str();
+                            let wert_länge = wert_str.len();
+                            let wert_cow = match normalisiert.cow_ref() {
+                                Cow::Borrowed(_) => {
+                                    let string_länge = string.len();
+                                    let start_index = string_länge - wert_länge - 1;
+                                    Cow::Borrowed(string[start_index..string_länge].as_ref())
+                                },
+                                Cow::Owned(_) => {
+                                    Cow::Owned(OsString::from(wert_graphemes.as_str().to_owned()))
+                                },
+                            };
+                            return Some(Some(wert_cow));
                         }
                     }
                 } else if kurz_existiert {
@@ -624,7 +635,17 @@ pub mod test {
                                 let wert_str = wert_infix
                                     .strip_als_präfix_n(&rest)
                                     .unwrap_or_else(|| rest.clone());
-                                Some(OsString::from(wert_str.as_str().to_owned()))
+                                let wert_länge = wert_str.as_str().len();
+                                Some(match normalisiert.cow_ref() {
+                                    Cow::Borrowed(_) => {
+                                        let string_länge = string.len();
+                                        let start_index = string_länge - wert_länge - 1;
+                                        Cow::Borrowed(string[start_index..string_länge].as_ref())
+                                    },
+                                    Cow::Owned(_) => {
+                                        Cow::Owned(OsString::from(wert_str.cow().into_owned()))
+                                    },
+                                })
                             };
                             return Some(wert_str);
                         }
