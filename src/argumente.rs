@@ -984,8 +984,9 @@ pub mod test {
             meta_erlaubte_werte: &str,
         ) -> Vec<(String, Option<Cow<'_, str>>)> {
             let (_f, a0, a1) = self;
-            let mut hilfe_texte = a0.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte);
-            hilfe_texte.extend(a1.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte));
+            let mut hilfe_texte =
+                a0.erzeuge_hilfe_text::<H, F0>(meta_standard, meta_erlaubte_werte);
+            hilfe_texte.extend(a1.erzeuge_hilfe_text::<H, F1>(meta_standard, meta_erlaubte_werte));
             hilfe_texte
         }
     }
@@ -1002,9 +1003,6 @@ pub mod test {
         /// A single argument.
         EinzelArgument(EinzelArgument<'t, T, Bool, Parse, Anzeige>),
 
-        // TODO Kombiniere ähnlich wie aktuell versteckt;
-        // erlaube Hilfe-Text erstellen durch Iteration über alle Einzelargumente (rekursiv)
-        // mithilfe z.B. des IteriereArg-Traits.
         Kombiniere {
             kombiniere: K,
         },
@@ -1054,20 +1052,18 @@ pub mod test {
         }
     }
 
-    impl<'t, T, Bool, Parse, Fehler, Anzeige, K> ArgTest<'t, T, Bool, Parse, Anzeige, K>
-    where
-        // this is required to restrict the Fehler type parameter...
-        Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
-        Anzeige: Fn(&T) -> String,
-        K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
-    {
+    impl<'t, T, Bool, Parse, Anzeige, K> ArgTest<'t, T, Bool, Parse, Anzeige, K> {
         // [Sprache::standard] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
-        pub fn erzeuge_hilfe_text<H: HilfeText>(
+        pub fn erzeuge_hilfe_text<H: HilfeText, Fehler>(
             &self,
             meta_standard: &str,
             meta_erlaubte_werte: &str,
-        ) -> Vec<(String, Option<Cow<'_, str>>)> {
+        ) -> Vec<(String, Option<Cow<'_, str>>)>
+        where
+            Anzeige: Fn(&T) -> String,
+            K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
+        {
             match self {
                 ArgTest::EinzelArgument(arg) => {
                     vec![arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)]
@@ -1077,7 +1073,9 @@ pub mod test {
                 },
                 ArgTest::Alternativ { alternativen } => alternativen
                     .iter()
-                    .flat_map(|arg| arg.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte))
+                    .flat_map(|arg| {
+                        arg.erzeuge_hilfe_text::<H, Fehler>(meta_standard, meta_erlaubte_werte)
+                    })
                     .collect(),
             }
         }
