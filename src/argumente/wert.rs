@@ -1,6 +1,12 @@
 //! Wert-Argumente.
 
-use std::{collections::HashMap, ffi::OsString, fmt::Display, str::FromStr};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    ffi::{OsStr, OsString},
+    fmt::Display,
+    str::FromStr,
+};
 
 use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
@@ -729,5 +735,202 @@ impl<'t, T: 't + Clone + FromStr, E: Clone> Argumente<'t, T, E> {
             display,
             convert_error,
         )
+    }
+}
+
+/// Es handelt sich um ein Wert-Argument.
+///
+/// ## English
+/// It is a value argument.
+#[derive(Debug)]
+pub struct Wert<'t, T, Parse, Anzeige> {
+    /// Allgemeine Beschreibung des Arguments.
+    ///
+    /// ## English
+    /// General description of the argument.
+    pub beschreibung: Beschreibung<'t, T>,
+
+    /// Infix um einen Wert im selben Argument wie den Namen anzugeben.
+    ///
+    /// ## English
+    /// Infix to give a value in the same argument as the name.
+    pub wert_infix: Vergleich<'t>,
+
+    /// Meta-Variable im Hilfe-Text.
+    ///
+    /// ## English
+    /// Meta-variable used in the help-text.
+    pub meta_var: &'t str,
+
+    /// String-Darstellung der erlaubten Werte.
+    ///
+    /// ## English
+    /// String-representation of the allowed values.
+    pub mögliche_werte: Option<NonEmpty<T>>,
+
+    /// Parse einen Wert aus einem [OsString].
+    ///
+    /// ## English
+    /// Parse a value from an [OsString].
+    pub parse: Parse,
+
+    /// Anzeige eines Wertes (standard/mögliche Werte).
+    ///
+    /// ## English
+    /// Display a value (default/possible values).
+    pub anzeige: Anzeige,
+}
+
+fn zeige_elemente<'t, T: 't, Anzeige: Fn(&T) -> String>(
+    s: &mut String,
+    anzeige: &Anzeige,
+    elemente: impl IntoIterator<Item = &'t T>,
+) {
+    let mut erstes = true;
+    for element in elemente {
+        if erstes {
+            erstes = false;
+        } else {
+            s.push_str(", ");
+        }
+        s.push_str(&anzeige(element));
+    }
+}
+
+impl<'t, T, Parse, F, Anzeige> Wert<'t, T, Parse, Anzeige>
+where
+    Parse: Fn(&OsStr) -> Result<T, ParseFehler<F>>,
+{
+    pub fn parse<I: Iterator<Item = Option<OsString>>>(
+        self,
+        args: I,
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
+        let Wert { beschreibung, wert_infix, meta_var, mögliche_werte: _, parse, anzeige: _ } =
+            self;
+        let Beschreibung { name, hilfe: _, standard } = beschreibung;
+        let mut nicht_verwendet = Vec::new();
+        let mut iter = args.into_iter();
+        let mut name_ohne_wert = None;
+        let parse_wert = |arg: &OsStr,
+                          mut nicht_verwendet: Vec<_>,
+                          name: Name<'t>,
+                          wert_infix: Vergleich<'t>,
+                          iter: I|
+         -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
+            nicht_verwendet.push(None);
+            nicht_verwendet.extend(iter);
+            let ergebnis = match parse(arg) {
+                Ok(wert) => Ergebnis::Wert(wert),
+                Err(fehler) => Ergebnis::Fehler(NonEmpty::singleton(Fehler::Fehler {
+                    name,
+                    wert_infix: wert_infix.string,
+                    meta_var,
+                    fehler,
+                })),
+            };
+            (ergebnis, nicht_verwendet)
+        };
+        while let Some(arg_opt) = iter.next() {
+            if let Some(arg) = &arg_opt {
+                if let Some(_name_arg) = name_ohne_wert.take() {
+                    return parse_wert(arg, nicht_verwendet, name, wert_infix, iter);
+                } else if let Some(wert_opt) = name.parse_mit_wert(&wert_infix, arg) {
+                    if let Some(wert_str) = wert_opt {
+                        return parse_wert(&wert_str, nicht_verwendet, name, wert_infix, iter);
+                    } else {
+                        name_ohne_wert = Some(arg_opt);
+                    }
+                } else {
+                    nicht_verwendet.push(arg_opt)
+                }
+            } else {
+                if let Some(name) = name_ohne_wert.take() {
+                    nicht_verwendet.push(name);
+                }
+                nicht_verwendet.push(arg_opt);
+            }
+        }
+        let ergebnis = if let Some(wert) = standard {
+            Ergebnis::Wert(wert)
+        } else {
+            Ergebnis::Fehler(NonEmpty::singleton(Fehler::FehlenderWert {
+                name,
+                wert_infix: wert_infix.string,
+                meta_var,
+            }))
+        };
+        (ergebnis, nicht_verwendet)
+    }
+}
+
+impl<T, Parse, Anzeige> Wert<'_, T, Parse, Anzeige>
+where
+    Anzeige: Fn(&T) -> String,
+{
+    pub fn erzeuge_hilfe_text(
+        &self,
+        meta_standard: &str,
+        meta_erlaubte_werte: &str,
+    ) -> (String, Option<Cow<'_, str>>) {
+        let Wert { beschreibung, wert_infix, meta_var, mögliche_werte, parse: _, anzeige } = self;
+        let Beschreibung { name, hilfe, standard } = beschreibung;
+        let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
+        let mut hilfe_text = String::new();
+        hilfe_text.push_str(lang_präfix.as_str());
+        let NonEmpty { head, tail } = lang;
+        Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
+        hilfe_text.push_str("( |");
+        hilfe_text.push_str(wert_infix.as_str());
+        hilfe_text.push(')');
+        hilfe_text.push_str(meta_var);
+        if let Some((h, t)) = kurz.split_first() {
+            hilfe_text.push_str(" | ");
+            hilfe_text.push_str(kurz_präfix.as_str());
+            Name::möglichkeiten_als_regex(h, t, &mut hilfe_text);
+            hilfe_text.push_str("[ |");
+            hilfe_text.push_str(wert_infix.as_str());
+            hilfe_text.push(']');
+            hilfe_text.push_str(meta_var);
+        }
+        // TODO a lot of code duplication...
+        let cow: Option<Cow<'_, str>> = match (hilfe, standard, mögliche_werte) {
+            (None, None, None) => None,
+            (None, None, Some(mögliche_werte)) => {
+                let mut s = format!("[{meta_erlaubte_werte}: ");
+                zeige_elemente(&mut s, &self.anzeige, mögliche_werte);
+                s.push(']');
+                Some(Cow::Owned(s))
+            },
+            (None, Some(standard), None) => {
+                Some(Cow::Owned(format!("[{meta_standard}: {}]", anzeige(standard))))
+            },
+            (None, Some(standard), Some(mögliche_werte)) => {
+                let mut s =
+                    format!("[{meta_standard}: {}, {meta_erlaubte_werte}: ", anzeige(standard));
+                zeige_elemente(&mut s, &self.anzeige, mögliche_werte);
+                s.push(']');
+                Some(Cow::Owned(s))
+            },
+            (Some(hilfe), None, None) => Some(Cow::Borrowed(hilfe)),
+            (Some(hilfe), None, Some(mögliche_werte)) => {
+                let mut s = format!("{hilfe} [{meta_erlaubte_werte}: ");
+                zeige_elemente(&mut s, &self.anzeige, mögliche_werte);
+                s.push(']');
+                Some(Cow::Owned(s))
+            },
+            (Some(hilfe), Some(standard), None) => {
+                Some(Cow::Owned(format!("{hilfe} [{meta_standard}: {}]", anzeige(standard))))
+            },
+            (Some(hilfe), Some(standard), Some(mögliche_werte)) => {
+                let mut s = format!(
+                    "{hilfe} [{meta_standard}: {}, {meta_erlaubte_werte}: ",
+                    anzeige(standard)
+                );
+                zeige_elemente(&mut s, &self.anzeige, mögliche_werte);
+                s.push(']');
+                Some(Cow::Owned(s))
+            },
+        };
+        (hilfe_text, cow)
     }
 }
