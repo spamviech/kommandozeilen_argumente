@@ -103,6 +103,24 @@ impl<'t> Normalisiert<'t> {
     pub(crate) fn neu_borrowed_unchecked(s: &'t str) -> Normalisiert<'t> {
         Normalisiert(Cow::Borrowed(s))
     }
+
+    /// Erhalte eine Referenz auf den [Cow], der den normalisierten Unicode String enthält.
+    ///
+    /// ## English
+    /// Extracts a reference of the [Cow] containing the normalized unicode string.
+    #[inline(always)]
+    pub fn cow_ref(&self) -> &Cow<'t, str> {
+        &self.0
+    }
+
+    /// Erhalte den [Cow], der den normalisierten Unicode String enthält.
+    ///
+    /// ## English
+    /// Extracts the [Cow] containing the normalized unicode string.
+    #[inline(always)]
+    pub fn cow(self) -> Cow<'t, str> {
+        self.0
+    }
 }
 
 /// Wird Groß-/Kleinschreibung beachtet?
