@@ -543,7 +543,7 @@ pub mod test {
     }
 
     impl<'t> FrühesBeenden<'t> {
-        fn parse<F>(
+        pub fn parse<F>(
             self,
             args: impl Iterator<Item = Option<OsString>>,
         ) -> (Ergebnis<'t, (), F>, Vec<Option<OsString>>) {
@@ -659,7 +659,7 @@ pub mod test {
     where
         Parse: Fn(&OsStr) -> Result<T, ParseFehler<F>>,
     {
-        fn parse<I: Iterator<Item = Option<OsString>>>(
+        pub fn parse<I: Iterator<Item = Option<OsString>>>(
             self,
             args: I,
         ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
@@ -824,7 +824,7 @@ pub mod test {
         Bool: Fn(bool) -> T,
         Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
     {
-        fn parse(
+        pub fn parse(
             self,
             args: impl Iterator<Item = Option<OsString>>,
         ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
@@ -1018,7 +1018,7 @@ pub mod test {
         Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
         K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
     {
-        fn parse(
+        pub fn parse(
             self,
             args: impl Iterator<Item = Option<OsString>>,
         ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
