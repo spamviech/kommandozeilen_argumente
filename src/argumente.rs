@@ -517,84 +517,11 @@ pub mod test {
     use void::Void;
 
     use crate::{
-        argumente::flag::Flag,
+        argumente::{flag::Flag, frühes_beenden::FrühesBeenden},
         beschreibung::{Beschreibung, Name},
         ergebnis::{Ergebnis, Fehler, ParseFehler},
         unicode::Vergleich,
     };
-
-    /// Es handelt sich um ein Flag-Argument, das zu frühem beenden führt.
-    ///
-    /// ## English
-    /// It is a flag argument, causing an early exit.
-    #[derive(Debug)]
-    pub struct FrühesBeenden<'t> {
-        /// Allgemeine Beschreibung des Arguments.
-        ///
-        /// ## English
-        /// General description of the argument.
-        pub beschreibung: Beschreibung<'t, Void>,
-
-        /// Die angezeigte Nachricht.
-        ///
-        /// ## English
-        /// The message.
-        pub nachricht: Cow<'t, str>,
-    }
-
-    impl<'t> FrühesBeenden<'t> {
-        pub fn parse<F>(
-            self,
-            args: impl Iterator<Item = Option<OsString>>,
-        ) -> (Ergebnis<'t, (), F>, Vec<Option<OsString>>) {
-            let FrühesBeenden { beschreibung, nachricht } = self;
-            let Beschreibung { name, hilfe: _, standard } = beschreibung;
-            let mut nicht_verwendet = Vec::new();
-            let mut iter = args.into_iter();
-            while let Some(arg_opt) = iter.next() {
-                if let Some(arg) = &arg_opt {
-                    if name.parse_frühes_beenden(&arg) {
-                        nicht_verwendet.push(None);
-                        nicht_verwendet.extend(iter);
-                        return (
-                            Ergebnis::FrühesBeenden(NonEmpty::singleton(nachricht)),
-                            nicht_verwendet,
-                        );
-                    } else {
-                        nicht_verwendet.push(arg_opt)
-                    }
-                } else {
-                    nicht_verwendet.push(arg_opt)
-                }
-            }
-            let ergebnis = if let Some(wert) = standard {
-                void::unreachable(wert)
-            } else {
-                Ergebnis::Wert(())
-            };
-            (ergebnis, nicht_verwendet)
-        }
-
-        pub fn erzeuge_hilfe_text(&self) -> (String, Option<Cow<'_, str>>) {
-            let FrühesBeenden { beschreibung, nachricht: _ } = self;
-            let Beschreibung { name, hilfe, standard } = beschreibung;
-            let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
-            let mut hilfe_text = String::new();
-            hilfe_text.push_str(lang_präfix.as_str());
-            let NonEmpty { head, tail } = lang;
-            Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
-            if let Some((h, t)) = kurz.split_first() {
-                hilfe_text.push_str(" | ");
-                hilfe_text.push_str(kurz_präfix.as_str());
-                Name::möglichkeiten_als_regex(h, t, &mut hilfe_text);
-            }
-            if let Some(v) = standard {
-                void::unreachable(*v)
-            }
-            let cow = hilfe.map(Cow::Borrowed);
-            (hilfe_text, cow)
-        }
-    }
 
     /// Es handelt sich um ein Wert-Argument.
     ///
