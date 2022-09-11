@@ -315,11 +315,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
 /// ## English
 /// It is a flag argument.
 #[derive(Debug)]
-pub struct Flag<'t, T, Bool, Anzeige>
-where
-    Bool: Fn(bool) -> T,
-    Anzeige: Fn(&T) -> String,
-{
+pub struct Flag<'t, T, Bool, Anzeige> {
     /// Allgemeine Beschreibung des Arguments.
     ///
     /// ## English
@@ -354,7 +350,6 @@ where
 impl<'t, T, Bool, Anzeige> Flag<'t, T, Bool, Anzeige>
 where
     Bool: Fn(bool) -> T,
-    Anzeige: Fn(&T) -> String,
 {
     pub fn parse<F>(
         self,
@@ -390,7 +385,12 @@ where
         };
         (ergebnis, nicht_verwendet)
     }
+}
 
+impl<T, Bool, Anzeige> Flag<'_, T, Bool, Anzeige>
+where
+    Anzeige: Fn(&T) -> String,
+{
     pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
         let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere: _, anzeige } =
             self;
