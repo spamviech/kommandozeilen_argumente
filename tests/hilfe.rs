@@ -1,5 +1,8 @@
 //! Tests zur automatisch erzeugen Hilfe.
 
+// dependencies of the lib
+#![allow(unused_crate_dependencies)]
+
 use std::{ffi::OsString, iter, process};
 
 use void::Void;
@@ -8,7 +11,7 @@ use kommandozeilen_argumente::{Argumente, Beschreibung, Ergebnis, Sprache};
 
 #[test]
 fn hilfe_test() {
-    let arg: Argumente<bool, Void> = Argumente::hilfe_und_version(
+    let arg: Argumente<'_, bool, Void> = Argumente::hilfe_und_version(
         Argumente::flag_bool_deutsch(Beschreibung::neu_mit_sprache(
             "test".to_owned(),
             None::<&str>,
@@ -28,12 +31,12 @@ fn hilfe_test() {
                 process::exit(1);
             } else {
                 for nachricht in nachrichten {
-                    println!("{}", nachricht);
+                    println!("{nachricht}");
                 }
             }
         },
         res => {
-            eprintln!("Unerwartetes Ergebnis: {:?}", res);
+            eprintln!("Unerwartetes Ergebnis: {res:?}");
             process::exit(2);
         },
     }

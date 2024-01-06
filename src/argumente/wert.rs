@@ -801,6 +801,10 @@ impl<'t, T, Parse, F, Anzeige> Wert<'t, T, Parse, Anzeige>
 where
     Parse: Fn(&OsStr) -> Result<T, ParseFehler<F>>,
 {
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
     pub fn parse<I: Iterator<Item = Option<OsString>>>(
         self,
         args: I,
@@ -867,6 +871,10 @@ impl<T, Parse, Anzeige> Wert<'_, T, Parse, Anzeige>
 where
     Anzeige: Fn(&T) -> String,
 {
+    /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
+    ///
+    /// ## English
+    /// Create the Message for the syntax of the arguments and the corresponding help text.
     pub fn erzeuge_hilfe_text(
         &self,
         meta_standard: &str,

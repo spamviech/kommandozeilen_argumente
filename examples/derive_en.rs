@@ -1,3 +1,8 @@
+//! An example using the "derive"-feature with english names.
+
+// dependencies of the lib
+#![allow(unused_crate_dependencies)]
+
 use std::{
     fmt::{Debug, Display},
     num::NonZeroI32,

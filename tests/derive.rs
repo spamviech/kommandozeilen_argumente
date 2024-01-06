@@ -1,5 +1,8 @@
 //! Tests zum Parsen von Kommandozeilen-Argumenten, erzeugt über das derive-Feature.
 
+// dependencies of the lib
+#![allow(unused_crate_dependencies)]
+
 use std::{
     ffi::OsString,
     fmt::{self, Debug, Display, Formatter},
@@ -85,7 +88,7 @@ impl ParseArgument for Flag {
         invertiere_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
         _wert_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
         _meta_var: &'t str,
-    ) -> kommandozeilen_argumente::Argumente<'t, Self, String> {
+    ) -> Argumente<'t, Self, String> {
         Argumente::flag(
             beschreibung,
             |b| if b { Flag::Active } else { Flag::Inactive },
