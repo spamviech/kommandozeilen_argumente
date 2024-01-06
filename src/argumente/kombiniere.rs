@@ -257,6 +257,10 @@ impl<'t, T, Error: 't> Argumente<'t, T, Error> {
 /// # English
 /// Trait to simulate a rank-2 function.
 pub trait HilfeText {
+    /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
+    ///
+    /// ## English
+    /// Create the Message for the syntax of the arguments and the corresponding help text.
     fn erzeuge_hilfe_text<'t, S, Bool, Parse, Anzeige>(
         arg: &'t EinzelArgument<'t, S, Bool, Parse, Anzeige>,
         meta_standard: &'t str,
@@ -266,11 +270,13 @@ pub trait HilfeText {
         Anzeige: Fn(&S) -> String;
 }
 
+#[deprecated = "Wird nicht verwendet. Vmtl. wurde vergessen es zu entfernen."]
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy)]
 pub struct Standard;
 
+#[allow(deprecated)]
 impl HilfeText for Standard {
-    #[inline(always)]
     fn erzeuge_hilfe_text<'t, S, Bool, Parse, Anzeige>(
         arg: &'t EinzelArgument<'t, S, Bool, Parse, Anzeige>,
         meta_standard: &'t str,
@@ -288,6 +294,10 @@ impl HilfeText for Standard {
 /// ## English
 /// Allow combining multiple arguments.
 pub trait Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> {
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
     fn parse(
         self,
         args: impl Iterator<Item = Option<OsString>>,

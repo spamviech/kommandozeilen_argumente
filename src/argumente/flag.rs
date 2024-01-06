@@ -351,6 +351,10 @@ impl<'t, T, Bool, Anzeige> Flag<'t, T, Bool, Anzeige>
 where
     Bool: Fn(bool) -> T,
 {
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
     pub fn parse<F>(
         self,
         args: impl Iterator<Item = Option<OsString>>,
@@ -391,6 +395,10 @@ impl<T, Bool, Anzeige> Flag<'_, T, Bool, Anzeige>
 where
     Anzeige: Fn(&T) -> String,
 {
+    /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
+    ///
+    /// ## English
+    /// Create the Message for the syntax of the arguments and the corresponding help text.
     pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
         let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere: _, anzeige } =
             self;

@@ -1,3 +1,8 @@
+//! Ein Beispiel des Funktion-Apis.
+
+// dependencies of the lib
+#![allow(unused_crate_dependencies)]
+
 use std::{
     ffi::OsString,
     fmt::{Debug, Display},
@@ -22,7 +27,7 @@ impl EnumArgument for Aufzählung {
         vec![Eins, Zwei, Drei]
     }
 
-    fn parse_enum(arg: OsString) -> Result<Self, kommandozeilen_argumente::ParseFehler<String>> {
+    fn parse_enum(arg: OsString) -> Result<Self, ParseFehler<String>> {
         use Aufzählung::*;
         if let Some(string) = arg.to_str() {
             // Vergleich-Strings enthalten nur ASCII-Zeichen,

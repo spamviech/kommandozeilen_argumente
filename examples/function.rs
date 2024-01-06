@@ -1,3 +1,8 @@
+//! An example using the function-api with english names.
+
+// dependencies of the lib
+#![allow(unused_crate_dependencies)]
+
 use std::{
     ffi::OsString,
     fmt::{Debug, Display},

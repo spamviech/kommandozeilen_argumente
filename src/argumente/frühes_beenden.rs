@@ -964,6 +964,10 @@ pub struct FrühesBeenden<'t> {
 }
 
 impl<'t> FrühesBeenden<'t> {
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
     pub fn parse<F>(
         self,
         args: impl Iterator<Item = Option<OsString>>,
@@ -993,6 +997,10 @@ impl<'t> FrühesBeenden<'t> {
         (ergebnis, nicht_verwendet)
     }
 
+    /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
+    ///
+    /// ## English
+    /// Create the Message for the syntax of the arguments and the corresponding help text.
     pub fn erzeuge_hilfe_text(&self) -> (String, Option<Cow<'_, str>>) {
         let FrühesBeenden { beschreibung, nachricht: _ } = self;
         let Beschreibung { name, hilfe, standard } = beschreibung;

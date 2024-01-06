@@ -26,7 +26,18 @@ pub enum EinzelArgument<'t, T, Bool, Parse, Anzeige> {
     ///
     /// ## English
     /// It is a flag argument, causing an early exit.
-    FrühesBeenden { frühes_beenden: FrühesBeenden<'t>, wert: T },
+    FrühesBeenden {
+        /// Die Flag und angezeigte Nachricht.
+        ///
+        /// ## English
+        /// The flag and displayed message.
+        frühes_beenden: FrühesBeenden<'t>,
+        /// Der Wert, wenn die Flag nicht übergeben wird.
+        ///
+        /// ## English
+        /// The value if the flag was missing.
+        wert: T,
+    },
 
     /// Es handelt sich um ein Wert-Argument.
     ///
@@ -40,6 +51,10 @@ where
     Bool: Fn(bool) -> T,
     Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
 {
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
     pub fn parse(
         self,
         args: impl Iterator<Item = Option<OsString>>,
@@ -61,6 +76,9 @@ where
 {
     // TODO [Sprache::standard] kann als meta_standard verwendet werden.
     /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
+    ///
+    /// ## English
+    /// Create the Message for the syntax of the arguments and the corresponding help text.
     pub fn erzeuge_hilfe_text(
         &self,
         meta_standard: &str,
