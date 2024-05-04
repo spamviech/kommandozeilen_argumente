@@ -1,4 +1,4 @@
-//! derive-Macros für das kommandozeilen_argumente crate.
+//! derive-Macros für das `kommandozeilen_argumente` crate.
 
 use std::fmt::Display;
 
@@ -10,6 +10,7 @@ mod enum_argument;
 mod parse;
 mod utility;
 
+/// Gebe den Wert zurück, oder erzeuge einen [`compile_error!`] mit der Fehlermeldung.
 fn unwrap_or_compile_error<Fehler: Display>(result: Result<TokenStream2, Fehler>) -> TokenStream {
     let ts = match result {
         Ok(ts) => ts,

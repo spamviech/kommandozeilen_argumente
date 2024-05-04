@@ -2,6 +2,13 @@
 
 // dependencies of the lib
 #![allow(unused_crate_dependencies)]
+#![allow(
+    clippy::tests_outside_test_module,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    clippy::exit,
+    clippy::use_debug
+)]
 
 use std::{
     ffi::OsString,
@@ -19,8 +26,8 @@ enum Bla {
 }
 
 impl Display for Bla {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        Debug::fmt(self, f)
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        Debug::fmt(self, formatter)
     }
 }
 
@@ -40,6 +47,7 @@ struct Test {
     /// opt
     #[kommandozeilen_argumente(lang: alternativ, kurz: [p, q, r])]
     opt: Option<Bla>,
+    #[allow(clippy::doc_markdown)]
     /// from_str
     #[kommandozeilen_argumente(FromStr, standard: 42, meta_var: VAR)]
     from_str: i32,
@@ -50,7 +58,7 @@ struct Test {
 
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(language: english)]
-struct Empty {}
+struct Empty;
 
 const DUMMY: kommandozeilen_argumente::Sprache = kommandozeilen_argumente::Sprache {
     lang_präfix: "(-.-)",
@@ -91,10 +99,10 @@ impl ParseArgument for Flag {
     ) -> Argumente<'t, Self, String> {
         Argumente::flag(
             beschreibung,
-            |b| if b { Flag::Active } else { Flag::Inactive },
+            |bool| if bool { Flag::Active } else { Flag::Inactive },
             invertiere_präfix,
             invertiere_infix,
-            |f| format!("{f:?}"),
+            |flag| format!("{flag:?}"),
         )
     }
 
@@ -131,25 +139,25 @@ fn derive_test() {
     let arg = Test::kommandozeilen_argumente();
     match arg.parse(iter::once(OsString::from("--hilfe".to_owned()))) {
         (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
-            let übrige = nicht_verwendet.iter().count();
+            let übrige = nicht_verwendet.len();
             if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
+                eprintln!("Nicht verwendete Argumente: {nicht_verwendet:?}");
                 process::exit(1);
             } else {
                 for nachricht in nachrichten {
-                    println!("{}", nachricht);
+                    println!("{nachricht}");
                 }
             }
         },
         (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
             for fehler in fehler_sammlung {
-                eprintln!("{}", fehler.fehlermeldung())
+                eprintln!("{}", fehler.fehlermeldung());
             }
-            eprintln!("{:?}", nicht_verwendet);
+            eprintln!("{nicht_verwendet:?}");
             process::exit(2);
         },
         res => {
-            eprintln!("Unerwartetes Ergebnis: {:?}", res);
+            eprintln!("Unerwartetes Ergebnis: {res:?}");
             process::exit(3);
         },
     }
@@ -157,25 +165,25 @@ fn derive_test() {
     let arg2 = Test2::kommandozeilen_argumente();
     match arg2.parse(iter::once(OsString::from("--help".to_owned()))) {
         (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
-            let übrige = nicht_verwendet.iter().count();
+            let übrige = nicht_verwendet.len();
             if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
+                eprintln!("Nicht verwendete Argumente: {nicht_verwendet:?}");
                 process::exit(1);
             } else {
                 for nachricht in nachrichten {
-                    println!("{}", nachricht);
+                    println!("{nachricht}");
                 }
             }
         },
         (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
             for fehler in fehler_sammlung {
-                eprintln!("{}", fehler.fehlermeldung())
+                eprintln!("{}", fehler.fehlermeldung());
             }
-            eprintln!("{:?}", nicht_verwendet);
+            eprintln!("{nicht_verwendet:?}");
             process::exit(4);
         },
         res => {
-            eprintln!("Unerwartetes Ergebnis: {:?}", res);
+            eprintln!("Unerwartetes Ergebnis: {res:?}");
             process::exit(5);
         },
     }
@@ -186,28 +194,28 @@ fn verschmelze_kurzformen() {
     let arg = Test::kommandozeilen_argumente();
     match arg.parse(iter::once(OsString::from("-vh".to_owned()))) {
         (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
-            let übrige = nicht_verwendet.iter().count();
+            let übrige = nicht_verwendet.len();
             if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
+                eprintln!("Nicht verwendete Argumente: {nicht_verwendet:?}");
                 process::exit(1);
             } else if nachrichten.len() != 2 {
-                eprintln!("Unerwartete Anzahl an Nachrichten: {:?}", nachrichten);
+                eprintln!("Unerwartete Anzahl an Nachrichten: {nachrichten:?}");
                 process::exit(2);
             } else {
                 for nachricht in nachrichten {
-                    println!("{}", nachricht);
+                    println!("{nachricht}");
                 }
             }
         },
         (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
             for fehler in fehler_sammlung {
-                eprintln!("{}", fehler.fehlermeldung())
+                eprintln!("{}", fehler.fehlermeldung());
             }
-            eprintln!("{:?}", nicht_verwendet);
+            eprintln!("{nicht_verwendet:?}");
             process::exit(3);
         },
         res => {
-            eprintln!("Unerwartetes Ergebnis: {:?}", res);
+            eprintln!("Unerwartetes Ergebnis: {res:?}");
             process::exit(4);
         },
     }
@@ -215,7 +223,7 @@ fn verschmelze_kurzformen() {
     let arg2 = Test2::kommandozeilen_argumente();
     match arg2.parse(iter::once(OsString::from("-fb".to_owned()))) {
         (Ergebnis::Wert(test2), nicht_verwendet) => {
-            let übrige = nicht_verwendet.iter().count();
+            let übrige = nicht_verwendet.len();
             let erwartet = Test2 {
                 bla: Bla::Meh,
                 inner: Inner { inner_flag: false },
@@ -223,17 +231,17 @@ fn verschmelze_kurzformen() {
                 bool_flag: true,
             };
             if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
+                eprintln!("Nicht verwendete Argumente: {nicht_verwendet:?}");
                 process::exit(5);
             } else if test2 != erwartet {
-                eprintln!("Unerwarteter Wert: {:?} != {:?}", test2, erwartet);
+                eprintln!("Unerwarteter Wert: {test2:?} != {erwartet:?}");
                 process::exit(6);
             } else {
-                println!("{:?}", test2)
+                println!("{test2:?}");
             }
         },
         res => {
-            eprintln!("Unerwartetes Ergebnis: {:?}", res);
+            eprintln!("Unerwartetes Ergebnis: {res:?}");
             process::exit(7);
         },
     }

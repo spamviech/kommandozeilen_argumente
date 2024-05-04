@@ -9,7 +9,7 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// Der String ist in
 /// [`Unicode Normalization Form C`](https://docs.rs/unicode-normalization/latest/unicode_normalization/trait.UnicodeNormalization.html#tymethod.nfc),
-/// mit standardisierten Variantenselektoren für cjk-Zeichen.
+/// mit standardisierten Varianten-Selektoren für cjk-Zeichen.
 ///
 /// ## English synonym
 /// [`Normalized`]
