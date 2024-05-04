@@ -14,8 +14,9 @@ use crate::{
 /// Ergebnis des Parsen von Kommandozeilen-Argumenten.
 ///
 /// ## English synonym
-/// [Result]
+/// [`Result`]
 #[derive(Debug)]
+#[must_use]
 pub enum Ergebnis<'t, T, E> {
     /// Erfolgreiches Parsen.
     ///
@@ -37,17 +38,18 @@ pub enum Ergebnis<'t, T, E> {
 /// Result when parsing command line arguments.
 ///
 /// ## Deutsches Synonym
-/// [Ergebnis]
+/// [`Ergebnis`]
 pub type Result<'t, T, E> = Ergebnis<'t, T, E>;
 
 impl<'t, T, E> Ergebnis<'t, T, E> {
     /// Konvertiere einen erfolgreich geparsten Wert mit der spezifizierten Funktion.
     ///
     /// ## English synonym
-    /// [convert](Result::convert)
-    pub fn konvertiere<S>(self, f: impl FnOnce(T) -> S) -> Ergebnis<'t, S, E> {
+    /// [`convert`](Result::convert)
+    #[inline]
+    pub fn konvertiere<S>(self, mapper: impl FnOnce(T) -> S) -> Ergebnis<'t, S, E> {
         match self {
-            Ergebnis::Wert(t) => Ergebnis::Wert(f(t)),
+            Ergebnis::Wert(wert) => Ergebnis::Wert(mapper(wert)),
             Ergebnis::FrühesBeenden(nachrichten) => Ergebnis::FrühesBeenden(nachrichten),
             Ergebnis::Fehler(fehler) => Ergebnis::Fehler(fehler),
         }
@@ -56,17 +58,17 @@ impl<'t, T, E> Ergebnis<'t, T, E> {
     /// Convert a successfully parsed value using the specified function.
     ///
     /// ## Deutsches Synonym
-    /// [konvertiere](Ergebnis::konvertiere)
-    #[inline(always)]
-    pub fn convert<S>(self, f: impl FnOnce(T) -> S) -> Ergebnis<'t, S, E> {
-        self.konvertiere(f)
+    /// [`konvertiere`](Ergebnis::konvertiere)
+    #[inline]
+    pub fn convert<S>(self, mapper: impl FnOnce(T) -> S) -> Ergebnis<'t, S, E> {
+        self.konvertiere(mapper)
     }
 }
 
 /// Fehlerquellen beim Parsen von Kommandozeilen-Argumenten.
 ///
 /// ## English synonym
-/// [Result]
+/// [`Result`]
 #[derive(Debug, Clone)]
 pub enum Fehler<'t, E> {
     /// Ein benötigtes Flag-Argument wurde nicht genannt.
@@ -149,15 +151,16 @@ pub enum Fehler<'t, E> {
 /// Possible errors when parsing command line arguments.
 ///
 /// ## Deutsches Synonym
-/// [Fehler]
+/// [`Fehler`]
 pub type Error<'t, E> = Fehler<'t, E>;
 
 impl<'t, E> Fehler<'t, E> {
     /// Konvertiere einen Fehler mit der spezifizierten Funktion.
     ///
     /// ## English synonym
-    /// [convert](Result::convert)
-    pub fn konvertiere<F>(self, f: impl FnOnce(E) -> F) -> Fehler<'t, F> {
+    /// [`convert`](Result::convert)
+    #[inline]
+    pub fn konvertiere<F>(self, mapper: impl FnOnce(E) -> F) -> Fehler<'t, F> {
         match self {
             Fehler::FehlendeFlag { name, invertiere_präfix, invertiere_infix } => {
                 Fehler::FehlendeFlag { name, invertiere_präfix, invertiere_infix }
@@ -171,7 +174,7 @@ impl<'t, E> Fehler<'t, E> {
                         ParseFehler::InvaliderString(os_string)
                     },
                     ParseFehler::ParseFehler(parse_fehler) => {
-                        ParseFehler::ParseFehler(f(parse_fehler))
+                        ParseFehler::ParseFehler(mapper(parse_fehler))
                     },
                 };
                 Fehler::Fehler { name, wert_infix, meta_var, fehler }
@@ -182,28 +185,29 @@ impl<'t, E> Fehler<'t, E> {
     /// Convert an error using the specified function.
     ///
     /// ## Deutsches Synonym
-    /// [konvertiere](Ergebnis::konvertiere)
-    #[inline(always)]
-    pub fn convert<F>(self, f: impl FnOnce(E) -> F) -> Error<'t, F> {
-        self.konvertiere(f)
+    /// [`konvertiere`](Ergebnis::konvertiere)
+    #[inline]
+    pub fn convert<F>(self, mapper: impl FnOnce(E) -> F) -> Error<'t, F> {
+        self.konvertiere(mapper)
     }
 }
 
+/// Füge einen aus Regex-Repräsentation der Namen zum `string` hinzu.
 pub(crate) fn namen_regex_hinzufügen<S: AsRef<str>>(string: &mut String, head: &S, tail: &[S]) {
     if !tail.is_empty() {
-        string.push('(')
+        string.push('(');
     }
     let mut first = true;
     for name in iter::once(head).chain(tail) {
         if first {
             first = false;
         } else {
-            string.push_str("|");
+            string.push('|');
         }
         string.push_str(name.as_ref());
     }
     if !tail.is_empty() {
-        string.push(')')
+        string.push(')');
     }
 }
 
@@ -211,8 +215,8 @@ impl<E: Display> Fehler<'_, E> {
     /// Zeige den Fehler in Menschen-lesbarer Form an.
     ///
     /// ## English version
-    /// [error_message](Error::error_message)
-    #[inline(always)]
+    /// [`error_message`](Error::error_message)
+    #[inline]
     pub fn fehlermeldung(&self) -> String {
         self.erstelle_fehlermeldung_mit_sprache(Sprache::DEUTSCH)
     }
@@ -220,17 +224,17 @@ impl<E: Display> Fehler<'_, E> {
     /// Show the error in a human readable form.
     ///
     /// ## Deutsches Version
-    /// [fehlermeldung](Fehler::fehlermeldung)
-    #[inline(always)]
+    /// [`fehlermeldung`](Fehler::fehlermeldung)
+    #[inline]
     pub fn error_message(&self) -> String {
         self.erstelle_fehlermeldung_mit_sprache(Language::ENGLISH)
     }
 
-    /// Zeige den [Fehler] in Menschen-lesbarer Form an.
+    /// Zeige den [`Fehler`] in Menschen-lesbarer Form an.
     ///
     /// ## English synonym
-    /// [create_error_message_with_language](Error::create_error_message_with_language)
-    #[inline(always)]
+    /// [`create_error_message_with_language`](Error::create_error_message_with_language)
+    #[inline]
     pub fn erstelle_fehlermeldung_mit_sprache(&self, sprache: Sprache) -> String {
         self.erstelle_fehlermeldung(
             sprache.fehlende_flag,
@@ -240,11 +244,11 @@ impl<E: Display> Fehler<'_, E> {
         )
     }
 
-    /// Show the [Error] in human readable form.
+    /// Show the [`Error`] in human readable form.
     ///
     /// ## Deutsches Synonym
-    /// [erstelle_fehlermeldung_mit_sprache](Fehler::erstelle_fehlermeldung_mit_sprache)
-    #[inline(always)]
+    /// [`erstelle_fehlermeldung_mit_sprache`](Fehler::erstelle_fehlermeldung_mit_sprache)
+    #[inline]
     pub fn create_error_message_with_language(&self, language: Language) -> String {
         self.erstelle_fehlermeldung_mit_sprache(language)
     }
@@ -252,7 +256,8 @@ impl<E: Display> Fehler<'_, E> {
     /// Zeige den Fehler in Menschen-lesbarer Form an.
     ///
     /// ## English synonym
-    /// [create_error_message](Error::create_error_message)
+    /// [`create_error_message`](Error::create_error_message)
+    #[inline]
     pub fn erstelle_fehlermeldung(
         &self,
         fehlende_flag: &str,
@@ -260,6 +265,7 @@ impl<E: Display> Fehler<'_, E> {
         parse_fehler: &str,
         invalider_string: &str,
     ) -> String {
+        /// Hilfsfunktion um die Beschreibung des Fehlers zu erzeugen.
         fn fehlermeldung(
             fehler_beschreibung: &str,
             Name { lang_präfix, lang, kurz_präfix, kurz }: &Name<'_>,
@@ -311,7 +317,7 @@ impl<E: Display> Fehler<'_, E> {
             Fehler::Fehler { name, wert_infix, meta_var, fehler } => {
                 let (fehler_art, fehler_anzeige) = match fehler {
                     ParseFehler::InvaliderString(os_string) => {
-                        (invalider_string, format!("{:?}", os_string))
+                        (invalider_string, format!("{os_string:?}"))
                     },
                     ParseFehler::ParseFehler(fehler) => (parse_fehler, fehler.to_string()),
                 };
@@ -324,11 +330,11 @@ impl<E: Display> Fehler<'_, E> {
         }
     }
 
-    /// Show the [Error] in human readable form.
+    /// Show the [`Error`] in human readable form.
     ///
     /// ## Deutsches Synonym
-    /// [erstelle_fehlermeldung](Fehler::erstelle_fehlermeldung)
-    #[inline(always)]
+    /// [`erstelle_fehlermeldung`](Fehler::erstelle_fehlermeldung)
+    #[inline]
     pub fn create_error_message(
         &self,
         missing_flag: &str,
@@ -340,17 +346,17 @@ impl<E: Display> Fehler<'_, E> {
     }
 }
 
-/// Mögliche Fehler-Quellen beim Parsen aus einem [OsStr](std::ffi::OsStr).
+/// Mögliche Fehler-Quellen beim Parsen aus einem [`OsStr`](std::ffi::OsStr).
 ///
 /// ## English synonym
-/// [ParseError]
+/// [`ParseError`]
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(single_use_lifetimes)]
 pub enum ParseFehler<E> {
-    /// Die Konvertierung in ein [&str](str) ist fehlgeschlagen.
+    /// Die Konvertierung in ein [`&str`](str) ist fehlgeschlagen.
     ///
     /// ## English
-    /// Conversion to a [&str](str) failed.
+    /// Conversion to a [`&str`](str) failed.
     InvaliderString(OsString),
     /// Fehler beim Parsen des Strings.
     ///
@@ -359,8 +365,8 @@ pub enum ParseFehler<E> {
     ParseFehler(E),
 }
 
-/// Possible errors when parsing an [OsStr](std::ffi::OsStr).
+/// Possible errors when parsing an [`OsStr`](std::ffi::OsStr).
 ///
 /// ## Deutsches Synonym
-/// [ParseFehler]
+/// [`ParseFehler`]
 pub type ParseError<E> = ParseFehler<E>;

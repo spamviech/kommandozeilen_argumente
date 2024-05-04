@@ -18,8 +18,8 @@ impl<'t, E> Argumente<'t, bool, E> {
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
     ///
     /// ## English version
-    /// [flag_bool_english](Arguments::flag_bool_english)
-    #[inline(always)]
+    /// [`flag_bool_english`](Arguments::flag_bool_english)
+    #[inline]
     pub fn flag_bool_deutsch(beschreibung: Beschreibung<'t, bool>) -> Argumente<'t, bool, E> {
         Argumente::flag_bool_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
@@ -27,8 +27,8 @@ impl<'t, E> Argumente<'t, bool, E> {
     /// Create a flag-argument which can be deactivated with a "no" prefix.
     ///
     /// ## Deutsche Version
-    /// [flag_bool_deutsch](Argumente::flag_bool_deutsch)
-    #[inline(always)]
+    /// [`flag_bool_deutsch`](Argumente::flag_bool_deutsch)
+    #[inline]
     pub fn flag_bool_english(description: Description<'t, bool>) -> Arguments<'t, bool, E> {
         Argumente::flag_bool_mit_sprache(description, Sprache::ENGLISH)
     }
@@ -36,8 +36,8 @@ impl<'t, E> Argumente<'t, bool, E> {
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
     ///
     /// ## English synonym
-    /// [flag_bool_with_language](Arguments::flag_bool_with_language)
-    #[inline(always)]
+    /// [`flag_bool_with_language`](Arguments::flag_bool_with_language)
+    #[inline]
     pub fn flag_bool_mit_sprache(
         beschreibung: Beschreibung<'t, bool>,
         sprache: Sprache,
@@ -48,8 +48,8 @@ impl<'t, E> Argumente<'t, bool, E> {
     /// Create a flag-argument which can be deactivated with the configured prefix.
     ///
     /// ## Deutsches Synonym
-    /// [flag_bool_mit_sprache](Argumente::flag_bool_mit_sprache)
-    #[inline(always)]
+    /// [`flag_bool_mit_sprache`](Argumente::flag_bool_mit_sprache)
+    #[inline]
     pub fn flag_bool_with_language(
         description: Description<'t, bool>,
         language: Language,
@@ -61,7 +61,7 @@ impl<'t, E> Argumente<'t, bool, E> {
     ///
     /// ## English
     /// Create a flag-argument which can be deactivated with the configured prefix.
-    #[inline(always)]
+    #[inline]
     pub fn flag_bool(
         beschreibung: Beschreibung<'t, bool>,
         invertiere_präfix: impl Into<Vergleich<'t>>,
@@ -75,8 +75,8 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
     ///
     /// ## English version
-    /// [flag_english](Arguments::flag_english)
-    #[inline(always)]
+    /// [`flag_english`](Arguments::flag_english)
+    #[inline]
     pub fn flag_display_deutsch(
         beschreibung: Beschreibung<'t, T>,
         konvertiere: impl 't + Fn(bool) -> T,
@@ -87,8 +87,8 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
     /// Create a flag-argument which can be deactivated with a "no" prefix.
     ///
     /// ## Deutsche Version
-    /// [flag_deutsch](Argumente::flag_deutsch)
-    #[inline(always)]
+    /// [`flag_deutsch`](Argumente::flag_deutsch)
+    #[inline]
     pub fn flag_display_english(
         description: Description<'t, T>,
         convert: impl 't + Fn(bool) -> T,
@@ -99,8 +99,8 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
     ///
     /// ## English synonym
-    /// [flag_with_language](Arguments::flag_with_language)
-    #[inline(always)]
+    /// [`flag_with_language`](Arguments::flag_with_language)
+    #[inline]
     pub fn flag_display_mit_sprache(
         beschreibung: Beschreibung<'t, T>,
         konvertiere: impl 't + Fn(bool) -> T,
@@ -118,8 +118,8 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
     /// Create a flag-argument which can be deactivated with a "no" prefix.
     ///
     /// ## Deutsches Synonym
-    /// [flag_mit_sprache](Argumente::flag_mit_sprache)
-    #[inline(always)]
+    /// [`flag_mit_sprache`](Argumente::flag_mit_sprache)
+    #[inline]
     pub fn flag_display_with_language(
         description: Description<'t, T>,
         convert: impl 't + Fn(bool) -> T,
@@ -132,7 +132,7 @@ impl<'t, T: 't + Display + Clone, E> Argumente<'t, T, E> {
     ///
     /// ## English
     /// Create a flag-argument which can be deactivated with the configured prefix.
-    #[inline(always)]
+    #[inline]
     pub fn flag_display(
         beschreibung: Beschreibung<'t, T>,
         konvertiere: impl 't + Fn(bool) -> T,
@@ -153,8 +153,8 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
     ///
     /// ## English version
-    /// [flag_english](Arguments::flag_english)
-    #[inline(always)]
+    /// [`flag_english`](Arguments::flag_english)
+    #[inline]
     pub fn flag_deutsch(
         beschreibung: Beschreibung<'t, T>,
         konvertiere: impl 't + Fn(bool) -> T,
@@ -166,8 +166,8 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     /// Create a flag-argument which can be deactivated with a "no" prefix.
     ///
     /// ## Deutsche Version
-    /// [flag_deutsch](Argumente::flag_deutsch)
-    #[inline(always)]
+    /// [`flag_deutsch`](Argumente::flag_deutsch)
+    #[inline]
     pub fn flag_english(
         description: Description<'t, T>,
         convert: impl 't + Fn(bool) -> T,
@@ -179,8 +179,8 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
     ///
     /// ## English synonym
-    /// [flag_with_language](Arguments::flag_with_language)
-    #[inline(always)]
+    /// [`flag_with_language`](Arguments::flag_with_language)
+    #[inline]
     pub fn flag_mit_sprache(
         beschreibung: Beschreibung<'t, T>,
         konvertiere: impl 't + Fn(bool) -> T,
@@ -199,8 +199,8 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     /// Create a flag-argument which can be deactivated with a "no" prefix.
     ///
     /// ## Deutsches Synonym
-    /// [flag_mit_sprache](Argumente::flag_mit_sprache)
-    #[inline(always)]
+    /// [`flag_mit_sprache`](Argumente::flag_mit_sprache)
+    #[inline]
     pub fn flag_with_language(
         description: Description<'t, T>,
         convert: impl 't + Fn(bool) -> T,
@@ -214,6 +214,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     ///
     /// ## English
     /// Create a flag-argument which can be deactivated with the configured prefix.
+    #[inline]
     pub fn flag(
         beschreibung: Beschreibung<'t, T>,
         konvertiere: impl 't + Fn(bool) -> T,
@@ -253,10 +254,9 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                                 nicht_verwendet.push(None);
                                 continue;
                             } else if let Some(infix_name) = invertiere_präfix_vergleich
-                                .strip_als_präfix(&Normalisiert::neu_borrowed_unchecked(lang_str))
+                                .strip_als_präfix(&Normalisiert::neu(lang_str))
                             {
-                                let infix_name_normalisiert =
-                                    Normalisiert::neu_borrowed_unchecked(infix_name);
+                                let infix_name_normalisiert = Normalisiert::neu(infix_name);
                                 if let Some(negiert) = invertiere_infix_vergleich
                                     .strip_als_präfix(&infix_name_normalisiert)
                                 {
@@ -266,6 +266,8 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                                         continue;
                                     }
                                 }
+                            } else {
+                                // kein match für {lang_name_präfix}[invertiere_präfix_infix]{lang_name}.
                             }
                         } else if name_kurz_existiert {
                             if let Some(kurz_graphemes) =
@@ -282,6 +284,8 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
                                     continue;
                                 }
                             }
+                        } else {
+                            // kein match für {lang_name_präfix}.*, Flag hat keinen kurz_namen.
                         }
                     }
                     nicht_verwendet.push(arg);
@@ -309,7 +313,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     }
 }
 
-// TODO Hilfs-funktionen zum einfachren erstellen (mit_sprache, etc.)
+// TODO Hilfs-funktionen zum einfacheren erstellen (mit_sprache, etc.)
 /// Es handelt sich um ein Flag-Argument.
 ///
 /// ## English
@@ -334,10 +338,10 @@ pub struct Flag<'t, T, Bool, Anzeige> {
     /// Infix to invert the flag argument.
     pub invertiere_infix: Vergleich<'t>,
 
-    /// Erzeuge einen Wert aus einer [bool].
+    /// Erzeuge einen Wert aus einer [`bool`].
     ///
     /// ## English
-    /// Create a value from a [bool].
+    /// Create a value from a [`bool`].
     pub konvertiere: Bool,
 
     /// Anzeige eines Wertes (default value).
@@ -355,6 +359,7 @@ where
     ///
     /// ## English
     /// Parse the given arguments and return the corresponding value.
+    #[inline]
     pub fn parse<F>(
         self,
         args: impl Iterator<Item = Option<OsString>>,
@@ -366,16 +371,13 @@ where
         let mut iter = args.into_iter();
         while let Some(arg_opt) = iter.next() {
             if let Some(arg) = &arg_opt {
-                if let Some(b) = name.parse_flag(&invertiere_präfix, &invertiere_infix, &arg) {
+                if let Some(wert) = name.parse_flag(&invertiere_präfix, &invertiere_infix, arg) {
                     nicht_verwendet.push(None);
                     nicht_verwendet.extend(iter);
-                    return (Ergebnis::Wert(konvertiere(b)), nicht_verwendet);
-                } else {
-                    nicht_verwendet.push(arg_opt)
+                    return (Ergebnis::Wert(konvertiere(wert)), nicht_verwendet);
                 }
-            } else {
-                nicht_verwendet.push(arg_opt)
             }
+            nicht_verwendet.push(arg_opt);
         }
         let ergebnis = if let Some(wert) = standard {
             Ergebnis::Wert(wert)
@@ -399,6 +401,7 @@ where
     ///
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
+    #[inline]
     pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
         let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere: _, anzeige } =
             self;
@@ -412,10 +415,10 @@ where
         hilfe_text.push(']');
         let NonEmpty { head, tail } = lang;
         Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
-        if let Some((h, t)) = kurz.split_first() {
+        if let Some((kurz_head, kurz_tail)) = kurz.split_first() {
             hilfe_text.push_str(" | ");
             hilfe_text.push_str(kurz_präfix.as_str());
-            Name::möglichkeiten_als_regex(h, t, &mut hilfe_text);
+            Name::möglichkeiten_als_regex(kurz_head, kurz_tail, &mut hilfe_text);
         }
         let cow: Option<Cow<'_, str>> = match (hilfe, standard) {
             (None, None) => None,
@@ -424,12 +427,12 @@ where
             },
             (Some(hilfe), None) => Some(Cow::Borrowed(hilfe)),
             (Some(hilfe), Some(standard)) => {
-                let mut hilfe_text = (*hilfe).to_owned();
-                hilfe_text.push(' ');
-                hilfe_text.push_str(meta_standard);
-                hilfe_text.push_str(": ");
-                hilfe_text.push_str(&anzeige(standard));
-                Some(Cow::Owned(hilfe_text))
+                let mut hilfe_mit_standard = (*hilfe).to_owned();
+                hilfe_mit_standard.push(' ');
+                hilfe_mit_standard.push_str(meta_standard);
+                hilfe_mit_standard.push_str(": ");
+                hilfe_mit_standard.push_str(&anzeige(standard));
+                Some(Cow::Owned(hilfe_mit_standard))
             },
         };
         (hilfe_text, cow)

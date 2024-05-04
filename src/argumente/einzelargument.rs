@@ -55,6 +55,7 @@ where
     ///
     /// ## English
     /// Parse the given arguments and return the corresponding value.
+    #[inline]
     pub fn parse(
         self,
         args: impl Iterator<Item = Option<OsString>>,
@@ -79,6 +80,7 @@ where
     ///
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
+    #[inline]
     pub fn erzeuge_hilfe_text(
         &self,
         meta_standard: &str,

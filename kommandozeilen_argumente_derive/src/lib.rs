@@ -21,19 +21,19 @@ fn unwrap_or_compile_error<Fehler: Display>(result: Result<TokenStream2, Fehler>
     ts.into()
 }
 
-/// Derive-Macro für das [Parse](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html)-Traits.
+/// Derive-Macro für das [`Parse`](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html)-Traits.
 ///
 /// ## English
-/// Derive macro for the [Parse](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html) trait.
+/// Derive macro for the [`Parse`](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html) trait.
 #[proc_macro_derive(Parse, attributes(kommandozeilen_argumente))]
 pub fn derive_parse(item: TokenStream) -> TokenStream {
     unwrap_or_compile_error(parse::derive_parse(item.into()))
 }
 
-/// Derive-Macro für das [EnumArgument](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html)-Trait.
+/// Derive-Macro für das [`EnumArgument`](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html)-Trait.
 ///
 /// ## English
-/// Derive macro for the [EnumArgument](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html) trait.
+/// Derive macro for the [`EnumArgument`](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html) trait.
 #[proc_macro_derive(EnumArgument, attributes(kommandozeilen_argumente))]
 pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
     unwrap_or_compile_error(enum_argument::derive_enum_argument(item.into()))

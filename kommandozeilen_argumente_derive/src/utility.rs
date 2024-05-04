@@ -88,7 +88,7 @@ impl Case {
 
 ////////////////////////////////////////////////////////
 
-#[inline(always)]
+#[inline]
 fn punct_is_char(punct: &Punct, c: char) -> bool {
     punct.as_char() == c && punct.spacing() == Spacing::Alone
 }
@@ -247,7 +247,7 @@ fn tt_is_not_comma(tt: &TokenTree) -> bool {
 
 /// Argumente getrennt durch Kommas, Unterargumente mit () angegeben, potentiell mit Kommas, z.B. help.
 /// Argumente können Werte haben, getrennt durch `:`.
-/// Wert-Argumente können Listen (angegeben durch [], potentiell mit Kommas) sein.
+/// Wert-Argumente können Listen (angegeben durch [``], potentiell mit Kommas) sein.
 /// Argumente werden nicht weiter behandelt.
 fn split_argumente(
     parent: Vec<String>,

@@ -7,7 +7,7 @@ use std::{
     fmt::Display,
 };
 
-use itertools::Itertools;
+use itertools::Itertools as _;
 use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -22,7 +22,7 @@ use crate::{
 /// All names of an argument.
 #[derive(Debug, Clone)]
 pub struct Name<'t> {
-    /// Präfix vor dem LangNamen.
+    /// Präfix vor dem Lang-Namen.
     ///
     /// ## English
     /// Prefix before the long name.
@@ -34,27 +34,28 @@ pub struct Name<'t> {
     /// Full Name, given after `lang_präfix`.
     pub lang: NonEmpty<Vergleich<'t>>,
 
-    /// Präfix vor dem KurzNamen.
+    /// Präfix vor dem Kurz-Namen.
     ///
     /// ## English
     /// Prefix before the short name.
     pub kurz_präfix: Vergleich<'t>,
 
     /// Kurzer Name, wird nach `kurz_präfix` angegeben.
-    /// Bei Flag-Argumenten können KurzNamen mit identischen `kurz_präfix` zusammen angegeben werden,
+    /// Bei Flag-Argumenten können Kurz-Namen mit identischen `kurz_präfix` zusammen angegeben werden,
     /// zum Beispiel "-fgh".
-    /// Kurznamen länger als ein [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
+    /// Kurznamen länger als ein [`Grapheme`](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// werden nicht unterstützt.
     ///
     /// ## English
     /// Short name, given after `short_präfix`.
     /// Flag arguments with identical `kurz_präfix` may be given at once, e.g. "-fgh".
-    /// Short names longer than a [Grapheme](unicode_segmentation::UnicodeSegmentation::graphemes)
+    /// Short names longer than a [`Grapheme`](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// are not supported.
     pub kurz: Vec<Vergleich<'t>>,
 }
 
 impl Name<'_> {
+    /// Hilfs-Methode für [`parse_flag`](Name::parse_flag) und seine Varianten.
     fn parse_flag_aux<E>(
         &self,
         name_gefunden: impl FnOnce() -> E,
@@ -66,10 +67,13 @@ impl Name<'_> {
         if let Some(string) = arg.to_str() {
             let normalisiert = Normalisiert::neu(string);
             if let Some(lang_str) = &lang_präfix.strip_als_präfix_n(&normalisiert) {
+                #[allow(clippy::redundant_else)]
                 if contains_str(lang, lang_str.as_str()) {
                     return Some(name_gefunden());
-                } else if let Some(e) = parse_invertiert(lang, lang_str) {
-                    return Some(e);
+                } else if let Some(wert) = parse_invertiert(lang, lang_str) {
+                    return Some(wert);
+                } else {
+                    // kein match für {lang_präfix}[invertiert_infix]{lang_name}
                 }
             } else if name_kurz_existiert {
                 if let Some(kurz_graphemes) = kurz_präfix.strip_als_präfix_n(&normalisiert) {
@@ -83,11 +87,15 @@ impl Name<'_> {
                         return Some(name_gefunden());
                     }
                 }
+            } else {
+                // kein match für "{lang_präfix}.*" und es gibt keine Kurz-Namen.
             }
         }
         None
     }
 
+    /// Parse den namen als Flag.
+    #[inline]
     pub(crate) fn parse_flag(
         &self,
         invertiere_präfix: &Vergleich<'_>,
@@ -96,7 +104,7 @@ impl Name<'_> {
     ) -> Option<bool> {
         let parse_invertiert =
             |lang: &NonEmpty<Vergleich<'_>>, lang_str: &Normalisiert<'_>| -> Option<bool> {
-                if let Some(infix_name) = invertiere_präfix.strip_als_präfix_n(&lang_str) {
+                if let Some(infix_name) = invertiere_präfix.strip_als_präfix_n(lang_str) {
                     let infix_name_normalisiert = infix_name;
                     if let Some(negiert) =
                         invertiere_infix.strip_als_präfix_n(&infix_name_normalisiert)
@@ -111,11 +119,14 @@ impl Name<'_> {
         self.parse_flag_aux(|| true, parse_invertiert, arg)
     }
 
-    #[inline(always)]
+    /// Parse den namen als Flag, die ein frühes beenden auslöst.
+    #[inline]
     pub(crate) fn parse_frühes_beenden(&self, arg: &OsStr) -> bool {
         self.parse_flag_aux(|| (), |_, _| None, arg).is_some()
     }
 
+    /// Parse den Namen als Wert.
+    #[allow(clippy::option_option)]
     pub(crate) fn parse_mit_wert<'t>(
         &self,
         wert_infix: &Vergleich<'_>,
@@ -126,9 +137,10 @@ impl Name<'_> {
         if let Some(string) = arg.to_str() {
             let normalisiert = Normalisiert::neu(string);
             if let Some(lang_str) = lang_präfix.strip_als_präfix_n(&normalisiert) {
-                let suffixe = contains_prefix(lang, &lang_str);
+                let suffixe = filter_prefix(lang, &lang_str);
                 for suffix in suffixe {
-                    let suffix_normalisiert = Normalisiert::neu_borrowed_unchecked(suffix);
+                    let suffix_normalisiert = Normalisiert::neu(suffix);
+                    #[allow(clippy::redundant_else)]
                     if suffix.is_empty() {
                         return Some(None);
                     } else if let Some(wert_graphemes) =
@@ -139,7 +151,10 @@ impl Name<'_> {
                         let wert_cow = match normalisiert.cow_ref() {
                             Cow::Borrowed(_) => {
                                 let string_länge = string.len();
+                                // Berechne Index aus suffix-Länge
+                                #[allow(clippy::arithmetic_side_effects)]
                                 let start_index = string_länge - wert_länge - 1;
+                                #[allow(clippy::string_slice, clippy::indexing_slicing)]
                                 Cow::Borrowed(string[start_index..string_länge].as_ref())
                             },
                             Cow::Owned(_) => {
@@ -147,13 +162,15 @@ impl Name<'_> {
                             },
                         };
                         return Some(Some(wert_cow));
+                    } else {
+                        // Suffix ist nicht leer, beginnt aber nicht mit wert_infix
                     }
                 }
             } else if kurz_existiert {
                 if let Some(kurz_str) = kurz_präfix.strip_als_präfix_n(&normalisiert) {
                     let mut kurz_graphemes = kurz_str.as_str().graphemes(true);
-                    if kurz_graphemes.next().map(|name| contains_str(kurz, name)).unwrap_or(false) {
-                        let rest = Normalisiert::neu_borrowed_unchecked(kurz_graphemes.as_str());
+                    if kurz_graphemes.next().is_some_and(|name| contains_str(kurz, name)) {
+                        let rest = Normalisiert::neu(kurz_graphemes.as_str());
                         let wert_str = if rest.as_str().is_empty() {
                             None
                         } else {
@@ -164,7 +181,10 @@ impl Name<'_> {
                             Some(match normalisiert.cow_ref() {
                                 Cow::Borrowed(_) => {
                                     let string_länge = string.len();
+                                    // Berechne Index aus suffix-Länge
+                                    #[allow(clippy::arithmetic_side_effects)]
                                     let start_index = string_länge - wert_länge - 1;
+                                    #[allow(clippy::string_slice, clippy::indexing_slicing)]
                                     Cow::Borrowed(string[start_index..string_länge].as_ref())
                                 },
                                 Cow::Owned(_) => {
@@ -175,6 +195,8 @@ impl Name<'_> {
                         return Some(wert_str);
                     }
                 }
+            } else {
+                // kein match für "{lang_name_präfix}.*" und Argument hat keinen kurz_namen.
             }
         }
         None
@@ -184,26 +206,27 @@ impl Name<'_> {
     pub(crate) fn möglichkeiten_als_regex(
         head: &Vergleich<'_>,
         tail: &[Vergleich<'_>],
-        s: &mut String,
+        string: &mut String,
     ) {
         if !tail.is_empty() {
-            s.push('(')
+            string.push('(');
         }
-        s.push_str(head.as_str());
-        for l in tail {
-            s.push('|');
-            s.push_str(l.as_str());
+        string.push_str(head.as_str());
+        for elem in tail {
+            string.push('|');
+            string.push_str(elem.as_str());
         }
         if !tail.is_empty() {
-            s.push(')')
+            string.push(')');
         }
     }
 }
 
-/// Beschreibung eines [Kommandozeilen-Arguments](EinzelArgument).
+/// Beschreibung eines [`Kommandozeilen-Arguments`](EinzelArgument).
 ///
 /// ## English synonym
-/// [Description]
+/// [`Description`]
+#[must_use]
 #[derive(Debug, Clone)]
 pub struct Beschreibung<'t, T> {
     /// Namen um das Argument zu verwenden.
@@ -228,17 +251,20 @@ pub struct Beschreibung<'t, T> {
 /// Description of a command line argument.
 ///
 /// ## Deutsches Synonym
-/// [Beschreibung]
+/// [`Beschreibung`]
 pub type Description<'t, T> = Beschreibung<'t, T>;
 
 impl<'t, T: Display> Beschreibung<'t, T> {
-    #[inline(always)]
+    /// Konvertiere den Standartwert in einen [`String`] über den [`Display`]-Trait
+    /// und gebe ihn als extra Wert zurück.
+    #[inline]
     pub(crate) fn als_string_beschreibung(self) -> (Beschreibung<'t, String>, Option<T>) {
         self.als_string_beschreibung_allgemein(ToString::to_string)
     }
 }
 
 impl<'t, T> Beschreibung<'t, T> {
+    /// Konvertiere den Standartwert in einen [`String`] und gebe ihn als extra Wert zurück.
     pub(crate) fn als_string_beschreibung_allgemein(
         self,
         anzeige: impl Fn(&T) -> String,
@@ -256,25 +282,27 @@ impl<'t, T> Beschreibung<'t, T> {
         )
     }
 
-    /// Konvertiere eine [Beschreibung] zu einem anderen Typ.
+    /// Konvertiere eine [`Beschreibung`] zu einem anderen Typ.
     ///
     /// ## English synonym
-    /// [convert](Description::convert)
+    /// [`convert`](Description::convert)
+    #[inline]
     pub fn konvertiere<S>(self, konvertiere: impl FnOnce(T) -> S) -> Beschreibung<'t, S> {
         let Beschreibung { name, hilfe, standard } = self;
         Beschreibung { name, hilfe, standard: standard.map(konvertiere) }
     }
 
-    /// Convert a [Description] to a different type.
+    /// Convert a [`Description`] to a different type.
     ///
     /// ## Deutsches Synonym
-    /// [konvertiere](Beschreibung::konvertiere)
-    #[inline(always)]
+    /// [`konvertiere`](Beschreibung::konvertiere)
+    #[inline]
     pub fn convert<S>(self, convert: impl FnOnce(T) -> S) -> Description<'t, S> {
         self.konvertiere(convert)
     }
 }
 
+/// Ist `gesucht` in der `collection` enthalten?
 pub(crate) fn contains_str<'t>(
     collection: impl IntoIterator<Item = &'t Vergleich<'t>>,
     gesucht: &str,
@@ -282,7 +310,8 @@ pub(crate) fn contains_str<'t>(
     collection.into_iter().any(|ziel| ziel.eq(gesucht))
 }
 
-pub(crate) fn contains_prefix<'t>(
+/// Gebe alle Strings der `collection` mit `input` als Präfix zurück.
+pub(crate) fn filter_prefix<'t>(
     collection: impl 't + IntoIterator<Item = &'t Vergleich<'t>>,
     input: &'t Normalisiert<'t>,
 ) -> impl 't + Iterator<Item = &'t str> {
@@ -294,28 +323,32 @@ pub(crate) fn contains_prefix<'t>(
 /// ## English
 /// At least one String as definition for the full name.
 pub trait LangNamen<'t> {
-    /// Konvertiere in ein [NonEmpty].
+    /// Konvertiere in ein [`NonEmpty`].
     ///
     /// ## English
-    /// Convert into a [NonEmpty].
+    /// Convert into a [`NonEmpty`].
     fn lang_namen(self) -> NonEmpty<Vergleich<'t>>;
 }
 
+/// Implementiere [`LangNamen`] für String-artige Typen.
 macro_rules! impl_lang_namen {
     ($type: ty) => {
         impl<'t> LangNamen<'t> for $type {
+            #[inline]
             fn lang_namen(self) -> NonEmpty<Vergleich<'t>> {
                 NonEmpty::singleton(self.into())
             }
         }
 
         impl<'t> LangNamen<'t> for ($type, Case) {
+            #[inline]
             fn lang_namen(self) -> NonEmpty<Vergleich<'t>> {
                 NonEmpty::singleton(self.into())
             }
         }
 
         impl<'t> LangNamen<'t> for NonEmpty<$type> {
+            #[inline]
             fn lang_namen(self) -> NonEmpty<Vergleich<'t>> {
                 let NonEmpty { head, tail } = self;
                 NonEmpty { head: head.into(), tail: tail.into_iter().map(Into::into).collect() }
@@ -323,6 +356,7 @@ macro_rules! impl_lang_namen {
         }
 
         impl<'t> LangNamen<'t> for NonEmpty<($type, Case)> {
+            #[inline]
             fn lang_namen(self) -> NonEmpty<Vergleich<'t>> {
                 let NonEmpty { head, tail } = self;
                 NonEmpty { head: head.into(), tail: tail.into_iter().map(Into::into).collect() }
@@ -336,23 +370,26 @@ impl_lang_namen! {&'t str}
 impl_lang_namen! {Normalisiert<'t>}
 
 impl<'t> LangNamen<'t> for Vergleich<'t> {
+    #[inline]
     fn lang_namen(self) -> NonEmpty<Vergleich<'t>> {
         NonEmpty::singleton(self)
     }
 }
 
 impl<'t> LangNamen<'t> for NonEmpty<Vergleich<'t>> {
+    #[inline]
     fn lang_namen(self) -> NonEmpty<Vergleich<'t>> {
         self
     }
 }
 
 impl<'t, S: AsRef<str>> LangNamen<'t> for &'t NonEmpty<S> {
+    #[inline]
     fn lang_namen(self) -> NonEmpty<Vergleich<'t>> {
         let NonEmpty { head, tail } = self;
         NonEmpty {
             head: head.as_ref().into(),
-            tail: tail.into_iter().map(|s| s.as_ref().into()).collect(),
+            tail: tail.iter().map(|string| string.as_ref().into()).collect(),
         }
     }
 }
@@ -362,22 +399,25 @@ impl<'t, S: AsRef<str>> LangNamen<'t> for &'t NonEmpty<S> {
 /// ## English
 /// Arbitrary number of strings for the short name.
 pub trait KurzNamen<'t> {
-    /// Konvertiere in einen [Vec].
+    /// Konvertiere in einen [`Vec`].
     ///
     /// ## English
-    /// Convert into a [Vec].
+    /// Convert into a [`Vec`].
     fn kurz_namen(self) -> Vec<Vergleich<'t>>;
 }
 
+/// Implementiere [`KurzNamen`] für String-artige Typen.
 macro_rules! impl_kurz_namen {
     ($type: ty) => {
         impl<'t> KurzNamen<'t> for $type {
+            #[inline]
             fn kurz_namen(self) -> Vec<Vergleich<'t>> {
                 vec![self.into()]
             }
         }
 
         impl<'t> KurzNamen<'t> for ($type, Case) {
+            #[inline]
             fn kurz_namen(self) -> Vec<Vergleich<'t>> {
                 vec![self.into()]
             }
@@ -386,12 +426,14 @@ macro_rules! impl_kurz_namen {
         macro_rules! impl_into_iter {
             ($collection: ident) => {
                 impl<'t> KurzNamen<'t> for $collection<$type> {
+                    #[inline]
                     fn kurz_namen(self) -> Vec<Vergleich<'t>> {
                         self.into_iter().map(Into::into).collect()
                     }
                 }
 
                 impl<'t> KurzNamen<'t> for $collection<($type, Case)> {
+                    #[inline]
                     fn kurz_namen(self) -> Vec<Vergleich<'t>> {
                         self.into_iter().map(Into::into).collect()
                     }
@@ -410,22 +452,25 @@ impl_kurz_namen! {&'t str}
 impl_kurz_namen! {Normalisiert<'t>}
 
 impl<'t> KurzNamen<'t> for Vec<Vergleich<'t>> {
+    #[inline]
     fn kurz_namen(self) -> Vec<Vergleich<'t>> {
         self
     }
 }
 
 impl<'t, S: AsRef<str>> KurzNamen<'t> for &'t Vec<S> {
+    #[inline]
     fn kurz_namen(self) -> Vec<Vergleich<'t>> {
-        self.into_iter().map(|s| s.as_ref().into()).collect()
+        self.iter().map(|string| string.as_ref().into()).collect()
     }
 }
 
 impl<'t, T> Beschreibung<'t, T> {
-    /// Erzeuge eine neue [Beschreibung].
+    /// Erzeuge eine neue [`Beschreibung`].
     ///
     /// ## English synonym
-    /// [new](Description::new)
+    /// [`new`](Description::new)
+    #[inline]
     pub fn neu(
         lang_präfix: impl Into<Vergleich<'t>>,
         lang: impl LangNamen<'t>,
@@ -446,11 +491,11 @@ impl<'t, T> Beschreibung<'t, T> {
         }
     }
 
-    /// Create a new [Description].
+    /// Create a new [`Description`].
     ///
     /// ## Deutsches Synonym
-    /// [neu](Beschreibung::neu)
-    #[inline(always)]
+    /// [`neu`](Beschreibung::neu)
+    #[inline]
     pub fn new(
         long_prefix: Compare<'t>,
         long: impl LangNamen<'t>,
@@ -462,11 +507,11 @@ impl<'t, T> Beschreibung<'t, T> {
         Beschreibung::neu(long_prefix, long, short_prefix, short, help, default)
     }
 
-    /// Erzeuge eine neue [Beschreibung].
+    /// Erzeuge eine neue [`Beschreibung`].
     ///
     /// ## English synonym
-    /// [new_with_language](Description::new_with_language)
-    #[inline(always)]
+    /// [`new_with_language`](Description::new_with_language)
+    #[inline]
     pub fn neu_mit_sprache(
         lang: impl LangNamen<'t>,
         kurz: impl KurzNamen<'t>,
@@ -477,11 +522,11 @@ impl<'t, T> Beschreibung<'t, T> {
         Beschreibung::neu(sprache.lang_präfix, lang, sprache.kurz_präfix, kurz, hilfe, standard)
     }
 
-    /// Create a new [Description].
+    /// Create a new [`Description`].
     ///
     /// ## Deutsches Synonym
-    /// [neu_mit_sprache](Description::neu_mit_sprache)
-    #[inline(always)]
+    /// [`neu_mit_sprache`](Description::neu_mit_sprache)
+    #[inline]
     pub fn new_with_language(
         long: impl LangNamen<'t>,
         short: impl KurzNamen<'t>,
@@ -496,8 +541,9 @@ impl<'t, T> Beschreibung<'t, T> {
 /// Konfiguration eines Kommandozeilen-Arguments.
 ///
 /// ## English synonym
-/// [Configuration]
+/// [`Configuration`]
 #[derive(Debug)]
+#[must_use]
 pub enum Konfiguration<'t> {
     /// Es handelt sich um ein Flag-Argument.
     ///
@@ -511,11 +557,11 @@ pub enum Konfiguration<'t> {
         beschreibung: Beschreibung<'t, String>,
 
         /// Präfix und folgendes Infix zum invertieren des Flag-Arguments.
-        /// Der Wert ist [None], wenn es sich um eine Flag die zu frühem beenden führt handelt.
+        /// Der Wert ist [`None`], wenn es sich um eine Flag die zu frühem beenden führt handelt.
         ///
         /// ## English
         /// Prefix and following infix to invert the flag argument.
-        /// The value is [None] if it is a flag causing an early exit.
+        /// The value is [`None`] if it is a flag causing an early exit.
         invertiere_präfix_infix: Option<(Vergleich<'t>, Vergleich<'t>)>,
     },
 
@@ -553,5 +599,5 @@ pub enum Konfiguration<'t> {
 /// Configuration of a command line argument.
 ///
 /// ## Deutsches Synonym
-/// [Konfiguration]
+/// [`Konfiguration`]
 pub type Configuration<'t> = Konfiguration<'t>;

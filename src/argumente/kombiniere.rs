@@ -18,7 +18,7 @@ use crate::{
 /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
 ///
 /// ## English synonym
-/// [combine][crate::argumente::combine]
+/// [combine][`crate::argumente::combine`]
 macro_rules! kombiniere {
     ($funktion:expr $(,)?) => {
         $crate::Argumente::konstant($funktion)
@@ -109,7 +109,7 @@ macro_rules! kombiniere {
 /// Parse multiple command line arguments and combine the results with the given function.
 ///
 /// ## Deutsches Synonym
-/// [kombiniere][macro@crate::argumente::kombiniere]
+/// [kombiniere][`macro@crate::argumente::kombiniere`]
 macro_rules! combine {
     ($funktion: expr $(, $($args:ident),*)?) => {
         $crate::kombiniere!($funktion $(, $($args),*)?)
@@ -119,14 +119,17 @@ macro_rules! combine {
     };
 }
 
+/// Erzeuge die `kombiniere_n`- und `combine_n`-Methoden, die mehrere Argumente kombiniert.
 macro_rules! impl_kombiniere_n {
     ($deutsch: ident - $english: ident ($($var: ident: $ty_var: ident),+)) => {
         /// Parse mehrere Kommandozeilen-Argumente und kombiniere die Ergebnisse mit der übergebenen Funktion.
         ///
         /// ## English synonym
         #[doc = concat!("[", stringify!($english), "](Argumente::", stringify!($english), ")")]
+        #[allow(clippy::too_many_arguments, clippy::min_ident_chars)]
+        #[inline]
         pub fn $deutsch<$($ty_var: 't),+>(
-            f: impl 't + Fn($($ty_var),+) -> T,
+            funktion: impl 't + Fn($($ty_var),+) -> T,
             $($var: Argumente<'t, $ty_var, Error>),+
         ) -> Argumente<'t, T, Error> {
             let mut konfigurationen = Vec :: new();
@@ -167,7 +170,7 @@ macro_rules! impl_kombiniere_n {
                         // `fehler` oder `frühes_beenden` hinzugefügt wird,
                         // diese demnach nicht-leer sind.
                         // In dieser Verzweigung sind beide leer, es sind also alle Werte Some
-                        Ergebnis::Wert(f($($var.expect("Kein Wert ohne Fehler.")),+))
+                        Ergebnis::Wert(funktion($($var.expect("Kein Wert ohne Fehler.")),+))
                     };
                     (ergebnis, nicht_verwendet)
                 }),
@@ -179,12 +182,13 @@ macro_rules! impl_kombiniere_n {
         ///
         /// ## Deutsches Synonym
         #[doc = concat!("[", stringify!($deutsch), "](Argumente::", stringify!($deutsch), ")")]
-        #[inline(always)]
+        #[allow(clippy::too_many_arguments, clippy::min_ident_chars)]
+        #[inline]
         pub fn $english<$($ty_var: 't),+>(
-            f: impl 't + Fn($($ty_var),+) -> T,
+            function: impl 't + Fn($($ty_var),+) -> T,
             $($var: Argumente<'t, $ty_var, Error>),+
         ) -> Argumente<'t, T, Error> {
-            Argumente::$deutsch(f, $($var),+)
+            Argumente::$deutsch(function, $($var),+)
         }
     };
 }
@@ -193,30 +197,32 @@ impl<'t, T, Error: 't> Argumente<'t, T, Error> {
     /// Parse keine Kommandozeilen-Argumente und erzeuge das Ergebnis mit der übergebenen Funktion.
     ///
     /// ## English synonym
-    /// [constant](Argumente::constant)
-    pub fn konstant(f: impl 't + Fn() -> T) -> Argumente<'t, T, Error> {
+    /// [`constant`](Argumente::constant)
+    #[inline]
+    pub fn konstant(funktion: impl 't + Fn() -> T) -> Argumente<'t, T, Error> {
         Argumente {
             konfigurationen: Vec::new(),
             flag_kurzformen: HashMap::new(),
-            parse: Box::new(move |args| (Ergebnis::Wert(f()), args)),
+            parse: Box::new(move |args| (Ergebnis::Wert(funktion()), args)),
         }
     }
 
     /// Parse no command line arguments and create the result with the given function.
     ///
     /// ## Deutsches Synonym
-    /// [konstant](Argumente::konstant)
-    #[inline(always)]
-    pub fn constant(f: impl 't + Fn() -> T) -> Argumente<'t, T, Error> {
-        Argumente::konstant(f)
+    /// [`konstant`](Argumente::konstant)
+    #[inline]
+    pub fn constant(funktion: impl 't + Fn() -> T) -> Argumente<'t, T, Error> {
+        Argumente::konstant(funktion)
     }
 
     /// Parse ein Kommandozeilen-Argument und konvertiere das Ergebnis mit der übergebenen Funktion.
     ///
     /// ## English synonym
-    /// [convert](Argumente::convert)
+    /// [`convert`](Argumente::convert)
+    #[inline]
     pub fn konvertiere<A: 't>(
-        f: impl 't + Fn(A) -> T,
+        mapper: impl 't + Fn(A) -> T,
         Argumente { konfigurationen, flag_kurzformen, parse }: Argumente<'t, A, Error>,
     ) -> Argumente<'t, T, Error> {
         Argumente {
@@ -224,7 +230,7 @@ impl<'t, T, Error: 't> Argumente<'t, T, Error> {
             flag_kurzformen,
             parse: Box::new(move |args| {
                 let (ergebnis, nicht_verwendet) = parse(args);
-                (ergebnis.konvertiere(&f), nicht_verwendet)
+                (ergebnis.konvertiere(&mapper), nicht_verwendet)
             }),
         }
     }
@@ -232,13 +238,13 @@ impl<'t, T, Error: 't> Argumente<'t, T, Error> {
     /// Parse one command line argument and convert the result with the given function.
     ///
     /// ## Deutsches Synonym
-    /// [konvertiere](Argumente::konvertiere)
-    #[inline(always)]
+    /// [`konvertiere`](Argumente::konvertiere)
+    #[inline]
     pub fn convert<A: 't>(
-        f: impl 't + Fn(A) -> T,
+        mapper: impl 't + Fn(A) -> T,
         arg: Argumente<'t, A, Error>,
     ) -> Argumente<'t, T, Error> {
-        Argumente::konvertiere(f, arg)
+        Argumente::konvertiere(mapper, arg)
     }
 
     impl_kombiniere_n! {kombiniere2-combine2(a: A, b: B)}
@@ -277,6 +283,7 @@ pub struct Standard;
 
 #[allow(deprecated)]
 impl HilfeText for Standard {
+    #[inline]
     fn erzeuge_hilfe_text<'t, S, Bool, Parse, Anzeige>(
         arg: &'t EinzelArgument<'t, S, Bool, Parse, Anzeige>,
         meta_standard: &'t str,
@@ -303,7 +310,7 @@ pub trait Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> {
         args: impl Iterator<Item = Option<OsString>>,
     ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>);
 
-    /// Erzeuge den Hilfetext für die enthaltenen [Einzelargumente](EinzelArgument).
+    /// Erzeuge den Hilfetext für die enthaltenen [`Einzelargumente`](EinzelArgument).
     fn erzeuge_hilfe_text<H: HilfeText>(
         &self,
         meta_standard: &str,
@@ -312,6 +319,7 @@ pub trait Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> {
 }
 
 impl<'t, T, Bool, Parse, Fehler, Anzeige> Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> for Void {
+    #[inline]
     fn parse(
         self,
         _args: impl Iterator<Item = Option<OsString>>,
@@ -319,6 +327,7 @@ impl<'t, T, Bool, Parse, Fehler, Anzeige> Kombiniere<'t, T, Bool, Parse, Fehler,
         void::unreachable(self)
     }
 
+    #[inline]
     fn erzeuge_hilfe_text<H: HilfeText>(
         &self,
         _meta_standard: &str,
@@ -337,15 +346,17 @@ where
     P0: Fn(&OsStr) -> Result<T0, ParseFehler<Fehler>>,
     K0: Kombiniere<'t, T0, B0, P0, Fehler, A0>,
 {
+    #[inline]
     fn parse(
         self,
         args: impl Iterator<Item = Option<OsString>>,
     ) -> (Ergebnis<'t, T1, Fehler>, Vec<Option<OsString>>) {
-        let (f, argument) = self;
+        let (funktion, argument) = self;
         let (ergebnis, nicht_verwendet) = argument.parse(args);
-        (ergebnis.konvertiere(f), nicht_verwendet)
+        (ergebnis.konvertiere(funktion), nicht_verwendet)
     }
 
+    #[inline]
     fn erzeuge_hilfe_text<H: HilfeText>(
         &self,
         meta_standard: &str,
@@ -373,17 +384,18 @@ where
     A1: Fn(&T1) -> String,
     K1: Kombiniere<'t1, T1, B1, P1, F1, A1>,
 {
+    #[inline]
     fn parse(
         self,
         args: impl Iterator<Item = Option<OsString>>,
     ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
-        use Ergebnis::*;
+        use Ergebnis::{Fehler, FrühesBeenden, Wert};
 
-        let (f, a0, a1) = self;
+        let (funktion, a0, a1) = self;
         let (e0, nicht_verwendet0) = a0.parse(args);
         let (e1, nicht_verwendet1) = a1.parse(nicht_verwendet0.into_iter());
         let ergebnis = match (e0, e1) {
-            (Wert(w0), Wert(w1)) => Wert(f(w0, w1)),
+            (Wert(w0), Wert(w1)) => Wert(funktion(w0, w1)),
             (Wert(_w0), FrühesBeenden(n1)) => FrühesBeenden(n1),
             (Wert(_w0), Fehler(f1)) => Fehler(f1.map(|fehler| fehler.konvertiere(F1::into))),
             (FrühesBeenden(n0), Wert(_w1)) => FrühesBeenden(n0),
@@ -396,14 +408,15 @@ where
                 Fehler(f0.map(|fehler| fehler.konvertiere(F0::into)))
             },
             (Fehler(f0), Fehler(f1)) => {
-                let mut f = f0.map(|fehler| fehler.konvertiere(F0::into));
-                f.extend(f1.into_iter().map(|fehler| fehler.konvertiere(F1::into)));
-                Fehler(f)
+                let mut fehler_liste = f0.map(|fehler| fehler.konvertiere(F0::into));
+                fehler_liste.extend(f1.into_iter().map(|fehler| fehler.konvertiere(F1::into)));
+                Fehler(fehler_liste)
             },
         };
         (ergebnis, nicht_verwendet1)
     }
 
+    #[inline]
     fn erzeuge_hilfe_text<H: HilfeText>(
         &self,
         meta_standard: &str,

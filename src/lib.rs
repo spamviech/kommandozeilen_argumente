@@ -1,10 +1,9 @@
 #![doc = include_str!("../LIESMICH.md")]
-
 // Verwende doc_cfg für bessere Dokumentation von feature-gated derive Macros.
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 
 #[doc(no_inline)]
-pub use nonempty::NonEmpty;
+pub use ::nonempty::NonEmpty;
 
 #[macro_export]
 /// Crate Name spezifiziert in Cargo.toml.

@@ -3,16 +3,16 @@
 /// Alle Strings, die zum erstellen von Hilfe-Text und Fehlermeldung notwendig sind.
 ///
 /// ## English synonym
-/// [Language]
+/// [`Language`]
 #[derive(Debug, Clone, Copy)]
 pub struct Sprache {
-    /// Standard-Präfix für LangNamen.
+    /// Standard-Präfix für Lang-Namen.
     ///
     /// ## English
     /// Default prefix for long names.
     pub lang_präfix: &'static str,
 
-    /// Standard-Präfix für KurzNamen.
+    /// Standard-Präfix für Kurz-Namen.
     ///
     /// ## English
     /// Default prefix for short names.
@@ -130,7 +130,7 @@ pub struct Sprache {
 /// All strings required to produce help text and error message.
 ///
 /// ## Deutsches Synonym
-/// [Sprache]
+/// [`Sprache`]
 pub type Language = Sprache;
 
 impl Sprache {
