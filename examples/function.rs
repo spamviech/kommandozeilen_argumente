@@ -5,7 +5,7 @@
 
 use std::{
     ffi::OsString,
-    fmt::{Debug, Display},
+    fmt::{self, Debug, Display},
     num::NonZeroI32,
 };
 
@@ -14,21 +14,25 @@ use kommandozeilen_argumente::{
     ParseArgument, ParseError,
 };
 
+/// An example enum, to show the use of [`EnumArgument`].
 #[derive(Debug, Clone)]
 enum Enumeration {
+    /// one
     One,
+    /// two
     Two,
+    /// three
     Three,
 }
 
 impl EnumArgument for Enumeration {
     fn varianten() -> Vec<Self> {
-        use Enumeration::*;
+        use Enumeration::{One, Three, Two};
         vec![One, Two, Three]
     }
 
     fn parse_enum(arg: OsString) -> Result<Self, kommandozeilen_argumente::ParseFehler<String>> {
-        use Enumeration::*;
+        use Enumeration::{One, Three, Two};
         if let Some(string) = arg.to_str() {
             // Target strings only contain ASCII-characters.
             // Therefore, all others can be ignored.
@@ -37,7 +41,7 @@ impl EnumArgument for Enumeration {
                 "one" => Ok(One),
                 "two" => Ok(Two),
                 "three" => Ok(Three),
-                _ => Err(ParseError::ParseFehler(format!("Unknown variant: {}", string))),
+                _ => Err(ParseError::ParseFehler(format!("Unknown variant: {string}"))),
             }
         } else {
             Err(ParseError::InvaliderString(arg))
@@ -46,28 +50,34 @@ impl EnumArgument for Enumeration {
 }
 
 impl Display for Enumeration {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(self, f)
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Debug::fmt(self, formatter)
     }
 }
 
+/// struct representing the parsed command line arguments.
 #[derive(Debug)]
 struct Args {
+    /// A flag with default settings.
     flag: bool,
+    /// A flag with alternative names.
     renamed: bool,
+    /// A flag without default value, with alternative prefix to invert the flag.
     required: bool,
+    /// A String value.
     value: String,
+    /// An Enumeration-value with default value and alternative meta variable.
     enumeration: Enumeration,
 }
 
 impl Display for Args {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Args { flag, renamed, required, value, enumeration } = self;
-        write!(f, "flag: {flag}\n")?;
-        write!(f, "renamed: {renamed}\n")?;
-        write!(f, "required: {required}\n")?;
-        write!(f, "value: {value}\n")?;
-        write!(f, "enumeration: {enumeration}\n")
+        writeln!(formatter, "flag: {flag}")?;
+        writeln!(formatter, "renamed: {renamed}")?;
+        writeln!(formatter, "required: {required}")?;
+        writeln!(formatter, "value: {value}")?;
+        writeln!(formatter, "enumeration: {enumeration}")
     }
 }
 
@@ -125,6 +135,7 @@ fn main() {
         language.wert_infix,
         "VAR",
     );
+    #[allow(clippy::shadow_unrelated)]
     let merge = |flag, renamed, required, value, enumeration| Args {
         flag,
         renamed,
@@ -141,5 +152,8 @@ fn main() {
         );
     let args = argumente
         .parse_vollständig_mit_sprache_aus_env(NonZeroI32::new(1).expect("1 != 0"), language);
-    println!("{:?}", args)
+    #[allow(clippy::print_stdout, clippy::use_debug)]
+    {
+        println!("{args:?}");
+    }
 }

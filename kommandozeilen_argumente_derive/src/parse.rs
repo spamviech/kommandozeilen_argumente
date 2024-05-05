@@ -1076,6 +1076,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         nach_version
     };
     let ts = quote! {
+        #[allow(clippy::shadow_unrelated, clippy::disallowed_script_idents)]
         impl #crate_name::Parse for #ident {
             type Fehler = String;
 

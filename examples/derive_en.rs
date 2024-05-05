@@ -2,28 +2,40 @@
 
 // dependencies of the lib
 #![allow(unused_crate_dependencies)]
+// checking if the derive macro triggers any lint
+#![allow(clippy::blanket_clippy_restriction_lints)]
+#![warn(clippy::restriction)]
+// Only works when disabled for the whole module (can't be don in the macro).
+// Required for the use of some [`Language`]-fields.
+#![allow(clippy::disallowed_script_idents)]
 
-use std::{
-    fmt::{Debug, Display},
+use core::{
+    fmt::{self, Debug, Display},
     num::NonZeroI32,
 };
 
 use kommandozeilen_argumente::{EnumArgument, Parse};
 
+/// An example enum, to show the use of [`EnumArgument`].
 #[derive(Debug, Clone, EnumArgument)]
 #[kommandozeilen_argumente(case: insensitive)]
 enum Enumeration {
+    /// one
     One,
+    /// two
     Two,
+    /// three
     Three,
 }
 
 impl Display for Enumeration {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(self, f)
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        #[allow(clippy::implicit_return)]
+        Debug::fmt(self, formatter)
     }
 }
 
+/// struct to define the command line arguments.
 #[derive(Debug, Parse)]
 #[kommandozeilen_argumente(help(description: "program description.", short))]
 #[kommandozeilen_argumente(version, language: english)]
@@ -44,17 +56,22 @@ struct Args {
 }
 
 impl Display for Args {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    #[allow(clippy::pattern_type_mismatch, clippy::question_mark_used, clippy::implicit_return)]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Args { flag, renamed, required, value, enumeration } = self;
-        write!(f, "flag: {flag}\n")?;
-        write!(f, "renamed: {renamed}\n")?;
-        write!(f, "required: {required}\n")?;
-        write!(f, "value: {value}\n")?;
-        write!(f, "enumeration: {enumeration}\n")
+        writeln!(formatter, "flag: {flag}")?;
+        writeln!(formatter, "renamed: {renamed}")?;
+        writeln!(formatter, "required: {required}")?;
+        writeln!(formatter, "value: {value}")?;
+        writeln!(formatter, "enumeration: {enumeration}")
     }
 }
 
 fn main() {
-    let args = Args::parse_with_error_message_from_env(NonZeroI32::new(1).expect("1 != 0"));
-    println!("{:?}", args)
+    #[allow(clippy::expect_used, clippy::separated_literal_suffix)]
+    let args = Args::parse_with_error_message_from_env(NonZeroI32::new(1_i32).expect("1 != 0"));
+    #[allow(clippy::print_stdout, clippy::use_debug)]
+    {
+        println!("{args:?}");
+    }
 }

@@ -5,7 +5,7 @@
 
 use std::{
     ffi::OsString,
-    fmt::{Debug, Display},
+    fmt::{self, Debug, Display},
     num::NonZeroI32,
 };
 
@@ -14,21 +14,25 @@ use kommandozeilen_argumente::{
     ParseArgument, ParseFehler, Sprache,
 };
 
+/// Beispiel-enum um den Anwendung von [`EnumArgument`] zu zeigen.
 #[derive(Debug, Clone)]
 enum Aufzählung {
+    /// eins
     Eins,
+    /// zwei
     Zwei,
+    /// drei
     Drei,
 }
 
 impl EnumArgument for Aufzählung {
     fn varianten() -> Vec<Self> {
-        use Aufzählung::*;
+        use Aufzählung::{Drei, Eins, Zwei};
         vec![Eins, Zwei, Drei]
     }
 
     fn parse_enum(arg: OsString) -> Result<Self, ParseFehler<String>> {
-        use Aufzählung::*;
+        use Aufzählung::{Drei, Eins, Zwei};
         if let Some(string) = arg.to_str() {
             // Vergleich-Strings enthalten nur ASCII-Zeichen,
             // alle anderen können demnach ignoriert werden.
@@ -37,7 +41,7 @@ impl EnumArgument for Aufzählung {
                 "eins" => Ok(Eins),
                 "zwei" => Ok(Zwei),
                 "drei" => Ok(Drei),
-                _ => Err(ParseFehler::ParseFehler(format!("Unbekannte Variante: {}", string))),
+                _ => Err(ParseFehler::ParseFehler(format!("Unbekannte Variante: {string}"))),
             }
         } else {
             Err(ParseFehler::InvaliderString(arg))
@@ -46,28 +50,34 @@ impl EnumArgument for Aufzählung {
 }
 
 impl Display for Aufzählung {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(self, f)
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Debug::fmt(self, formatter)
     }
 }
 
+/// Struktur um die geparsten Kommandozeilen-Argumente zu repräsentieren.
 #[derive(Debug)]
 struct Args {
+    /// Eine Flag mit Standard-Einstellungen.
     flag: bool,
+    /// Eine Flag mit alternativen Namen.
     umbenannt: bool,
+    /// Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.
     benötigt: bool,
+    /// Ein String-Wert.
     wert: String,
+    /// Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable.
     aufzählung: Aufzählung,
 }
 
 impl Display for Args {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Args { flag, umbenannt, benötigt, wert, aufzählung } = self;
-        write!(f, "flag: {flag}\n")?;
-        write!(f, "umbenannt: {umbenannt}\n")?;
-        write!(f, "benötigt: {benötigt}\n")?;
-        write!(f, "wert: {wert}\n")?;
-        write!(f, "aufzählung: {aufzählung}\n")
+        writeln!(formatter, "flag: {flag}")?;
+        writeln!(formatter, "umbenannt: {umbenannt}")?;
+        writeln!(formatter, "benötigt: {benötigt}")?;
+        writeln!(formatter, "wert: {wert}")?;
+        writeln!(formatter, "aufzählung: {aufzählung}")
     }
 }
 
@@ -125,6 +135,7 @@ fn main() {
         sprache.wert_infix,
         "VAR",
     );
+    #[allow(clippy::shadow_unrelated)]
     let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung| Args {
         flag,
         umbenannt,
@@ -141,5 +152,8 @@ fn main() {
         );
     let args = argumente
         .parse_vollständig_mit_sprache_aus_env(NonZeroI32::new(1).expect("1 != 0"), sprache);
-    println!("{:?}", args)
+    #[allow(clippy::print_stdout, clippy::use_debug)]
+    {
+        println!("{args:?}");
+    }
 }
