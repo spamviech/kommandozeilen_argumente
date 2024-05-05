@@ -3,6 +3,7 @@
 ## Unreleased changes
 
 - Normalisiert::as_str hinzugefügt.
+- Behandle clippy-lints.
 
 ## 0.2.0
 
