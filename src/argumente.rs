@@ -529,8 +529,6 @@ impl<'t, T, E> Argumente<'t, T, E> {
 
 /// test
 pub mod test {
-    #![allow(missing_docs)]
-
     use std::{
         borrow::Cow,
         ffi::{OsStr, OsString},
@@ -558,12 +556,22 @@ pub mod test {
         /// ## English
         /// A single argument.
         EinzelArgument(EinzelArgument<'t, T, Bool, Parse, Anzeige>),
-
+        /// Die Kombination mehrerer Argumente, kodiert über den [`Kombiniere`]-trait.
+        ///
+        /// ## English
+        /// The combination of multiple arguments, encoded via the [`Kombiniere`]-trait.
         Kombiniere {
+            #[allow(missing_docs)]
             kombiniere: K,
         },
-
+        /// Alternative Kommandozeilen-Argumente. Beim parsen wird das erste [`Ergebnis`] verwendet,
+        /// dass kein [`Ergebnis::Fehler`] ist.
+        ///
+        /// ## English
+        /// Alternative command line arguments. Parsing takes the first non-[`Error`](Ergebnis::Fehler)
+        /// [`Result`](crate::Result).
         Alternativ {
+            #[allow(missing_docs)]
             #[allow(clippy::type_complexity)]
             alternativen: Box<NonEmpty<ArgTest<'t, T, Bool, Parse, Anzeige, K>>>,
         },
@@ -575,6 +583,10 @@ pub mod test {
         Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
         K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
     {
+        /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+        ///
+        /// ## English
+        /// Parse the given arguments and return the corresponding value.
         #[inline]
         pub fn parse(
             self,
@@ -586,6 +598,7 @@ pub mod test {
                 EinzelArgument(arg) => arg.parse(args),
                 Kombiniere { kombiniere } => kombiniere.parse(args),
                 Alternativ { alternativen } => {
+                    // TODO only accept parsing without leftover args?
                     let NonEmpty { head, tail } = *alternativen;
                     let args_vec: Vec<_> = args.into_iter().collect();
                     tail.into_iter().fold(
@@ -611,8 +624,11 @@ pub mod test {
     }
 
     impl<'t, T, Bool, Parse, Anzeige, K> ArgTest<'t, T, Bool, Parse, Anzeige, K> {
-        // [Sprache::standard] kann als meta_standard verwendet werden.
+        // TODO [`Sprache::standard`] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
+        ///
+        /// ## English
+        /// Create the Message for the syntax of the arguments and the corresponding help text.
         #[inline]
         #[must_use]
         pub fn erzeuge_hilfe_text<H: HilfeText, Fehler>(
@@ -631,12 +647,15 @@ pub mod test {
                 ArgTest::Kombiniere { kombiniere } => {
                     kombiniere.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte)
                 },
-                ArgTest::Alternativ { alternativen } => alternativen
-                    .iter()
-                    .flat_map(|arg| {
-                        arg.erzeuge_hilfe_text::<H, Fehler>(meta_standard, meta_erlaubte_werte)
-                    })
-                    .collect(),
+                ArgTest::Alternativ { alternativen } => {
+                    // TODO how to show alternatives?
+                    alternativen
+                        .iter()
+                        .flat_map(|arg| {
+                            arg.erzeuge_hilfe_text::<H, Fehler>(meta_standard, meta_erlaubte_werte)
+                        })
+                        .collect()
+                },
             }
         }
     }

@@ -928,25 +928,25 @@ where
         let Wert { beschreibung, wert_infix, meta_var, mögliche_werte, parse: _, anzeige } = self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
         let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
-        let mut hilfe_text = String::new();
-        hilfe_text.push_str(lang_präfix.as_str());
+        let mut syntax = String::new();
+        syntax.push_str(lang_präfix.as_str());
         let NonEmpty { head, tail } = lang;
-        Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
-        hilfe_text.push_str("( |");
-        hilfe_text.push_str(wert_infix.as_str());
-        hilfe_text.push(')');
-        hilfe_text.push_str(meta_var);
+        Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut syntax);
+        syntax.push_str("( |");
+        syntax.push_str(wert_infix.as_str());
+        syntax.push(')');
+        syntax.push_str(meta_var);
         if let Some((kurz_head, kurz_tail)) = kurz.split_first() {
-            hilfe_text.push_str(" | ");
-            hilfe_text.push_str(kurz_präfix.as_str());
-            Name::möglichkeiten_als_regex(kurz_head, kurz_tail, &mut hilfe_text);
-            hilfe_text.push_str("[ |");
-            hilfe_text.push_str(wert_infix.as_str());
-            hilfe_text.push(']');
-            hilfe_text.push_str(meta_var);
+            syntax.push_str(" | ");
+            syntax.push_str(kurz_präfix.as_str());
+            Name::möglichkeiten_als_regex(kurz_head, kurz_tail, &mut syntax);
+            syntax.push_str("[ |");
+            syntax.push_str(wert_infix.as_str());
+            syntax.push(']');
+            syntax.push_str(meta_var);
         }
         // TODO a lot of code duplication...
-        let cow: Option<Cow<'_, str>> = match (hilfe, standard, mögliche_werte) {
+        let hilfe_text: Option<Cow<'_, str>> = match (hilfe, standard, mögliche_werte) {
             (None, None, None) => None,
             (None, None, Some(mögliche_werte)) => {
                 let mut string = format!("[{meta_erlaubte_werte}: ");
@@ -984,6 +984,6 @@ where
                 Some(Cow::Owned(string))
             },
         };
-        (hilfe_text, cow)
+        (syntax, hilfe_text)
     }
 }

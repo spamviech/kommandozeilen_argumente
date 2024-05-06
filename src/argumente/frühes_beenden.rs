@@ -1031,19 +1031,19 @@ impl<'t> FrühesBeenden<'t> {
         let FrühesBeenden { beschreibung, nachricht: _ } = self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
         let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
-        let mut hilfe_text = String::new();
-        hilfe_text.push_str(lang_präfix.as_str());
+        let mut syntax = String::new();
+        syntax.push_str(lang_präfix.as_str());
         let NonEmpty { head, tail } = lang;
-        Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
+        Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut syntax);
         if let Some((kurz_head, kurz_tail)) = kurz.split_first() {
-            hilfe_text.push_str(" | ");
-            hilfe_text.push_str(kurz_präfix.as_str());
-            Name::möglichkeiten_als_regex(kurz_head, kurz_tail, &mut hilfe_text);
+            syntax.push_str(" | ");
+            syntax.push_str(kurz_präfix.as_str());
+            Name::möglichkeiten_als_regex(kurz_head, kurz_tail, &mut syntax);
         }
         if let Some(void) = standard {
             void::unreachable(*void)
         }
-        let cow = hilfe.map(Cow::Borrowed);
-        (hilfe_text, cow)
+        let hilfe_text = hilfe.map(Cow::Borrowed);
+        (syntax, hilfe_text)
     }
 }

@@ -407,20 +407,20 @@ where
             self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
         let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
-        let mut hilfe_text = String::new();
-        hilfe_text.push_str(lang_präfix.as_str());
-        hilfe_text.push('[');
-        hilfe_text.push_str(invertiere_präfix.as_str());
-        hilfe_text.push_str(invertiere_infix.as_str());
-        hilfe_text.push(']');
+        let mut syntax = String::new();
+        syntax.push_str(lang_präfix.as_str());
+        syntax.push('[');
+        syntax.push_str(invertiere_präfix.as_str());
+        syntax.push_str(invertiere_infix.as_str());
+        syntax.push(']');
         let NonEmpty { head, tail } = lang;
-        Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut hilfe_text);
+        Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut syntax);
         if let Some((kurz_head, kurz_tail)) = kurz.split_first() {
-            hilfe_text.push_str(" | ");
-            hilfe_text.push_str(kurz_präfix.as_str());
-            Name::möglichkeiten_als_regex(kurz_head, kurz_tail, &mut hilfe_text);
+            syntax.push_str(" | ");
+            syntax.push_str(kurz_präfix.as_str());
+            Name::möglichkeiten_als_regex(kurz_head, kurz_tail, &mut syntax);
         }
-        let cow: Option<Cow<'_, str>> = match (hilfe, standard) {
+        let hilfe_text: Option<Cow<'_, str>> = match (hilfe, standard) {
             (None, None) => None,
             (None, Some(standard)) => {
                 Some(Cow::Owned(format!("{meta_standard}: {}", anzeige(standard))))
@@ -435,6 +435,6 @@ where
                 Some(Cow::Owned(hilfe_mit_standard))
             },
         };
-        (hilfe_text, cow)
+        (syntax, hilfe_text)
     }
 }
