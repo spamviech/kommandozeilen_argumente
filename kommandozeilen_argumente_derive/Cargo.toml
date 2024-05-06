@@ -1,6 +1,6 @@
 [package]
 name = "kommandozeilen_argumente_derive"
-version = "0.2.1"
+version = "0.3.0"
 description = "derive-Macros für das kommandozeilen_argumente crate."
 authors.workspace = true
 edition.workspace = true
