@@ -3,8 +3,6 @@
 __Anmerkung__: Dies ist die englische ReadMe, für die deutsche Version siehe
 [LIESMICH.md](https://github.com/spamviech/kommandozeilen_argumente/blob/main/LIESMICH.md).
 
-TODO english version
-
 Parser for command line arguments with optional automatic help generation.
 
 Arguments are created with the provided associated functions,
