@@ -280,7 +280,7 @@ pub trait Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> {
         &self,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> Vec<Hilfe<'_>>;
+    ) -> NonEmpty<Hilfe<'_>>;
 }
 
 impl<'t, T, Bool, Parse, Fehler, Anzeige> Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> for Void {
@@ -297,7 +297,7 @@ impl<'t, T, Bool, Parse, Fehler, Anzeige> Kombiniere<'t, T, Bool, Parse, Fehler,
         &self,
         _meta_standard: &str,
         _meta_erlaubte_werte: &str,
-    ) -> Vec<Hilfe<'_>> {
+    ) -> NonEmpty<Hilfe<'_>> {
         void::unreachable(*self)
     }
 }
@@ -326,7 +326,7 @@ where
         &self,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> Vec<Hilfe<'_>> {
+    ) -> NonEmpty<Hilfe<'_>> {
         self.1.erzeuge_hilfe_text::<H, Fehler>(meta_standard, meta_erlaubte_werte)
     }
 }
@@ -386,7 +386,7 @@ where
         &self,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> Vec<Hilfe<'_>> {
+    ) -> NonEmpty<Hilfe<'_>> {
         let (_f, a0, a1) = self;
         let mut hilfe_texte = a0.erzeuge_hilfe_text::<H, F0>(meta_standard, meta_erlaubte_werte);
         hilfe_texte.extend(a1.erzeuge_hilfe_text::<H, F1>(meta_standard, meta_erlaubte_werte));

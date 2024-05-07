@@ -532,7 +532,7 @@ impl<'t, T, E> Argumente<'t, T, E> {
 pub mod new {
     use std::ffi::{OsStr, OsString};
 
-    use nonempty::NonEmpty;
+    use nonempty::{nonempty, NonEmpty};
 
     use crate::{
         argumente::{
@@ -630,30 +630,31 @@ pub mod new {
         /// Create the Message for the syntax of the arguments and the corresponding help text.
         #[inline]
         #[must_use]
+        // panic when a programming error occurs
+        #[allow(clippy::missing_panics_doc)]
         pub fn erzeuge_hilfe_text<H: ErzeugeHilfeText, Fehler>(
             &self,
             meta_standard: &str,
             meta_erlaubte_werte: &str,
-        ) -> Vec<Hilfe<'_>>
+        ) -> NonEmpty<Hilfe<'_>>
         where
             Anzeige: Fn(&T) -> String,
             K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
         {
             match self {
                 Argumente::EinzelArgument(arg) => {
-                    vec![arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)]
+                    nonempty![arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)]
                 },
                 Argumente::Kombiniere { kombiniere } => {
                     kombiniere.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte)
                 },
                 Argumente::Alternativ { alternativen } => {
                     // TODO how to show alternatives?
-                    alternativen
-                        .iter()
-                        .flat_map(|arg| {
-                            arg.erzeuge_hilfe_text::<H, Fehler>(meta_standard, meta_erlaubte_werte)
-                        })
-                        .collect()
+                    // TODO use alternativen.as_ref().flat_map(...), coming in nonempty > 0.10.0
+                    NonEmpty::collect(alternativen.iter().flat_map(|arg| {
+                        arg.erzeuge_hilfe_text::<H, Fehler>(meta_standard, meta_erlaubte_werte)
+                    }))
+                    .expect("NonEmpty of NonEmpty has hat least one element after flat_map!")
                 },
             }
         }
@@ -668,7 +669,7 @@ pub mod new {
         pub fn erzeuge_hilfe_text_mit_sprache<H: ErzeugeHilfeText, Fehler>(
             &self,
             sprache: &'_ Sprache,
-        ) -> Vec<Hilfe<'_>>
+        ) -> NonEmpty<Hilfe<'_>>
         where
             Anzeige: Fn(&T) -> String,
             K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
