@@ -15,7 +15,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use void::Void;
 
 use crate::{
-    argumente::{Argumente, Arguments},
+    argumente::{hilfe::Hilfe, Argumente, Arguments},
     beschreibung::{
         contains_str, Beschreibung, Description, Konfiguration, KurzNamen, LangNamen, Name,
     },
@@ -1027,7 +1027,7 @@ impl<'t> FrühesBeenden<'t> {
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
     #[inline]
-    pub fn erzeuge_hilfe_text(&self) -> (String, Option<Cow<'_, str>>) {
+    pub fn erzeuge_hilfe_text(&self) -> Hilfe<'_> {
         let FrühesBeenden { beschreibung, nachricht: _ } = self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
         let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
@@ -1043,7 +1043,7 @@ impl<'t> FrühesBeenden<'t> {
         if let Some(void) = standard {
             void::unreachable(*void)
         }
-        let hilfe_text = hilfe.map(Cow::Borrowed);
-        (syntax, hilfe_text)
+        let hilfe = hilfe.map(Cow::Borrowed);
+        Hilfe { syntax, hilfe }
     }
 }

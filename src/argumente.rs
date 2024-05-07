@@ -23,6 +23,7 @@ pub mod einzelargument;
 pub mod flag;
 #[path = "argumente/frühes_beenden.rs"]
 pub mod frühes_beenden;
+pub mod hilfe;
 pub mod kombiniere;
 pub mod wert;
 
@@ -529,19 +530,18 @@ impl<'t, T, E> Argumente<'t, T, E> {
 
 /// Neue Darstellung ohne versteckte Felder/Invarianten.
 pub mod new {
-    use std::{
-        borrow::Cow,
-        ffi::{OsStr, OsString},
-    };
+    use std::ffi::{OsStr, OsString};
 
     use nonempty::NonEmpty;
 
     use crate::{
         argumente::{
             einzelargument::EinzelArgument,
-            kombiniere::{HilfeText, Kombiniere},
+            hilfe::{ErzeugeHilfeText, Hilfe},
+            kombiniere::Kombiniere,
         },
         ergebnis::{Ergebnis, ParseFehler},
+        sprache::Sprache,
     };
 
     /// Konfiguration eines Kommandozeilen-Arguments.
@@ -624,18 +624,17 @@ pub mod new {
     }
 
     impl<'t, T, Bool, Parse, Anzeige, K> Argumente<'t, T, Bool, Parse, Anzeige, K> {
-        // TODO [`Sprache::standard`] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
         ///
         /// ## English
         /// Create the Message for the syntax of the arguments and the corresponding help text.
         #[inline]
         #[must_use]
-        pub fn erzeuge_hilfe_text<H: HilfeText, Fehler>(
+        pub fn erzeuge_hilfe_text<H: ErzeugeHilfeText, Fehler>(
             &self,
             meta_standard: &str,
             meta_erlaubte_werte: &str,
-        ) -> Vec<(String, Option<Cow<'_, str>>)>
+        ) -> Vec<Hilfe<'_>>
         where
             Anzeige: Fn(&T) -> String,
             K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
@@ -657,6 +656,24 @@ pub mod new {
                         .collect()
                 },
             }
+        }
+
+        /// Variante von [`erzeuge_hilfe_text`](Self::erzeuge_hilfe_text),
+        /// basierend auf einer [`Sprache`].
+        ///
+        /// ## English
+        /// Variant of [`erzeuge_hilfe_text`](Self::erzeuge_hilfe_text),
+        /// based on a [`Language`](crate::sprache::Language).
+        #[inline]
+        pub fn erzeuge_hilfe_text_mit_sprache<H: ErzeugeHilfeText, Fehler>(
+            &self,
+            sprache: &'_ Sprache,
+        ) -> Vec<Hilfe<'_>>
+        where
+            Anzeige: Fn(&T) -> String,
+            K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
+        {
+            self.erzeuge_hilfe_text::<H, Fehler>(sprache.standard, sprache.erlaubte_werte)
         }
     }
 }

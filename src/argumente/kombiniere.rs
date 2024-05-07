@@ -10,7 +10,11 @@ use nonempty::NonEmpty;
 use void::Void;
 
 use crate::{
-    argumente::{einzelargument::EinzelArgument, new, Argumente},
+    argumente::{
+        einzelargument::EinzelArgument,
+        hilfe::{ErzeugeHilfeText, Hilfe},
+        new, Argumente,
+    },
     ergebnis::{Ergebnis, ParseFehler},
 };
 
@@ -257,45 +261,6 @@ impl<'t, T, Error: 't> Argumente<'t, T, Error> {
     impl_kombiniere_n! {kombiniere9-combine9(a: A, b: B, c: C, d: D, e: E, f: F, g: G, h: H, i: I)}
 }
 
-// TODO standard-implementierung, basierend auf Sprache?
-/// Trait zum simulieren einer Rank-2 Funktion.
-///
-/// # English
-/// Trait to simulate a rank-2 function.
-pub trait HilfeText {
-    /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
-    ///
-    /// ## English
-    /// Create the Message for the syntax of the arguments and the corresponding help text.
-    fn erzeuge_hilfe_text<'t, S, Bool, Parse, Anzeige>(
-        arg: &'t EinzelArgument<'t, S, Bool, Parse, Anzeige>,
-        meta_standard: &'t str,
-        meta_erlaubte_werte: &'t str,
-    ) -> (String, Option<Cow<'t, str>>)
-    where
-        Anzeige: Fn(&S) -> String;
-}
-
-#[deprecated = "Wird nicht verwendet. Vmtl. wurde vergessen es zu entfernen."]
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Copy)]
-pub struct Standard;
-
-#[allow(deprecated)]
-impl HilfeText for Standard {
-    #[inline]
-    fn erzeuge_hilfe_text<'t, S, Bool, Parse, Anzeige>(
-        arg: &'t EinzelArgument<'t, S, Bool, Parse, Anzeige>,
-        meta_standard: &'t str,
-        meta_erlaubte_werte: &'t str,
-    ) -> (String, Option<Cow<'t, str>>)
-    where
-        Anzeige: Fn(&S) -> String,
-    {
-        arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)
-    }
-}
-
 /// Erlaube kombinieren mehrerer Argumente.
 ///
 /// ## English
@@ -311,11 +276,11 @@ pub trait Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> {
     ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>);
 
     /// Erzeuge den Hilfetext für die enthaltenen [`Einzelargumente`](EinzelArgument).
-    fn erzeuge_hilfe_text<H: HilfeText>(
+    fn erzeuge_hilfe_text<H: ErzeugeHilfeText>(
         &self,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> Vec<(String, Option<Cow<'_, str>>)>;
+    ) -> Vec<Hilfe<'_>>;
 }
 
 impl<'t, T, Bool, Parse, Fehler, Anzeige> Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> for Void {
@@ -328,11 +293,11 @@ impl<'t, T, Bool, Parse, Fehler, Anzeige> Kombiniere<'t, T, Bool, Parse, Fehler,
     }
 
     #[inline]
-    fn erzeuge_hilfe_text<H: HilfeText>(
+    fn erzeuge_hilfe_text<H: ErzeugeHilfeText>(
         &self,
         _meta_standard: &str,
         _meta_erlaubte_werte: &str,
-    ) -> Vec<(String, Option<Cow<'_, str>>)> {
+    ) -> Vec<Hilfe<'_>> {
         void::unreachable(*self)
     }
 }
@@ -357,11 +322,11 @@ where
     }
 
     #[inline]
-    fn erzeuge_hilfe_text<H: HilfeText>(
+    fn erzeuge_hilfe_text<H: ErzeugeHilfeText>(
         &self,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> Vec<(String, Option<Cow<'_, str>>)> {
+    ) -> Vec<Hilfe<'_>> {
         self.1.erzeuge_hilfe_text::<H, Fehler>(meta_standard, meta_erlaubte_werte)
     }
 }
@@ -417,11 +382,11 @@ where
     }
 
     #[inline]
-    fn erzeuge_hilfe_text<H: HilfeText>(
+    fn erzeuge_hilfe_text<H: ErzeugeHilfeText>(
         &self,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> Vec<(String, Option<Cow<'_, str>>)> {
+    ) -> Vec<Hilfe<'_>> {
         let (_f, a0, a1) = self;
         let mut hilfe_texte = a0.erzeuge_hilfe_text::<H, F0>(meta_standard, meta_erlaubte_werte);
         hilfe_texte.extend(a1.erzeuge_hilfe_text::<H, F1>(meta_standard, meta_erlaubte_werte));

@@ -7,7 +7,7 @@ use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    argumente::{Argumente, Arguments},
+    argumente::{hilfe::Hilfe, Argumente, Arguments},
     beschreibung::{contains_str, Beschreibung, Description, Konfiguration, Name},
     ergebnis::{Ergebnis, Fehler},
     sprache::{Language, Sprache},
@@ -402,7 +402,7 @@ where
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
     #[inline]
-    pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> (String, Option<Cow<'_, str>>) {
+    pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> Hilfe<'_> {
         let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere: _, anzeige } =
             self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
@@ -420,7 +420,7 @@ where
             syntax.push_str(kurz_präfix.as_str());
             Name::möglichkeiten_als_regex(kurz_head, kurz_tail, &mut syntax);
         }
-        let hilfe_text: Option<Cow<'_, str>> = match (hilfe, standard) {
+        let hilfe: Option<Cow<'_, str>> = match (hilfe, standard) {
             (None, None) => None,
             (None, Some(standard)) => {
                 Some(Cow::Owned(format!("{meta_standard}: {}", anzeige(standard))))
@@ -435,6 +435,6 @@ where
                 Some(Cow::Owned(hilfe_mit_standard))
             },
         };
-        (syntax, hilfe_text)
+        Hilfe { syntax, hilfe }
     }
 }

@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    argumente::{flag::Flag, frühes_beenden::FrühesBeenden, wert::Wert},
+    argumente::{flag::Flag, frühes_beenden::FrühesBeenden, hilfe::Hilfe, wert::Wert},
     ergebnis::{Ergebnis, ParseFehler},
 };
 
@@ -75,17 +75,12 @@ impl<T, Bool, Parse, Anzeige> EinzelArgument<'_, T, Bool, Parse, Anzeige>
 where
     Anzeige: Fn(&T) -> String,
 {
-    // TODO [Sprache::standard] kann als meta_standard verwendet werden.
     /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
     ///
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
     #[inline]
-    pub fn erzeuge_hilfe_text(
-        &self,
-        meta_standard: &str,
-        meta_erlaubte_werte: &str,
-    ) -> (String, Option<Cow<'_, str>>) {
+    pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe<'_> {
         match self {
             EinzelArgument::Flag(flag) => flag.erzeuge_hilfe_text(meta_standard),
             EinzelArgument::FrühesBeenden { frühes_beenden, wert: _ } => {

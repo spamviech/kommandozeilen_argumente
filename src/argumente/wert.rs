@@ -12,7 +12,7 @@ use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    argumente::{Argumente, Arguments},
+    argumente::{hilfe::Hilfe, Argumente, Arguments},
     beschreibung::{contains_str, filter_prefix, Beschreibung, Description, Konfiguration, Name},
     ergebnis::{Ergebnis, Fehler, ParseError, ParseFehler},
     sprache::{Language, Sprache},
@@ -920,11 +920,7 @@ where
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
     #[inline]
-    pub fn erzeuge_hilfe_text(
-        &self,
-        meta_standard: &str,
-        meta_erlaubte_werte: &str,
-    ) -> (String, Option<Cow<'_, str>>) {
+    pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe<'_> {
         let Wert { beschreibung, wert_infix, meta_var, mögliche_werte, parse: _, anzeige } = self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
         let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
@@ -946,7 +942,7 @@ where
             syntax.push_str(meta_var);
         }
         // TODO a lot of code duplication...
-        let hilfe_text: Option<Cow<'_, str>> = match (hilfe, standard, mögliche_werte) {
+        let hilfe: Option<Cow<'_, str>> = match (hilfe, standard, mögliche_werte) {
             (None, None, None) => None,
             (None, None, Some(mögliche_werte)) => {
                 let mut string = format!("[{meta_erlaubte_werte}: ");
@@ -984,6 +980,6 @@ where
                 Some(Cow::Owned(string))
             },
         };
-        (syntax, hilfe_text)
+        Hilfe { syntax, hilfe }
     }
 }
