@@ -525,10 +525,10 @@ impl<'t, T, E> Argumente<'t, T, E> {
     }
 }
 
-// ----------------------------------TEST------------------------------------------------------
+// ----------------------------------Neue Darstellung----------------------------------------------------
 
-/// test
-pub mod test {
+/// Neue Darstellung ohne versteckte Felder/Invarianten.
+pub mod new {
     use std::{
         borrow::Cow,
         ffi::{OsStr, OsString},
@@ -550,7 +550,7 @@ pub mod test {
     /// [`Configuration`]
     #[derive(Debug)]
     #[allow(clippy::large_enum_variant, clippy::module_name_repetitions)]
-    pub enum ArgTest<'t, T, Bool, Parse, Anzeige, K> {
+    pub enum Argumente<'t, T, Bool, Parse, Anzeige, K> {
         /// Ein einzelnes Argument.
         ///
         /// ## English
@@ -573,11 +573,11 @@ pub mod test {
         Alternativ {
             #[allow(missing_docs)]
             #[allow(clippy::type_complexity)]
-            alternativen: Box<NonEmpty<ArgTest<'t, T, Bool, Parse, Anzeige, K>>>,
+            alternativen: Box<NonEmpty<Argumente<'t, T, Bool, Parse, Anzeige, K>>>,
         },
     }
 
-    impl<'t, T, Bool, Parse, Fehler, Anzeige, K> ArgTest<'t, T, Bool, Parse, Anzeige, K>
+    impl<'t, T, Bool, Parse, Fehler, Anzeige, K> Argumente<'t, T, Bool, Parse, Anzeige, K>
     where
         Bool: Fn(bool) -> T,
         Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
@@ -592,7 +592,7 @@ pub mod test {
             self,
             args: impl Iterator<Item = Option<OsString>>,
         ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
-            use ArgTest::{Alternativ, EinzelArgument, Kombiniere};
+            use Argumente::{Alternativ, EinzelArgument, Kombiniere};
             use Ergebnis::{Fehler, FrühesBeenden, Wert};
             match self {
                 EinzelArgument(arg) => arg.parse(args),
@@ -623,7 +623,7 @@ pub mod test {
         }
     }
 
-    impl<'t, T, Bool, Parse, Anzeige, K> ArgTest<'t, T, Bool, Parse, Anzeige, K> {
+    impl<'t, T, Bool, Parse, Anzeige, K> Argumente<'t, T, Bool, Parse, Anzeige, K> {
         // TODO [`Sprache::standard`] kann als meta_standard verwendet werden.
         /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
         ///
@@ -641,13 +641,13 @@ pub mod test {
             K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
         {
             match self {
-                ArgTest::EinzelArgument(arg) => {
+                Argumente::EinzelArgument(arg) => {
                     vec![arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)]
                 },
-                ArgTest::Kombiniere { kombiniere } => {
+                Argumente::Kombiniere { kombiniere } => {
                     kombiniere.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte)
                 },
-                ArgTest::Alternativ { alternativen } => {
+                Argumente::Alternativ { alternativen } => {
                     // TODO how to show alternatives?
                     alternativen
                         .iter()

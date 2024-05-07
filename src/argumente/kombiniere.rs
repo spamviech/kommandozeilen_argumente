@@ -10,7 +10,7 @@ use nonempty::NonEmpty;
 use void::Void;
 
 use crate::{
-    argumente::{einzelargument::EinzelArgument, test::ArgTest, Argumente},
+    argumente::{einzelargument::EinzelArgument, new, Argumente},
     ergebnis::{Ergebnis, ParseFehler},
 };
 
@@ -338,7 +338,7 @@ impl<'t, T, Bool, Parse, Fehler, Anzeige> Kombiniere<'t, T, Bool, Parse, Fehler,
 }
 
 impl<'t, F, T0, T1, B0, B1, P0, P1, Fehler, A0, A1, K0> Kombiniere<'t, T1, B1, P1, Fehler, A1>
-    for (F, ArgTest<'t, T0, B0, P0, A0, K0>)
+    for (F, new::Argumente<'t, T0, B0, P0, A0, K0>)
 where
     F: Fn(T0) -> T1,
     B0: Fn(bool) -> T0,
@@ -368,7 +368,7 @@ where
 
 impl<'t, 't0, 't1, K, T, B, P, F, A, T0, B0, P0, F0, A0, K0, T1, B1, P1, F1, A1, K1>
     Kombiniere<'t, T, B, P, F, A>
-    for (K, ArgTest<'t0, T0, B0, P0, A0, K0>, ArgTest<'t1, T1, B1, P1, A1, K1>)
+    for (K, new::Argumente<'t0, T0, B0, P0, A0, K0>, new::Argumente<'t1, T1, B1, P1, A1, K1>)
 where
     't0: 't,
     't1: 't,
