@@ -19,7 +19,7 @@ use std::{
 use void::Void;
 
 use kommandozeilen_argumente::{
-    argumente::{einzelargument::EinzelArgument, flag::Flag, new},
+    argumente::{einzelargument::EinzelArgument, flag::Flag, hilfe::Standard, new},
     Argumente, Beschreibung, Ergebnis, ParseFehler, Sprache,
 };
 
@@ -75,9 +75,29 @@ fn new_hilfe_test() {
     let einzelargument = EinzelArgument::Flag(flag);
     let arg: new::Argumente<'_, _, _, fn(&OsStr) -> Result<bool, ParseFehler<Void>>, _, Void> =
         new::Argumente::EinzelArgument(einzelargument);
-    // TODO erzeuge hilfe flag
-    match arg.parse(iter::once(Some(OsString::from("--hilfe".to_owned())))) {
+    let arg_mit_hilfe = arg.mit_hilfe_frühes_beenden::<Standard, Void>(
+        Beschreibung::neu_mit_sprache(
+            sprache.hilfe_lang,
+            sprache.hilfe_kurz,
+            Some(sprache.hilfe_beschreibung),
+            None,
+            sprache,
+        ),
+        "programm",
+        Some("Mein Tolles Programm."),
+        Some("0.test"),
+        sprache.standard,
+        sprache.erlaubte_werte,
+        sprache.optionen,
+        sprache.syntax_präfix,
+        sprache.syntax_padding,
+        sprache.alternative_präfix,
+        sprache.alternative_trennzeichen,
+    );
+
+    match arg_mit_hilfe.parse(iter::once(Some(OsString::from("--hilfe".to_owned())))) {
         (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+            let nicht_verwendet: Vec<_> = nicht_verwendet.into_iter().flatten().collect();
             let übrige = nicht_verwendet.len();
             if übrige > 0 {
                 eprintln!("Nicht verwendete Argumente: {nicht_verwendet:?}");

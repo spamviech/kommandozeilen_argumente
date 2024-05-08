@@ -1,9 +1,6 @@
 //! Ein einzelnes Kommandozeilen-Argument.
 
-use std::{
-    borrow::Cow,
-    ffi::{OsStr, OsString},
-};
+use std::ffi::{OsStr, OsString};
 
 use crate::{
     argumente::{flag::Flag, frühes_beenden::FrühesBeenden, hilfe::Hilfe, wert::Wert},

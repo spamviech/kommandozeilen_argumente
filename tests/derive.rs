@@ -81,6 +81,10 @@ const DUMMY: kommandozeilen_argumente::Sprache = kommandozeilen_argumente::Sprac
     version_beschreibung: "dummy",
     version_lang: "dummy",
     version_kurz: "dummy",
+    syntax_präfix: "dummy",
+    syntax_padding: 'd',
+    alternative_präfix: "dummy",
+    alternative_trennzeichen: 'd',
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

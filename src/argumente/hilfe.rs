@@ -58,7 +58,6 @@ pub trait ErzeugeHilfeText {
     ) -> Hilfe<'t>;
 }
 
-#[deprecated = "Wird nicht verwendet. Vmtl. wurde vergessen es zu entfernen."]
 #[allow(missing_docs)]
 #[derive(Debug, Clone, Copy)]
 pub struct Standard;

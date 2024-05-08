@@ -125,6 +125,30 @@ pub struct Sprache {
     /// ## English
     /// Short name for the version flag.
     pub version_kurz: &'static str,
+
+    /// Präfix vor der Syntax-Darstellung für ein Argument.
+    ///
+    /// ## English
+    /// Prefix before the syntax display of an argument.
+    pub syntax_präfix: &'static str,
+
+    /// Füllzeichen, damit Syntax-Beschreibung für alle Argumente die selbe Breite einnehmen.
+    ///
+    /// ## English
+    /// Fill character, so syntax descriptions for all arguments take the same space.
+    pub syntax_padding: char,
+
+    /// Präfix für Darstellung von Argument-Alternativen.
+    ///
+    /// ## English
+    /// Prefix for display of alternative arguments.
+    pub alternative_präfix: &'static str,
+
+    /// Trennzeichen zwischen Argument-Alternativen.
+    ///
+    /// ## English
+    /// Separating character between alternative arguments.
+    pub alternative_trennzeichen: char,
 }
 
 /// All strings required to produce help text and error message.
@@ -156,6 +180,10 @@ impl Sprache {
         version_beschreibung: "Zeige die aktuelle Version an.",
         version_lang: "version",
         version_kurz: "v",
+        syntax_präfix: "  ",
+        syntax_padding: ' ',
+        alternative_präfix: "| ",
+        alternative_trennzeichen: '-',
     };
 
     /// English Strings.
@@ -180,5 +208,9 @@ impl Sprache {
         version_beschreibung: "Show the current version.",
         version_lang: "version",
         version_kurz: "v",
+        syntax_präfix: "  ",
+        syntax_padding: ' ',
+        alternative_präfix: "| ",
+        alternative_trennzeichen: '-',
     };
 }
