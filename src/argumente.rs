@@ -568,21 +568,41 @@ pub mod new {
         ///
         /// ## English
         /// The combination of multiple arguments, encoded via the [`Kombiniere`]-trait.
-        Kombiniere {
-            #[allow(missing_docs)]
-            kombiniere: K,
-        },
+        Kombiniere(K),
         /// Alternative Kommandozeilen-Argumente. Beim parsen wird das erste [`Ergebnis`] verwendet,
         /// dass kein [`Ergebnis::Fehler`] ist.
         ///
         /// ## English
         /// Alternative command line arguments. Parsing takes the first non-[`Error`](Ergebnis::Fehler)
         /// [`Result`](crate::Result).
-        Alternativ {
-            #[allow(missing_docs)]
-            #[allow(clippy::type_complexity)]
-            alternativen: Box<NonEmpty<Argumente<'t, T, Bool, Parse, Anzeige, K>>>,
-        },
+        Alternativ(Box<NonEmpty<Self>>),
+    }
+
+    impl<'t, T, Bool, Parse, Anzeige> From<EinzelArgument<'t, T, Bool, Parse, Anzeige>>
+        for Argumente<'t, T, Bool, Parse, Anzeige, Void>
+    {
+        #[inline]
+        fn from(argument: EinzelArgument<'t, T, Bool, Parse, Anzeige>) -> Self {
+            Argumente::EinzelArgument(argument)
+        }
+    }
+
+    impl<T, Bool, Parse, Anzeige, K> From<NonEmpty<Self>>
+        for Argumente<'_, T, Bool, Parse, Anzeige, K>
+    {
+        #[inline]
+        fn from(alternativen: NonEmpty<Self>) -> Self {
+            Argumente::Alternativ(Box::new(alternativen))
+        }
+    }
+
+    impl<T, Bool, Parse, Anzeige, K> From<Box<NonEmpty<Self>>>
+        for Argumente<'_, T, Bool, Parse, Anzeige, K>
+    {
+        #[inline]
+        fn from(alternativen: Box<NonEmpty<Self>>) -> Self {
+            Argumente::Alternativ(alternativen)
+        }
     }
 
     impl<'t, T, Bool, Parse, Fehler, Anzeige, K> Argumente<'t, T, Bool, Parse, Anzeige, K>
@@ -604,8 +624,8 @@ pub mod new {
             use Ergebnis::{Fehler, FrühesBeenden, Wert};
             match self {
                 EinzelArgument(arg) => arg.parse(args),
-                Kombiniere { kombiniere } => kombiniere.parse(args),
-                Alternativ { alternativen } => {
+                Kombiniere(kombiniere) => kombiniere.parse(args),
+                Alternativ(alternativen) => {
                     // TODO only accept parsing without leftover args?
                     let NonEmpty { head, tail } = *alternativen;
                     let args_vec: Vec<_> = args.into_iter().collect();
@@ -655,10 +675,10 @@ pub mod new {
                         arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)
                     )]
                 },
-                Argumente::Kombiniere { kombiniere } => {
+                Argumente::Kombiniere(kombiniere) => {
                     kombiniere.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte)
                 },
-                Argumente::Alternativ { alternativen } => {
+                Argumente::Alternativ(alternativen) => {
                     // TODO use alternativen.as_ref().flat_map(...), coming in nonempty > 0.10.0
                     NonEmpty::collect(alternativen.iter().map(|arg| {
                         hilfe::Alternativen::Alternativen(Box::new(
@@ -773,12 +793,9 @@ pub mod new {
                 );
             }
             frühes_beenden.nachricht = Cow::Owned(hilfe_text);
-            let kombiniere: KombiniereHilfe<'_, T, Bool, Parse, Anzeige, K> = (
-                |wert: T, ()| wert,
-                self,
-                Argumente::EinzelArgument(EinzelArgument::from(frühes_beenden)),
-            );
-            Argumente::Kombiniere { kombiniere }
+            let kombiniere: KombiniereHilfe<'_, T, Bool, Parse, Anzeige, K> =
+                (|wert: T, ()| wert, self, Argumente::from(EinzelArgument::from(frühes_beenden)));
+            Argumente::Kombiniere(kombiniere)
         }
     }
 

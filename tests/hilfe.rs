@@ -10,17 +10,13 @@
     clippy::use_debug
 )]
 
-use std::{
-    convert::identity,
-    ffi::{OsStr, OsString},
-    iter, process,
-};
+use std::{convert::identity, ffi::OsString, iter, process};
 
 use void::Void;
 
 use kommandozeilen_argumente::{
     argumente::{einzelargument::EinzelArgument, flag::Flag, hilfe::Standard, new},
-    Argumente, Beschreibung, Ergebnis, ParseFehler, Sprache,
+    Argumente, Beschreibung, Ergebnis, Sprache,
 };
 
 #[test]
@@ -59,7 +55,7 @@ fn hilfe_test() {
 #[test]
 fn new_hilfe_test() {
     let sprache = Sprache::DEUTSCH;
-    let flag: Flag<'_, _, fn(_) -> _, fn(&bool) -> String> = Flag {
+    let flag = Flag {
         beschreibung: Beschreibung::neu_mit_sprache(
             "test".to_owned(),
             None::<&str>,
@@ -72,9 +68,8 @@ fn new_hilfe_test() {
         konvertiere: identity,
         anzeige: <bool as ToString>::to_string,
     };
-    let einzelargument = EinzelArgument::Flag(flag);
-    let arg: new::Argumente<'_, _, _, fn(&OsStr) -> Result<bool, ParseFehler<Void>>, _, Void> =
-        new::Argumente::EinzelArgument(einzelargument);
+    let einzelargument = EinzelArgument::from(flag);
+    let arg = new::Argumente::from(einzelargument);
     let arg_mit_hilfe = arg.mit_hilfe_frühes_beenden::<Standard, Void>(
         Beschreibung::neu_mit_sprache(
             sprache.hilfe_lang,
