@@ -689,24 +689,6 @@ pub mod new {
                 },
             }
         }
-
-        /// Variante von [`erzeuge_hilfe_text`](Self::erzeuge_hilfe_text),
-        /// basierend auf einer [`Sprache`].
-        ///
-        /// ## English
-        /// Variant of [`erzeuge_hilfe_text`](Self::erzeuge_hilfe_text),
-        /// based on a [`Language`](crate::sprache::Language).
-        #[inline]
-        pub fn erzeuge_hilfe_text_mit_sprache<H: ErzeugeHilfeText, Fehler>(
-            &self,
-            sprache: &'_ Sprache,
-        ) -> NonEmpty<hilfe::Alternativen<'_>>
-        where
-            Anzeige: Fn(&T) -> String,
-            K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
-        {
-            self.erzeuge_hilfe_text::<H, Fehler>(sprache.standard, sprache.erlaubte_werte)
-        }
     }
 
     /// [`FrühesBeenden`]-Argument für den Hilfe-Text.
@@ -738,14 +720,14 @@ pub mod new {
             eigene_beschreibung: Beschreibung<'t, Void>,
             programm_name: &str,
             programm_beschreibung: Option<&str>,
-            version: Option<&str>,
+            programm_version: Option<&str>,
             meta_standard: &str,
             meta_erlaubte_werte: &str,
-            optionen: &str,
-            syntax_präfix: &str,
-            syntax_padding: char,
-            alternative_präfix: &str,
-            alternative_trennzeichen: char,
+            meta_optionen: &str,
+            meta_syntax_präfix: &str,
+            meta_syntax_padding: char,
+            meta_alternative_präfix: &str,
+            meta_alternative_trennzeichen: char,
         ) -> ArgumenteMitHilfe<'t, T, Bool, Parse, Anzeige, K>
         where
             H: ErzeugeHilfeText,
@@ -760,7 +742,7 @@ pub mod new {
                 FrühesBeenden { beschreibung: eigene_beschreibung, nachricht: dummy };
             hilfen.push(hilfe::Alternativen::EinzelArgument(frühes_beenden.erzeuge_hilfe_text()));
             let hilfen = hilfen;
-            let max_syntax_breite = max_syntax_breite(&hilfen, alternative_präfix);
+            let max_syntax_breite = max_syntax_breite(&hilfen, meta_alternative_präfix);
             let current_exe = env::current_exe().ok();
             let exe_name = current_exe
                 .as_deref()
@@ -768,7 +750,7 @@ pub mod new {
                 .and_then(OsStr::to_str)
                 .unwrap_or(programm_name);
             let mut name = programm_name.to_owned();
-            if let Some(version) = version {
+            if let Some(version) = programm_version {
                 name.push(' ');
                 name.push_str(version);
             }
@@ -776,20 +758,20 @@ pub mod new {
                 .map(|beschreibung| format!("\n{beschreibung}"))
                 .unwrap_or_default();
             let mut hilfe_text = format!(
-                "{name}{programm_beschreibung}\n\n{exe_name} [{optionen}]\n\n{optionen}:\n"
+                "{name}{programm_beschreibung}\n\n{exe_name} [{meta_optionen}]\n\n{meta_optionen}:\n"
             );
             for hilfe in hilfen {
                 schreibe_argument_oder_alternativen(
                     &mut hilfe_text,
-                    Cow::Borrowed(syntax_präfix),
+                    Cow::Borrowed(meta_syntax_präfix),
                     #[allow(clippy::arithmetic_side_effects)]
                     {
-                        syntax_präfix.len() + max_syntax_breite + 1
+                        meta_syntax_präfix.len() + max_syntax_breite + 1
                     },
-                    syntax_padding,
+                    meta_syntax_padding,
                     &hilfe,
-                    alternative_präfix,
-                    alternative_trennzeichen,
+                    meta_alternative_präfix,
+                    meta_alternative_trennzeichen,
                 );
             }
             frühes_beenden.nachricht = Cow::Owned(hilfe_text);
@@ -797,11 +779,50 @@ pub mod new {
                 (|wert: T, ()| wert, self, Argumente::from(EinzelArgument::from(frühes_beenden)));
             Argumente::Kombiniere(kombiniere)
         }
+
+        /// Variante von [`mit_hilfe_frühes_beenden`](Self::mit_hilfe_frühes_beenden),
+        /// basierend auf einer [`Sprache`].
+        ///
+        /// ## English
+        /// Variant of [`mit_hilfe_frühes_beenden`](Self::mit_hilfe_frühes_beenden),
+        /// based on a [`Language`](crate::sprache::Language).
+        #[inline]
+        pub fn mit_hilfe_frühes_beenden_mit_sprache<H, Fehler>(
+            self,
+            eigene_beschreibung: Beschreibung<'t, Void>,
+            programm_name: &str,
+            programm_beschreibung: Option<&str>,
+            programm_version: Option<&str>,
+            sprache: Sprache,
+        ) -> ArgumenteMitHilfe<'t, T, Bool, Parse, Anzeige, K>
+        where
+            H: ErzeugeHilfeText,
+            Anzeige: Fn(&T) -> String,
+            K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
+            Bool: Fn(bool) -> T,
+        {
+            self.mit_hilfe_frühes_beenden::<H, Fehler>(
+                eigene_beschreibung,
+                programm_name,
+                programm_beschreibung,
+                programm_version,
+                sprache.standard,
+                sprache.erlaubte_werte,
+                sprache.optionen,
+                sprache.syntax_präfix,
+                sprache.syntax_padding,
+                sprache.alternative_präfix,
+                sprache.alternative_trennzeichen,
+            )
+        }
     }
 
     /// Berechne die maximale Breite für die Syntax eines Argumentes.
     ///
     /// Hilfsfunktion für [`Argumente::mit_hilfe_frühes_beenden`]
+    ///
+    /// ## Panics
+    /// Programmierfehler, wenn `NonEmpty::iter().map(...)` kein Element hat.
     fn max_syntax_breite(
         hilfen: &NonEmpty<hilfe::Alternativen<'_>>,
         alternative_präfix: &str,

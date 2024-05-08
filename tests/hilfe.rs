@@ -70,7 +70,7 @@ fn new_hilfe_test() {
     };
     let einzelargument = EinzelArgument::from(flag);
     let arg = new::Argumente::from(einzelargument);
-    let arg_mit_hilfe = arg.mit_hilfe_frühes_beenden::<Standard, Void>(
+    let arg_mit_hilfe = arg.mit_hilfe_frühes_beenden_mit_sprache::<Standard, Void>(
         Beschreibung::neu_mit_sprache(
             sprache.hilfe_lang,
             sprache.hilfe_kurz,
@@ -81,13 +81,7 @@ fn new_hilfe_test() {
         "programm",
         Some("Mein Tolles Programm."),
         Some("0.test"),
-        sprache.standard,
-        sprache.erlaubte_werte,
-        sprache.optionen,
-        sprache.syntax_präfix,
-        sprache.syntax_padding,
-        sprache.alternative_präfix,
-        sprache.alternative_trennzeichen,
+        sprache,
     );
 
     match arg_mit_hilfe.parse(iter::once(Some(OsString::from("--hilfe".to_owned())))) {
