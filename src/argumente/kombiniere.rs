@@ -1,7 +1,6 @@
 //! Kombiniere mehrere [Argumente] zu einem neuen, basierend auf einer Funktion.
 
 use std::{
-    borrow::Cow,
     collections::HashMap,
     ffi::{OsStr, OsString},
 };
@@ -11,8 +10,7 @@ use void::Void;
 
 use crate::{
     argumente::{
-        einzelargument::EinzelArgument,
-        hilfe::{ErzeugeHilfeText, Hilfe},
+        hilfe::{self, ErzeugeHilfeText},
         new, Argumente,
     },
     ergebnis::{Ergebnis, ParseFehler},
@@ -280,7 +278,7 @@ pub trait Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> {
         &self,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> NonEmpty<Hilfe<'_>>;
+    ) -> NonEmpty<hilfe::Alternativen<'_>>;
 }
 
 impl<'t, T, Bool, Parse, Fehler, Anzeige> Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> for Void {
@@ -297,7 +295,7 @@ impl<'t, T, Bool, Parse, Fehler, Anzeige> Kombiniere<'t, T, Bool, Parse, Fehler,
         &self,
         _meta_standard: &str,
         _meta_erlaubte_werte: &str,
-    ) -> NonEmpty<Hilfe<'_>> {
+    ) -> NonEmpty<hilfe::Alternativen<'_>> {
         void::unreachable(*self)
     }
 }
@@ -326,7 +324,7 @@ where
         &self,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> NonEmpty<Hilfe<'_>> {
+    ) -> NonEmpty<hilfe::Alternativen<'_>> {
         self.1.erzeuge_hilfe_text::<H, Fehler>(meta_standard, meta_erlaubte_werte)
     }
 }
@@ -386,7 +384,7 @@ where
         &self,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> NonEmpty<Hilfe<'_>> {
+    ) -> NonEmpty<hilfe::Alternativen<'_>> {
         let (_f, a0, a1) = self;
         let mut hilfe_texte = a0.erzeuge_hilfe_text::<H, F0>(meta_standard, meta_erlaubte_werte);
         hilfe_texte.extend(a1.erzeuge_hilfe_text::<H, F1>(meta_standard, meta_erlaubte_werte));

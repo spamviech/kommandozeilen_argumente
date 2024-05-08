@@ -537,7 +537,7 @@ pub mod new {
     use crate::{
         argumente::{
             einzelargument::EinzelArgument,
-            hilfe::{ErzeugeHilfeText, Hilfe},
+            hilfe::{self, ErzeugeHilfeText},
             kombiniere::Kombiniere,
         },
         ergebnis::{Ergebnis, ParseFehler},
@@ -636,25 +636,28 @@ pub mod new {
             &self,
             meta_standard: &str,
             meta_erlaubte_werte: &str,
-        ) -> NonEmpty<Hilfe<'_>>
+        ) -> NonEmpty<hilfe::Alternativen<'_>>
         where
             Anzeige: Fn(&T) -> String,
             K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
         {
             match self {
                 Argumente::EinzelArgument(arg) => {
-                    nonempty![arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)]
+                    nonempty![hilfe::Alternativen::EinzelArgument(
+                        arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)
+                    )]
                 },
                 Argumente::Kombiniere { kombiniere } => {
                     kombiniere.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte)
                 },
                 Argumente::Alternativ { alternativen } => {
-                    // TODO how to show alternatives?
                     // TODO use alternativen.as_ref().flat_map(...), coming in nonempty > 0.10.0
-                    NonEmpty::collect(alternativen.iter().flat_map(|arg| {
-                        arg.erzeuge_hilfe_text::<H, Fehler>(meta_standard, meta_erlaubte_werte)
+                    NonEmpty::collect(alternativen.iter().map(|arg| {
+                        hilfe::Alternativen::Alternativen(Box::new(
+                            arg.erzeuge_hilfe_text::<H, Fehler>(meta_standard, meta_erlaubte_werte),
+                        ))
                     }))
-                    .expect("NonEmpty of NonEmpty has hat least one element after flat_map!")
+                    .expect("NonEmpty::map(...) hat mindestens ein Argument!")
                 },
             }
         }
@@ -669,7 +672,7 @@ pub mod new {
         pub fn erzeuge_hilfe_text_mit_sprache<H: ErzeugeHilfeText, Fehler>(
             &self,
             sprache: &'_ Sprache,
-        ) -> NonEmpty<Hilfe<'_>>
+        ) -> NonEmpty<hilfe::Alternativen<'_>>
         where
             Anzeige: Fn(&T) -> String,
             K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,

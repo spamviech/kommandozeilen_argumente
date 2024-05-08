@@ -2,6 +2,8 @@
 
 use std::borrow::Cow;
 
+use nonempty::NonEmpty;
+
 use crate::argumente::einzelargument::EinzelArgument;
 
 /// Darstellung eines Arguments im Hilfe-Text.
@@ -20,6 +22,24 @@ pub struct Hilfe<'t> {
     /// ## English
     /// Help-Text for the argument.
     pub hilfe: Option<Cow<'t, str>>,
+}
+
+/// Darstellung eines Arguments oder mehrerer Alternativen im Hilfe-Text.
+///
+/// ## English
+/// Text-representation of an argument or several alternatives in the help-text.
+#[derive(Debug, Clone)]
+pub enum Alternativen<'t> {
+    /// Darstellung eines einzelnen Arguments im Hilfe-Text.
+    ///
+    /// ## English
+    /// Text-representation of a singular argument in the help-text.
+    EinzelArgument(Hilfe<'t>),
+    /// Mehrere als Alternativen geparste Argumente.
+    ///
+    /// ## English
+    /// Multiple arguments parsed as alternatives.
+    Alternativen(Box<NonEmpty<Alternativen<'t>>>),
 }
 
 /// Trait zum simulieren einer Rank-2 Funktion.
