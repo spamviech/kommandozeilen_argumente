@@ -116,11 +116,11 @@ impl From<SplitArgumenteFehler> for Fehler {
 fn parse_attributes(feld: Option<&Ident>, attrs: Vec<Attribute>) -> Result<Option<Case>, Fehler> {
     let mut args = Vec::new();
     for attr in attrs {
-        if attr.path.is_ident("kommandozeilen_argumente") {
+        if attr.path().is_ident("kommandozeilen_argumente") {
             split_klammer_argumente(
                 feld.iter().map(ToString::to_string).collect(),
                 &mut args,
-                attr.tokens,
+                attr.meta,
             )?;
         }
     }

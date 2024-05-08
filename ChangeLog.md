@@ -4,6 +4,7 @@
 
 - Normalisiert::as_str hinzugefügt.
 - Behandle clippy-lints.
+- Aktualisiere `syn` auf Version 2.x.
 
 ## 0.2.0
 

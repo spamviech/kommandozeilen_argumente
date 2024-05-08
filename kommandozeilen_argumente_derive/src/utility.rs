@@ -8,6 +8,7 @@ use std::{
 
 use proc_macro2::{Delimiter, Ident, Punct, Spacing, TokenStream, TokenTree};
 use quote::{format_ident, quote, ToTokens};
+use syn::{MacroDelimiter, Meta, MetaList};
 
 /// Ident für den crate-Namen von `kommandozeilen_argumente`.
 pub(crate) fn crate_name() -> Ident {
@@ -354,33 +355,35 @@ fn split_argumente(
 pub(crate) fn split_klammer_argumente(
     parent: Vec<String>,
     args: &mut Vec<Argument>,
-    args_ts: TokenStream,
+    meta: Meta,
 ) -> Result<(), SplitArgumenteFehler> {
     use SplitArgumenteFehler::NichtInKlammer;
-    let group = match genau_eines(args_ts.into_iter()) {
-        Ok(TokenTree::Group(group)) if group.delimiter() == Delimiter::Parenthesis => group,
-        Ok(tt) => return Err(NichtInKlammer { parent, ts: tt.into() }),
-        Err(fehler) => return Err(NichtInKlammer { parent, ts: fehler.collect() }),
+    let Meta::List(MetaList { path: _, delimiter: MacroDelimiter::Paren(_paren), tokens }) = meta
+    else {
+        return Err(NichtInKlammer { parent, ts: quote!(#meta) });
     };
-    split_argumente(parent, args, group.stream())
+    split_argumente(parent, args, tokens)
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
 
+    use syn::parse2;
+
     #[test]
     fn test_split_argumente() {
         let mut args: Vec<Argument> = Vec::new();
-        let args_ts =
+        let args_ts: TokenStream =
             "(hello(hi), world: [it's, a, big, world!])".parse().expect("Valider TokenStream");
+        let args_meta = parse2(args_ts).expect("Valides Meta");
         let world_wert = "[it's, a, big, world!]"
             .parse::<TokenStream>()
             .expect("world_wert")
             .to_string()
             .replace(' ', "");
         let world_string = format!("world:{world_wert}");
-        split_klammer_argumente(Vec::new(), &mut args, args_ts)
+        split_klammer_argumente(Vec::new(), &mut args, args_meta)
             .expect("Argumente sind wohlgeformt");
         let args_str: Vec<_> = args.iter().map(|arg| arg.to_string().replace(' ', "")).collect();
         assert_eq!(args_str, vec!["hello(hi)", &world_string]);

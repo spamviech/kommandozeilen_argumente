@@ -872,8 +872,8 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
     }
     let mut args = Vec::new();
     for attr in attrs {
-        if attr.path.is_ident("kommandozeilen_argumente") {
-            split_klammer_argumente(Vec::new(), &mut args, attr.tokens)?;
+        if attr.path().is_ident("kommandozeilen_argumente") {
+            split_klammer_argumente(Vec::new(), &mut args, attr.meta)?;
         }
     }
     // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
@@ -940,8 +940,8 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         let mut standard = Standard(quote!(#crate_name::parse::ParseArgument::standard()));
         let mut feld_argument = FeldArgument::EnumArgument;
         for attr in field_attrs {
-            if attr.path.is_ident("doc") {
-                let args_str = attr.tokens.to_string();
+            if attr.path().is_ident("doc") {
+                let args_str = quote!(#(attr.meta)).to_string();
                 if let Some(stripped) =
                     args_str.strip_prefix("= \"").and_then(|string| string.strip_suffix('"'))
                 {
@@ -950,13 +950,9 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                         hilfe_lits.push(trimmed.to_owned());
                     }
                 }
-            } else if attr.path.is_ident("kommandozeilen_argumente") {
+            } else if attr.path().is_ident("kommandozeilen_argumente") {
                 let mut feld_args = Vec::new();
-                split_klammer_argumente(
-                    vec![field_ident.to_string()],
-                    &mut feld_args,
-                    attr.tokens,
-                )?;
+                split_klammer_argumente(vec![field_ident.to_string()], &mut feld_args, attr.meta)?;
                 let mut lang_namen = LangNamen::default();
                 let mut kurz_namen = KurzNamen::default();
                 unwrap_or_call_return!(
