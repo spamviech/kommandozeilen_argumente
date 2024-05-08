@@ -319,6 +319,7 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
 /// ## English
 /// It is a flag argument.
 #[derive(Debug)]
+#[must_use]
 pub struct Flag<'t, T, Bool, Anzeige> {
     /// Allgemeine Beschreibung des Arguments.
     ///

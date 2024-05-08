@@ -784,6 +784,7 @@ impl<'t, T: 't + Clone + FromStr, E: Clone> Argumente<'t, T, E> {
 /// ## English
 /// It is a value argument.
 #[derive(Debug)]
+#[must_use]
 pub struct Wert<'t, T, Parse, Anzeige> {
     /// Allgemeine Beschreibung des Arguments.
     ///

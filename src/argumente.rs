@@ -558,6 +558,7 @@ pub mod new {
     /// [`Configuration`]
     #[derive(Debug)]
     #[allow(clippy::large_enum_variant, clippy::module_name_repetitions)]
+    #[must_use]
     pub enum Argumente<'t, T, Bool, Parse, Anzeige, K> {
         /// Ein einzelnes Argument.
         ///
@@ -575,11 +576,11 @@ pub mod new {
         /// ## English
         /// Alternative command line arguments. Parsing takes the first non-[`Error`](Ergebnis::Fehler)
         /// [`Result`](crate::Result).
-        Alternativ(Box<NonEmpty<Self>>),
+        Alternativen(Box<NonEmpty<Self>>),
     }
 
-    impl<'t, T, Bool, Parse, Anzeige> From<EinzelArgument<'t, T, Bool, Parse, Anzeige>>
-        for Argumente<'t, T, Bool, Parse, Anzeige, Void>
+    impl<'t, T, Bool, Parse, Anzeige, K> From<EinzelArgument<'t, T, Bool, Parse, Anzeige>>
+        for Argumente<'t, T, Bool, Parse, Anzeige, K>
     {
         #[inline]
         fn from(argument: EinzelArgument<'t, T, Bool, Parse, Anzeige>) -> Self {
@@ -592,7 +593,7 @@ pub mod new {
     {
         #[inline]
         fn from(alternativen: NonEmpty<Self>) -> Self {
-            Argumente::Alternativ(Box::new(alternativen))
+            Argumente::Alternativen(Box::new(alternativen))
         }
     }
 
@@ -601,7 +602,49 @@ pub mod new {
     {
         #[inline]
         fn from(alternativen: Box<NonEmpty<Self>>) -> Self {
-            Argumente::Alternativ(alternativen)
+            Argumente::Alternativen(alternativen)
+        }
+    }
+
+    impl<'t, T, Bool, Parse, Anzeige> Argumente<'t, T, Bool, Parse, Anzeige, Void> {
+        /// Erzeuge eine [`Argumente::EinzelArgument`]-Variante mit sinnvollen Typ-Parametern.
+        ///
+        /// ## English
+        /// Create a [`Argumente::EinzelArgument`]-variant with sensible type parameters.
+        #[inline]
+        pub fn einzel_argument(
+            einzel_argument: EinzelArgument<'t, T, Bool, Parse, Anzeige>,
+        ) -> Self {
+            Argumente::EinzelArgument(einzel_argument)
+        }
+    }
+
+    impl<T, Bool, Parse, Anzeige, K> Argumente<'_, T, Bool, Parse, Anzeige, K> {
+        /// Erzeuge eine [`Argumente::Kombiniere`]-Variante mit sinnvollen Typ-Parametern.
+        ///
+        /// ## English
+        /// Create a [`Argumente::Kombiniere`]-variant with sensible type parameters.
+        #[inline]
+        pub fn kombiniere(kombiniere: K) -> Self {
+            Argumente::Kombiniere(kombiniere)
+        }
+
+        /// Erzeuge eine [`Argumente::Alternativen`]-Variante mit sinnvollen Typ-Parametern.
+        ///
+        /// ## English
+        /// Create a [`Argumente::Alternativen`]-variant with sensible type parameters.
+        #[inline]
+        pub fn alternativen(alternativen: NonEmpty<Self>) -> Self {
+            Argumente::Alternativen(Box::new(alternativen))
+        }
+
+        /// Erzeuge eine [`Argumente::Alternativen`]-Variante mit sinnvollen Typ-Parametern.
+        ///
+        /// ## English
+        /// Create a [`Argumente::Alternativen`]-variant with sensible type parameters.
+        #[inline]
+        pub fn alternativen_boxed(alternativen: Box<NonEmpty<Self>>) -> Self {
+            Argumente::Alternativen(alternativen)
         }
     }
 
@@ -620,12 +663,12 @@ pub mod new {
             self,
             args: impl Iterator<Item = Option<OsString>>,
         ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
-            use Argumente::{Alternativ, EinzelArgument, Kombiniere};
+            use Argumente::{Alternativen, EinzelArgument, Kombiniere};
             use Ergebnis::{Fehler, FrühesBeenden, Wert};
             match self {
                 EinzelArgument(arg) => arg.parse(args),
                 Kombiniere(kombiniere) => kombiniere.parse(args),
-                Alternativ(alternativen) => {
+                Alternativen(alternativen) => {
                     // TODO only accept parsing without leftover args?
                     let NonEmpty { head, tail } = *alternativen;
                     let args_vec: Vec<_> = args.into_iter().collect();
@@ -678,7 +721,7 @@ pub mod new {
                 Argumente::Kombiniere(kombiniere) => {
                     kombiniere.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte)
                 },
-                Argumente::Alternativ(alternativen) => {
+                Argumente::Alternativen(alternativen) => {
                     // TODO use alternativen.as_ref().flat_map(...), coming in nonempty > 0.10.0
                     NonEmpty::collect(alternativen.iter().map(|arg| {
                         hilfe::Alternativen::Alternativen(Box::new(
@@ -713,7 +756,6 @@ pub mod new {
         /// ## Panics
         /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
         #[inline]
-        #[must_use]
         #[allow(clippy::too_many_arguments)]
         pub fn mit_hilfe_frühes_beenden<H, Fehler>(
             self,

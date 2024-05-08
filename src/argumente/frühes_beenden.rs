@@ -976,6 +976,7 @@ impl<'t, T: 't, E: 't> Argumente<'t, T, E> {
 /// ## English
 /// It is a flag argument, causing an early exit.
 #[derive(Debug)]
+#[must_use]
 pub struct FrühesBeenden<'t> {
     /// Allgemeine Beschreibung des Arguments.
     ///

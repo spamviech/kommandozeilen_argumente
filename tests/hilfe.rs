@@ -68,8 +68,8 @@ fn new_hilfe_test() {
         konvertiere: identity,
         anzeige: <bool as ToString>::to_string,
     };
-    let einzelargument = EinzelArgument::from(flag);
-    let arg = new::Argumente::from(einzelargument);
+    let einzelargument = EinzelArgument::flag(flag);
+    let arg = new::Argumente::einzel_argument(einzelargument);
     let arg_mit_hilfe = arg.mit_hilfe_frühes_beenden_mit_sprache::<Standard, Void>(
         Beschreibung::neu_mit_sprache(
             sprache.hilfe_lang,
