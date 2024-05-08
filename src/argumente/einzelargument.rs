@@ -2,6 +2,8 @@
 
 use std::ffi::{OsStr, OsString};
 
+use void::Void;
+
 use crate::{
     argumente::{flag::Flag, frühes_beenden::FrühesBeenden, hilfe::Hilfe, wert::Wert},
     ergebnis::{Ergebnis, ParseFehler},
@@ -41,6 +43,54 @@ pub enum EinzelArgument<'t, T, Bool, Parse, Anzeige> {
     /// ## English
     /// It is a value argument.
     Wert(Wert<'t, T, Parse, Anzeige>),
+}
+
+impl<'t, T, Bool, Anzeige> From<Flag<'t, T, Bool, Anzeige>>
+    for EinzelArgument<'t, T, Bool, fn(&OsStr) -> Result<T, ParseFehler<Void>>, Anzeige>
+{
+    #[inline]
+    fn from(flag: Flag<'t, T, Bool, Anzeige>) -> Self {
+        EinzelArgument::Flag(flag)
+    }
+}
+
+impl<'t, T> From<(FrühesBeenden<'t>, T)>
+    for EinzelArgument<
+        't,
+        T,
+        fn(bool) -> T,
+        fn(&OsStr) -> Result<T, ParseFehler<Void>>,
+        fn(&T) -> String,
+    >
+{
+    #[inline]
+    fn from((frühes_beenden, wert): (FrühesBeenden<'t>, T)) -> Self {
+        EinzelArgument::FrühesBeenden { frühes_beenden, wert }
+    }
+}
+
+impl<'t> From<FrühesBeenden<'t>>
+    for EinzelArgument<
+        't,
+        (),
+        fn(bool) -> (),
+        fn(&OsStr) -> Result<(), ParseFehler<Void>>,
+        fn(&()) -> String,
+    >
+{
+    #[inline]
+    fn from(frühes_beenden: FrühesBeenden<'t>) -> Self {
+        EinzelArgument::FrühesBeenden { frühes_beenden, wert: () }
+    }
+}
+
+impl<'t, T, Parse, Anzeige> From<Wert<'t, T, Parse, Anzeige>>
+    for EinzelArgument<'t, T, fn(bool) -> T, Parse, Anzeige>
+{
+    #[inline]
+    fn from(wert: Wert<'t, T, Parse, Anzeige>) -> Self {
+        EinzelArgument::Wert(wert)
+    }
 }
 
 impl<'t, T, Bool, Parse, Fehler, Anzeige> EinzelArgument<'t, T, Bool, Parse, Anzeige>

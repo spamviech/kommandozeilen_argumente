@@ -773,10 +773,11 @@ pub mod new {
                 );
             }
             frühes_beenden.nachricht = Cow::Owned(hilfe_text);
-            let einzelargument = EinzelArgument::FrühesBeenden { frühes_beenden, wert: () };
-            let argumente = Argumente::EinzelArgument(einzelargument);
-            let kombiniere: KombiniereHilfe<'_, T, Bool, Parse, Anzeige, K> =
-                (|wert: T, ()| wert, self, argumente);
+            let kombiniere: KombiniereHilfe<'_, T, Bool, Parse, Anzeige, K> = (
+                |wert: T, ()| wert,
+                self,
+                Argumente::EinzelArgument(EinzelArgument::from(frühes_beenden)),
+            );
             Argumente::Kombiniere { kombiniere }
         }
     }
