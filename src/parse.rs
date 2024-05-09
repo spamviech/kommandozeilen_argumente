@@ -1,8 +1,15 @@
 //! Trait für Typen, die aus Kommandozeilen-Argumenten geparst werden können.
 
-use std::{collections::HashMap, ffi::OsString, fmt::Display, num::NonZeroI32, str::FromStr};
+use std::{
+    collections::HashMap,
+    ffi::{OsStr, OsString},
+    fmt::Display,
+    num::NonZeroI32,
+    str::FromStr,
+};
 
 use nonempty::NonEmpty;
+use void::Void;
 
 use crate::{
     argumente::{wert::EnumArgument, Argumente, Arguments},
@@ -39,7 +46,7 @@ pub trait ParseArgument: Sized {
         invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> Argumente<'t, Self, String>;
+    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K>;
 
     /// Sollen Argumente dieses Typs normalerweise einen Standard-Wert haben?
     ///
@@ -56,7 +63,7 @@ pub trait ParseArgument: Sized {
     fn argumente_mit_sprache<'t>(
         beschreibung: Beschreibung<'t, Self>,
         sprache: Sprache,
-    ) -> Argumente<'t, Self, String> {
+    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K> {
         Self::argumente(
             beschreibung,
             sprache.invertiere_präfix,
@@ -75,7 +82,7 @@ pub trait ParseArgument: Sized {
     fn arguments_with_language<'t>(
         description: Description<'t, Self>,
         language: Language,
-    ) -> Arguments<'t, Self, String> {
+    ) -> Arguments<'t, Self, Bool, Parse, Anzeige, K> {
         Self::argumente_mit_sprache(description, language)
     }
 
@@ -85,7 +92,9 @@ pub trait ParseArgument: Sized {
     /// [`new`](ParseArgument::new)
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    fn neu<'t>(beschreibung: Beschreibung<'t, Self>) -> Argumente<'t, Self, String> {
+    fn neu<'t>(
+        beschreibung: Beschreibung<'t, Self>,
+    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K> {
         Self::argumente_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
 
@@ -95,7 +104,9 @@ pub trait ParseArgument: Sized {
     /// [`neu`](ParseArgument::neu)
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    fn new<'t>(beschreibung: Beschreibung<'t, Self>) -> Argumente<'t, Self, String> {
+    fn new<'t>(
+        beschreibung: Beschreibung<'t, Self>,
+    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K> {
         Self::argumente_mit_sprache(beschreibung, Sprache::ENGLISH)
     }
 }
@@ -108,7 +119,7 @@ impl ParseArgument for bool {
         invertiere_infix: impl Into<Vergleich<'t>>,
         _wert_infix: impl Into<Vergleich<'t>>,
         _meta_var: &'t str,
-    ) -> Argumente<'t, Self, String> {
+    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K> {
         Argumente::flag_bool(beschreibung, invertiere_präfix, invertiere_infix)
     }
 
@@ -126,7 +137,7 @@ impl ParseArgument for String {
         _invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> Argumente<'t, Self, String> {
+    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K> {
         Argumente::wert_display(beschreibung, wert_infix, meta_var, None, |os_str| {
             if let Some(string) = os_str.to_str() {
                 Ok(string.to_owned())
@@ -153,7 +164,7 @@ macro_rules! impl_parse_argument {
                 _invertiere_infix: impl Into<Vergleich<'t>>,
                 wert_infix: impl Into<Vergleich<'t>>,
                 meta_var: &'t str,
-            ) -> Argumente<'t,Self, String> {
+            ) -> Argumente<'t,Self, Bool, Parse, Anzeige, K> {
                 Argumente::wert_display(beschreibung,wert_infix, meta_var, None, |os_str| {
                     if let Some(string) = os_str.to_str() {
                         string.parse().map_err(
@@ -182,7 +193,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> Argumente<'t, Self, String> {
+    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K> {
         /// Typ-Synonym für Hilfs-Closure:
         /// Ersetzte [`Fehler::FehlenderWert`] durch [`Ergebnis::Wert`] mit dem Standard-Wert.
         type VerwendeStandard<'s, T> =
@@ -304,7 +315,14 @@ pub trait Parse: Sized {
     ///
     /// ## English
     /// Create a description, how command line arguments should be parsed.
-    fn kommandozeilen_argumente<'t>() -> Argumente<'t, Self, Self::Fehler>;
+    fn kommandozeilen_argumente<'t>() -> Argumente<
+        't,
+        Self,
+        fn(bool) -> Self,
+        fn(&OsStr) -> Result<Self, ParseFehler<Self::Fehler>>,
+        fn(&Self) -> String,
+        Void,
+    >;
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     ///
@@ -312,8 +330,8 @@ pub trait Parse: Sized {
     /// Parse the given command line arguments to create the requested type.
     #[inline]
     fn parse<'t>(
-        args: impl Iterator<Item = OsString>,
-    ) -> (Ergebnis<'t, Self, Self::Fehler>, Vec<OsString>)
+        args: impl Iterator<Item = Option<OsString>>,
+    ) -> (Ergebnis<'t, Self, Self::Fehler>, Vec<Option<OsString>>)
     where
         Self: 't,
         Self::Fehler: 't,
