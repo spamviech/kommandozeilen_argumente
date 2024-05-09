@@ -55,19 +55,16 @@ fn hilfe_test() {
 #[test]
 fn new_hilfe_test() {
     let sprache = Sprache::DEUTSCH;
-    let flag = Flag {
-        beschreibung: Beschreibung::neu_mit_sprache(
+    let flag = Flag::neu_mit_sprache(
+        Beschreibung::neu_mit_sprache(
             "test".to_owned(),
             None::<&str>,
             Some("hilfe"),
             Some(false),
             sprache,
         ),
-        invertiere_präfix: sprache.invertiere_präfix.into(),
-        invertiere_infix: sprache.invertiere_infix.into(),
-        konvertiere: identity,
-        anzeige: <bool as ToString>::to_string,
-    };
+        sprache,
+    );
     let einzelargument = EinzelArgument::flag(flag);
     let arg = new::Argumente::einzel_argument(einzelargument);
     let arg_mit_hilfe = arg.mit_hilfe_frühes_beenden_mit_sprache::<Standard, Void>(

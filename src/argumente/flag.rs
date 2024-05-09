@@ -313,7 +313,6 @@ impl<'t, T: 't + Clone, E> Argumente<'t, T, E> {
     }
 }
 
-// TODO Hilfs-funktionen zum einfacheren erstellen (mit_sprache, etc.)
 /// Es handelt sich um ein Flag-Argument.
 ///
 /// ## English
@@ -352,10 +351,51 @@ pub struct Flag<'t, T, Bool, Anzeige> {
     pub anzeige: Anzeige,
 }
 
-impl<'t, T, Bool, Anzeige> Flag<'t, T, Bool, Anzeige>
-where
-    Bool: Fn(bool) -> T,
-{
+impl<'t> Flag<'t, bool, fn(bool) -> bool, fn(&bool) -> String> {
+    /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
+    ///
+    /// ## English version
+    /// [`new`](Flag::new)
+    #[inline]
+    pub fn neu(beschreibung: Beschreibung<'t, bool>) -> Self {
+        Flag::neu_mit_sprache(beschreibung, Sprache::DEUTSCH)
+    }
+
+    /// Erzeuge ein Flag-Argument, dass mit dem konfigurierten Präfix deaktiviert werden kann.
+    ///
+    /// ## English synonym
+    /// [`new_with_language`](Flag::new_with_language)
+    #[inline]
+    pub fn neu_mit_sprache(beschreibung: Beschreibung<'t, bool>, sprache: Sprache) -> Self {
+        Flag {
+            beschreibung,
+            invertiere_präfix: Vergleich::from(sprache.invertiere_präfix),
+            invertiere_infix: Vergleich::from(sprache.invertiere_infix),
+            konvertiere: identity,
+            anzeige: <bool as ToString>::to_string,
+        }
+    }
+
+    /// Create a flag-argument which can be deactivated with a "no" prefix.
+    ///
+    /// ## Deutsche Version
+    /// [`neu`](Flag::neu)
+    #[inline]
+    pub fn new(description: Description<'t, bool>) -> Self {
+        Flag::new_with_language(description, Sprache::ENGLISH)
+    }
+
+    /// Create a flag-argument which can be deactivated with the configured prefix.
+    ///
+    /// ## Deutsches Synonym
+    /// [`neu_mit_sprache`](Flag::neu_mit_sprache)
+    #[inline]
+    pub fn new_with_language(description: Description<'t, bool>, language: Language) -> Self {
+        Flag::neu_mit_sprache(description, language)
+    }
+}
+
+impl<'t, T, Bool, Anzeige> Flag<'t, T, Bool, Anzeige> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
@@ -364,7 +404,10 @@ where
     pub fn parse<F>(
         self,
         args: impl Iterator<Item = Option<OsString>>,
-    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>)
+    where
+        Bool: Fn(bool) -> T,
+    {
         let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere, anzeige: _ } =
             self;
         let Beschreibung { name, hilfe: _, standard } = beschreibung;
@@ -392,18 +435,16 @@ where
         };
         (ergebnis, nicht_verwendet)
     }
-}
 
-impl<T, Bool, Anzeige> Flag<'_, T, Bool, Anzeige>
-where
-    Anzeige: Fn(&T) -> String,
-{
     /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
     ///
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
     #[inline]
-    pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> Hilfe<'_> {
+    pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> Hilfe<'_>
+    where
+        Anzeige: Fn(&T) -> String,
+    {
         let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere: _, anzeige } =
             self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
