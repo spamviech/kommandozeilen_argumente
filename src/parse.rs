@@ -23,6 +23,16 @@ use crate::{
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::Parse;
 
+/// [`Argumente`] mit vereinfachten Parametern.
+pub type ParseArgumente<'t, T> = Argumente<
+    't,
+    T,
+    fn(bool) -> T,
+    fn(&OsStr) -> Result<T, ParseFehler<String>>,
+    fn(&T) -> String,
+    Void,
+>;
+
 /// Trait für Typen, die direkt mit dem (derive-Macro)[`derive@Parse`]
 /// für das [`Parse`]-Trait verwendet werden können.
 ///
@@ -46,7 +56,7 @@ pub trait ParseArgument: Sized {
         invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K>;
+    ) -> ParseArgumente<'t, Self>;
 
     /// Sollen Argumente dieses Typs normalerweise einen Standard-Wert haben?
     ///
@@ -63,7 +73,7 @@ pub trait ParseArgument: Sized {
     fn argumente_mit_sprache<'t>(
         beschreibung: Beschreibung<'t, Self>,
         sprache: Sprache,
-    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K> {
+    ) -> ParseArgumente<'t, Self> {
         Self::argumente(
             beschreibung,
             sprache.invertiere_präfix,
@@ -82,7 +92,7 @@ pub trait ParseArgument: Sized {
     fn arguments_with_language<'t>(
         description: Description<'t, Self>,
         language: Language,
-    ) -> Arguments<'t, Self, Bool, Parse, Anzeige, K> {
+    ) -> ParseArgumente<'t, Self> {
         Self::argumente_mit_sprache(description, language)
     }
 
@@ -92,9 +102,7 @@ pub trait ParseArgument: Sized {
     /// [`new`](ParseArgument::new)
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    fn neu<'t>(
-        beschreibung: Beschreibung<'t, Self>,
-    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K> {
+    fn neu<'t>(beschreibung: Beschreibung<'t, Self>) -> ParseArgumente<'t, Self> {
         Self::argumente_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
 
@@ -104,9 +112,7 @@ pub trait ParseArgument: Sized {
     /// [`neu`](ParseArgument::neu)
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    fn new<'t>(
-        beschreibung: Beschreibung<'t, Self>,
-    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K> {
+    fn new<'t>(beschreibung: Beschreibung<'t, Self>) -> ParseArgumente<'t, Self> {
         Self::argumente_mit_sprache(beschreibung, Sprache::ENGLISH)
     }
 }
@@ -119,8 +125,9 @@ impl ParseArgument for bool {
         invertiere_infix: impl Into<Vergleich<'t>>,
         _wert_infix: impl Into<Vergleich<'t>>,
         _meta_var: &'t str,
-    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K> {
-        Argumente::flag_bool(beschreibung, invertiere_präfix, invertiere_infix)
+    ) -> ParseArgumente<'t, Self> {
+        todo!()
+        // Argumente::flag_bool(beschreibung, invertiere_präfix, invertiere_infix)
     }
 
     #[inline]
@@ -137,14 +144,15 @@ impl ParseArgument for String {
         _invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K> {
-        Argumente::wert_display(beschreibung, wert_infix, meta_var, None, |os_str| {
-            if let Some(string) = os_str.to_str() {
-                Ok(string.to_owned())
-            } else {
-                Err(ParseFehler::InvaliderString(os_str.clone()))
-            }
-        })
+    ) -> ParseArgumente<'t, Self> {
+        todo!()
+        // Argumente::wert_display(beschreibung, wert_infix, meta_var, None, |os_str| {
+        //     if let Some(string) = os_str.to_str() {
+        //         Ok(string.to_owned())
+        //     } else {
+        //         Err(ParseFehler::InvaliderString(os_str.clone()))
+        //     }
+        // })
     }
 
     #[inline]
@@ -164,16 +172,17 @@ macro_rules! impl_parse_argument {
                 _invertiere_infix: impl Into<Vergleich<'t>>,
                 wert_infix: impl Into<Vergleich<'t>>,
                 meta_var: &'t str,
-            ) -> Argumente<'t,Self, Bool, Parse, Anzeige, K> {
-                Argumente::wert_display(beschreibung,wert_infix, meta_var, None, |os_str| {
-                    if let Some(string) = os_str.to_str() {
-                        string.parse().map_err(
-                            |err: <$type as FromStr>::Err| ParseFehler::ParseFehler(err.to_string())
-                        )
-                    } else {
-                        Err(ParseFehler::InvaliderString(os_str.to_owned()))
-                    }
-                })
+            ) -> ParseArgumente<'t, Self> {
+                todo!()
+                // Argumente::wert_display(beschreibung,wert_infix, meta_var, None, |os_str| {
+                //     if let Some(string) = os_str.to_str() {
+                //         string.parse().map_err(
+                //             |err: <$type as FromStr>::Err| ParseFehler::ParseFehler(err.to_string())
+                //         )
+                //     } else {
+                //         Err(ParseFehler::InvaliderString(os_str.to_owned()))
+                //     }
+                // })
             }
 
             #[inline]
@@ -193,7 +202,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> Argumente<'t, Self, Bool, Parse, Anzeige, K> {
+    ) -> ParseArgumente<'t, Self> {
         /// Typ-Synonym für Hilfs-Closure:
         /// Ersetzte [`Fehler::FehlenderWert`] durch [`Ergebnis::Wert`] mit dem Standard-Wert.
         type VerwendeStandard<'s, T> =
@@ -203,20 +212,22 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         let name_kurz_präfix = beschreibung.name.kurz_präfix.clone();
         let name_kurz = beschreibung.name.kurz.clone();
         let wert_infix_vergleich = wert_infix.into();
-        let Argumente { parse, .. } = T::argumente(
-            Beschreibung::neu(
-                name_lang_präfix,
-                name_lang.clone(),
-                name_kurz_präfix,
-                name_kurz.clone(),
-                None::<&str>,
-                None,
-            ),
-            invertiere_präfix,
-            invertiere_infix,
-            wert_infix_vergleich.clone(),
-            meta_var,
-        );
+        let parse = todo!();
+        let _ = ();
+        // let Argumente { parse, .. } = T::argumente(
+        //     Beschreibung::neu(
+        //         name_lang_präfix,
+        //         name_lang.clone(),
+        //         name_kurz_präfix,
+        //         name_kurz.clone(),
+        //         None::<&str>,
+        //         None,
+        //     ),
+        //     invertiere_präfix,
+        //     invertiere_infix,
+        //     wert_infix_vergleich.clone(),
+        //     meta_var,
+        // );
         let (beschreibung_string, option_standard) = beschreibung
             .als_string_beschreibung_allgemein(|opt| {
                 #[allow(clippy::min_ident_chars)]
@@ -252,24 +263,25 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         } else {
             Box::new(|fehler| Ergebnis::Fehler(fehler))
         };
-        Argumente {
-            konfigurationen: vec![Konfiguration::Wert {
-                beschreibung: beschreibung_string,
-                meta_var,
-                wert_infix: wert_infix_vergleich,
-                mögliche_werte: None,
-            }],
-            flag_kurzformen: HashMap::new(),
-            parse: Box::new(move |args| {
-                let (ergebnis, nicht_verwendet) = parse(args);
-                let option_ergebnis = match ergebnis {
-                    Ergebnis::Wert(wert) => Ergebnis::Wert(Some(wert)),
-                    Ergebnis::FrühesBeenden(nachrichten) => Ergebnis::FrühesBeenden(nachrichten),
-                    Ergebnis::Fehler(fehler_sammlung) => verwende_standard(fehler_sammlung),
-                };
-                (option_ergebnis, nicht_verwendet)
-            }),
-        }
+        // Argumente {
+        //     konfigurationen: vec![Konfiguration::Wert {
+        //         beschreibung: beschreibung_string,
+        //         meta_var,
+        //         wert_infix: wert_infix_vergleich,
+        //         mögliche_werte: None,
+        //     }],
+        //     flag_kurzformen: HashMap::new(),
+        //     parse: Box::new(move |args| {
+        //         let (ergebnis, nicht_verwendet) = parse(args);
+        //         let option_ergebnis = match ergebnis {
+        //             Ergebnis::Wert(wert) => Ergebnis::Wert(Some(wert)),
+        //             Ergebnis::FrühesBeenden(nachrichten) => Ergebnis::FrühesBeenden(nachrichten),
+        //             Ergebnis::Fehler(fehler_sammlung) => verwende_standard(fehler_sammlung),
+        //         };
+        //         (option_ergebnis, nicht_verwendet)
+        //     }),
+        // }
+        todo!()
     }
 
     #[inline]
@@ -286,8 +298,9 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
         _invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> Argumente<'t, Self, String> {
-        Argumente::wert_enum_display(beschreibung, wert_infix, meta_var)
+    ) -> ParseArgumente<'t, Self> {
+        todo!()
+        // Argumente::wert_enum_display(beschreibung, wert_infix, meta_var)
     }
 
     #[inline]
@@ -349,7 +362,8 @@ pub trait Parse: Sized {
         Self: 't,
         Self::Fehler: 't,
     {
-        Self::kommandozeilen_argumente().parse_aus_env()
+        todo!()
+        // Self::kommandozeilen_argumente().parse_aus_env()
     }
 
     /// Parse [`args_os`](std::env::args_os) and try to create the requested type.
@@ -379,7 +393,8 @@ pub trait Parse: Sized {
         Self: 't,
         Self::Fehler: 't,
     {
-        Self::kommandozeilen_argumente().parse_aus_env_mit_frühen_beenden()
+        todo!()
+        // Self::kommandozeilen_argumente().parse_aus_env_mit_frühen_beenden()
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -413,7 +428,8 @@ pub trait Parse: Sized {
         Self: 't,
         Self::Fehler: 't,
     {
-        Self::kommandozeilen_argumente().parse_mit_frühen_beenden(args)
+        todo!()
+        // Self::kommandozeilen_argumente().parse_mit_frühen_beenden(args)
     }
 
     /// Parse the given command line arguments to create the requested type.
@@ -456,15 +472,16 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::kommandozeilen_argumente().parse_vollständig(
-            args,
-            fehler_code,
-            fehlende_flag,
-            fehlender_wert,
-            parse_fehler,
-            invalider_string,
-            arg_nicht_verwendet,
-        )
+        todo!()
+        // Self::kommandozeilen_argumente().parse_vollständig(
+        //     args,
+        //     fehler_code,
+        //     fehlende_flag,
+        //     fehlender_wert,
+        //     parse_fehler,
+        //     invalider_string,
+        //     arg_nicht_verwendet,
+        // )
     }
 
     /// Parse the given command line arguments to create the requested type.
@@ -519,7 +536,8 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::kommandozeilen_argumente().parse_vollständig_mit_sprache(args, fehler_code, sprache)
+        todo!()
+        // Self::kommandozeilen_argumente().parse_vollständig_mit_sprache(args, fehler_code, sprache)
     }
 
     /// Parse the given command line arguments to create the requested type.
@@ -561,7 +579,8 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::kommandozeilen_argumente().parse_mit_fehlermeldung(args, fehler_code)
+        todo!()
+        // Self::kommandozeilen_argumente().parse_mit_fehlermeldung(args, fehler_code)
     }
 
     /// Parse command line arguments to create the requested type.
@@ -581,7 +600,8 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::kommandozeilen_argumente().parse_with_error_message(args, error_code)
+        todo!()
+        // Self::kommandozeilen_argumente().parse_with_error_message(args, error_code)
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -606,14 +626,15 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::kommandozeilen_argumente().parse_vollständig_aus_env(
-            fehler_code,
-            fehlende_flag,
-            fehlender_wert,
-            parse_fehler,
-            invalider_string,
-            arg_nicht_verwendet,
-        )
+        todo!()
+        // Self::kommandozeilen_argumente().parse_vollständig_aus_env(
+        //     fehler_code,
+        //     fehlende_flag,
+        //     fehlender_wert,
+        //     parse_fehler,
+        //     invalider_string,
+        //     arg_nicht_verwendet,
+        // )
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -662,8 +683,9 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::kommandozeilen_argumente()
-            .parse_vollständig_mit_sprache_aus_env(fehler_code, sprache)
+        todo!()
+        // Self::kommandozeilen_argumente()
+        //     .parse_vollständig_mit_sprache_aus_env(fehler_code, sprache)
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -698,7 +720,8 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::kommandozeilen_argumente().parse_mit_fehlermeldung_aus_env(fehler_code)
+        todo!()
+        // Self::kommandozeilen_argumente().parse_mit_fehlermeldung_aus_env(fehler_code)
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -715,6 +738,7 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::kommandozeilen_argumente().parse_with_error_message_from_env(error_code)
+        todo!()
+        // Self::kommandozeilen_argumente().parse_with_error_message_from_env(error_code)
     }
 }

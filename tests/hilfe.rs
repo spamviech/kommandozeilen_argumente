@@ -15,7 +15,7 @@ use std::{ffi::OsString, iter, process};
 use void::Void;
 
 use kommandozeilen_argumente::{
-    argumente::{einzelargument::EinzelArgument, flag::Flag, hilfe::Standard, new},
+    argumente::{einzelargument::EinzelArgument, flag::Flag, hilfe::Standard},
     Argumente, Beschreibung, Ergebnis, Sprache,
 };
 
@@ -33,7 +33,7 @@ fn hilfe_test() {
         sprache,
     );
     let einzelargument = EinzelArgument::flag(flag);
-    let arg = new::Argumente::einzel_argument(einzelargument);
+    let arg = Argumente::einzel_argument(einzelargument);
     let arg_mit_hilfe = arg.mit_hilfe_frühes_beenden_mit_sprache::<Standard, Void>(
         Beschreibung::neu_mit_sprache(
             sprache.hilfe_lang,

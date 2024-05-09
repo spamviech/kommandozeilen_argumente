@@ -16,7 +16,9 @@ use std::{
     iter, process,
 };
 
-use kommandozeilen_argumente::{Argumente, EnumArgument, Ergebnis, Parse, ParseArgument};
+use kommandozeilen_argumente::{
+    parse::ParseArgumente, Argumente, EnumArgument, Ergebnis, Parse, ParseArgument,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
 #[kommandozeilen_argumente(case: insensitive)]
@@ -100,14 +102,15 @@ impl ParseArgument for Flag {
         invertiere_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
         _wert_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
         _meta_var: &'t str,
-    ) -> Argumente<'t, Self, String> {
-        Argumente::flag(
-            beschreibung,
-            |bool| if bool { Flag::Active } else { Flag::Inactive },
-            invertiere_präfix,
-            invertiere_infix,
-            |flag| format!("{flag:?}"),
-        )
+    ) -> ParseArgumente<'t, Self> {
+        // Argumente::flag(
+        //     beschreibung,
+        //     |bool| if bool { Flag::Active } else { Flag::Inactive },
+        //     invertiere_präfix,
+        //     invertiere_infix,
+        //     |flag| format!("{flag:?}"),
+        // )
+        todo!()
     }
 
     fn standard() -> Option<Self> {
@@ -141,7 +144,7 @@ struct Test2 {
 #[test]
 fn derive_test() {
     let arg = Test::kommandozeilen_argumente();
-    match arg.parse(iter::once(OsString::from("--hilfe".to_owned()))) {
+    match arg.parse(iter::once(Some(OsString::from("--hilfe".to_owned())))) {
         (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
             let übrige = nicht_verwendet.len();
             if übrige > 0 {
@@ -167,7 +170,7 @@ fn derive_test() {
     }
     println!("--------------");
     let arg2 = Test2::kommandozeilen_argumente();
-    match arg2.parse(iter::once(OsString::from("--help".to_owned()))) {
+    match arg2.parse(iter::once(Some(OsString::from("--help".to_owned())))) {
         (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
             let übrige = nicht_verwendet.len();
             if übrige > 0 {
@@ -196,7 +199,7 @@ fn derive_test() {
 #[test]
 fn verschmelze_kurzformen() {
     let arg = Test::kommandozeilen_argumente();
-    match arg.parse(iter::once(OsString::from("-vh".to_owned()))) {
+    match arg.parse(iter::once(Some(OsString::from("-vh".to_owned())))) {
         (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
             let übrige = nicht_verwendet.len();
             if übrige > 0 {
@@ -225,7 +228,7 @@ fn verschmelze_kurzformen() {
     }
     println!("--------------");
     let arg2 = Test2::kommandozeilen_argumente();
-    match arg2.parse(iter::once(OsString::from("-fb".to_owned()))) {
+    match arg2.parse(iter::once(Some(OsString::from("-fb".to_owned())))) {
         (Ergebnis::Wert(test2), nicht_verwendet) => {
             let übrige = nicht_verwendet.len();
             let erwartet = Test2 {
