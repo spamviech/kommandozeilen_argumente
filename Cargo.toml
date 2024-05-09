@@ -39,6 +39,7 @@ required-features = ["derive"]
 either = "1.6.1"
 itertools = "0.12.1"
 nonempty = "0.10.0"
+paste = "1.0.15"
 unicase = "2.6.0"
 unicode-normalization = "0.1.19"
 unicode-segmentation = "1.9.0"

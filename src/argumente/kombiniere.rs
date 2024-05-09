@@ -6,6 +6,7 @@ use std::{
 };
 
 use nonempty::NonEmpty;
+use paste::paste;
 use void::Void;
 
 use crate::{
@@ -300,94 +301,134 @@ impl<'t, T, Bool, Parse, Fehler, Anzeige> Kombiniere<'t, T, Bool, Parse, Fehler,
     }
 }
 
-impl<'t, F, T0, T1, B0, B1, P0, P1, Fehler, A0, A1, K0> Kombiniere<'t, T1, B1, P1, Fehler, A1>
-    for (F, new::Argumente<'t, T0, B0, P0, A0, K0>)
-where
-    F: Fn(T0) -> T1,
-    B0: Fn(bool) -> T0,
-    A0: Fn(&T0) -> String,
-    P0: Fn(&OsStr) -> Result<T0, ParseFehler<Fehler>>,
-    K0: Kombiniere<'t, T0, B0, P0, Fehler, A0>,
-{
-    #[inline]
-    fn parse(
-        self,
-        args: impl Iterator<Item = Option<OsString>>,
-    ) -> (Ergebnis<'t, T1, Fehler>, Vec<Option<OsString>>) {
-        let (funktion, argument) = self;
-        let (ergebnis, nicht_verwendet) = argument.parse(args);
-        (ergebnis.konvertiere(funktion), nicht_verwendet)
-    }
+/// Implementiere das [`Kombiniere`]-trait für ein Tupel (f, a0, a1, ...)
+macro_rules! impl_kombiniere_tuple {
+    ($($suffix: ident),+ $(,)?) => {
+        paste! {
+            impl <
+                't, $([<'t $suffix:snake:lower>],)+ F, T, Bool, Parse, Fehler, Anzeige,
+                $(
+                    [<T $suffix:camel>],
+                    [<Bool $suffix:camel>],
+                    [<Parse $suffix:camel>],
+                    [<Anzeige $suffix:camel>],
+                    [<Fehler $suffix:camel>],
+                    [<Kombiniere $suffix:camel>],
+                )+
+            >
+                Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> for (
+                    F,
+                    $(new::Argumente<
+                        [<'t $suffix:snake:lower>],
+                        [<T $suffix:camel>],
+                        [<Bool $suffix:camel>],
+                        [<Parse $suffix:camel>],
+                        [<Anzeige $suffix:camel>],
+                        [<Kombiniere $suffix:camel>],
+                    >),+
+                )
+            where
+                F: Fn($([<T $suffix:camel>]),+) -> T,
+                $(
+                    [<'t $suffix:snake:lower>]: 't,
+                    [<Bool $suffix:camel>]: Fn(bool) -> [<T $suffix:camel>],
+                    [<Parse $suffix:camel>]:
+                        Fn(&OsStr) -> Result<[<T $suffix:camel>], ParseFehler<[<Fehler $suffix:camel>]>>,
+                    [<Anzeige $suffix:camel>]: Fn(&[<T $suffix:camel>]) -> String,
+                    Fehler: From<[<Fehler $suffix:camel>]>,
+                    [<Kombiniere $suffix:camel>]:
+                        Kombiniere<
+                            [<'t $suffix:snake:lower>],
+                            [<T $suffix:camel>],
+                            [<Bool $suffix:camel>],
+                            [<Parse $suffix:camel>],
+                            [<Fehler $suffix:camel>],
+                            [<Anzeige $suffix:camel>],
+                        >
+                ),+
+            {
+                #[inline]
+                fn parse(
+                    self,
+                    args: impl Iterator<Item = Option<OsString>>,
+                ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
+                    let (funktion, $([<arg_ $suffix:snake:lower>]),+) = self;
+                    let nicht_verwendet: Vec<_> = args.collect();
+                    let mut alle_fehler = Vec::new();
+                    let mut alle_frühes_beenden = Vec::new();
+                    $(
+                        let (ergebnis, nicht_verwendet)
+                            = [<arg_ $suffix:snake:lower>].parse(nicht_verwendet.into_iter());
+                        let mut [<wert_ $suffix:snake:lower>] = None;
+                        match ergebnis {
+                            Ergebnis::Wert(wert) => [<wert_ $suffix:snake:lower>] = Some(wert),
+                            Ergebnis::FrühesBeenden(nachrichten) => alle_frühes_beenden.extend(nachrichten),
+                            Ergebnis::Fehler(fehler_liste) => {
+                                alle_fehler.extend(
+                                    fehler_liste
+                                        .into_iter()
+                                        .map(|fehler| fehler.konvertiere(Fehler::from))
+                                )
+                            },
+                        }
+                    )+
+                    let ergebnis = if let Some(fehler) = NonEmpty::from_vec(alle_fehler) {
+                        Ergebnis::Fehler(fehler)
+                    } else if let Some(nachrichten) = NonEmpty::from_vec(alle_frühes_beenden) {
+                        Ergebnis::FrühesBeenden(nachrichten)
+                    } else {
+                        Ergebnis::Wert(funktion(
+                            $([<wert_ $suffix:snake:lower>].expect("Kein Fehler oder FrühesBeenden!")
+                        ),+))
+                    };
+                    (ergebnis, nicht_verwendet)
+                }
 
-    #[inline]
-    fn erzeuge_hilfe_text<H: ErzeugeHilfeText>(
-        &self,
-        meta_standard: &str,
-        meta_erlaubte_werte: &str,
-    ) -> NonEmpty<hilfe::Alternativen<'_>> {
-        self.1.erzeuge_hilfe_text::<H, Fehler>(meta_standard, meta_erlaubte_werte)
-    }
+                #[inline]
+                fn erzeuge_hilfe_text<H: ErzeugeHilfeText>(
+                    &self,
+                    meta_standard: &str,
+                    meta_erlaubte_werte: &str,
+                ) -> NonEmpty<hilfe::Alternativen<'_>> {
+                    let (_f, $([<a_ $suffix:snake:lower>]),+) = self;
+                    let mut hilfe_texte = Vec::new();
+                    $(
+                        hilfe_texte.extend(
+                            [<a_ $suffix:snake:lower>]
+                                .erzeuge_hilfe_text::<H, [<Fehler $suffix:camel>]>(meta_standard, meta_erlaubte_werte)
+                        );
+                    )+
+                    NonEmpty::from_vec(hilfe_texte).expect("Mindestens ein suffix als Macro-Argument!")
+                }
+            }
+        }
+    };
 }
 
-impl<'t, 't0, 't1, K, T, B, P, F, A, T0, B0, P0, F0, A0, K0, T1, B1, P1, F1, A1, K1>
-    Kombiniere<'t, T, B, P, F, A>
-    for (K, new::Argumente<'t0, T0, B0, P0, A0, K0>, new::Argumente<'t1, T1, B1, P1, A1, K1>)
-where
-    't0: 't,
-    't1: 't,
-    K: Fn(T0, T1) -> T,
-    B0: Fn(bool) -> T0,
-    P0: Fn(&OsStr) -> Result<T0, ParseFehler<F0>>,
-    F0: Into<F>,
-    A0: Fn(&T0) -> String,
-    K0: Kombiniere<'t0, T0, B0, P0, F0, A0>,
-    B1: Fn(bool) -> T1,
-    P1: Fn(&OsStr) -> Result<T1, ParseFehler<F1>>,
-    F1: Into<F>,
-    A1: Fn(&T1) -> String,
-    K1: Kombiniere<'t1, T1, B1, P1, F1, A1>,
-{
-    #[inline]
-    fn parse(
-        self,
-        args: impl Iterator<Item = Option<OsString>>,
-    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
-        use Ergebnis::{Fehler, FrühesBeenden, Wert};
-
-        let (funktion, a0, a1) = self;
-        let (e0, nicht_verwendet0) = a0.parse(args);
-        let (e1, nicht_verwendet1) = a1.parse(nicht_verwendet0.into_iter());
-        let ergebnis = match (e0, e1) {
-            (Wert(w0), Wert(w1)) => Wert(funktion(w0, w1)),
-            (Wert(_w0), FrühesBeenden(n1)) => FrühesBeenden(n1),
-            (Wert(_w0), Fehler(f1)) => Fehler(f1.map(|fehler| fehler.konvertiere(F1::into))),
-            (FrühesBeenden(n0), Wert(_w1)) => FrühesBeenden(n0),
-            (FrühesBeenden(n0), FrühesBeenden(_n1)) => FrühesBeenden(n0),
-            (FrühesBeenden(_n0), Fehler(f1)) => {
-                Fehler(f1.map(|fehler| fehler.konvertiere(F1::into)))
-            },
-            (Fehler(f0), Wert(_w1)) => Fehler(f0.map(|fehler| fehler.konvertiere(F0::into))),
-            (Fehler(f0), FrühesBeenden(_n1)) => {
-                Fehler(f0.map(|fehler| fehler.konvertiere(F0::into)))
-            },
-            (Fehler(f0), Fehler(f1)) => {
-                let mut fehler_liste = f0.map(|fehler| fehler.konvertiere(F0::into));
-                fehler_liste.extend(f1.into_iter().map(|fehler| fehler.konvertiere(F1::into)));
-                Fehler(fehler_liste)
-            },
-        };
-        (ergebnis, nicht_verwendet1)
-    }
-
-    #[inline]
-    fn erzeuge_hilfe_text<H: ErzeugeHilfeText>(
-        &self,
-        meta_standard: &str,
-        meta_erlaubte_werte: &str,
-    ) -> NonEmpty<hilfe::Alternativen<'_>> {
-        let (_f, a0, a1) = self;
-        let mut hilfe_texte = a0.erzeuge_hilfe_text::<H, F0>(meta_standard, meta_erlaubte_werte);
-        hilfe_texte.extend(a1.erzeuge_hilfe_text::<H, F1>(meta_standard, meta_erlaubte_werte));
-        hilfe_texte
-    }
-}
+impl_kombiniere_tuple!(A);
+impl_kombiniere_tuple!(A, B);
+impl_kombiniere_tuple!(A, B, C);
+impl_kombiniere_tuple!(A, B, C, D);
+impl_kombiniere_tuple!(A, B, C, D, E);
+impl_kombiniere_tuple!(A, B, C, D, E, F);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X);
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y);
+#[rustfmt::skip]
+impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z);
