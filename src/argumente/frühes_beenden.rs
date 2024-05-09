@@ -992,6 +992,25 @@ pub struct FrühesBeenden<'t> {
 }
 
 impl<'t> FrühesBeenden<'t> {
+    /// Erstelle eine Flag, die zu vorzeitigem Beenden führt.
+    /// Zeige dabei die übergebene Nachricht an.
+    ///
+    /// ## English synonym
+    /// [`new`](FrühesBeenden::new)
+    #[inline]
+    pub fn neu(beschreibung: Beschreibung<'t, Void>, nachricht: impl Into<Cow<'t, str>>) -> Self {
+        FrühesBeenden { beschreibung, nachricht: nachricht.into() }
+    }
+
+    /// Create a flag which causes an early exit and shows the given message.
+    ///
+    /// ## Deutsches Synonym
+    /// [`neu`](FrühesBeenden::neu)
+    #[inline]
+    pub fn new(description: Description<'t, Void>, message: impl Into<Cow<'t, str>>) -> Self {
+        FrühesBeenden::neu(description, message)
+    }
+
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
