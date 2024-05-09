@@ -252,6 +252,28 @@ type ArgumenteMitHilfe<'t, T, Bool, Parse, Anzeige, K> =
     Argumente<'t, T, Bool, Parse, Anzeige, KombiniereHilfe<'t, T, Bool, Parse, Anzeige, K>>;
 
 impl<'t, T, Bool, Parse, Anzeige, K> Argumente<'t, T, Bool, Parse, Anzeige, K> {
+    /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch die Programm-Version anzeigt wird.
+    ///
+    /// ## English
+    /// Add an [`EarlyExit`](crate::frühes_beenden::EarlyExit`)-flag, showing the program version.
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn mit_version_frühes_beenden(
+        self,
+        eigene_beschreibung: Beschreibung<'t, Void>,
+        programm_name: &str,
+        programm_version: &str,
+    ) -> ArgumenteMitHilfe<'t, T, Bool, Parse, Anzeige, K> {
+        let name_und_version = format!("{programm_name} {programm_version}");
+        let frühes_beenden = FrühesBeenden {
+            beschreibung: eigene_beschreibung,
+            nachricht: Cow::Owned(name_und_version),
+        };
+        let kombiniere: KombiniereHilfe<'_, T, Bool, Parse, Anzeige, K> =
+            (|wert: T, ()| wert, self, Argumente::from(EinzelArgument::from(frühes_beenden)));
+        Argumente::Kombiniere(kombiniere)
+    }
+
     /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch der Hilfe-Text für alle Argumente anzeigt wird.
     ///
     /// ### Panics
@@ -352,6 +374,113 @@ impl<'t, T, Bool, Parse, Anzeige, K> Argumente<'t, T, Bool, Parse, Anzeige, K> {
     {
         self.mit_hilfe_frühes_beenden::<H, Fehler>(
             eigene_beschreibung,
+            programm_name,
+            programm_beschreibung,
+            programm_version,
+            sprache.standard,
+            sprache.erlaubte_werte,
+            sprache.optionen,
+            sprache.syntax_präfix,
+            sprache.syntax_padding,
+            sprache.alternative_präfix,
+            sprache.alternative_trennzeichen,
+        )
+    }
+
+    /// Füge [`FrühesBeenden`]-Flags hinzu, wodurch die Programm-Version,
+    /// bzw. der Hilfe-Text für alle Argumente anzeigt wird.
+    ///
+    /// ### Panics
+    /// Wenn die Syntax-Beschreibung (inklusive normalem + Alternativen-Präfix) für ein Argument
+    /// länger als [`usize::MAX`] ist.
+    ///
+    /// ## English
+    /// Add [`EarlyExit`](crate::frühes_beenden::EarlyExit`)-Flags, showing the program version,
+    /// or the help text for all arguments.
+    ///
+    /// ### Panics
+    /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn mit_hilfe_und_version_frühes_beenden<H, Fehler>(
+        self,
+        version_beschreibung: Beschreibung<'t, Void>,
+        hilfe_beschreibung: Beschreibung<'t, Void>,
+        programm_name: &str,
+        programm_beschreibung: Option<&str>,
+        programm_version: &str,
+        meta_standard: &str,
+        meta_erlaubte_werte: &str,
+        meta_optionen: &str,
+        meta_syntax_präfix: &str,
+        meta_syntax_padding: char,
+        meta_alternative_präfix: &str,
+        meta_alternative_trennzeichen: char,
+    ) -> ArgumenteMitHilfe<
+        't,
+        T,
+        Bool,
+        Parse,
+        Anzeige,
+        KombiniereHilfe<'t, T, Bool, Parse, Anzeige, K>,
+    >
+    where
+        H: ErzeugeHilfeText,
+        Anzeige: Fn(&T) -> String,
+        K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
+        Bool: Fn(bool) -> T,
+        Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
+        Fehler: From<Void>,
+    {
+        self.mit_version_frühes_beenden(version_beschreibung, programm_name, programm_version)
+            .mit_hilfe_frühes_beenden::<H, Fehler>(
+                hilfe_beschreibung,
+                programm_name,
+                programm_beschreibung,
+                Some(programm_version),
+                meta_standard,
+                meta_erlaubte_werte,
+                meta_optionen,
+                meta_syntax_präfix,
+                meta_syntax_padding,
+                meta_alternative_präfix,
+                meta_alternative_trennzeichen,
+            )
+    }
+
+    /// Variante von [`mit_hilfe_und_version_frühes_beenden`](Argumente::mit_hilfe_und_version_frühes_beenden).
+    ///
+    /// ## English
+    /// Variant of [`mit_hilfe_und_version_frühes_beenden`](Argumente::mit_hilfe_und_version_frühes_beenden).
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn mit_hilfe_und_version_frühes_beenden_mit_sprache<H, Fehler>(
+        self,
+        version_beschreibung: Beschreibung<'t, Void>,
+        hilfe_beschreibung: Beschreibung<'t, Void>,
+        programm_name: &str,
+        programm_beschreibung: Option<&str>,
+        programm_version: &str,
+        sprache: Sprache,
+    ) -> ArgumenteMitHilfe<
+        't,
+        T,
+        Bool,
+        Parse,
+        Anzeige,
+        KombiniereHilfe<'t, T, Bool, Parse, Anzeige, K>,
+    >
+    where
+        H: ErzeugeHilfeText,
+        Anzeige: Fn(&T) -> String,
+        K: Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige>,
+        Bool: Fn(bool) -> T,
+        Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
+        Fehler: From<Void>,
+    {
+        self.mit_hilfe_und_version_frühes_beenden::<H, Fehler>(
+            version_beschreibung,
+            hilfe_beschreibung,
             programm_name,
             programm_beschreibung,
             programm_version,
