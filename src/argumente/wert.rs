@@ -804,10 +804,10 @@ pub struct Wert<'t, T, Parse, Anzeige> {
     /// Meta-variable used in the help-text.
     pub meta_var: &'t str,
 
-    /// String-Darstellung der erlaubten Werte.
+    /// Erlaubten Werte zur Anzeige im Hilfe-Text.
     ///
     /// ## English
-    /// String-representation of the allowed values.
+    /// Allowed values, used in the help text.
     pub mögliche_werte: Option<NonEmpty<T>>,
 
     /// Parse einen Wert aus einem [`OsString`].
@@ -821,6 +821,67 @@ pub struct Wert<'t, T, Parse, Anzeige> {
     /// ## English
     /// Display a value (default/possible values).
     pub anzeige: Anzeige,
+}
+
+impl<'t, T: Display + FromStr>
+    Wert<'t, T, fn(&OsStr) -> Result<T, ParseFehler<<T as FromStr>::Err>>, fn(&T) -> String>
+{
+    /// Erzeuge ein Wert-Argument, ausgehend von der [`FromStr`]-Implementierung.
+    ///
+    /// ## English synonym
+    /// [`new`](Wert::new)
+    #[inline]
+    pub fn neu(beschreibung: Beschreibung<'t, T>, mögliche_werte: Option<NonEmpty<T>>) -> Self {
+        Wert::neu_mit_sprache(beschreibung, mögliche_werte, Sprache::DEUTSCH)
+    }
+
+    /// Erzeuge ein Wert-Argument, ausgehend von der [`FromStr`]-Implementierung.
+    ///
+    /// ## English synonym
+    /// [`new_with_language`](Wert::new_with_language)
+    #[inline]
+    pub fn neu_mit_sprache(
+        beschreibung: Beschreibung<'t, T>,
+        mögliche_werte: Option<NonEmpty<T>>,
+        sprache: Sprache,
+    ) -> Self {
+        Wert {
+            beschreibung,
+            wert_infix: Vergleich::from(sprache.wert_infix),
+            meta_var: sprache.meta_var,
+            mögliche_werte,
+            parse: |os_str| {
+                if let Some(string) = os_str.to_str() {
+                    string.parse().map_err(ParseFehler::ParseFehler)
+                } else {
+                    Err(ParseFehler::InvaliderString(OsString::from(os_str)))
+                }
+            },
+            anzeige: <T as ToString>::to_string,
+        }
+    }
+
+    /// Create a value-argument, based on the [`FromStr`]-implementation.
+    ///
+    /// ## Deutsches Synonym
+    /// [`neu`](Wert::neu)
+    #[inline]
+    pub fn new(description: Description<'t, T>, possible_values: Option<NonEmpty<T>>) -> Self {
+        Wert::new_with_language(description, possible_values, Language::ENGLISH)
+    }
+
+    /// Create a value-argument, based on the [`FromStr`]-implementation.
+    ///
+    /// ## Deutsches Synonym
+    /// [`neu_mit_sprache`](Wert::neu_mit_sprache)
+    #[inline]
+    pub fn new_with_language(
+        description: Description<'t, T>,
+        possible_values: Option<NonEmpty<T>>,
+        language: Language,
+    ) -> Self {
+        Wert::neu_mit_sprache(description, possible_values, language)
+    }
 }
 
 /// Hilfsfunktion für [`Argumente::parse`]
@@ -840,19 +901,19 @@ fn zeige_elemente<'t, T: 't, Anzeige: Fn(&T) -> String>(
     }
 }
 
-impl<'t, T, Parse, F, Anzeige> Wert<'t, T, Parse, Anzeige>
-where
-    Parse: Fn(&OsStr) -> Result<T, ParseFehler<F>>,
-{
+impl<'t, T, Parse, Anzeige> Wert<'t, T, Parse, Anzeige> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
     /// Parse the given arguments and return the corresponding value.
     #[inline]
-    pub fn parse<I: Iterator<Item = Option<OsString>>>(
+    pub fn parse<F, I: Iterator<Item = Option<OsString>>>(
         self,
         args: I,
-    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>)
+    where
+        Parse: Fn(&OsStr) -> Result<T, ParseFehler<F>>,
+    {
         let Wert { beschreibung, wert_infix, meta_var, mögliche_werte: _, parse, anzeige: _ } =
             self;
         let Beschreibung { name, hilfe: _, standard } = beschreibung;
@@ -910,18 +971,16 @@ where
         };
         (ergebnis, nicht_verwendet)
     }
-}
 
-impl<T, Parse, Anzeige> Wert<'_, T, Parse, Anzeige>
-where
-    Anzeige: Fn(&T) -> String,
-{
     /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
     ///
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
     #[inline]
-    pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe<'_> {
+    pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe<'_>
+    where
+        Anzeige: Fn(&T) -> String,
+    {
         let Wert { beschreibung, wert_infix, meta_var, mögliche_werte, parse: _, anzeige } = self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
         let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
