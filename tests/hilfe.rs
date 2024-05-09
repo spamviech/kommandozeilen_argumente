@@ -10,7 +10,7 @@
     clippy::use_debug
 )]
 
-use std::{convert::identity, ffi::OsString, iter, process};
+use std::{ffi::OsString, iter, process};
 
 use void::Void;
 

@@ -1,14 +1,18 @@
 //! Implementierung für das derive-Macro des Parse-Traits.
 
-use std::fmt::{self, Display, Formatter};
+use std::{
+    fmt::{self, Display, Formatter},
+    iter,
+};
 
-use proc_macro2::{TokenStream, TokenTree};
+use litrs::StringLit;
+use proc_macro2::{Ident, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
-use syn::{parse2, Data, DataStruct, DeriveInput, Field, Ident, LitStr};
 use unicode_segmentation::UnicodeSegmentation;
+use venial::{parse_item, Fields, Item, NamedField, Struct};
 
 use crate::utility::{
-    crate_name, genau_eines, split_klammer_argumente, Argument, ArgumentWert, Case,
+    crate_name, genau_eines, path_is_ident, split_klammer_argumente, Argument, ArgumentWert, Case,
     SplitArgumenteFehler,
 };
 
@@ -362,8 +366,11 @@ impl KurzNamen {
 
 /// Gebe den Wert eines String-Literal direkt zurück, ansonsten den [`TokenStream`] konvertiert mit [`ToString::to_string`].
 fn literal_oder_to_string(token_stream: &TokenStream) -> String {
-    if let Ok(lit_str) = parse2::<LitStr>(token_stream.clone()) {
-        lit_str.value()
+    if let Some(string_lit) = genau_eines(token_stream.clone().into_iter())
+        .ok()
+        .and_then(|literal| StringLit::try_from(literal).ok())
+    {
+        string_lit.into_value().into_owned()
     } else {
         token_stream.to_string()
     }
@@ -757,14 +764,17 @@ pub(crate) enum TypNichtUnterstützt {
     Enum,
     /// union
     Union,
+    /// Unbekannt
+    Unbekannt,
 }
 
 impl Display for TypNichtUnterstützt {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        use TypNichtUnterstützt::{Enum, Union};
+        use TypNichtUnterstützt::{Enum, Unbekannt, Union};
         formatter.write_str(match self {
             Enum => "enum",
             Union => "union",
+            Unbekannt => "Unbekannt",
         })
     }
 }
@@ -772,8 +782,8 @@ impl Display for TypNichtUnterstützt {
 /// Fehler beim Parsen des structs inklusive Attribute.
 #[derive(Debug)]
 pub(crate) enum Fehler {
-    /// Error returned when a [`syn`] parser cannot parse the input tokens.
-    Syn(syn::Error),
+    /// Error returned when a [`venial`] parser cannot parse the input tokens.
+    Venial(venial::Error),
     /// Fehler beim teilen der Argumente.
     SplitArgumente(SplitArgumenteFehler),
     /// Fehler beim parsen eines Wertes.
@@ -793,7 +803,7 @@ pub(crate) enum Fehler {
         where_clause: bool,
     },
     /// Unbenanntes Feld im `struct`.
-    FeldOhneName,
+    FelderOhneName,
     /// Feld mit leerem Namen.
     LeererFeldName(Ident),
 }
@@ -801,10 +811,10 @@ pub(crate) enum Fehler {
 impl Display for Fehler {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         use Fehler::{
-            FeldOhneName, Generics, KeinStruct, LeererFeldName, ParseWert, SplitArgumente, Syn,
+            FelderOhneName, Generics, KeinStruct, LeererFeldName, ParseWert, SplitArgumente, Venial,
         };
         match self {
-            Syn(error) => write!(formatter, "{error}"),
+            Venial(error) => write!(formatter, "{error}"),
             SplitArgumente(fehler) => write!(formatter, "{fehler}"),
             ParseWert(fehler) => write!(formatter, "{fehler}"),
             KeinStruct { typ, input } => {
@@ -820,15 +830,15 @@ impl Display for Fehler {
                 }
                 write!(formatter, "bekommen.")
             },
-            FeldOhneName => formatter.write_str("Nur benannte Felder unterstützt."),
+            FelderOhneName => formatter.write_str("Nur benannte Felder unterstützt."),
             LeererFeldName(ident) => write!(formatter, "Benanntes Feld mit leerem Namen: {ident}"),
         }
     }
 }
 
-impl From<syn::Error> for Fehler {
-    fn from(input: syn::Error) -> Fehler {
-        Fehler::Syn(input)
+impl From<venial::Error> for Fehler {
+    fn from(input: venial::Error) -> Fehler {
+        Fehler::Venial(input)
     }
 }
 
@@ -857,23 +867,25 @@ macro_rules! unwrap_or_call_return {
 /// Implementierung für das derive-Macro des [`Parse`]-traits.
 #[allow(clippy::too_many_lines)]
 pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
-    use Fehler::{FeldOhneName, Generics, KeinStruct, LeererFeldName};
-    use TypNichtUnterstützt::{Enum, Union};
-    let derive_input: DeriveInput = parse2(input.clone())?;
-    let DataStruct { fields, .. } = match derive_input.data {
-        Data::Struct(data_struct) => data_struct,
-        Data::Enum(_) => return Err(KeinStruct { typ: Enum, input }),
-        Data::Union(_) => return Err(KeinStruct { typ: Union, input }),
+    use Fehler::{FelderOhneName, Generics, KeinStruct, LeererFeldName};
+    let item = parse_item(input.clone())?;
+    // Item als #[non_exhaustive] markiert
+    #[allow(clippy::wildcard_enum_match_arm)]
+    let Struct { fields, name, generic_params, where_clause, attributes, .. } = match item {
+        Item::Struct(struct_) => struct_,
+        Item::Enum(_) => return Err(KeinStruct { typ: TypNichtUnterstützt::Enum, input }),
+        Item::Union(_) => return Err(KeinStruct { typ: TypNichtUnterstützt::Union, input }),
+        _ => return Err(KeinStruct { typ: TypNichtUnterstützt::Unbekannt, input }),
     };
-    let DeriveInput { ident, generics, attrs, .. } = derive_input;
-    let has_where_clause = generics.where_clause.is_some();
-    if !generics.params.is_empty() || has_where_clause {
-        return Err(Generics { anzahl: generics.params.len(), where_clause: has_where_clause });
+    let param_count = generic_params.map_or(0, |param_list| param_list.params.len());
+    let has_where_clause = where_clause.is_some();
+    if (param_count > 0) || has_where_clause {
+        return Err(Generics { anzahl: param_count, where_clause: has_where_clause });
     }
     let mut args = Vec::new();
-    for attr in attrs {
-        if attr.path().is_ident("kommandozeilen_argumente") {
-            split_klammer_argumente(Vec::new(), &mut args, attr.meta)?;
+    for attr in attributes {
+        if path_is_ident(&attr, "kommandozeilen_argumente") {
+            split_klammer_argumente(Vec::new(), &mut args, attr.value)?;
         }
     }
     // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-crates
@@ -921,10 +933,16 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         quote!(#sprache_ts.meta_var)
     };
     let mut tuples = Vec::new();
-    for field in fields {
-        let Field { attrs: field_attrs, ident: field_ident, .. } = field;
+    let iter: Box<dyn Iterator<Item = NamedField>> = match fields {
+        Fields::Unit => Box::new(iter::empty()),
+        Fields::Named(named_fields) => {
+            Box::new(named_fields.fields.inner.into_iter().map(|(field, _punct)| field))
+        },
+        Fields::Tuple(_) => return Err(FelderOhneName),
+    };
+    for field in iter {
+        let NamedField { attributes: field_attrs, name: field_ident, .. } = field;
         let mut hilfe_lits = Vec::new();
-        let field_ident = field_ident.ok_or(FeldOhneName)?;
         let field_ident_str = field_ident.to_string();
         if field_ident_str.is_empty() {
             return Err(LeererFeldName(field_ident));
@@ -940,7 +958,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         let mut standard = Standard(quote!(#crate_name::parse::ParseArgument::standard()));
         let mut feld_argument = FeldArgument::EnumArgument;
         for attr in field_attrs {
-            if attr.path().is_ident("doc") {
+            if path_is_ident(&attr, "doc") {
                 let args_str = quote!(#(attr.meta)).to_string();
                 if let Some(stripped) =
                     args_str.strip_prefix("= \"").and_then(|string| string.strip_suffix('"'))
@@ -950,9 +968,9 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                         hilfe_lits.push(trimmed.to_owned());
                     }
                 }
-            } else if attr.path().is_ident("kommandozeilen_argumente") {
+            } else if path_is_ident(&attr, "kommandozeilen_argumente") {
                 let mut feld_args = Vec::new();
-                split_klammer_argumente(vec![field_ident.to_string()], &mut feld_args, attr.meta)?;
+                split_klammer_argumente(vec![field_ident.to_string()], &mut feld_args, attr.value)?;
                 let mut lang_namen = LangNamen::default();
                 let mut kurz_namen = KurzNamen::default();
                 unwrap_or_call_return!(
@@ -1073,7 +1091,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
     };
     let ts = quote! {
         #[allow(clippy::shadow_unrelated, clippy::disallowed_script_idents)]
-        impl #crate_name::Parse for #ident {
+        impl #crate_name::Parse for #name {
             type Fehler = String;
 
             fn kommandozeilen_argumente<'t>() -> #crate_name::Argumente<'t, Self, Self::Fehler> {

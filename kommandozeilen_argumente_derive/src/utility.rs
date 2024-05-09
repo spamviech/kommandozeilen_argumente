@@ -8,7 +8,7 @@ use std::{
 
 use proc_macro2::{Delimiter, Ident, Punct, Spacing, TokenStream, TokenTree};
 use quote::{format_ident, quote, ToTokens};
-use syn::{MacroDelimiter, Meta, MetaList};
+use venial::{Attribute, AttributeValue, GroupSpan};
 
 /// Ident für den crate-Namen von `kommandozeilen_argumente`.
 pub(crate) fn crate_name() -> Ident {
@@ -92,9 +92,14 @@ impl Case {
     }
 }
 
-/// Ist der [`Punct`] ein einzelner [`char`]?
+/// Ist der [`Punct`] ein einzelner [`char`] und stimmt mit dem gesuchten überein?
 fn punct_is_char(punct: &Punct, char: char) -> bool {
     punct.as_char() == char && punct.spacing() == Spacing::Alone
+}
+
+/// Ist der Pfad des [`Attribute`] ein einzelner [`Ident`] mit passendem `wert`?
+pub(crate) fn path_is_ident(attr: &Attribute, wert: &str) -> bool {
+    attr.get_single_path_segment().is_some_and(|ident| ident == wert)
 }
 
 /// Der Wert eines Arguments.
@@ -280,10 +285,10 @@ fn tt_is_not_comma(tt: &TokenTree) -> bool {
 fn split_argumente(
     parent: Vec<String>,
     args: &mut Vec<Argument>,
-    args_ts: TokenStream,
+    tokens: impl IntoIterator<Item = TokenTree>,
 ) -> Result<(), SplitArgumenteFehler> {
     use SplitArgumenteFehler::{InvaliderArgumentName, InvaliderArgumentWert, LeeresArgument};
-    let mut iter = args_ts.into_iter().peekable();
+    let mut iter = tokens.into_iter().peekable();
     let iter_mut_ref = iter.by_ref();
     while iter_mut_ref.peek().is_some() {
         let mut arg_iter = iter_mut_ref.take_while(tt_is_not_comma).peekable();
@@ -355,37 +360,62 @@ fn split_argumente(
 pub(crate) fn split_klammer_argumente(
     parent: Vec<String>,
     args: &mut Vec<Argument>,
-    meta: Meta,
+    value: AttributeValue,
 ) -> Result<(), SplitArgumenteFehler> {
     use SplitArgumenteFehler::NichtInKlammer;
-    let Meta::List(MetaList { path: _, delimiter: MacroDelimiter::Paren(_paren), tokens }) = meta
+    let AttributeValue::Group(GroupSpan { delimiter: Delimiter::Parenthesis, span: _ }, tokens) =
+        value
     else {
-        return Err(NichtInKlammer { parent, ts: quote!(#meta) });
+        return Err(NichtInKlammer { parent, ts: quote!(#value) });
     };
     split_argumente(parent, args, tokens)
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use proc_macro2::{Group, Span};
 
-    use syn::parse2;
+    use super::*;
 
     #[test]
     fn test_split_argumente() {
         let mut args: Vec<Argument> = Vec::new();
-        let args_ts: TokenStream =
-            "(hello(hi), world: [it's, a, big, world!])".parse().expect("Valider TokenStream");
-        let args_meta = parse2(args_ts).expect("Valides Meta");
-        let world_wert = "[it's, a, big, world!]"
-            .parse::<TokenStream>()
-            .expect("world_wert")
-            .to_string()
-            .replace(' ', "");
+        let span = Span::call_site();
+        let value = AttributeValue::Group(
+            GroupSpan { delimiter: Delimiter::Parenthesis, span },
+            vec![
+                TokenTree::Ident(Ident::new("hello", span)),
+                TokenTree::Group(Group::new(
+                    Delimiter::Parenthesis,
+                    TokenStream::from(TokenTree::Ident(Ident::new("hi", span))),
+                )),
+                TokenTree::Punct(Punct::new(',', Spacing::Alone)),
+                TokenTree::Ident(Ident::new("world", span)),
+                TokenTree::Punct(Punct::new(':', Spacing::Alone)),
+                TokenTree::Group(Group::new(
+                    Delimiter::Bracket,
+                    [
+                        TokenTree::Ident(Ident::new("it", span)),
+                        TokenTree::Punct(Punct::new('\'', Spacing::Alone)),
+                        TokenTree::Ident(Ident::new("s", span)),
+                        TokenTree::Punct(Punct::new(',', Spacing::Alone)),
+                        TokenTree::Ident(Ident::new("a", span)),
+                        TokenTree::Punct(Punct::new(',', Spacing::Alone)),
+                        TokenTree::Ident(Ident::new("big", span)),
+                        TokenTree::Punct(Punct::new(',', Spacing::Alone)),
+                        TokenTree::Ident(Ident::new("world", span)),
+                        TokenTree::Punct(Punct::new('!', Spacing::Alone)),
+                    ]
+                    .into_iter()
+                    .collect(),
+                )),
+            ],
+        );
+        let hello_str = "hello(hi)";
+        let world_wert = "[it's, a, big, world!]".replace(' ', "");
         let world_string = format!("world:{world_wert}");
-        split_klammer_argumente(Vec::new(), &mut args, args_meta)
-            .expect("Argumente sind wohlgeformt");
+        split_klammer_argumente(Vec::new(), &mut args, value).expect("Argumente sind wohlgeformt");
         let args_str: Vec<_> = args.iter().map(|arg| arg.to_string().replace(' ', "")).collect();
-        assert_eq!(args_str, vec!["hello(hi)", &world_string]);
+        assert_eq!(args_str, vec![hello_str, &world_string]);
     }
 }
