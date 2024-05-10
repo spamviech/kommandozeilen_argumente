@@ -312,8 +312,27 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
     ) -> EinzelArgument<'t, Self, String> {
-        todo!()
-        // Argumente::wert_enum_display(beschreibung, wert_infix, meta_var)
+        let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, T, String>> =
+            Box::new(move |os_str: &OsStr| {
+                let Some(string) = os_str.to_str() else {
+                    return Err(ParseFehler::InvaliderString(OsString::from(os_str)));
+                };
+                <T as EnumArgument>::varianten()
+                    .into_iter()
+                    .find(
+                        #[allow(clippy::min_ident_chars)]
+                        |t| t.to_string() == string,
+                    )
+                    .ok_or_else(|| ParseFehler::ParseFehler(String::from(string)))
+            });
+        EinzelArgument::Wert(Wert {
+            beschreibung,
+            wert_infix: wert_infix.into(),
+            meta_var,
+            mögliche_werte: NonEmpty::from_vec(<T as EnumArgument>::varianten()),
+            parse: Cow::Owned(boxed_parse),
+            anzeige: Cow::Borrowed(&<T as ToString>::to_string),
+        })
     }
 
     #[inline]
