@@ -17,10 +17,12 @@ use crate::{
     argumente::{
         einzelargument::EinzelArgument,
         flag::Flag,
+        frühes_beenden::FrühesBeenden,
         wert::{EnumArgument, Wert},
         Argumente, Arguments,
     },
     beschreibung::{Beschreibung, Description, Konfiguration},
+    dyn_to_owned::{self, Anzeige, Bool},
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler},
     sprache::{Language, Sprache},
     unicode::Vergleich,
@@ -217,16 +219,12 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
     ) -> EinzelArgument<'t, Self, String> {
-        /// Typ-Synonym für Hilfs-Closure:
-        /// Ersetzte [`Fehler::FehlenderWert`] durch [`Ergebnis::Wert`] mit dem Standard-Wert.
-        type VerwendeStandard<'s, T> =
-            Box<dyn 's + Fn(NonEmpty<Fehler<'_, String>>) -> Ergebnis<'_, Option<T>, String>>;
         let name_lang_präfix = beschreibung.name.lang_präfix.clone();
         let name_lang = beschreibung.name.lang.clone();
         let name_kurz_präfix = beschreibung.name.kurz_präfix.clone();
         let name_kurz = beschreibung.name.kurz.clone();
         let wert_infix_vergleich = wert_infix.into();
-        let einzel_argument = T::argumente(
+        let einzel_argument = <T as ParseArgument>::argumente(
             Beschreibung::neu(
                 name_lang_präfix,
                 name_lang.clone(),
@@ -240,66 +238,63 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
             wert_infix_vergleich.clone(),
             meta_var,
         );
+        let erstelle_boxed_anzeige =
+            |anzeige: Cow<'t, dyn Anzeige<'t, T>>| -> Box<dyn Anzeige<'t, Option<T>>> {
+                Box::new(move |opt: &Option<T>| {
+                    #[allow(clippy::min_ident_chars)]
+                    if let Some(t) = opt {
+                        anzeige(t)
+                    } else {
+                        String::from("None")
+                    }
+                })
+            };
+        #[allow(clippy::shadow_unrelated)]
         match einzel_argument {
-            EinzelArgument::Flag(flag) => todo!(),
-            EinzelArgument::FrühesBeenden { frühes_beenden, wert } => todo!(),
-            EinzelArgument::Wert(wert) => todo!(),
-        }
-        let parse = todo!();
-        let (beschreibung_string, option_standard) = beschreibung
-            .als_string_beschreibung_allgemein(|opt| {
-                #[allow(clippy::min_ident_chars)]
-                if let Some(t) = opt {
-                    t.to_string()
-                } else {
-                    "None".to_owned()
-                }
-            });
-        let verwende_standard: VerwendeStandard<'t, T> = if let Some(standard) = option_standard {
-            Box::new(move |fehler_sammlung| {
-                let mut fehler_iter =
-                    fehler_sammlung.into_iter().filter_map(|fehler| match fehler {
-                        #[allow(clippy::shadow_unrelated)]
-                        Fehler::FehlenderWert { name, wert_infix, meta_var } => {
-                            let passender_lang_name = name.lang.iter().eq(name_lang.iter());
-                            let passender_kurz_name = name.kurz.iter().eq(name_kurz.iter());
-                            if passender_lang_name && passender_kurz_name {
-                                None
-                            } else {
-                                Some(Fehler::FehlenderWert { name, wert_infix, meta_var })
-                            }
-                        },
-                        Fehler::FehlendeFlag { .. } | Fehler::Fehler { .. } => Some(fehler),
+            EinzelArgument::Flag(Flag {
+                beschreibung,
+                invertiere_präfix,
+                invertiere_infix,
+                konvertiere,
+                anzeige,
+            }) => {
+                let boxed_konvertiere: Box<dyn Bool<'t, Option<T>>> =
+                    Box::new(move |bool| Some(konvertiere(bool)));
+                EinzelArgument::Flag(Flag {
+                    beschreibung: beschreibung.konvertiere(Some),
+                    invertiere_präfix,
+                    invertiere_infix,
+                    konvertiere: Cow::Owned(boxed_konvertiere),
+                    anzeige: Cow::Owned(erstelle_boxed_anzeige(anzeige)),
+                })
+            },
+            EinzelArgument::FrühesBeenden { frühes_beenden, wert } => {
+                EinzelArgument::FrühesBeenden { frühes_beenden, wert: Some(wert) }
+            },
+            EinzelArgument::Wert(Wert {
+                beschreibung,
+                wert_infix,
+                meta_var,
+                mögliche_werte,
+                parse,
+                anzeige,
+            }) => {
+                let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, Option<T>, String>> =
+                    Box::new(move |os_str: &OsStr| match parse(os_str) {
+                        Ok(wert) => Ok(Some(wert)),
+                        Err(_fehler) if os_str == "None" => Ok(None),
+                        Err(fehler) => Err(fehler),
                     });
-                if let Some(head) = fehler_iter.next() {
-                    let tail = fehler_iter.collect();
-                    Ergebnis::Fehler(NonEmpty { head, tail })
-                } else {
-                    Ergebnis::Wert(standard.clone())
-                }
-            })
-        } else {
-            Box::new(|fehler| Ergebnis::Fehler(fehler))
-        };
-        // Argumente {
-        //     konfigurationen: vec![Konfiguration::Wert {
-        //         beschreibung: beschreibung_string,
-        //         meta_var,
-        //         wert_infix: wert_infix_vergleich,
-        //         mögliche_werte: None,
-        //     }],
-        //     flag_kurzformen: HashMap::new(),
-        //     parse: Box::new(move |args| {
-        //         let (ergebnis, nicht_verwendet) = parse(args);
-        //         let option_ergebnis = match ergebnis {
-        //             Ergebnis::Wert(wert) => Ergebnis::Wert(Some(wert)),
-        //             Ergebnis::FrühesBeenden(nachrichten) => Ergebnis::FrühesBeenden(nachrichten),
-        //             Ergebnis::Fehler(fehler_sammlung) => verwende_standard(fehler_sammlung),
-        //         };
-        //         (option_ergebnis, nicht_verwendet)
-        //     }),
-        // }
-        todo!()
+                EinzelArgument::Wert(Wert {
+                    beschreibung: beschreibung.konvertiere(Some),
+                    wert_infix,
+                    meta_var,
+                    mögliche_werte: mögliche_werte.map(|nonempty| nonempty.map(Some)),
+                    parse: Cow::Owned(boxed_parse),
+                    anzeige: Cow::Owned(erstelle_boxed_anzeige(anzeige)),
+                })
+            },
+        }
     }
 
     #[inline]
