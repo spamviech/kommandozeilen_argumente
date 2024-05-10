@@ -58,9 +58,20 @@ pub trait ErzeugeHilfeText {
     ) -> Hilfe<'t>;
 }
 
-#[allow(missing_docs)]
+/// Standard-Variante den Hilfe-Text für ein einzelnes Argument zu erzeugen, z.B.:
+/// `  --hilfe | -h    Zeige diesen Text an.`
+///
+/// ## English synonym
+/// [`Default`]
 #[derive(Debug, Clone, Copy)]
 pub struct Standard;
+
+/// Default-Variant to create the help-text for a single argument, e.g.:
+/// `  --help | -h    Show this text.`
+///
+/// ## Deutsches Synonym
+/// [`Standard`]
+pub type Default = Standard;
 
 #[allow(deprecated)]
 impl ErzeugeHilfeText for Standard {

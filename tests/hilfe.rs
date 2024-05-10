@@ -12,8 +12,6 @@
 
 use std::{ffi::OsString, iter, process};
 
-use void::Void;
-
 use kommandozeilen_argumente::{
     argumente::{einzelargument::EinzelArgument, flag::Flag, hilfe::Standard},
     Argumente, Beschreibung, Ergebnis, Sprache,
