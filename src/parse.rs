@@ -1,7 +1,9 @@
 //! Trait für Typen, die aus Kommandozeilen-Argumenten geparst werden können.
 
 use std::{
+    borrow::Cow,
     collections::HashMap,
+    convert::identity,
     ffi::{OsStr, OsString},
     fmt::Display,
     num::NonZeroI32,
@@ -12,7 +14,12 @@ use nonempty::NonEmpty;
 use void::Void;
 
 use crate::{
-    argumente::{wert::EnumArgument, Argumente, Arguments},
+    argumente::{
+        einzelargument::EinzelArgument,
+        flag::Flag,
+        wert::{EnumArgument, Wert},
+        Argumente, Arguments,
+    },
     beschreibung::{Beschreibung, Description, Konfiguration},
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler},
     sprache::{Language, Sprache},
@@ -22,9 +29,6 @@ use crate::{
 #[cfg(any(feature = "derive", all(doc, not(doctest))))]
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::Parse;
-
-/// [`Argumente`] mit vereinfachten Parametern.
-pub type ParseArgumente<'t, T> = Argumente<'t, T, String, Void>;
 
 /// Trait für Typen, die direkt mit dem (derive-Macro)[`derive@Parse`]
 /// für das [`Parse`]-Trait verwendet werden können.
@@ -49,7 +53,7 @@ pub trait ParseArgument: Sized {
         invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> ParseArgumente<'t, Self>;
+    ) -> EinzelArgument<'t, Self, String>;
 
     /// Sollen Argumente dieses Typs normalerweise einen Standard-Wert haben?
     ///
@@ -66,7 +70,7 @@ pub trait ParseArgument: Sized {
     fn argumente_mit_sprache<'t>(
         beschreibung: Beschreibung<'t, Self>,
         sprache: Sprache,
-    ) -> ParseArgumente<'t, Self> {
+    ) -> EinzelArgument<'t, Self, String> {
         Self::argumente(
             beschreibung,
             sprache.invertiere_präfix,
@@ -85,7 +89,7 @@ pub trait ParseArgument: Sized {
     fn arguments_with_language<'t>(
         description: Description<'t, Self>,
         language: Language,
-    ) -> ParseArgumente<'t, Self> {
+    ) -> EinzelArgument<'t, Self, String> {
         Self::argumente_mit_sprache(description, language)
     }
 
@@ -95,7 +99,7 @@ pub trait ParseArgument: Sized {
     /// [`new`](ParseArgument::new)
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    fn neu<'t>(beschreibung: Beschreibung<'t, Self>) -> ParseArgumente<'t, Self> {
+    fn neu<'t>(beschreibung: Beschreibung<'t, Self>) -> EinzelArgument<'t, Self, String> {
         Self::argumente_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
 
@@ -105,7 +109,7 @@ pub trait ParseArgument: Sized {
     /// [`neu`](ParseArgument::neu)
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    fn new<'t>(beschreibung: Beschreibung<'t, Self>) -> ParseArgumente<'t, Self> {
+    fn new<'t>(beschreibung: Beschreibung<'t, Self>) -> EinzelArgument<'t, Self, String> {
         Self::argumente_mit_sprache(beschreibung, Sprache::ENGLISH)
     }
 }
@@ -118,9 +122,14 @@ impl ParseArgument for bool {
         invertiere_infix: impl Into<Vergleich<'t>>,
         _wert_infix: impl Into<Vergleich<'t>>,
         _meta_var: &'t str,
-    ) -> ParseArgumente<'t, Self> {
-        todo!()
-        // Argumente::flag_bool(beschreibung, invertiere_präfix, invertiere_infix)
+    ) -> EinzelArgument<'t, Self, String> {
+        EinzelArgument::Flag(Flag {
+            beschreibung,
+            invertiere_präfix: invertiere_präfix.into(),
+            invertiere_infix: invertiere_infix.into(),
+            anzeige: Cow::Borrowed(&<bool as ToString>::to_string),
+            konvertiere: Cow::Borrowed(&identity),
+        })
     }
 
     #[inline]
@@ -137,15 +146,21 @@ impl ParseArgument for String {
         _invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> ParseArgumente<'t, Self> {
-        todo!()
-        // Argumente::wert_display(beschreibung, wert_infix, meta_var, None, |os_str| {
-        //     if let Some(string) = os_str.to_str() {
-        //         Ok(string.to_owned())
-        //     } else {
-        //         Err(ParseFehler::InvaliderString(os_str.clone()))
-        //     }
-        // })
+    ) -> EinzelArgument<'t, Self, String> {
+        EinzelArgument::wert(Wert {
+            beschreibung,
+            wert_infix: wert_infix.into(),
+            meta_var,
+            mögliche_werte: None,
+            parse: Cow::Borrowed(&|os_str: &OsStr| {
+                if let Some(string) = os_str.to_str() {
+                    Ok(String::from(string))
+                } else {
+                    Err(ParseFehler::InvaliderString(OsString::from(os_str)))
+                }
+            }),
+            anzeige: Cow::Borrowed(&<String as Clone>::clone),
+        })
     }
 
     #[inline]
@@ -165,17 +180,23 @@ macro_rules! impl_parse_argument {
                 _invertiere_infix: impl Into<Vergleich<'t>>,
                 wert_infix: impl Into<Vergleich<'t>>,
                 meta_var: &'t str,
-            ) -> ParseArgumente<'t, Self> {
-                todo!()
-                // Argumente::wert_display(beschreibung,wert_infix, meta_var, None, |os_str| {
-                //     if let Some(string) = os_str.to_str() {
-                //         string.parse().map_err(
-                //             |err: <$type as FromStr>::Err| ParseFehler::ParseFehler(err.to_string())
-                //         )
-                //     } else {
-                //         Err(ParseFehler::InvaliderString(os_str.to_owned()))
-                //     }
-                // })
+            ) -> EinzelArgument<'t, Self, String> {
+                EinzelArgument::wert(Wert {
+                    beschreibung,
+                    wert_infix: wert_infix.into(),
+                    meta_var,
+                    mögliche_werte: None,
+                    parse: Cow::Borrowed(&|os_str: &OsStr| {
+                        if let Some(string) = os_str.to_str() {
+                            string.parse().map_err(
+                                |err: <$type as FromStr>::Err| ParseFehler::ParseFehler(err.to_string())
+                            )
+                        } else {
+                            Err(ParseFehler::InvaliderString(os_str.to_owned()))
+                        }
+                    }),
+                    anzeige: Cow::Borrowed(&<$type as ToString>::to_string),
+                })
             }
 
             #[inline]
@@ -195,7 +216,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> ParseArgumente<'t, Self> {
+    ) -> EinzelArgument<'t, Self, String> {
         /// Typ-Synonym für Hilfs-Closure:
         /// Ersetzte [`Fehler::FehlenderWert`] durch [`Ergebnis::Wert`] mit dem Standard-Wert.
         type VerwendeStandard<'s, T> =
@@ -205,22 +226,26 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         let name_kurz_präfix = beschreibung.name.kurz_präfix.clone();
         let name_kurz = beschreibung.name.kurz.clone();
         let wert_infix_vergleich = wert_infix.into();
+        let einzel_argument = T::argumente(
+            Beschreibung::neu(
+                name_lang_präfix,
+                name_lang.clone(),
+                name_kurz_präfix,
+                name_kurz.clone(),
+                None::<&str>,
+                None,
+            ),
+            invertiere_präfix,
+            invertiere_infix,
+            wert_infix_vergleich.clone(),
+            meta_var,
+        );
+        match einzel_argument {
+            EinzelArgument::Flag(flag) => todo!(),
+            EinzelArgument::FrühesBeenden { frühes_beenden, wert } => todo!(),
+            EinzelArgument::Wert(wert) => todo!(),
+        }
         let parse = todo!();
-        let _ = ();
-        // let Argumente { parse, .. } = T::argumente(
-        //     Beschreibung::neu(
-        //         name_lang_präfix,
-        //         name_lang.clone(),
-        //         name_kurz_präfix,
-        //         name_kurz.clone(),
-        //         None::<&str>,
-        //         None,
-        //     ),
-        //     invertiere_präfix,
-        //     invertiere_infix,
-        //     wert_infix_vergleich.clone(),
-        //     meta_var,
-        // );
         let (beschreibung_string, option_standard) = beschreibung
             .als_string_beschreibung_allgemein(|opt| {
                 #[allow(clippy::min_ident_chars)]
@@ -291,7 +316,7 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
         _invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> ParseArgumente<'t, Self> {
+    ) -> EinzelArgument<'t, Self, String> {
         todo!()
         // Argumente::wert_enum_display(beschreibung, wert_infix, meta_var)
     }
