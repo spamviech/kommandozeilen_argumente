@@ -3,7 +3,7 @@
 use std::{
     borrow::Cow,
     ffi::{OsStr, OsString},
-    fmt::Display,
+    fmt::{self, Debug, Display},
     str::FromStr,
 };
 
@@ -12,6 +12,7 @@ use nonempty::NonEmpty;
 use crate::{
     argumente::hilfe::Hilfe,
     beschreibung::{Beschreibung, Description, Name},
+    dyn_to_owned::{Anzeige, Parse},
     ergebnis::{Ergebnis, Fehler, ParseFehler},
     sprache::{Language, Sprache},
     unicode::Vergleich,
@@ -70,9 +71,8 @@ pub trait EnumArgument: Sized {
 ///
 /// ## English
 /// It is a value argument.
-#[derive(Debug)]
 #[must_use]
-pub struct Wert<'t, T, Parse, Anzeige> {
+pub struct Wert<'t, T, Fehler> {
     /// Allgemeine Beschreibung des Arguments.
     ///
     /// ## English
@@ -101,18 +101,31 @@ pub struct Wert<'t, T, Parse, Anzeige> {
     ///
     /// ## English
     /// Parse a value from an [`OsString`].
-    pub parse: Parse,
+    pub parse: Cow<'t, dyn Parse<'t, T, Fehler>>,
 
     /// Anzeige eines Wertes (standard/mögliche Werte).
     ///
     /// ## English
     /// Display a value (default/possible values).
-    pub anzeige: Anzeige,
+    pub anzeige: Cow<'t, dyn Anzeige<'t, T>>,
 }
 
-impl<'t, T: Display + FromStr>
-    Wert<'t, T, fn(&OsStr) -> Result<T, ParseFehler<<T as FromStr>::Err>>, fn(&T) -> String>
-{
+impl<T: Debug, Fehler> Debug for Wert<'_, T, Fehler> {
+    #[inline]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Wert")
+            .field("beschreibung", &self.beschreibung)
+            .field("wert_infix", &self.wert_infix)
+            .field("meta_var", &self.meta_var)
+            .field("mögliche_werte", &self.mögliche_werte)
+            .field("parse", &"<closure>")
+            .field("anzeige", &"<closure>")
+            .finish()
+    }
+}
+
+impl<'t, T: Display + FromStr> Wert<'t, T, <T as FromStr>::Err> {
     /// Erzeuge ein Wert-Argument, ausgehend von der [`FromStr`]-Implementierung.
     ///
     /// ## English synonym
@@ -137,14 +150,14 @@ impl<'t, T: Display + FromStr>
             wert_infix: Vergleich::from(sprache.wert_infix),
             meta_var: sprache.meta_var,
             mögliche_werte,
-            parse: |os_str| {
+            parse: Cow::Borrowed(&|os_str: &OsStr| {
                 if let Some(string) = os_str.to_str() {
                     string.parse().map_err(ParseFehler::ParseFehler)
                 } else {
                     Err(ParseFehler::InvaliderString(OsString::from(os_str)))
                 }
-            },
-            anzeige: <T as ToString>::to_string,
+            }),
+            anzeige: Cow::Borrowed(&<T as ToString>::to_string),
         }
     }
 
@@ -172,9 +185,9 @@ impl<'t, T: Display + FromStr>
 }
 
 /// Hilfsfunktion für [`Argumente::parse`]
-fn zeige_elemente<'t, T: 't, Anzeige: Fn(&T) -> String>(
+fn zeige_elemente<'t, T: 't>(
     string: &mut String,
-    anzeige: &Anzeige,
+    #[allow(clippy::ptr_arg)] anzeige: &Cow<'_, dyn Anzeige<'_, T>>,
     elemente: impl IntoIterator<Item = &'t T>,
 ) {
     let mut erstes = true;
@@ -188,19 +201,16 @@ fn zeige_elemente<'t, T: 't, Anzeige: Fn(&T) -> String>(
     }
 }
 
-impl<'t, T, Parse, Anzeige> Wert<'t, T, Parse, Anzeige> {
+impl<'t, T, F> Wert<'t, T, F> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
     /// Parse the given arguments and return the corresponding value.
     #[inline]
-    pub fn parse<F, I: Iterator<Item = Option<OsString>>>(
+    pub fn parse<I: Iterator<Item = Option<OsString>>>(
         self,
         args: I,
-    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>)
-    where
-        Parse: Fn(&OsStr) -> Result<T, ParseFehler<F>>,
-    {
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
         let Wert { beschreibung, wert_infix, meta_var, mögliche_werte: _, parse, anzeige: _ } =
             self;
         let Beschreibung { name, hilfe: _, standard } = beschreibung;
@@ -264,10 +274,7 @@ impl<'t, T, Parse, Anzeige> Wert<'t, T, Parse, Anzeige> {
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
     #[inline]
-    pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe<'_>
-    where
-        Anzeige: Fn(&T) -> String,
-    {
+    pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe<'_> {
         let Wert { beschreibung, wert_infix, meta_var, mögliche_werte, parse: _, anzeige } = self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
         let Name { lang_präfix, lang, kurz_präfix, kurz } = name;

@@ -51,8 +51,8 @@ pub trait ErzeugeHilfeText {
     ///
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
-    fn erzeuge_hilfe_text<'t, S, Bool, Parse, Anzeige: Fn(&S) -> String>(
-        arg: &'t EinzelArgument<'t, S, Bool, Parse, Anzeige>,
+    fn erzeuge_hilfe_text<'t, T, Fehler>(
+        arg: &'t EinzelArgument<'t, T, Fehler>,
         meta_standard: &'t str,
         meta_erlaubte_werte: &'t str,
     ) -> Hilfe<'t>;
@@ -65,8 +65,8 @@ pub struct Standard;
 #[allow(deprecated)]
 impl ErzeugeHilfeText for Standard {
     #[inline]
-    fn erzeuge_hilfe_text<'t, S, Bool, Parse, Anzeige: Fn(&S) -> String>(
-        arg: &'t EinzelArgument<'t, S, Bool, Parse, Anzeige>,
+    fn erzeuge_hilfe_text<'t, T, Fehler>(
+        arg: &'t EinzelArgument<'t, T, Fehler>,
         meta_standard: &'t str,
         meta_erlaubte_werte: &'t str,
     ) -> Hilfe<'t> {

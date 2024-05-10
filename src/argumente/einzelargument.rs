@@ -15,18 +15,12 @@ use crate::{
 /// Configuration of a single command line argument.
 #[derive(Debug)]
 #[must_use]
-pub enum EinzelArgument<
-    't,
-    T,
-    Bool = fn(bool) -> T,
-    Parse = fn(&OsStr) -> Result<T, ParseFehler<Void>>,
-    Anzeige = fn(&T) -> String,
-> {
+pub enum EinzelArgument<'t, T, Fehler> {
     /// Es handelt sich um ein Flag-Argument.
     ///
     /// ## English
     /// It is a flag argument.
-    Flag(Flag<'t, T, Bool, Anzeige>),
+    Flag(Flag<'t, T>),
 
     /// Es handelt sich um ein Flag-Argument, das zu frühem beenden führt.
     ///
@@ -49,67 +43,47 @@ pub enum EinzelArgument<
     ///
     /// ## English
     /// It is a value argument.
-    Wert(Wert<'t, T, Parse, Anzeige>),
+    Wert(Wert<'t, T, Fehler>),
 }
 
-impl<'t, T, Bool, Parse, Anzeige> From<Flag<'t, T, Bool, Anzeige>>
-    for EinzelArgument<'t, T, Bool, Parse, Anzeige>
-{
+impl<'t, T, Fehler> From<Flag<'t, T>> for EinzelArgument<'t, T, Fehler> {
     #[inline]
-    fn from(flag: Flag<'t, T, Bool, Anzeige>) -> Self {
+    fn from(flag: Flag<'t, T>) -> Self {
         EinzelArgument::Flag(flag)
     }
 }
 
-impl<'t, T, Bool, Parse, Anzeige> From<(FrühesBeenden<'t>, T)>
-    for EinzelArgument<'t, T, Bool, Parse, Anzeige>
-{
+impl<'t, T, Fehler> From<(FrühesBeenden<'t>, T)> for EinzelArgument<'t, T, Fehler> {
     #[inline]
     fn from((frühes_beenden, wert): (FrühesBeenden<'t>, T)) -> Self {
         EinzelArgument::FrühesBeenden { frühes_beenden, wert }
     }
 }
 
-impl<'t, Bool, Parse, Anzeige> From<FrühesBeenden<'t>>
-    for EinzelArgument<'t, (), Bool, Parse, Anzeige>
-{
+impl<'t, Fehler> From<FrühesBeenden<'t>> for EinzelArgument<'t, (), Fehler> {
     #[inline]
     fn from(frühes_beenden: FrühesBeenden<'t>) -> Self {
         EinzelArgument::FrühesBeenden { frühes_beenden, wert: () }
     }
 }
 
-impl<'t, T, Bool, Parse, Anzeige> From<Wert<'t, T, Parse, Anzeige>>
-    for EinzelArgument<'t, T, Bool, Parse, Anzeige>
-{
+impl<'t, T, Fehler> From<Wert<'t, T, Fehler>> for EinzelArgument<'t, T, Fehler> {
     #[inline]
-    fn from(wert: Wert<'t, T, Parse, Anzeige>) -> Self {
+    fn from(wert: Wert<'t, T, Fehler>) -> Self {
         EinzelArgument::Wert(wert)
     }
 }
 
-impl<'t, T, Bool, Anzeige>
-    EinzelArgument<'t, T, Bool, fn(&OsStr) -> Result<T, ParseFehler<Void>>, Anzeige>
-{
+impl<'t, T> EinzelArgument<'t, T, Void> {
     /// Erzeuge eine [`EinzelArgument::Flag`]-Variante mit sinnvollen Typ-Parametern.
     ///
     /// ## English
     /// Create a [`EinzelArgument::Flag`]-variant with sensible type parameters.
     #[inline]
-    pub fn flag(flag: Flag<'t, T, Bool, Anzeige>) -> Self {
+    pub fn flag(flag: Flag<'t, T>) -> Self {
         EinzelArgument::Flag(flag)
     }
-}
 
-impl<'t, T>
-    EinzelArgument<
-        't,
-        T,
-        fn(bool) -> T,
-        fn(&OsStr) -> Result<T, ParseFehler<Void>>,
-        fn(&T) -> String,
-    >
-{
     /// Erzeuge eine [`EinzelArgument::FrühesBeenden`]-Variante mit sinnvollen Typ-Parametern.
     ///
     /// ## English
@@ -120,15 +94,7 @@ impl<'t, T>
     }
 }
 
-impl<'t>
-    EinzelArgument<
-        't,
-        (),
-        fn(bool) -> (),
-        fn(&OsStr) -> Result<(), ParseFehler<Void>>,
-        fn(&()) -> String,
-    >
-{
+impl<'t> EinzelArgument<'t, (), Void> {
     /// Erzeuge eine [`EinzelArgument::FrühesBeenden`]-Variante mit sinnvollen Typ-Parametern.
     ///
     /// ## English
@@ -139,22 +105,18 @@ impl<'t>
     }
 }
 
-impl<'t, T, Parse, Anzeige> EinzelArgument<'t, T, fn(bool) -> T, Parse, Anzeige> {
+impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
     /// Erzeuge eine [`EinzelArgument::Wert`]-Variante mit sinnvollen Typ-Parametern.
     ///
     /// ## English
     /// Create a [`EinzelArgument::Wert`]-variant with sensible type parameters.Wert
     #[inline]
-    pub fn wert(wert: Wert<'t, T, Parse, Anzeige>) -> Self {
+    pub fn wert(wert: Wert<'t, T, Fehler>) -> Self {
         EinzelArgument::Wert(wert)
     }
 }
 
-impl<'t, T, Bool, Parse, Fehler, Anzeige> EinzelArgument<'t, T, Bool, Parse, Anzeige>
-where
-    Bool: Fn(bool) -> T,
-    Parse: Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>,
-{
+impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
@@ -175,10 +137,7 @@ where
     }
 }
 
-impl<T, Bool, Parse, Anzeige> EinzelArgument<'_, T, Bool, Parse, Anzeige>
-where
-    Anzeige: Fn(&T) -> String,
-{
+impl<T, Fehler> EinzelArgument<'_, T, Fehler> {
     /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
     ///
     /// ## English

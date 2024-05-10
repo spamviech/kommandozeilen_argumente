@@ -1,6 +1,6 @@
 //! Kombiniere mehrere [Argumente] zu einem neuen, basierend auf einer Funktion.
 
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 
 use nonempty::NonEmpty;
 use paste::paste;
@@ -11,14 +11,14 @@ use crate::{
         hilfe::{self, ErzeugeHilfeText},
         Argumente,
     },
-    ergebnis::{Ergebnis, ParseFehler},
+    ergebnis::Ergebnis,
 };
 
 /// Erlaube kombinieren mehrerer Argumente.
 ///
 /// ## English
 /// Allow combining multiple arguments.
-pub trait Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> {
+pub trait Kombiniere<'t, T, Fehler> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
@@ -36,7 +36,7 @@ pub trait Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> {
     ) -> NonEmpty<hilfe::Alternativen<'_>>;
 }
 
-impl<'t, T, Bool, Parse, Fehler, Anzeige> Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> for Void {
+impl<'t, T, Fehler> Kombiniere<'t, T, Fehler> for Void {
     #[inline]
     fn parse(
         self,
@@ -61,24 +61,19 @@ macro_rules! impl_kombiniere_tuple {
     ($($suffix: ident),+ $(,)?) => {
         paste! {
             impl <
-                't, $([<'t $suffix:snake:lower>],)+ F, T, Bool, Parse, Fehler, Anzeige,
+                't, $([<'t $suffix:snake:lower>],)+ F, T, Fehler,
                 $(
                     [<T $suffix:camel>],
-                    [<Bool $suffix:camel>],
-                    [<Parse $suffix:camel>],
-                    [<Anzeige $suffix:camel>],
                     [<Fehler $suffix:camel>],
                     [<Kombiniere $suffix:camel>],
                 )+
             >
-                Kombiniere<'t, T, Bool, Parse, Fehler, Anzeige> for (
+                Kombiniere<'t, T, Fehler> for (
                     F,
                     $(Argumente<
                         [<'t $suffix:snake:lower>],
                         [<T $suffix:camel>],
-                        [<Bool $suffix:camel>],
-                        [<Parse $suffix:camel>],
-                        [<Anzeige $suffix:camel>],
+                        [<Fehler $suffix:camel>],
                         [<Kombiniere $suffix:camel>],
                     >),+
                 )
@@ -86,19 +81,12 @@ macro_rules! impl_kombiniere_tuple {
                 F: Fn($([<T $suffix:camel>]),+) -> T,
                 $(
                     [<'t $suffix:snake:lower>]: 't,
-                    [<Bool $suffix:camel>]: Fn(bool) -> [<T $suffix:camel>],
-                    [<Parse $suffix:camel>]:
-                        Fn(&OsStr) -> Result<[<T $suffix:camel>], ParseFehler<[<Fehler $suffix:camel>]>>,
-                    [<Anzeige $suffix:camel>]: Fn(&[<T $suffix:camel>]) -> String,
                     Fehler: From<[<Fehler $suffix:camel>]>,
                     [<Kombiniere $suffix:camel>]:
                         Kombiniere<
                             [<'t $suffix:snake:lower>],
                             [<T $suffix:camel>],
-                            [<Bool $suffix:camel>],
-                            [<Parse $suffix:camel>],
                             [<Fehler $suffix:camel>],
-                            [<Anzeige $suffix:camel>],
                         >
                 ),+
             {
@@ -150,7 +138,7 @@ macro_rules! impl_kombiniere_tuple {
                     $(
                         hilfe_texte.extend(
                             [<a_ $suffix:snake:lower>]
-                                .erzeuge_hilfe_text::<H, [<Fehler $suffix:camel>]>(meta_standard, meta_erlaubte_werte)
+                                .erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte)
                         );
                     )+
                     NonEmpty::from_vec(hilfe_texte).expect("Mindestens ein suffix als Macro-Argument!")

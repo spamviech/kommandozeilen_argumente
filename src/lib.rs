@@ -29,6 +29,7 @@ macro_rules! crate_version {
 
 pub mod argumente;
 pub mod beschreibung;
+pub mod dyn_to_owned;
 pub mod ergebnis;
 pub mod parse;
 pub mod sprache;

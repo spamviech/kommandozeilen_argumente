@@ -1,12 +1,18 @@
 //! Flag-Argumente.
 
-use std::{borrow::Cow, convert::identity, ffi::OsString};
+use std::{
+    borrow::Cow,
+    convert::identity,
+    ffi::OsString,
+    fmt::{self, Debug},
+};
 
 use nonempty::NonEmpty;
 
 use crate::{
     argumente::hilfe::Hilfe,
     beschreibung::{Beschreibung, Description, Name},
+    dyn_to_owned::{Anzeige, Bool},
     ergebnis::{Ergebnis, Fehler},
     sprache::{Language, Sprache},
     unicode::Vergleich,
@@ -16,9 +22,8 @@ use crate::{
 ///
 /// ## English
 /// It is a flag argument.
-#[derive(Debug)]
 #[must_use]
-pub struct Flag<'t, T, Bool, Anzeige> {
+pub struct Flag<'t, T> {
     /// Allgemeine Beschreibung des Arguments.
     ///
     /// ## English
@@ -41,16 +46,30 @@ pub struct Flag<'t, T, Bool, Anzeige> {
     ///
     /// ## English
     /// Create a value from a [`bool`].
-    pub konvertiere: Bool,
+    pub konvertiere: Cow<'t, dyn Bool<'t, T>>,
 
     /// Anzeige eines Wertes (default value).
     ///
     /// ## English
     /// Display a value (default value).
-    pub anzeige: Anzeige,
+    pub anzeige: Cow<'t, dyn Anzeige<'t, T>>,
 }
 
-impl<'t> Flag<'t, bool, fn(bool) -> bool, fn(&bool) -> String> {
+impl<T: Debug> Debug for Flag<'_, T> {
+    #[inline]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Flag")
+            .field("beschreibung", &self.beschreibung)
+            .field("invertiere_präfix", &self.invertiere_präfix)
+            .field("invertiere_infix", &self.invertiere_infix)
+            .field("konvertiere", &"<closure>")
+            .field("anzeige", &"<closure>")
+            .finish()
+    }
+}
+
+impl<'t> Flag<'t, bool> {
     /// Erzeuge ein Flag-Argument, dass mit einem "kein"-Präfix deaktiviert werden kann.
     ///
     /// ## English version
@@ -70,8 +89,8 @@ impl<'t> Flag<'t, bool, fn(bool) -> bool, fn(&bool) -> String> {
             beschreibung,
             invertiere_präfix: Vergleich::from(sprache.invertiere_präfix),
             invertiere_infix: Vergleich::from(sprache.invertiere_infix),
-            konvertiere: identity,
-            anzeige: <bool as ToString>::to_string,
+            konvertiere: Cow::Borrowed(&identity),
+            anzeige: Cow::Borrowed(&<bool as ToString>::to_string),
         }
     }
 
@@ -94,7 +113,7 @@ impl<'t> Flag<'t, bool, fn(bool) -> bool, fn(&bool) -> String> {
     }
 }
 
-impl<'t, T, Bool, Anzeige> Flag<'t, T, Bool, Anzeige> {
+impl<'t, T> Flag<'t, T> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
@@ -103,10 +122,7 @@ impl<'t, T, Bool, Anzeige> Flag<'t, T, Bool, Anzeige> {
     pub fn parse<F>(
         self,
         args: impl Iterator<Item = Option<OsString>>,
-    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>)
-    where
-        Bool: Fn(bool) -> T,
-    {
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
         let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere, anzeige: _ } =
             self;
         let Beschreibung { name, hilfe: _, standard } = beschreibung;
@@ -140,10 +156,7 @@ impl<'t, T, Bool, Anzeige> Flag<'t, T, Bool, Anzeige> {
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
     #[inline]
-    pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> Hilfe<'_>
-    where
-        Anzeige: Fn(&T) -> String,
-    {
+    pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> Hilfe<'_> {
         let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere: _, anzeige } =
             self;
         let Beschreibung { name, hilfe, standard } = beschreibung;

@@ -24,14 +24,7 @@ use crate::{
 pub use kommandozeilen_argumente_derive::Parse;
 
 /// [`Argumente`] mit vereinfachten Parametern.
-pub type ParseArgumente<'t, T> = Argumente<
-    't,
-    T,
-    fn(bool) -> T,
-    fn(&OsStr) -> Result<T, ParseFehler<String>>,
-    fn(&T) -> String,
-    Void,
->;
+pub type ParseArgumente<'t, T> = Argumente<'t, T, String, Void>;
 
 /// Trait für Typen, die direkt mit dem (derive-Macro)[`derive@Parse`]
 /// für das [`Parse`]-Trait verwendet werden können.
@@ -328,14 +321,7 @@ pub trait Parse: Sized {
     ///
     /// ## English
     /// Create a description, how command line arguments should be parsed.
-    fn kommandozeilen_argumente<'t>() -> Argumente<
-        't,
-        Self,
-        fn(bool) -> Self,
-        fn(&OsStr) -> Result<Self, ParseFehler<Self::Fehler>>,
-        fn(&Self) -> String,
-        Void,
-    >;
+    fn kommandozeilen_argumente<'t>() -> Argumente<'t, Self, Self::Fehler, Void>;
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     ///

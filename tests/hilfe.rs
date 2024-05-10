@@ -34,7 +34,7 @@ fn hilfe_test() {
     );
     let einzelargument = EinzelArgument::flag(flag);
     let arg = Argumente::einzel_argument(einzelargument);
-    let arg_mit_hilfe = arg.mit_hilfe_frühes_beenden_mit_sprache::<Standard, Void>(
+    let arg_mit_hilfe = arg.mit_hilfe_frühes_beenden_mit_sprache::<Standard>(
         Beschreibung::neu_mit_sprache(
             sprache.hilfe_lang,
             sprache.hilfe_kurz,
