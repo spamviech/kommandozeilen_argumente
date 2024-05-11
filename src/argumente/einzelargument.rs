@@ -1,12 +1,12 @@
 //! Ein einzelnes Kommandozeilen-Argument.
 
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 
 use void::Void;
 
 use crate::{
     argumente::{flag::Flag, frühes_beenden::FrühesBeenden, hilfe::Hilfe, wert::Wert},
-    ergebnis::{Ergebnis, ParseFehler},
+    ergebnis::Ergebnis,
 };
 
 /// Konfiguration eines einzelnen Kommandozeilen-Arguments.

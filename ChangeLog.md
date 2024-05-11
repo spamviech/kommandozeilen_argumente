@@ -4,7 +4,8 @@
 
 - Normalisiert::as_str hinzugefügt.
 - Behandle clippy-lints.
-- Aktualisiere `syn` auf Version 2.x.
+- Verwende venial für proc-macro parsing.
+- Entferne `derive` aus `default` feature Liste.
 
 ## 0.2.0
 
