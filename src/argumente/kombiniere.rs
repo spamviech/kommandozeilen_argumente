@@ -21,12 +21,12 @@ use crate::{
 #[macro_export]
 macro_rules! kombiniere {
     ($f: expr, $arg: expr) => {
-        $crate::argumente::Argumente::Kombiniere(($f, $arg))
+        $crate::argumente::Argumente::kombiniere(($f, $arg))
     };
     ($f: expr, $a: expr, $b: expr $(, $tail: ident)* $(,)?) => {{
         #[allow(clippy::shadow_unrelated, clippy::shadow_same, clippy::shadow_reuse)]
         {
-            let kombiniere = $crate::argumente::Argumente::Kombiniere((|first, second| (first, second), $a, $b));
+            let kombiniere = $crate::argumente::Argumente::kombiniere((|first, second| (first, second), $a, $b));
             let uncurry_f = |(first, second) $(, $tail)*| $f(first, second $(, $tail)*);
             $crate::kombiniere!(uncurry_f, kombiniere $(, $tail)*)
         }
@@ -57,13 +57,14 @@ pub trait Kombiniere<'t, T, Fehler> {
     /// ## English
     /// Parse the given arguments and return the corresponding value.
     fn parse(
-        self,
-        args: impl Iterator<Item = Option<OsString>>,
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<OsString>>>,
     ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>);
 
     /// Erzeuge den Hilfetext für die enthaltenen [`Einzelargumente`](EinzelArgument).
-    fn erzeuge_hilfe_text<H: ErzeugeHilfeText>(
+    fn erzeuge_hilfe_text(
         &self,
+        variante: &dyn ErzeugeHilfeText,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
     ) -> NonEmpty<hilfe::Alternativen<'_>>;
@@ -72,15 +73,16 @@ pub trait Kombiniere<'t, T, Fehler> {
 impl<'t, T, Fehler> Kombiniere<'t, T, Fehler> for Void {
     #[inline]
     fn parse(
-        self,
-        _args: impl Iterator<Item = Option<OsString>>,
+        self: Box<Self>,
+        _args: Box<dyn '_ + Iterator<Item = Option<OsString>>>,
     ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
-        void::unreachable(self)
+        void::unreachable(*self)
     }
 
     #[inline]
-    fn erzeuge_hilfe_text<H: ErzeugeHilfeText>(
+    fn erzeuge_hilfe_text(
         &self,
+        _variante: &dyn ErzeugeHilfeText,
         _meta_standard: &str,
         _meta_erlaubte_werte: &str,
     ) -> NonEmpty<hilfe::Alternativen<'_>> {
@@ -99,7 +101,6 @@ macro_rules! impl_kombiniere_tuple {
                 $(
                     [<T $suffix:camel>],
                     [<Fehler $suffix:camel>],
-                    [<Kombiniere $suffix:camel>],
                 )+
             >
                 Kombiniere<'t, T, Fehler> for (
@@ -108,7 +109,6 @@ macro_rules! impl_kombiniere_tuple {
                         [<'t $suffix:snake:lower>],
                         [<T $suffix:camel>],
                         [<Fehler $suffix:camel>],
-                        [<Kombiniere $suffix:camel>],
                     >),+
                 )
             where
@@ -116,20 +116,14 @@ macro_rules! impl_kombiniere_tuple {
                 $(
                     [<'t $suffix:snake:lower>]: 't,
                     Fehler: From<[<Fehler $suffix:camel>]>,
-                    [<Kombiniere $suffix:camel>]:
-                        Kombiniere<
-                            [<'t $suffix:snake:lower>],
-                            [<T $suffix:camel>],
-                            [<Fehler $suffix:camel>],
-                        >
-                ),+
+                )+
             {
                 #[inline]
                 fn parse(
-                    self,
-                    args: impl Iterator<Item = Option<OsString>>,
+                    self: Box<Self>,
+                    args: Box<dyn '_ + Iterator<Item = Option<OsString>>>,
                 ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
-                    let (funktion, $([<arg_ $suffix:snake:lower>]),+) = self;
+                    let (funktion, $([<arg_ $suffix:snake:lower>]),+) = *self;
                     let nicht_verwendet: Vec<_> = args.collect();
                     let mut alle_fehler = Vec::new();
                     let mut alle_frühes_beenden = Vec::new();
@@ -162,8 +156,9 @@ macro_rules! impl_kombiniere_tuple {
                 }
 
                 #[inline]
-                fn erzeuge_hilfe_text<H: ErzeugeHilfeText>(
+                fn erzeuge_hilfe_text(
                     &self,
+                    variante: &dyn ErzeugeHilfeText,
                     meta_standard: &str,
                     meta_erlaubte_werte: &str,
                 ) -> NonEmpty<hilfe::Alternativen<'_>> {
@@ -172,7 +167,7 @@ macro_rules! impl_kombiniere_tuple {
                     $(
                         hilfe_texte.extend(
                             [<a_ $suffix:snake:lower>]
-                                .erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte)
+                                .erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
                         );
                     )+
                     NonEmpty::from_vec(hilfe_texte).expect("Mindestens ein suffix als Macro-Argument!")

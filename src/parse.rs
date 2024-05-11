@@ -361,7 +361,7 @@ pub trait Parse: Sized {
     ///
     /// ## English
     /// Create a description, how command line arguments should be parsed.
-    fn kommandozeilen_argumente<'t>() -> Argumente<'t, Self, Self::Fehler, Void>;
+    fn kommandozeilen_argumente<'t>() -> Argumente<'t, Self, Self::Fehler>;
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     ///

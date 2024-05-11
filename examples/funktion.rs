@@ -153,10 +153,11 @@ fn main() {
         wert,
         aufzählung,
     };
-    let argumente: Argumente<'_, _, String, _> =
+    let argumente: Argumente<'_, _, String> =
         kombiniere!(zusammenfassen, flag, umbenannt, benötigt, wert, aufzählung);
     let argumente_mit_hilfe_und_version = argumente
-        .mit_hilfe_und_version_frühes_beenden_mit_sprache::<Standard>(
+        .mit_hilfe_und_version_frühes_beenden_mit_sprache(
+            &Standard,
             Beschreibung::neu_mit_sprache(
                 "version",
                 "v",

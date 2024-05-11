@@ -51,8 +51,9 @@ pub trait ErzeugeHilfeText {
     ///
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
-    fn erzeuge_hilfe_text<'t, T, Fehler>(
-        arg: &'t EinzelArgument<'t, T, Fehler>,
+    fn erzeuge_hilfe_text<'t>(
+        &self,
+        arg: &'t EinzelArgument<'t, String, String>,
         meta_standard: &'t str,
         meta_erlaubte_werte: &'t str,
     ) -> Hilfe<'t>;
@@ -76,8 +77,9 @@ pub type Default = Standard;
 #[allow(deprecated)]
 impl ErzeugeHilfeText for Standard {
     #[inline]
-    fn erzeuge_hilfe_text<'t, T, Fehler>(
-        arg: &'t EinzelArgument<'t, T, Fehler>,
+    fn erzeuge_hilfe_text<'t>(
+        &self,
+        arg: &'t EinzelArgument<'t, String, String>,
         meta_standard: &'t str,
         meta_erlaubte_werte: &'t str,
     ) -> Hilfe<'t> {

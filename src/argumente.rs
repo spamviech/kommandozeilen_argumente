@@ -4,7 +4,7 @@ use std::{
     borrow::Cow,
     env,
     ffi::{OsStr, OsString},
-    fmt::Debug,
+    fmt::{self, Debug},
     path::Path,
 };
 
@@ -53,10 +53,9 @@ pub use self::wert::EnumArgument;
 ///
 /// ## English synonym
 /// [`Arguments`]
-#[derive(Debug)]
 #[allow(clippy::large_enum_variant, clippy::module_name_repetitions)]
 #[must_use]
-pub enum Argumente<'t, T, Fehler, K> {
+pub enum Argumente<'t, T, Fehler> {
     /// Ein einzelnes Argument.
     ///
     /// ## English
@@ -66,7 +65,7 @@ pub enum Argumente<'t, T, Fehler, K> {
     ///
     /// ## English
     /// The combination of multiple arguments, encoded via the [`Kombiniere`]-trait.
-    Kombiniere(K),
+    Kombiniere(Box<dyn 't + Kombiniere<'t, T, Fehler>>),
     /// Alternative Kommandozeilen-Argumente. Beim parsen wird das erste [`Ergebnis`] verwendet,
     /// dass kein [`Ergebnis::Fehler`] ist.
     ///
@@ -76,34 +75,50 @@ pub enum Argumente<'t, T, Fehler, K> {
     Alternativen(Box<NonEmpty<Self>>),
 }
 
+impl<T: Debug, Fehler: Debug> Debug for Argumente<'_, T, Fehler> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Argumente::EinzelArgument(arg0) => {
+                formatter.debug_tuple("EinzelArgument").field(arg0).finish()
+            },
+            Argumente::Kombiniere(arg0) => {
+                formatter.debug_tuple("Kombiniere").field(&"<kombiniere>").finish()
+            },
+            Argumente::Alternativen(arg0) => {
+                formatter.debug_tuple("Alternativen").field(arg0).finish()
+            },
+        }
+    }
+}
+
 /// Configuration of command line arguments.
 ///
 /// ## Deutsches Synonym
 /// [`Argumente`]
-pub type Arguments<'t, T, Fehler, K> = Argumente<'t, T, Fehler, K>;
+pub type Arguments<'t, T, Fehler> = Argumente<'t, T, Fehler>;
 
-impl<'t, T, Fehler, K> From<EinzelArgument<'t, T, Fehler>> for Argumente<'t, T, Fehler, K> {
+impl<'t, T, Fehler> From<EinzelArgument<'t, T, Fehler>> for Argumente<'t, T, Fehler> {
     #[inline]
     fn from(argument: EinzelArgument<'t, T, Fehler>) -> Self {
         Argumente::EinzelArgument(argument)
     }
 }
 
-impl<T, Fehler, K> From<NonEmpty<Self>> for Argumente<'_, T, Fehler, K> {
+impl<T, Fehler> From<NonEmpty<Self>> for Argumente<'_, T, Fehler> {
     #[inline]
     fn from(alternativen: NonEmpty<Self>) -> Self {
         Argumente::Alternativen(Box::new(alternativen))
     }
 }
 
-impl<T, Fehler, K> From<Box<NonEmpty<Self>>> for Argumente<'_, T, Fehler, K> {
+impl<T, Fehler> From<Box<NonEmpty<Self>>> for Argumente<'_, T, Fehler> {
     #[inline]
     fn from(alternativen: Box<NonEmpty<Self>>) -> Self {
         Argumente::Alternativen(alternativen)
     }
 }
 
-impl<'t, T, Fehler> Argumente<'t, T, Fehler, Void> {
+impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Erzeuge eine [`Argumente::EinzelArgument`]-Variante mit sinnvollen Typ-Parametern.
     ///
     /// ## English
@@ -114,14 +129,14 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler, Void> {
     }
 }
 
-impl<T, Fehler, K> Argumente<'_, T, Fehler, K> {
+impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Erzeuge eine [`Argumente::Kombiniere`]-Variante mit sinnvollen Typ-Parametern.
     ///
     /// ## English
     /// Create a [`Argumente::Kombiniere`]-variant with sensible type parameters.
     #[inline]
-    pub fn kombiniere(kombiniere: K) -> Self {
-        Argumente::Kombiniere(kombiniere)
+    pub fn kombiniere(kombiniere: impl 't + Kombiniere<'t, T, Fehler>) -> Self {
+        Argumente::Kombiniere(Box::new(kombiniere))
     }
 
     /// Erzeuge eine [`Argumente::Alternativen`]-Variante mit sinnvollen Typ-Parametern.
@@ -143,10 +158,7 @@ impl<T, Fehler, K> Argumente<'_, T, Fehler, K> {
     }
 }
 
-impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K>
-where
-    K: Kombiniere<'t, T, Fehler>,
-{
+impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
@@ -160,7 +172,7 @@ where
         use Ergebnis::{Fehler, FrühesBeenden, Wert};
         match self {
             EinzelArgument(arg) => arg.parse(args),
-            Kombiniere(kombiniere) => kombiniere.parse(args),
+            Kombiniere(kombiniere) => kombiniere.parse(Box::new(args)),
             Alternativen(alternativen) => {
                 // TODO only accept parsing without leftover args?
                 let NonEmpty { head, tail } = *alternativen;
@@ -187,7 +199,7 @@ where
     }
 }
 
-impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
+impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
     ///
     /// ## English
@@ -196,14 +208,12 @@ impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
     #[must_use]
     // panic when a programming error occurs
     #[allow(clippy::missing_panics_doc)]
-    pub fn erzeuge_hilfe_text<H: ErzeugeHilfeText>(
+    pub fn erzeuge_hilfe_text(
         &self,
+        variante: &dyn ErzeugeHilfeText,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> NonEmpty<hilfe::Alternativen<'_>>
-    where
-        K: Kombiniere<'t, T, Fehler>,
-    {
+    ) -> NonEmpty<hilfe::Alternativen<'_>> {
         match self {
             Argumente::EinzelArgument(arg) => {
                 nonempty![hilfe::Alternativen::EinzelArgument(
@@ -211,14 +221,16 @@ impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
                 )]
             },
             Argumente::Kombiniere(kombiniere) => {
-                kombiniere.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte)
+                kombiniere.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
             },
             Argumente::Alternativen(alternativen) => {
                 // TODO use alternativen.as_ref().flat_map(...), coming in nonempty > 0.10.0
                 NonEmpty::collect(alternativen.iter().map(|arg| {
-                    hilfe::Alternativen::Alternativen(Box::new(
-                        arg.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte),
-                    ))
+                    hilfe::Alternativen::Alternativen(Box::new(arg.erzeuge_hilfe_text(
+                        variante,
+                        meta_standard,
+                        meta_erlaubte_werte,
+                    )))
                 }))
                 .expect("NonEmpty::map(...) hat mindestens ein Argument!")
             },
@@ -226,16 +238,7 @@ impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
     }
 }
 
-/// [`FrühesBeenden`]-Argument für den Hilfe-Text.
-type HilfeFrühesBeenden<'t> = Argumente<'t, (), Void, Void>;
-/// Kombinieren des Arguments mit mit dem [`FrühesBeenden`]-Arguments für den Hilfe-Text.
-type KombiniereHilfe<'t, T, Fehler, K> =
-    (fn(T, ()) -> T, Argumente<'t, T, Fehler, K>, HilfeFrühesBeenden<'t>);
-/// Argument mit zugehörigem [`FrühesBeenden`]-Argument für den Hilfe-Text.
-type ArgumenteMitHilfe<'t, T, Fehler, K> =
-    Argumente<'t, T, Fehler, KombiniereHilfe<'t, T, Fehler, K>>;
-
-impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
+impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch die Programm-Version anzeigt wird.
     ///
     /// ## English
@@ -247,15 +250,15 @@ impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
         eigene_beschreibung: Beschreibung<'t, Void>,
         programm_name: &str,
         programm_version: &str,
-    ) -> ArgumenteMitHilfe<'t, T, Fehler, K> {
+    ) -> Self {
         let name_und_version = format!("{programm_name} {programm_version}");
         let frühes_beenden = FrühesBeenden {
             beschreibung: eigene_beschreibung,
             nachricht: Cow::Owned(name_und_version),
         };
-        let kombiniere: KombiniereHilfe<'_, T, Fehler, K> =
+        let kombiniere =
             (|wert: T, ()| wert, self, Argumente::from(EinzelArgument::from(frühes_beenden)));
-        Argumente::Kombiniere(kombiniere)
+        Argumente::kombiniere(kombiniere)
     }
 
     /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch der Hilfe-Text für alle Argumente anzeigt wird.
@@ -271,8 +274,9 @@ impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
     /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
     #[inline]
     #[allow(clippy::too_many_arguments)]
-    pub fn mit_hilfe_frühes_beenden<H>(
+    pub fn mit_hilfe_frühes_beenden(
         self,
+        variante: &dyn ErzeugeHilfeText,
         eigene_beschreibung: Beschreibung<'t, Void>,
         programm_name: &str,
         programm_beschreibung: Option<&str>,
@@ -284,12 +288,8 @@ impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
         meta_syntax_padding: char,
         meta_alternative_präfix: &str,
         meta_alternative_trennzeichen: char,
-    ) -> ArgumenteMitHilfe<'t, T, Fehler, K>
-    where
-        H: ErzeugeHilfeText,
-        K: Kombiniere<'t, T, Fehler>,
-    {
-        let mut hilfen = self.erzeuge_hilfe_text::<H>(meta_standard, meta_erlaubte_werte);
+    ) -> Self {
+        let mut hilfen = self.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte);
         let dummy = Cow::Borrowed("");
         let mut frühes_beenden =
             FrühesBeenden { beschreibung: eigene_beschreibung, nachricht: dummy };
@@ -328,9 +328,9 @@ impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
             );
         }
         frühes_beenden.nachricht = Cow::Owned(hilfe_text);
-        let kombiniere: KombiniereHilfe<'_, T, Fehler, K> =
+        let kombiniere =
             (|wert: T, ()| wert, self, Argumente::from(EinzelArgument::from(frühes_beenden)));
-        Argumente::Kombiniere(kombiniere)
+        Argumente::kombiniere(kombiniere)
     }
 
     /// Variante von [`mit_hilfe_frühes_beenden`](Self::mit_hilfe_frühes_beenden),
@@ -340,19 +340,17 @@ impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
     /// Variant of [`mit_hilfe_frühes_beenden`](Self::mit_hilfe_frühes_beenden),
     /// based on a [`Language`](crate::sprache::Language).
     #[inline]
-    pub fn mit_hilfe_frühes_beenden_mit_sprache<H>(
+    pub fn mit_hilfe_frühes_beenden_mit_sprache(
         self,
+        variante: &dyn ErzeugeHilfeText,
         eigene_beschreibung: Beschreibung<'t, Void>,
         programm_name: &str,
         programm_beschreibung: Option<&str>,
         programm_version: Option<&str>,
         sprache: Sprache,
-    ) -> ArgumenteMitHilfe<'t, T, Fehler, K>
-    where
-        H: ErzeugeHilfeText,
-        K: Kombiniere<'t, T, Fehler>,
-    {
-        self.mit_hilfe_frühes_beenden::<H>(
+    ) -> Self {
+        self.mit_hilfe_frühes_beenden(
+            variante,
             eigene_beschreibung,
             programm_name,
             programm_beschreibung,
@@ -382,8 +380,9 @@ impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
     /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
     #[inline]
     #[allow(clippy::too_many_arguments)]
-    pub fn mit_hilfe_und_version_frühes_beenden<H>(
+    pub fn mit_hilfe_und_version_frühes_beenden(
         self,
+        variante: &dyn ErzeugeHilfeText,
         version_beschreibung: Beschreibung<'t, Void>,
         hilfe_beschreibung: Beschreibung<'t, Void>,
         programm_name: &str,
@@ -396,14 +395,13 @@ impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
         meta_syntax_padding: char,
         meta_alternative_präfix: &str,
         meta_alternative_trennzeichen: char,
-    ) -> ArgumenteMitHilfe<'t, T, Fehler, KombiniereHilfe<'t, T, Fehler, K>>
+    ) -> Self
     where
-        H: ErzeugeHilfeText,
-        K: Kombiniere<'t, T, Fehler>,
         Fehler: From<Void>,
     {
         self.mit_version_frühes_beenden(version_beschreibung, programm_name, programm_version)
-            .mit_hilfe_frühes_beenden::<H>(
+            .mit_hilfe_frühes_beenden(
+                variante,
                 hilfe_beschreibung,
                 programm_name,
                 programm_beschreibung,
@@ -424,21 +422,21 @@ impl<'t, T, Fehler, K> Argumente<'t, T, Fehler, K> {
     /// Variant of [`mit_hilfe_und_version_frühes_beenden`](Argumente::mit_hilfe_und_version_frühes_beenden).
     #[inline]
     #[allow(clippy::too_many_arguments)]
-    pub fn mit_hilfe_und_version_frühes_beenden_mit_sprache<H>(
+    pub fn mit_hilfe_und_version_frühes_beenden_mit_sprache(
         self,
+        variante: &dyn ErzeugeHilfeText,
         version_beschreibung: Beschreibung<'t, Void>,
         hilfe_beschreibung: Beschreibung<'t, Void>,
         programm_name: &str,
         programm_beschreibung: Option<&str>,
         programm_version: &str,
         sprache: Sprache,
-    ) -> ArgumenteMitHilfe<'t, T, Fehler, KombiniereHilfe<'t, T, Fehler, K>>
+    ) -> Self
     where
-        H: ErzeugeHilfeText,
-        K: Kombiniere<'t, T, Fehler>,
         Fehler: From<Void>,
     {
-        self.mit_hilfe_und_version_frühes_beenden::<H>(
+        self.mit_hilfe_und_version_frühes_beenden(
+            variante,
             version_beschreibung,
             hilfe_beschreibung,
             programm_name,
