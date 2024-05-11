@@ -17,7 +17,7 @@ proc-macro = true
 litrs = "0.4.1"
 proc-macro2 = "1.0.36"
 quote = "1.0.17"
-unicode-segmentation = "1.8.0"
+unicode-segmentation = "1.9.0"
 venial = "0.6.0"
 
 [lints]

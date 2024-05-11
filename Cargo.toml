@@ -36,14 +36,29 @@ name = "derive"
 required-features = ["derive"]
 
 [dependencies]
+dyn-clone.workspace = true
+either.workspace = true
+itertools.workspace = true
+nonempty.workspace = true
+paste.workspace = true
+unicase.workspace = true
+unicode-normalization.workspace = true
+unicode-segmentation.workspace = true
+void.workspace = true
+
+[workspace.dependencies]
 dyn-clone = "1.0.17"
 either = "1.6.1"
 itertools = "0.12.1"
+litrs = "0.4.1"
 nonempty = "0.10.0"
 paste = "1.0.15"
+proc-macro2 = "1.0.36"
 unicase = "2.6.0"
 unicode-normalization = "0.1.19"
 unicode-segmentation = "1.9.0"
+quote = "1.0.17"
+venial = "0.6.0"
 void = "1.0.2"
 
 [dependencies.kommandozeilen_argumente_derive]
