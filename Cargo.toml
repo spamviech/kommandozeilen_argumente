@@ -35,6 +35,10 @@ required-features = ["derive"]
 name = "derive"
 required-features = ["derive"]
 
+[[example]]
+name = "derive_en"
+required-features = ["derive"]
+
 [dependencies]
 dyn-clone.workspace = true
 either.workspace = true

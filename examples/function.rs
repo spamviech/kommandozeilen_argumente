@@ -4,10 +4,12 @@
 #![allow(unused_crate_dependencies)]
 
 use std::{
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     fmt::{self, Debug, Display},
     num::NonZeroI32,
 };
+
+use nonempty::nonempty;
 
 use kommandozeilen_argumente::{
     combine, crate_name, crate_version, Arguments, Description, EnumArgument, Language, NonEmpty,
@@ -26,12 +28,12 @@ enum Enumeration {
 }
 
 impl EnumArgument for Enumeration {
-    fn varianten() -> Vec<Self> {
+    fn varianten() -> Option<NonEmpty<Self>> {
         use Enumeration::{One, Three, Two};
-        vec![One, Two, Three]
+        Some(nonempty![One, Two, Three])
     }
 
-    fn parse_enum(arg: OsString) -> Result<Self, kommandozeilen_argumente::ParseFehler<String>> {
+    fn parse_enum(arg: &OsStr) -> Result<Self, kommandozeilen_argumente::ParseFehler<String>> {
         use Enumeration::{One, Three, Two};
         if let Some(string) = arg.to_str() {
             // Target strings only contain ASCII-characters.
@@ -44,7 +46,7 @@ impl EnumArgument for Enumeration {
                 _ => Err(ParseError::ParseFehler(format!("Unknown variant: {string}"))),
             }
         } else {
-            Err(ParseError::InvaliderString(arg))
+            Err(ParseError::InvaliderString(OsString::from(arg)))
         }
     }
 }

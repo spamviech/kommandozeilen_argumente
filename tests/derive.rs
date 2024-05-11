@@ -16,9 +16,9 @@ use std::{
     iter, process,
 };
 
-use kommandozeilen_argumente::{
-    parse::ParseArgumente, Argumente, EnumArgument, Ergebnis, Parse, ParseArgument,
-};
+use nonempty::nonempty;
+
+use kommandozeilen_argumente::{Argumente, EnumArgument, Ergebnis, Parse, ParseArgument};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
 #[kommandozeilen_argumente(case: insensitive)]
@@ -35,9 +35,9 @@ impl Display for Bla {
 
 #[test]
 fn arg_enum_derive() {
-    assert_eq!(Bla::varianten(), vec![Bla::Meh, Bla::Muh]);
+    assert_eq!(Bla::varianten(), Some(nonempty![Bla::Meh, Bla::Muh]));
     let os_string: OsString = "meh".to_owned().into();
-    let parse_res = Bla::parse_enum(os_string);
+    let parse_res = Bla::parse_enum(&os_string);
     assert_eq!(parse_res, Ok(Bla::Meh));
 }
 
