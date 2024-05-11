@@ -4,7 +4,8 @@ use std::{
     borrow::Cow,
     env,
     ffi::{OsStr, OsString},
-    fmt::{self, Debug},
+    fmt::{self, Debug, Display},
+    num::NonZeroI32,
     path::Path,
 };
 
@@ -19,8 +20,8 @@ use crate::{
         kombiniere::Kombiniere,
     },
     beschreibung::Beschreibung,
-    ergebnis::Ergebnis,
-    sprache::Sprache,
+    ergebnis::{Ergebnis, Error, Fehler},
+    sprache::{Language, Sprache},
 };
 
 pub mod einzelargument;
@@ -76,12 +77,13 @@ pub enum Argumente<'t, T, Fehler> {
 }
 
 impl<T: Debug, Fehler: Debug> Debug for Argumente<'_, T, Fehler> {
+    #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Argumente::EinzelArgument(arg0) => {
                 formatter.debug_tuple("EinzelArgument").field(arg0).finish()
             },
-            Argumente::Kombiniere(arg0) => {
+            Argumente::Kombiniere(_arg0) => {
                 formatter.debug_tuple("Kombiniere").field(&"<kombiniere>").finish()
             },
             Argumente::Alternativen(arg0) => {
@@ -158,7 +160,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     }
 }
 
-impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
+impl<'t, T, F> Argumente<'t, T, F> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
@@ -167,7 +169,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     pub fn parse(
         self,
         args: impl Iterator<Item = Option<OsString>>,
-    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
         use Argumente::{Alternativen, EinzelArgument, Kombiniere};
         use Ergebnis::{Fehler, FrühesBeenden, Wert};
         match self {
@@ -197,9 +199,419 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
             },
         }
     }
+
+    /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
+    ///
+    /// ## English synonym
+    /// [`parse_from_env`](Parse::parse_from_env)
+    #[inline]
+    pub fn parse_aus_env(self) -> (Ergebnis<'t, T, F>, Vec<OsString>)
+    where
+        Self: 't,
+        F: 't,
+    {
+        todo!()
+        // Self::kommandozeilen_argumente().parse_aus_env()
+    }
+
+    /// Parse [`args_os`](std::env::args_os) and try to create the requested type.
+    ///
+    /// ## Deutsches Synonym
+    /// [`parse_aus_env`](Parse::parse_aus_env)
+    #[inline]
+    pub fn parse_from_env(self) -> (Ergebnis<'t, T, F>, Vec<OsString>)
+    where
+        Self: 't,
+        F: 't,
+    {
+        self.parse_aus_env()
+    }
+
+    /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [`exit`](std::process::exit) mit exit code `0` beendet.
+    ///
+    /// ## English synonym
+    /// [`parse_from_env_with_early_exit`](Parse::parse_from_env_with_early_exit)
+    #[inline]
+    pub fn parse_aus_env_mit_frühen_beenden(
+        self,
+    ) -> (Result<T, NonEmpty<Fehler<'t, F>>>, Vec<OsString>)
+    where
+        Self: 't,
+        F: 't,
+    {
+        todo!()
+        // Self::kommandozeilen_argumente().parse_aus_env_mit_frühen_beenden()
+    }
+
+    /// Parse [`args_os`](std::env::args_os) to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
+    ///
+    /// ## Deutsches Synonym
+    /// [`parse_aus_env_mit_frühen_beenden`](Argumente::parse_aus_env_mit_frühen_beenden)
+    #[inline]
+    pub fn parse_from_env_with_early_exit(
+        self,
+    ) -> (Result<T, NonEmpty<Error<'t, F>>>, Vec<OsString>)
+    where
+        Self: 't,
+        F: 't,
+    {
+        self.parse_aus_env_mit_frühen_beenden()
+    }
+
+    /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [`exit`](std::process::exit) mit exit code `0` beendet.
+    ///
+    /// ## English synonym
+    /// [`parse_with_early_exit`](Self::parse_with_early_exit)
+    #[inline]
+    pub fn parse_mit_frühen_beenden(
+        self,
+        args: impl Iterator<Item = OsString>,
+    ) -> (Result<T, NonEmpty<Fehler<'t, F>>>, Vec<OsString>)
+    where
+        Self: 't,
+        F: 't,
+    {
+        todo!()
+        // Self::kommandozeilen_argumente().parse_mit_frühen_beenden(args)
+    }
+
+    /// Parse the given command line arguments to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
+    ///
+    /// ## Deutsches Synonym
+    /// [`parse_mit_frühen_beenden`](Self::parse_mit_frühen_beenden)
+    #[inline]
+    fn parse_with_early_exit(
+        self,
+        args: impl Iterator<Item = OsString>,
+    ) -> (Result<T, NonEmpty<Error<'t, F>>>, Vec<OsString>)
+    where
+        Self: 't,
+        F: 't,
+    {
+        self.parse_mit_frühen_beenden(args)
+    }
+
+    /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [`exit`](std::process::exit) mit exit code `0` beendet.
+    /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [`parse_complete`](Self::parse_complete)
+    #[inline]
+    #[must_use]
+    pub fn parse_vollständig(
+        self,
+        args: impl Iterator<Item = OsString>,
+        fehler_code: NonZeroI32,
+        fehlende_flag: &str,
+        fehlender_wert: &str,
+        parse_fehler: &str,
+        invalider_string: &str,
+        arg_nicht_verwendet: &str,
+    ) -> T
+    where
+        F: Display,
+    {
+        todo!()
+        // Self::kommandozeilen_argumente().parse_vollständig(
+        //     args,
+        //     fehler_code,
+        //     fehlende_flag,
+        //     fehlender_wert,
+        //     parse_fehler,
+        //     invalider_string,
+        //     arg_nicht_verwendet,
+        // )
+    }
+
+    /// Parse the given command line arguments to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [`parse_vollständig`](Self::parse_vollständig)
+    #[inline]
+    #[must_use]
+    pub fn parse_complete(
+        self,
+        args: impl Iterator<Item = OsString>,
+        error_code: NonZeroI32,
+        missing_flag: &str,
+        missing_value: &str,
+        parse_error: &str,
+        invalid_string: &str,
+        unused_arg: &str,
+    ) -> T
+    where
+        F: Display,
+    {
+        self.parse_vollständig(
+            args,
+            error_code,
+            missing_flag,
+            missing_value,
+            parse_error,
+            invalid_string,
+            unused_arg,
+        )
+    }
+
+    /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [`exit`](std::process::exit) mit exit code `0` beendet.
+    /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [`parse_complete_with_language`](Self::parse_complete_with_language)
+    #[inline]
+    #[must_use]
+    pub fn parse_vollständig_mit_sprache(
+        self,
+        args: impl Iterator<Item = OsString>,
+        fehler_code: NonZeroI32,
+        sprache: Sprache,
+    ) -> T
+    where
+        F: Display,
+    {
+        todo!()
+        // Self::kommandozeilen_argumente().parse_vollständig_mit_sprache(args, fehler_code, sprache)
+    }
+
+    /// Parse the given command line arguments to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [`parse_vollständig_mit_sprache`](Self::parse_vollständig_mit_sprache)
+    #[inline]
+    #[must_use]
+    pub fn parse_complete_with_language(
+        self,
+        args: impl Iterator<Item = OsString>,
+        error_code: NonZeroI32,
+        language: Language,
+    ) -> T
+    where
+        F: Display,
+    {
+        self.parse_vollständig_mit_sprache(args, error_code, language)
+    }
+
+    /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [`exit`](std::process::exit) mit exit code `0` beendet.
+    /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English version
+    /// [`parse_with_error_message`](Self::parse_with_error_message)
+    #[inline]
+    #[must_use]
+    pub fn parse_mit_fehlermeldung(
+        self,
+        args: impl Iterator<Item = OsString>,
+        fehler_code: NonZeroI32,
+    ) -> T
+    where
+        F: Display,
+    {
+        todo!()
+        // Self::kommandozeilen_argumente().parse_mit_fehlermeldung(args, fehler_code)
+    }
+
+    /// Parse command line arguments to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsche version
+    /// [`parse_mit_fehlermeldung`](Self::parse_mit_fehlermeldung)
+    #[inline]
+    #[must_use]
+    pub fn parse_with_error_message(
+        self,
+        args: impl Iterator<Item = OsString>,
+        error_code: NonZeroI32,
+    ) -> T
+    where
+        F: Display,
+    {
+        todo!()
+        // Self::kommandozeilen_argumente().parse_with_error_message(args, error_code)
+    }
+
+    /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [`exit`](std::process::exit) mit exit code `0` beendet.
+    /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [`parse_complete_from_env`](Self::parse_complete_from_env)
+    #[inline]
+    #[must_use]
+    pub fn parse_vollständig_aus_env(
+        self,
+        fehler_code: NonZeroI32,
+        fehlende_flag: &str,
+        fehlender_wert: &str,
+        parse_fehler: &str,
+        invalider_string: &str,
+        arg_nicht_verwendet: &str,
+    ) -> T
+    where
+        F: Display,
+    {
+        todo!()
+        // Self::kommandozeilen_argumente().parse_vollständig_aus_env(
+        //     fehler_code,
+        //     fehlende_flag,
+        //     fehlender_wert,
+        //     parse_fehler,
+        //     invalider_string,
+        //     arg_nicht_verwendet,
+        // )
+    }
+
+    /// Parse [`args_os`](std::env::args_os) to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [`parse_vollständig_aus_env`](Self::parse_vollständig_aus_env)
+    #[inline]
+    #[must_use]
+    pub fn parse_complete_from_env(
+        self,
+        error_code: NonZeroI32,
+        missing_flag: &str,
+        missing_value: &str,
+        parse_error: &str,
+        invalid_string: &str,
+        unused_arg: &str,
+    ) -> T
+    where
+        F: Display,
+    {
+        self.parse_vollständig_aus_env(
+            error_code,
+            missing_flag,
+            missing_value,
+            parse_error,
+            invalid_string,
+            unused_arg,
+        )
+    }
+
+    /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [`exit`](std::process::exit) mit exit code `0` beendet.
+    /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English synonym
+    /// [`parse_complete_with_language_from_env`](Self::parse_complete_with_language_from_env)
+    #[inline]
+    #[must_use]
+    pub fn parse_vollständig_mit_sprache_aus_env(
+        self,
+        fehler_code: NonZeroI32,
+        sprache: Sprache,
+    ) -> T
+    where
+        F: Display,
+    {
+        todo!()
+        // Self::kommandozeilen_argumente()
+        //     .parse_vollständig_mit_sprache_aus_env(fehler_code, sprache)
+    }
+
+    /// Parse [`args_os`](std::env::args_os) to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsches Synonym
+    /// [`parse_vollständig_mit_sprache_aus_env`](Self::parse_vollständig_mit_sprache_aus_env)
+    #[inline]
+    #[must_use]
+    pub fn parse_complete_with_language_from_env(
+        self,
+        error_code: NonZeroI32,
+        language: Language,
+    ) -> T
+    where
+        F: Display,
+    {
+        self.parse_vollständig_mit_sprache_aus_env(error_code, language)
+    }
+
+    /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [`exit`](std::process::exit) mit exit code `0` beendet.
+    /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    ///
+    /// ## English version
+    /// [`parse_with_error_message_from_env`](Self::parse_with_error_message_from_env)
+    #[inline]
+    #[must_use]
+    pub fn parse_mit_fehlermeldung_aus_env(self, fehler_code: NonZeroI32) -> T
+    where
+        F: Display,
+    {
+        todo!()
+        // Self::kommandozeilen_argumente().parse_mit_fehlermeldung_aus_env(fehler_code)
+    }
+
+    /// Parse [`args_os`](std::env::args_os) to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
+    ///
+    /// ## Deutsche Version
+    /// [`parse_mit_fehlermeldung_aus_env`](Self::parse_mit_fehlermeldung_aus_env)
+    #[inline]
+    #[must_use]
+    pub fn parse_with_error_message_from_env(self, error_code: NonZeroI32) -> T
+    where
+        F: Display,
+    {
+        todo!()
+        // Self::kommandozeilen_argumente().parse_with_error_message_from_env(error_code)
+    }
 }
 
-impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
+impl<T, Fehler> Argumente<'_, T, Fehler> {
     /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
     ///
     /// ## English
@@ -395,10 +807,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
         meta_syntax_padding: char,
         meta_alternative_präfix: &str,
         meta_alternative_trennzeichen: char,
-    ) -> Self
-    where
-        Fehler: From<Void>,
-    {
+    ) -> Self {
         self.mit_version_frühes_beenden(version_beschreibung, programm_name, programm_version)
             .mit_hilfe_frühes_beenden(
                 variante,
@@ -431,10 +840,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
         programm_beschreibung: Option<&str>,
         programm_version: &str,
         sprache: Sprache,
-    ) -> Self
-    where
-        Fehler: From<Void>,
-    {
+    ) -> Self {
         self.mit_hilfe_und_version_frühes_beenden(
             variante,
             version_beschreibung,

@@ -177,10 +177,8 @@ fn main() {
             crate_version!(),
             sprache,
         );
-    // let args = argumente_mit_hilfe_und_version
-    //     .parse_vollständig_mit_sprache_aus_env(NonZeroI32::new(1).expect("1 != 0"), sprache);
-    let args = todo!();
-    let _ = ();
+    let args = argumente_mit_hilfe_und_version
+        .parse_vollständig_mit_sprache_aus_env(NonZeroI32::new(1).expect("1 != 0"), sprache);
     #[allow(clippy::print_stdout, clippy::use_debug)]
     {
         println!("{args:?}");

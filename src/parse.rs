@@ -388,8 +388,7 @@ pub trait Parse: Sized {
         Self: 't,
         Self::Fehler: 't,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_aus_env()
+        Self::kommandozeilen_argumente().parse_aus_env()
     }
 
     /// Parse [`args_os`](std::env::args_os) and try to create the requested type.
@@ -419,8 +418,7 @@ pub trait Parse: Sized {
         Self: 't,
         Self::Fehler: 't,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_aus_env_mit_frühen_beenden()
+        Self::kommandozeilen_argumente().parse_aus_env_mit_frühen_beenden()
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -454,8 +452,7 @@ pub trait Parse: Sized {
         Self: 't,
         Self::Fehler: 't,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_mit_frühen_beenden(args)
+        Self::kommandozeilen_argumente().parse_mit_frühen_beenden(args)
     }
 
     /// Parse the given command line arguments to create the requested type.
@@ -498,16 +495,15 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_vollständig(
-        //     args,
-        //     fehler_code,
-        //     fehlende_flag,
-        //     fehlender_wert,
-        //     parse_fehler,
-        //     invalider_string,
-        //     arg_nicht_verwendet,
-        // )
+        Self::kommandozeilen_argumente().parse_vollständig(
+            args,
+            fehler_code,
+            fehlende_flag,
+            fehlender_wert,
+            parse_fehler,
+            invalider_string,
+            arg_nicht_verwendet,
+        )
     }
 
     /// Parse the given command line arguments to create the requested type.
@@ -562,8 +558,7 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_vollständig_mit_sprache(args, fehler_code, sprache)
+        Self::kommandozeilen_argumente().parse_vollständig_mit_sprache(args, fehler_code, sprache)
     }
 
     /// Parse the given command line arguments to create the requested type.
@@ -605,8 +600,7 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_mit_fehlermeldung(args, fehler_code)
+        Self::kommandozeilen_argumente().parse_mit_fehlermeldung(args, fehler_code)
     }
 
     /// Parse command line arguments to create the requested type.
@@ -626,8 +620,7 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_with_error_message(args, error_code)
+        Self::kommandozeilen_argumente().parse_with_error_message(args, error_code)
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -652,15 +645,14 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_vollständig_aus_env(
-        //     fehler_code,
-        //     fehlende_flag,
-        //     fehlender_wert,
-        //     parse_fehler,
-        //     invalider_string,
-        //     arg_nicht_verwendet,
-        // )
+        Self::kommandozeilen_argumente().parse_vollständig_aus_env(
+            fehler_code,
+            fehlende_flag,
+            fehlender_wert,
+            parse_fehler,
+            invalider_string,
+            arg_nicht_verwendet,
+        )
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -709,9 +701,8 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente()
-        //     .parse_vollständig_mit_sprache_aus_env(fehler_code, sprache)
+        Self::kommandozeilen_argumente()
+            .parse_vollständig_mit_sprache_aus_env(fehler_code, sprache)
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -746,8 +737,7 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_mit_fehlermeldung_aus_env(fehler_code)
+        Self::kommandozeilen_argumente().parse_mit_fehlermeldung_aus_env(fehler_code)
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -764,7 +754,6 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_with_error_message_from_env(error_code)
+        Self::kommandozeilen_argumente().parse_with_error_message_from_env(error_code)
     }
 }
