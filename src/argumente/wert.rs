@@ -40,7 +40,7 @@ pub trait EnumArgument: Sized {
     /// ## English synonym
     /// [`variants`](EnumArgument::variants)
     #[must_use]
-    fn varianten() -> Vec<Self>;
+    fn varianten() -> Option<NonEmpty<Self>>;
 
     /// All variants of the type.
     ///
@@ -48,7 +48,7 @@ pub trait EnumArgument: Sized {
     /// [`varianten`](EnumArgument::varianten)
     #[inline]
     #[must_use]
-    fn variants() -> Vec<Self> {
+    fn variants() -> Option<NonEmpty<Self>> {
         Self::varianten()
     }
 
@@ -64,7 +64,7 @@ pub trait EnumArgument: Sized {
     /// ### Errors
     ///
     /// Parsing failed with the given [`ParseError`].
-    fn parse_enum(arg: OsString) -> Result<Self, ParseFehler<String>>;
+    fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>>;
 }
 
 /// Es handelt sich um ein Wert-Argument.

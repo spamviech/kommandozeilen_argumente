@@ -14,6 +14,39 @@ use crate::{
     ergebnis::Ergebnis,
 };
 
+/// Kombiniere mehrere Argumente mit der übergebenen Funktion.
+///
+/// ## English synonym
+/// [`combine`]
+#[macro_export]
+macro_rules! kombiniere {
+    ($f: expr, $arg: expr) => {
+        $crate::argumente::Argumente::Kombiniere(($f, $arg))
+    };
+    ($f: expr, $a: expr, $b: expr $(, $tail: ident)* $(,)?) => {{
+        #[allow(clippy::shadow_unrelated, clippy::shadow_same, clippy::shadow_reuse)]
+        {
+            let kombiniere = $crate::argumente::Argumente::Kombiniere((|first, second| (first, second), $a, $b));
+            let uncurry_f = |(first, second) $(, $tail)*| $f(first, second $(, $tail)*);
+            $crate::kombiniere!(uncurry_f, kombiniere $(, $tail)*)
+        }
+    }};
+}
+
+/// Combine multiple arguments with the given function.
+///
+/// ## Deutsches Synonym
+/// [`kombiniere`]
+#[macro_export]
+macro_rules! combine {
+    ($f: expr, $arg: expr) => {
+        $crate::kombiniere!($f, $arg)
+    };
+    ($f: expr, $a: expr, $b: expr $(, $tail: ident)* $(,)?) => {
+        $crate::kombiniere!($f, $a, $b $(, $tail)*)
+    };
+}
+
 /// Erlaube kombinieren mehrerer Argumente.
 ///
 /// ## English
@@ -56,6 +89,7 @@ impl<'t, T, Fehler> Kombiniere<'t, T, Fehler> for Void {
 }
 
 // TODO Kurz-Namen verschmelzen
+// TODO erlaube impl Into<Argumente>
 /// Implementiere das [`Kombiniere`]-trait für ein Tupel (f, a0, a1, ...)
 macro_rules! impl_kombiniere_tuple {
     ($($suffix: ident),+ $(,)?) => {

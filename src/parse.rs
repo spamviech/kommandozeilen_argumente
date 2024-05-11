@@ -319,6 +319,7 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
                 };
                 <T as EnumArgument>::varianten()
                     .into_iter()
+                    .flatten()
                     .find(
                         #[allow(clippy::min_ident_chars)]
                         |t| t.to_string() == string,
@@ -329,7 +330,7 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
             beschreibung,
             wert_infix: wert_infix.into(),
             meta_var,
-            mögliche_werte: NonEmpty::from_vec(<T as EnumArgument>::varianten()),
+            mögliche_werte: <T as EnumArgument>::varianten(),
             parse: Cow::Owned(boxed_parse),
             anzeige: Cow::Borrowed(&<T as ToString>::to_string),
         })

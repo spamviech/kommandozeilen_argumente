@@ -4,14 +4,19 @@
 #![allow(unused_crate_dependencies)]
 
 use std::{
-    ffi::OsString,
+    borrow::Cow,
+    convert::identity,
+    ffi::{OsStr, OsString},
     fmt::{self, Debug, Display},
     num::NonZeroI32,
 };
 
+use nonempty::{nonempty, NonEmpty};
+
 use kommandozeilen_argumente::{
-    crate_name, crate_version, kombiniere, Argumente, Beschreibung, EnumArgument, NonEmpty,
-    ParseArgument, ParseFehler, Sprache,
+    argumente::{einzelargument::EinzelArgument, flag::Flag, hilfe::Standard, wert::Wert},
+    crate_name, crate_version, kombiniere, Argumente, Beschreibung, EnumArgument, ParseArgument,
+    ParseFehler, Sprache, Vergleich,
 };
 
 /// Beispiel-enum um den Anwendung von [`EnumArgument`] zu zeigen.
@@ -26,12 +31,12 @@ enum Aufzählung {
 }
 
 impl EnumArgument for Aufzählung {
-    fn varianten() -> Vec<Self> {
+    fn varianten() -> Option<NonEmpty<Self>> {
         use Aufzählung::{Drei, Eins, Zwei};
-        vec![Eins, Zwei, Drei]
+        Some(nonempty![Eins, Zwei, Drei])
     }
 
-    fn parse_enum(arg: OsString) -> Result<Self, ParseFehler<String>> {
+    fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>> {
         use Aufzählung::{Drei, Eins, Zwei};
         if let Some(string) = arg.to_str() {
             // Vergleich-Strings enthalten nur ASCII-Zeichen,
@@ -44,7 +49,7 @@ impl EnumArgument for Aufzählung {
                 _ => Err(ParseFehler::ParseFehler(format!("Unbekannte Variante: {string}"))),
             }
         } else {
-            Err(ParseFehler::InvaliderString(arg))
+            Err(ParseFehler::InvaliderString(OsString::from(arg)))
         }
     }
 }
@@ -83,7 +88,7 @@ impl Display for Args {
 
 fn main() {
     let sprache = Sprache::DEUTSCH;
-    let flag = Argumente::flag_bool_mit_sprache(
+    let flag = Argumente::einzel_argument(EinzelArgument::flag(Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache(
             "flag",
             None::<&str>,
@@ -92,8 +97,8 @@ fn main() {
             sprache,
         ),
         sprache,
-    );
-    let umbenannt = Argumente::flag_bool_mit_sprache(
+    )));
+    let umbenannt = Argumente::einzel_argument(EinzelArgument::flag(Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache(
             NonEmpty { head: "andere", tail: vec!["namen"] },
             "u",
@@ -102,19 +107,21 @@ fn main() {
             sprache,
         ),
         sprache,
-    );
-    let benötigt = Argumente::flag_bool(
-        Beschreibung::neu_mit_sprache(
+    )));
+    let benötigt = Argumente::einzel_argument(EinzelArgument::flag(Flag {
+        beschreibung: Beschreibung::neu_mit_sprache(
             "benötigt",
             "b",
             Some("Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren."),
             None,
             sprache,
         ),
-        "no",
-        sprache.invertiere_infix,
-    );
-    let wert = String::argumente_mit_sprache(
+        invertiere_präfix: Vergleich::from("no"),
+        invertiere_infix: Vergleich::from(sprache.invertiere_infix),
+        konvertiere: Cow::Borrowed(&identity),
+        anzeige: Cow::Borrowed(&ToString::to_string),
+    }));
+    let wert = Argumente::einzel_argument(String::argumente_mit_sprache(
         Beschreibung::neu_mit_sprache(
             "wert",
             None::<&str>,
@@ -123,18 +130,21 @@ fn main() {
             sprache,
         ),
         sprache,
-    );
-    let aufzählung = Argumente::wert_enum_display(
-        Beschreibung::neu_mit_sprache(
+    ));
+    let aufzählung = Argumente::einzel_argument(EinzelArgument::wert(Wert {
+        beschreibung: Beschreibung::neu_mit_sprache(
             "aufzählung",
             "a",
             Some("Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable."),
             Some(Aufzählung::Zwei),
             sprache,
         ),
-        sprache.wert_infix,
-        "VAR",
-    );
+        wert_infix: Vergleich::from(sprache.wert_infix),
+        meta_var: "VAR",
+        mögliche_werte: EnumArgument::varianten(),
+        parse: Cow::Borrowed(&EnumArgument::parse_enum),
+        anzeige: Cow::Borrowed(&ToString::to_string),
+    }));
     #[allow(clippy::shadow_unrelated)]
     let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung| Args {
         flag,
@@ -143,15 +153,33 @@ fn main() {
         wert,
         aufzählung,
     };
-    let argumente = kombiniere!(zusammenfassen, flag, umbenannt, benötigt, wert, aufzählung)
-        .hilfe_und_version_mit_sprache(
+    let argumente: Argumente<'_, _, String, _> =
+        kombiniere!(zusammenfassen, flag, umbenannt, benötigt, wert, aufzählung);
+    let argumente_mit_hilfe_und_version = argumente
+        .mit_hilfe_und_version_frühes_beenden_mit_sprache::<Standard>(
+            Beschreibung::neu_mit_sprache(
+                "version",
+                "v",
+                Some("Zeige die Version an."),
+                None,
+                sprache,
+            ),
+            Beschreibung::neu_mit_sprache(
+                "hilfe",
+                "h",
+                Some("Zeige diesen Text an."),
+                None,
+                sprache,
+            ),
             crate_name!(),
             Some("Programm-Beschreibung."),
             crate_version!(),
             sprache,
         );
-    let args = argumente
-        .parse_vollständig_mit_sprache_aus_env(NonZeroI32::new(1).expect("1 != 0"), sprache);
+    // let args = argumente_mit_hilfe_und_version
+    //     .parse_vollständig_mit_sprache_aus_env(NonZeroI32::new(1).expect("1 != 0"), sprache);
+    let args = todo!();
+    let _ = ();
     #[allow(clippy::print_stdout, clippy::use_debug)]
     {
         println!("{args:?}");
