@@ -448,7 +448,7 @@ impl<'t, T, F> Wert<'t, T, F> {
         Wert {
             beschreibung: beschreibung.as_ref().konvertiere(&**anzeige),
             wert_infix: wert_infix.clone(),
-            meta_var: meta_var.clone(),
+            meta_var,
             mögliche_werte: NonEmpty::from_vec(
                 mögliche_werte.as_ref().into_iter().flatten().map(&**anzeige).collect(),
             ),

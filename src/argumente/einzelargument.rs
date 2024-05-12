@@ -56,6 +56,7 @@ pub enum EinzelArgument<'t, T, Fehler> {
 }
 
 impl<T: Debug, Fehler: Debug> Debug for EinzelArgument<'_, T, Fehler> {
+    #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Flag(arg0) => formatter.debug_tuple("Flag").field(arg0).finish(),

@@ -4,7 +4,6 @@ use std::{
     borrow::Cow,
     convert::AsRef,
     ffi::{OsStr, OsString},
-    fmt::Display,
 };
 
 use itertools::Itertools as _;
@@ -254,34 +253,7 @@ pub struct Beschreibung<'t, T> {
 /// [`Beschreibung`]
 pub type Description<'t, T> = Beschreibung<'t, T>;
 
-impl<'t, T: Display> Beschreibung<'t, T> {
-    /// Konvertiere den Standartwert in einen [`String`] über den [`Display`]-Trait
-    /// und gebe ihn als extra Wert zurück.
-    #[inline]
-    pub(crate) fn als_string_beschreibung(self) -> (Beschreibung<'t, String>, Option<T>) {
-        self.als_string_beschreibung_allgemein(ToString::to_string)
-    }
-}
-
 impl<'t, T> Beschreibung<'t, T> {
-    /// Konvertiere den Standartwert in einen [`String`] und gebe ihn als extra Wert zurück.
-    pub(crate) fn als_string_beschreibung_allgemein(
-        self,
-        anzeige: impl Fn(&T) -> String,
-    ) -> (Beschreibung<'t, String>, Option<T>) {
-        let Beschreibung { name: Name { lang_präfix, lang, kurz_präfix, kurz }, hilfe, standard } =
-            self;
-        let standard_str = standard.as_ref().map(anzeige);
-        (
-            Beschreibung {
-                name: Name { lang_präfix, lang, kurz_präfix, kurz },
-                hilfe,
-                standard: standard_str,
-            },
-            standard,
-        )
-    }
-
     /// Konvertiere eine [`Beschreibung`] zu einem anderen Typ.
     ///
     /// ## English synonym
@@ -308,7 +280,7 @@ impl<'t, T> Beschreibung<'t, T> {
     #[inline]
     pub fn as_ref(&self) -> Beschreibung<'t, &T> {
         let Beschreibung { name, hilfe, standard } = self;
-        Beschreibung { name: name.clone(), hilfe: hilfe.clone(), standard: standard.as_ref() }
+        Beschreibung { name: name.clone(), hilfe: *hilfe, standard: standard.as_ref() }
     }
 }
 
