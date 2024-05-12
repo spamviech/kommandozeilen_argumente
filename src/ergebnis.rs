@@ -55,6 +55,21 @@ impl<'t, T, E> Ergebnis<'t, T, E> {
         }
     }
 
+    /// Konvertiere einen Fehler-Wert mit der spezifizierten Funktion.
+    ///
+    /// ## English synonym
+    /// [`convert_error`](Result::convert_error)
+    #[inline]
+    pub fn konvertiere_fehler<F>(self, mapper: impl Fn(E) -> F) -> Ergebnis<'t, T, F> {
+        match self {
+            Ergebnis::Wert(wert) => Ergebnis::Wert(wert),
+            Ergebnis::FrühesBeenden(nachrichten) => Ergebnis::FrühesBeenden(nachrichten),
+            Ergebnis::Fehler(nonempty) => {
+                Ergebnis::Fehler(nonempty.map(|fehler| fehler.konvertiere(&mapper)))
+            },
+        }
+    }
+
     /// Convert a successfully parsed value using the specified function.
     ///
     /// ## Deutsches Synonym
@@ -62,6 +77,15 @@ impl<'t, T, E> Ergebnis<'t, T, E> {
     #[inline]
     pub fn convert<S>(self, mapper: impl FnOnce(T) -> S) -> Ergebnis<'t, S, E> {
         self.konvertiere(mapper)
+    }
+
+    /// Convert an error-value using the specified function.
+    ///
+    /// ## Deutsches Synonym
+    /// [`konvertiere_fehler`](Ergebnis::konvertiere_fehler)
+    #[inline]
+    pub fn convert_error<F>(self, mapper: impl Fn(E) -> F) -> Ergebnis<'t, T, F> {
+        self.konvertiere_fehler(mapper)
     }
 }
 
@@ -169,15 +193,7 @@ impl<'t, E> Fehler<'t, E> {
                 Fehler::FehlenderWert { name, wert_infix, meta_var }
             },
             Fehler::Fehler { name, wert_infix, meta_var, fehler } => {
-                let fehler = match fehler {
-                    ParseFehler::InvaliderString(os_string) => {
-                        ParseFehler::InvaliderString(os_string)
-                    },
-                    ParseFehler::ParseFehler(parse_fehler) => {
-                        ParseFehler::ParseFehler(mapper(parse_fehler))
-                    },
-                };
-                Fehler::Fehler { name, wert_infix, meta_var, fehler }
+                Fehler::Fehler { name, wert_infix, meta_var, fehler: fehler.konvertiere(mapper) }
             },
         }
     }
@@ -370,3 +386,28 @@ pub enum ParseFehler<E> {
 /// ## Deutsches Synonym
 /// [`ParseFehler`]
 pub type ParseError<E> = ParseFehler<E>;
+
+impl<E> ParseFehler<E> {
+    /// Konvertiere einen Fehler mit der spezifizierten Funktion.
+    ///
+    /// ## English synonym
+    /// [`convert`](Result::convert)
+    #[inline]
+    pub fn konvertiere<F>(self, mapper: impl FnOnce(E) -> F) -> ParseFehler<F> {
+        match self {
+            ParseFehler::InvaliderString(os_string) => ParseFehler::InvaliderString(os_string),
+            ParseFehler::ParseFehler(parse_fehler) => {
+                ParseFehler::ParseFehler(mapper(parse_fehler))
+            },
+        }
+    }
+
+    /// Convert an error using the specified function.
+    ///
+    /// ## Deutsches Synonym
+    /// [`konvertiere`](Ergebnis::konvertiere)
+    #[inline]
+    pub fn convert<F>(self, mapper: impl FnOnce(E) -> F) -> ParseError<F> {
+        self.konvertiere(mapper)
+    }
+}

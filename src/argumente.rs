@@ -22,7 +22,8 @@ use crate::{
         wert::Wert,
     },
     beschreibung::Beschreibung,
-    ergebnis::{Ergebnis, Error, Fehler},
+    dyn_to_owned,
+    ergebnis::{Ergebnis, Error, Fehler, ParseFehler},
     sprache::{Language, Sprache},
 };
 
@@ -641,6 +642,141 @@ impl<'t, T, F> Argumente<'t, T, F> {
     }
 }
 
+/// Hilf-Struktur um den Fehler-Typ für ein [`Kombiniere`] trait-Objekt anzupassen.
+struct KonvertiereKombiniereFehler<'t, T, Fehler, NeuerFehler> {
+    /// Die ursprünglichen Argumente.
+    kombiniere: Box<dyn 't + Kombiniere<'t, T, Fehler>>,
+    /// Die Funktion zum konvertieren des Fehlers.
+    konvertiere_fehler: Box<dyn 't + Fn(Fehler) -> NeuerFehler>,
+}
+
+impl<'t, T, Fehler, NeuerFehler> Kombiniere<'t, T, NeuerFehler>
+    for KonvertiereKombiniereFehler<'t, T, Fehler, NeuerFehler>
+{
+    fn parse(
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<OsString>>>,
+    ) -> (Ergebnis<'t, T, NeuerFehler>, Vec<Option<OsString>>) {
+        let (ergebnis, nicht_verwendet) = self.kombiniere.parse(args);
+        let konvertiert = ergebnis.konvertiere_fehler(self.konvertiere_fehler);
+        (konvertiert, nicht_verwendet)
+    }
+
+    fn erzeuge_hilfe_text(
+        &self,
+        variante: &dyn ErzeugeHilfeText,
+        meta_standard: &str,
+        meta_erlaubte_werte: &str,
+    ) -> NonEmpty<hilfe::Alternativen<'_>> {
+        self.kombiniere.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
+    }
+}
+
+impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
+    /// Konvertiere den Fehler mit der spezifizierten Funktion.
+    ///
+    /// ## English synonym
+    /// [`convert_error`](Self::convert_error)
+    #[inline]
+    pub fn konvertiere_fehler<NeuerFehler>(
+        self,
+        mapper: impl 't + Fn(Fehler) -> NeuerFehler + Clone,
+    ) -> Argumente<'t, T, NeuerFehler> {
+        match self {
+            Argumente::EinzelArgument(EinzelArgument::Flag(flag)) => Argumente::from(flag),
+            Argumente::EinzelArgument(EinzelArgument::FrühesBeenden { frühes_beenden, wert }) => {
+                Argumente::from((frühes_beenden, wert))
+            },
+            Argumente::EinzelArgument(EinzelArgument::Wert(Wert {
+                beschreibung,
+                wert_infix,
+                meta_var,
+                mögliche_werte,
+                parse,
+                anzeige,
+            })) => Argumente::from(Wert {
+                beschreibung,
+                wert_infix,
+                meta_var,
+                mögliche_werte,
+                parse: {
+                    let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, T, NeuerFehler>> =
+                        Box::new(move |os_str: &OsStr| {
+                            parse(os_str).map_err(|parse_fehler| -> ParseFehler<NeuerFehler> {
+                                parse_fehler.konvertiere(&mapper)
+                            })
+                        });
+                    Cow::Owned(boxed_parse)
+                },
+                anzeige,
+            }),
+            Argumente::Kombiniere(kombiniere) => {
+                Argumente::kombiniere(KonvertiereKombiniereFehler {
+                    kombiniere,
+                    konvertiere_fehler: Box::new(mapper),
+                })
+            },
+            Argumente::Alternativen(alternativen) => {
+                Argumente::from(alternativen.map(|alt| alt.konvertiere_fehler(mapper.clone())))
+            },
+        }
+    }
+
+    /// [`konvertiere_fehler`](Self::konvertiere_fehler) mit [`From::from`].
+    ///
+    /// ## English synonym
+    /// [`error_from`](Self::error_from)
+    #[inline]
+    pub fn fehler_from<NeuerFehler: From<Fehler>>(self) -> Argumente<'t, T, NeuerFehler> {
+        self.konvertiere_fehler(NeuerFehler::from)
+    }
+}
+
+impl<'t, T> Argumente<'t, T, Void> {
+    /// [`konvertiere_fehler`](Self::konvertiere_fehler) mit [`void::unreachable`].
+    ///
+    /// ## English synonym
+    /// [`error_from_void`](Self::error_from_void)
+    #[inline]
+    pub fn fehler_from_void<NeuerFehler>(self) -> Argumente<'t, T, NeuerFehler> {
+        self.konvertiere_fehler(|void| void::unreachable(void))
+    }
+}
+
+impl<'t, T, Fehler> Arguments<'t, T, Fehler> {
+    /// Convert the error with with given function.
+    ///
+    /// ## Deutsches Synonym
+    /// [`konvertiere_fehler`](Self::konvertiere_fehler)
+    #[inline]
+    pub fn convert_error<NewError>(
+        self,
+        mapper: impl 't + Fn(Fehler) -> NewError + Clone,
+    ) -> Arguments<'t, T, NewError> {
+        self.konvertiere_fehler(mapper)
+    }
+
+    /// [`convert_error`](Self::convert_error) with [`From::from`].
+    ///
+    /// ## Deutsches Synonym
+    /// [`fehler_from`](Self::fehler_from)
+    #[inline]
+    pub fn error_from<NeuerFehler: From<Fehler>>(self) -> Argumente<'t, T, NeuerFehler> {
+        self.fehler_from()
+    }
+}
+
+impl<'t, T> Arguments<'t, T, Void> {
+    /// [`convert_error`](Self::convert_error) with [`void::unreachable`].
+    ///
+    /// ## Deutsches Synonym
+    /// [`fehler_from_void`](Self::fehler_from_void)
+    #[inline]
+    pub fn error_from_void<NewError>(self) -> Arguments<'t, T, NewError> {
+        self.fehler_from_void()
+    }
+}
+
 impl<T, Fehler> Argumente<'_, T, Fehler> {
     /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
     ///
@@ -659,6 +795,7 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
         match self {
             Argumente::EinzelArgument(arg) => {
                 nonempty![hilfe::Alternativen::EinzelArgument(
+                    // TODO verwende variante!
                     arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)
                 )]
             },
@@ -668,6 +805,7 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
             Argumente::Alternativen(alternativen) => {
                 // TODO use alternativen.as_ref().flat_map(...), coming in nonempty > 0.10.0
                 NonEmpty::collect(alternativen.iter().map(|arg| {
+                    // TODO verwende variante!
                     hilfe::Alternativen::Alternativen(Box::new(arg.erzeuge_hilfe_text(
                         variante,
                         meta_standard,

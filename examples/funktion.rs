@@ -88,7 +88,7 @@ impl Display for Args {
 
 fn main() {
     let sprache = Sprache::DEUTSCH;
-    let flag = Argumente::einzel_argument(EinzelArgument::flag(Flag::neu_mit_sprache(
+    let flag = Argumente::einzel_argument(EinzelArgument::from(Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache(
             "flag",
             None::<&str>,
@@ -98,7 +98,7 @@ fn main() {
         ),
         sprache,
     )));
-    let umbenannt = Argumente::einzel_argument(EinzelArgument::flag(Flag::neu_mit_sprache(
+    let umbenannt = Argumente::einzel_argument(EinzelArgument::from(Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache(
             NonEmpty { head: "andere", tail: vec!["namen"] },
             "u",
@@ -108,7 +108,7 @@ fn main() {
         ),
         sprache,
     )));
-    let benötigt = Argumente::einzel_argument(EinzelArgument::flag(Flag {
+    let benötigt = Argumente::einzel_argument(EinzelArgument::from(Flag {
         beschreibung: Beschreibung::neu_mit_sprache(
             "benötigt",
             "b",

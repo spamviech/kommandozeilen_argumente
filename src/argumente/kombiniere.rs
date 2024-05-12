@@ -27,7 +27,7 @@ macro_rules! kombiniere {
         #[allow(clippy::shadow_unrelated, clippy::shadow_same, clippy::shadow_reuse)]
         {
             let kombiniere = $crate::argumente::Argumente::kombiniere((|first, second| (first, second), $a, $b));
-            let uncurry_f = |(first, second) $(, $tail)*| $f(first, second $(, $tail)*);
+            let uncurry_f = move |(first, second) $(, $tail)*| $f(first, second $(, $tail)*);
             $crate::kombiniere!(uncurry_f, kombiniere $(, $tail)*)
         }
     }};
@@ -70,26 +70,6 @@ pub trait Kombiniere<'t, T, Fehler> {
     ) -> NonEmpty<hilfe::Alternativen<'_>>;
 }
 
-impl<'t, T, Fehler> Kombiniere<'t, T, Fehler> for Void {
-    #[inline]
-    fn parse(
-        self: Box<Self>,
-        _args: Box<dyn '_ + Iterator<Item = Option<OsString>>>,
-    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
-        void::unreachable(*self)
-    }
-
-    #[inline]
-    fn erzeuge_hilfe_text(
-        &self,
-        _variante: &dyn ErzeugeHilfeText,
-        _meta_standard: &str,
-        _meta_erlaubte_werte: &str,
-    ) -> NonEmpty<hilfe::Alternativen<'_>> {
-        void::unreachable(*self)
-    }
-}
-
 // TODO Kurz-Namen verschmelzen
 // TODO erlaube impl Into<Argumente>
 /// Implementiere das [`Kombiniere`]-trait für ein Tupel (f, a0, a1, ...)
@@ -98,24 +78,20 @@ macro_rules! impl_kombiniere_tuple {
         paste! {
             impl <
                 't, $([<'t $suffix:snake:lower>],)+ F, T, Fehler,
-                $(
-                    [<T $suffix:camel>],
-                    [<Fehler $suffix:camel>],
-                )+
+                $([<T $suffix:camel>],)+
             >
                 Kombiniere<'t, T, Fehler> for (
                     F,
                     $(Argumente<
                         [<'t $suffix:snake:lower>],
                         [<T $suffix:camel>],
-                        [<Fehler $suffix:camel>],
+                        Fehler,
                     >),+
                 )
             where
                 F: Fn($([<T $suffix:camel>]),+) -> T,
                 $(
                     [<'t $suffix:snake:lower>]: 't,
-                    Fehler: From<[<Fehler $suffix:camel>]>,
                 )+
             {
                 #[inline]
@@ -135,11 +111,7 @@ macro_rules! impl_kombiniere_tuple {
                             Ergebnis::Wert(wert) => [<wert_ $suffix:snake:lower>] = Some(wert),
                             Ergebnis::FrühesBeenden(nachrichten) => alle_frühes_beenden.extend(nachrichten),
                             Ergebnis::Fehler(fehler_liste) => {
-                                alle_fehler.extend(
-                                    fehler_liste
-                                        .into_iter()
-                                        .map(|fehler| fehler.konvertiere(Fehler::from))
-                                )
+                                alle_fehler.extend(fehler_liste)
                             },
                         }
                     )+
