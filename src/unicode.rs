@@ -96,16 +96,26 @@ impl<'t> Normalisiert<'t> {
     /// optional [`ohne Groß-/Kleinschreibung zu beachten`](unicase::eq).
     ///
     /// ## English
-    /// Check whether two Strings are identical after unicode normalization,
-    /// optionally in a [`case-insensitive way`](unicase::eq).
+    /// [`eq_with_case`](Self::eq_with_case)
     #[inline]
     #[must_use]
-    pub fn eq(&self, string: &str, case_sensitive: Case) -> bool {
+    pub fn eq_mit_case(&self, string: &str, case_sensitive: Case) -> bool {
         let normalisiert = Normalisiert::neu(string);
         match case_sensitive {
             Case::Sensitive => *self == normalisiert,
             Case::Insensitive => unicase::eq(self, &normalisiert),
         }
+    }
+
+    /// Check whether two Strings are identical after unicode normalization,
+    /// optionally in a [`case-insensitive way`](unicase::eq).
+    ///
+    /// ## Deutsches Synonym
+    /// [`eq_mit_case`](Self::eq_mit_case)
+    #[inline]
+    #[must_use]
+    pub fn eq_with_case(&self, string: &str, case_sensitive: Case) -> bool {
+        self.eq_mit_case(string, case_sensitive)
     }
 
     /// Erhalte eine Referenz auf den [`Cow`], der den normalisierten Unicode String enthält.
@@ -248,7 +258,7 @@ impl PartialEq<str> for Vergleich<'_> {
     #[inline]
     fn eq(&self, gesucht: &str) -> bool {
         let Vergleich { string, case } = self;
-        string.eq(gesucht, *case)
+        string.eq_mit_case(gesucht, *case)
     }
 }
 
