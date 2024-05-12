@@ -131,20 +131,16 @@ fn main() {
         ),
         sprache,
     ));
-    let aufzählung = Argumente::from(Wert {
-        beschreibung: Beschreibung::neu_mit_sprache(
+    let aufzählung = Argumente::from(Wert::neu_enum_mit_sprache(
+        Beschreibung::neu_mit_sprache(
             "aufzählung",
             "a",
             Some("Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable."),
             Some(Aufzählung::Zwei),
             sprache,
         ),
-        wert_infix: Vergleich::from(sprache.wert_infix),
-        meta_var: "VAR",
-        mögliche_werte: EnumArgument::varianten(),
-        parse: Cow::Borrowed(&EnumArgument::parse_enum),
-        anzeige: Cow::Borrowed(&ToString::to_string),
-    });
+        sprache,
+    ));
     #[allow(clippy::shadow_unrelated)]
     let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung| Args {
         flag,

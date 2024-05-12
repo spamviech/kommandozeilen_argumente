@@ -131,20 +131,16 @@ fn main() {
         ),
         language,
     ));
-    let enumeration = Arguments::from(Wert {
-        beschreibung: Description::new_with_language(
+    let enumeration = Arguments::from(Wert::new_enum_with_language(
+        Description::new_with_language(
             "enumeration",
             "e",
             Some("An Enumeration-value with default value and alternative meta variable."),
             Some(Enumeration::Two),
             language,
         ),
-        wert_infix: Compare::from(language.wert_infix),
-        meta_var: "VAR",
-        mögliche_werte: EnumArgument::variants(),
-        parse: Cow::Borrowed(&EnumArgument::parse_enum),
-        anzeige: Cow::Borrowed(&ToString::to_string),
-    });
+        language,
+    ));
     #[allow(clippy::shadow_unrelated)]
     let merge = |flag, renamed, required, value, enumeration| Args {
         flag,

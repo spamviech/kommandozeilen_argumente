@@ -166,7 +166,9 @@ impl<'t, T: Display + FromStr> Wert<'t, T, <T as FromStr>::Err> {
             anzeige: Cow::Borrowed(&<T as ToString>::to_string),
         }
     }
+}
 
+impl<'t, T: Display + FromStr> Value<'t, T, <T as FromStr>::Err> {
     /// Create a value-argument, based on the [`FromStr`]-implementation.
     ///
     /// ## Deutsches Synonym
@@ -187,6 +189,53 @@ impl<'t, T: Display + FromStr> Wert<'t, T, <T as FromStr>::Err> {
         language: Language,
     ) -> Self {
         Wert::neu_mit_sprache(description, possible_values, language)
+    }
+}
+
+impl<'t, T: Display + EnumArgument> Wert<'t, T, String> {
+    /// Erzeuge ein Wert-Argument, ausgehend von der [`FromStr`]-Implementierung.
+    ///
+    /// ## English synonym
+    /// [`new_enum`](Wert::new_enum)
+    #[inline]
+    pub fn neu_enum(beschreibung: Beschreibung<'t, T>) -> Self {
+        Wert::neu_enum_mit_sprache(beschreibung, Sprache::DEUTSCH)
+    }
+
+    /// Erzeuge ein Wert-Argument, ausgehend von der [`FromStr`]-Implementierung.
+    ///
+    /// ## English synonym
+    /// [`new_enum_with_language`](Wert::new_enum_with_language)
+    #[inline]
+    pub fn neu_enum_mit_sprache(beschreibung: Beschreibung<'t, T>, sprache: Sprache) -> Self {
+        Wert {
+            beschreibung,
+            wert_infix: Vergleich::from(sprache.wert_infix),
+            meta_var: sprache.meta_var,
+            mögliche_werte: EnumArgument::varianten(),
+            parse: Cow::Borrowed(&EnumArgument::parse_enum),
+            anzeige: Cow::Borrowed(&<T as ToString>::to_string),
+        }
+    }
+}
+
+impl<'t, T: Display + EnumArgument> Value<'t, T, String> {
+    /// Create a value-argument, based on the [`EnumArgument`]-implementation.
+    ///
+    /// ## Deutsches Synonym
+    /// [`neu_enum`](Wert::neu_enum)
+    #[inline]
+    pub fn new_enum(description: Description<'t, T>) -> Self {
+        Wert::new_enum_with_language(description, Language::ENGLISH)
+    }
+
+    /// Create a value-argument, based on the [`EnumArgument`]-implementation.
+    ///
+    /// ## Deutsches Synonym
+    /// [`neu_enum_mit_sprache`](Wert::neu_enum_mit_sprache)
+    #[inline]
+    pub fn new_enum_with_language(description: Description<'t, T>, language: Language) -> Self {
+        Wert::neu_enum_mit_sprache(description, language)
     }
 }
 
