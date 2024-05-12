@@ -75,6 +75,7 @@ impl Name<'_> {
                     // kein match für {lang_präfix}[invertiert_infix]{lang_name}
                 }
             } else if name_kurz_existiert {
+                // TODO Kurz-Namen verschmelzen
                 if let Some(kurz_graphemes) = kurz_präfix.strip_als_präfix_n(&normalisiert) {
                     if kurz_graphemes
                         .as_str()

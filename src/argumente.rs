@@ -43,17 +43,7 @@ pub use self::wert::EnumArgument;
 // TODO Name/Version für Hilfetext angeben, als alternative für macros (derive-Feature)
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
-// TODO Argument-Gruppen (nur eine dieser N Flags kann gleichzeitig aktiv sein)
-// TODO Feature-gates für automatische Hilfe, verschmelzen von flag-kurzformen, ...
-//      benötigen extra Felder in Argumente-Struktur, könnte Performance verbessern
 // TODO tests mit Unicode-namen
-// TODO OneOf/Either für alternative Parse-Möglichkeiten
-//      alternativ-Methode (analog kombinierte2), besondere Methode für Either-Typen?
-// TODO Standard-Wert, sofern nur der Name gegeben ist (unterschiedlich zu Name kommt nicht vor)
-//      z.B. nichts: -O0, -O: -O1, -O=N für explizite Angabe
-//      vgl. mit Flag-Argumenten, kann zu parse-Problemen wegen Mehrdeutigkeit führen
-//      kann durch alternativ-Methode erzeugt werden (erst Wert, dann Flag)
-//          dazu spezialisierte Methode bereitstellen
 
 /// Konfiguration der Kommandozeilen-Argumente.
 ///
@@ -260,7 +250,6 @@ impl<'t, T, F> Argumente<'t, T, F> {
             EinzelArgument(arg) => arg.parse(args),
             Kombiniere(kombiniere) => kombiniere.parse(Box::new(args)),
             Alternativen(alternativen) => {
-                // TODO only accept parsing without leftover args?
                 let NonEmpty { head, tail } = *alternativen;
                 let args_vec: Vec<_> = args.into_iter().collect();
                 tail.into_iter().fold(

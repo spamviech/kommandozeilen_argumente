@@ -95,8 +95,6 @@ impl<'t, T, Fehler, F: FnOnce() -> T> Kombiniere<'t, T, Fehler> for F {
     }
 }
 
-// TODO Kurz-Namen verschmelzen
-// TODO erlaube impl Into<Argumente>
 /// Implementiere das [`Kombiniere`]-trait für ein Tupel (f, a0, a1, ...)
 macro_rules! impl_kombiniere_tuple {
     ($($suffix: ident),+ $(,)?) => {
