@@ -34,13 +34,6 @@ fn hilfe_test() {
     let arg = Argumente::einzel_argument(einzelargument);
     let arg_mit_hilfe = arg.mit_hilfe_frühes_beenden_mit_sprache(
         &Standard,
-        Beschreibung::neu_mit_sprache(
-            sprache.hilfe_lang,
-            sprache.hilfe_kurz,
-            Some(sprache.hilfe_beschreibung),
-            None,
-            sprache,
-        ),
         "programm",
         Some("Mein Tolles Programm."),
         Some("0.test"),

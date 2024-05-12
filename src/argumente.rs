@@ -25,6 +25,7 @@ use crate::{
     dyn_to_owned,
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler},
     sprache::{Language, Sprache},
+    Description,
 };
 
 pub mod einzelargument;
@@ -165,29 +166,56 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
 impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Erzeuge eine [`Argumente::Kombiniere`]-Variante mit sinnvollen Typ-Parametern.
     ///
-    /// ## English
-    /// Create a [`Argumente::Kombiniere`]-variant with sensible type parameters.
+    /// ## English synonym
+    /// [`combine`](Self::combine)
     #[inline]
     pub fn kombiniere(kombiniere: impl 't + Kombiniere<'t, T, Fehler>) -> Self {
         Argumente::Kombiniere(Box::new(kombiniere))
     }
 
+    /// Create a [`Argumente::Kombiniere`]-variant with sensible type parameters.
+    ///
+    /// ## Deutsches Synonym
+    /// [`kombiniere`](Self::combine)
+    #[inline]
+    pub fn combine(combine: impl 't + Kombiniere<'t, T, Fehler>) -> Self {
+        Self::kombiniere(combine)
+    }
+
     /// Erzeuge eine [`Argumente::Alternativen`]-Variante mit sinnvollen Typ-Parametern.
     ///
-    /// ## English
-    /// Create a [`Argumente::Alternativen`]-variant with sensible type parameters.
+    /// ## English synonym
+    /// [`alternatives`](Self::alternatives)
     #[inline]
     pub fn alternativen(alternativen: NonEmpty<Self>) -> Self {
         Argumente::Alternativen(Box::new(alternativen))
     }
 
+    /// Create a [`Argumente::Alternativen`]-variant with sensible type parameters.
+    ///
+    /// ## Deutsches Synonym
+    /// [`alternativen`](Self::alternativen)
+    #[inline]
+    pub fn alternatives(alternatives: NonEmpty<Self>) -> Self {
+        Self::alternativen(alternatives)
+    }
+
     /// Erzeuge eine [`Argumente::Alternativen`]-Variante mit sinnvollen Typ-Parametern.
     ///
-    /// ## English
-    /// Create a [`Argumente::Alternativen`]-variant with sensible type parameters.
+    /// ## English synonym
+    /// [`alternatives_boxed`](Self::alternatives_boxed)
     #[inline]
     pub fn alternativen_boxed(alternativen: Box<NonEmpty<Self>>) -> Self {
         Argumente::Alternativen(alternativen)
+    }
+
+    /// Create a [`Argumente::Alternativen`]-variant with sensible type parameters.
+    ///
+    /// ## Deutsches Synonym
+    /// [`alternativen_boxed`](Self::alternativen_boxed)
+    #[inline]
+    pub fn alternatives_boxed(alternatives: Box<NonEmpty<Self>>) -> Self {
+        Self::alternativen_boxed(alternatives)
     }
 }
 
@@ -805,7 +833,6 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
             Argumente::Alternativen(alternativen) => {
                 // TODO use alternativen.as_ref().flat_map(...), coming in nonempty > 0.10.0
                 NonEmpty::collect(alternativen.iter().map(|arg| {
-                    // TODO verwende variante!
                     hilfe::Alternativen::Alternativen(Box::new(arg.erzeuge_hilfe_text(
                         variante,
                         meta_standard,
@@ -821,8 +848,8 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
 impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch die Programm-Version anzeigt wird.
     ///
-    /// ## English
-    /// Add an [`EarlyExit`](crate::frühes_beenden::EarlyExit`)-flag, showing the program version.
+    /// ## English synonym
+    /// [`with_version_early_exit`](Self::with_version_early_exit)
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn mit_version_frühes_beenden(
@@ -841,17 +868,36 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
         Argumente::kombiniere(kombiniere)
     }
 
+    /// Variante von [`mit_version_frühes_beenden`](Self::mit_version_frühes_beenden),
+    /// basierend auf einer [`Sprache`].
+    ///
+    /// ## English synonym
+    /// [`with_version_early_exit_with_language`](Self::with_version_early_exit_with_language)
+    #[inline]
+    pub fn mit_version_frühes_beenden_mit_sprache(
+        self,
+        programm_name: &str,
+        programm_version: &str,
+        sprache: Sprache,
+    ) -> Self {
+        let eigene_beschreibung = Beschreibung::neu_mit_sprache(
+            sprache.version_lang,
+            sprache.version_kurz,
+            Some(sprache.version_beschreibung),
+            None,
+            sprache,
+        );
+        self.mit_version_frühes_beenden(eigene_beschreibung, programm_name, programm_version)
+    }
+
     /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch der Hilfe-Text für alle Argumente anzeigt wird.
     ///
     /// ### Panics
     /// Wenn die Syntax-Beschreibung (inklusive normalem + Alternativen-Präfix) für ein Argument
     /// länger als [`usize::MAX`] ist.
     ///
-    /// ## English
-    /// Add an [`EarlyExit`](crate::frühes_beenden::EarlyExit`)-Flag, showing the help text for all arguments.
-    ///
-    /// ### Panics
-    /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
+    /// ## English synonym
+    /// [`with_help_early_exit`](Self::with_help_early_exit)
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn mit_hilfe_frühes_beenden(
@@ -916,19 +962,24 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Variante von [`mit_hilfe_frühes_beenden`](Self::mit_hilfe_frühes_beenden),
     /// basierend auf einer [`Sprache`].
     ///
-    /// ## English
-    /// Variant of [`mit_hilfe_frühes_beenden`](Self::mit_hilfe_frühes_beenden),
-    /// based on a [`Language`](crate::sprache::Language).
+    /// ## English synonym
+    /// [`with_help_early_exit_with_language`](Self::with_help_early_exit_with_language)
     #[inline]
     pub fn mit_hilfe_frühes_beenden_mit_sprache(
         self,
         variante: &dyn ErzeugeHilfeText,
-        eigene_beschreibung: Beschreibung<'t, Void>,
         programm_name: &str,
         programm_beschreibung: Option<&str>,
         programm_version: Option<&str>,
         sprache: Sprache,
     ) -> Self {
+        let eigene_beschreibung = Beschreibung::neu_mit_sprache(
+            sprache.hilfe_lang,
+            sprache.hilfe_kurz,
+            Some(sprache.hilfe_beschreibung),
+            None,
+            sprache,
+        );
         self.mit_hilfe_frühes_beenden(
             variante,
             eigene_beschreibung,
@@ -952,12 +1003,8 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Wenn die Syntax-Beschreibung (inklusive normalem + Alternativen-Präfix) für ein Argument
     /// länger als [`usize::MAX`] ist.
     ///
-    /// ## English
-    /// Add [`EarlyExit`](crate::frühes_beenden::EarlyExit`)-Flags, showing the program version,
-    /// or the help text for all arguments.
-    ///
-    /// ### Panics
-    /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
+    /// ## English synonym
+    /// [`with_help_and_version_early_exit`](Self::with_help_and_version_early_exit)
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn mit_hilfe_und_version_frühes_beenden(
@@ -995,20 +1042,32 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
 
     /// Variante von [`mit_hilfe_und_version_frühes_beenden`](Argumente::mit_hilfe_und_version_frühes_beenden).
     ///
-    /// ## English
-    /// Variant of [`mit_hilfe_und_version_frühes_beenden`](Argumente::mit_hilfe_und_version_frühes_beenden).
+    /// ## English synonym
+    /// [`with_help_and_version_early_exit_with_language`](Self::with_help_and_version_early_exit_with_language)
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn mit_hilfe_und_version_frühes_beenden_mit_sprache(
         self,
         variante: &dyn ErzeugeHilfeText,
-        version_beschreibung: Beschreibung<'t, Void>,
-        hilfe_beschreibung: Beschreibung<'t, Void>,
         programm_name: &str,
         programm_beschreibung: Option<&str>,
         programm_version: &str,
         sprache: Sprache,
     ) -> Self {
+        let version_beschreibung = Beschreibung::neu_mit_sprache(
+            sprache.version_lang,
+            sprache.version_kurz,
+            Some(sprache.version_beschreibung),
+            None,
+            sprache,
+        );
+        let hilfe_beschreibung = Beschreibung::neu_mit_sprache(
+            sprache.hilfe_lang,
+            sprache.hilfe_kurz,
+            Some(sprache.hilfe_beschreibung),
+            None,
+            sprache,
+        );
         self.mit_hilfe_und_version_frühes_beenden(
             variante,
             version_beschreibung,
@@ -1023,6 +1082,167 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
             sprache.syntax_padding,
             sprache.alternative_präfix,
             sprache.alternative_trennzeichen,
+        )
+    }
+}
+
+impl<'t, T, Error> Arguments<'t, T, Error> {
+    /// Add an [`EarlyExit`](crate::argumente::frühes_beenden::EarlyExit`)-flag, showing the program version.
+    ///
+    /// ## Deutsches Synonym
+    /// [`mit_version_frühes_beenden`](Self::mit_version_frühes_beenden)
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_version_early_exit(
+        self,
+        arg_description: Beschreibung<'t, Void>,
+        program_name: &str,
+        program_version: &str,
+    ) -> Self {
+        self.mit_version_frühes_beenden(arg_description, program_name, program_version)
+    }
+
+    /// Variant of [`mit_version_frühes_beenden`](Self::mit_version_frühes_beenden),
+    /// based on a [`Language`](crate::sprache::Language).
+    ///
+    /// ## Deutsches Synonym
+    /// [`mit_version_frühes_beenden_mit_sprache`](Self::mit_version_frühes_beenden_mit_sprache)
+    #[inline]
+    pub fn with_version_early_exit_with_language(
+        self,
+        program_name: &str,
+        program_version: &str,
+        language: Language,
+    ) -> Self {
+        self.mit_version_frühes_beenden_mit_sprache(program_name, program_version, language)
+    }
+    /// Add an [`EarlyExit`](crate::argumente::frühes_beenden::EarlyExit`)-Flag, showing the help text for all arguments.
+    ///
+    /// ### Panics
+    /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
+    ///
+    /// ## Deutsches Synonym
+    /// [`mit_hilfe_frühes_beenden`](Self::mit_hilfe_frühes_beenden)
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_help_early_exit(
+        self,
+        variant: &dyn ErzeugeHilfeText,
+        arg_description: Beschreibung<'t, Void>,
+        program_name: &str,
+        program_description: Option<&str>,
+        program_version: Option<&str>,
+        meta_standard: &str,
+        meta_possible_values: &str,
+        meta_options: &str,
+        meta_syntax_prefix: &str,
+        meta_syntax_padding: char,
+        meta_alternative_prefix: &str,
+        meta_alternative_separator: char,
+    ) -> Self {
+        self.mit_hilfe_frühes_beenden(
+            variant,
+            arg_description,
+            program_name,
+            program_description,
+            program_version,
+            meta_standard,
+            meta_possible_values,
+            meta_options,
+            meta_syntax_prefix,
+            meta_syntax_padding,
+            meta_alternative_prefix,
+            meta_alternative_separator,
+        )
+    }
+    /// Add [`EarlyExit`](crate::argumente::frühes_beenden::EarlyExit`)-Flags, showing the program version,
+    /// or the help text for all arguments.
+    ///
+    /// ### Panics
+    /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
+    ///
+    /// ## Deutsches Synonym
+    /// [`mit_hilfe_und_version_frühes_beenden`](Self::mit_hilfe_und_version_frühes_beenden)
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_help_and_version_early_exit(
+        self,
+        variant: &dyn ErzeugeHilfeText,
+        version_description: Description<'t, Void>,
+        help_description: Description<'t, Void>,
+        program_name: &str,
+        program_description: Option<&str>,
+        program_version: &str,
+        meta_standard: &str,
+        meta_possible_values: &str,
+        meta_options: &str,
+        meta_syntax_prefix: &str,
+        meta_syntax_padding: char,
+        meta_alternative_prefix: &str,
+        meta_alternative_separator: char,
+    ) -> Self {
+        self.mit_hilfe_und_version_frühes_beenden(
+            variant,
+            version_description,
+            help_description,
+            program_name,
+            program_description,
+            program_version,
+            meta_standard,
+            meta_possible_values,
+            meta_options,
+            meta_syntax_prefix,
+            meta_syntax_padding,
+            meta_alternative_prefix,
+            meta_alternative_separator,
+        )
+    }
+
+    /// Variant of [`with_help_early_exit`](Argumente::with_help_early_exit)
+    /// based on a [`Language`](crate::sprache::Language).
+    ///
+    /// ## Deutsches Synonym
+    /// [`mit_hilfe_frühes_beenden_mit_sprache`](Argumente::mit_hilfe_frühes_beenden_mit_sprache).
+    #[inline]
+    pub fn with_help_early_exit_with_language(
+        self,
+        variant: &dyn ErzeugeHilfeText,
+        program_name: &str,
+        program_beschreibung: Option<&str>,
+        program_version: Option<&str>,
+        language: Language,
+    ) -> Self {
+        self.mit_hilfe_frühes_beenden_mit_sprache(
+            variant,
+            program_name,
+            program_beschreibung,
+            program_version,
+            language,
+        )
+    }
+
+    /// Variant of [`with_help_early_exit`](Argumente::with_help_early_exit)
+    /// and [`with_version_early_exit`](Argumente::with_version_early_exit),
+    /// based on a [`Language`](crate::sprache::Language).
+    ///
+    /// ## Deutsches Synonym
+    /// [`mit_hilfe_und_version_frühes_beenden_mit_sprache`](Argumente::mit_hilfe_und_version_frühes_beenden_mit_sprache).
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_help_and_version_early_exit_with_language(
+        self,
+        variant: &dyn ErzeugeHilfeText,
+        program_name: &str,
+        program_description: Option<&str>,
+        program_version: &str,
+        language: Language,
+    ) -> Self {
+        self.mit_hilfe_und_version_frühes_beenden_mit_sprache(
+            variant,
+            program_name,
+            program_description,
+            program_version,
+            language,
         )
     }
 }

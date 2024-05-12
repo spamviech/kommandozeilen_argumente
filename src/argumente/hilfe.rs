@@ -67,13 +67,6 @@ pub trait ErzeugeHilfeText {
 #[derive(Debug, Clone, Copy)]
 pub struct Standard;
 
-/// Default-Variant to create the help-text for a single argument, e.g.:
-/// `  --help | -h    Show this text.`
-///
-/// ## Deutsches Synonym
-/// [`Standard`]
-pub type Default = Standard;
-
 #[allow(deprecated)]
 impl ErzeugeHilfeText for Standard {
     #[inline]
@@ -84,5 +77,26 @@ impl ErzeugeHilfeText for Standard {
         meta_erlaubte_werte: &'t str,
     ) -> Hilfe<'t> {
         arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)
+    }
+}
+
+/// Default-Variant to create the help-text for a single argument, e.g.:
+/// `  --help | -h    Show this text.`
+///
+/// ## Deutsches Synonym
+/// [`Standard`]
+#[derive(Debug, Clone, Copy)]
+pub struct Default;
+
+#[allow(deprecated)]
+impl ErzeugeHilfeText for Default {
+    #[inline]
+    fn erzeuge_hilfe_text<'t>(
+        &self,
+        arg: &'t EinzelArgument<'t, String, String>,
+        meta_standard: &'t str,
+        meta_erlaubte_werte: &'t str,
+    ) -> Hilfe<'t> {
+        Standard.erzeuge_hilfe_text(arg, meta_standard, meta_erlaubte_werte)
     }
 }

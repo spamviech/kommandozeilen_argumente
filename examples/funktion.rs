@@ -14,7 +14,7 @@ use std::{
 use nonempty::{nonempty, NonEmpty};
 
 use kommandozeilen_argumente::{
-    argumente::{einzelargument::EinzelArgument, flag::Flag, hilfe::Standard, wert::Wert},
+    argumente::{flag::Flag, hilfe::Standard, wert::Wert},
     crate_name, crate_version, kombiniere, Argumente, Beschreibung, EnumArgument, ParseArgument,
     ParseFehler, Sprache, Vergleich,
 };
@@ -88,7 +88,7 @@ impl Display for Args {
 
 fn main() {
     let sprache = Sprache::DEUTSCH;
-    let flag = Argumente::einzel_argument(EinzelArgument::from(Flag::neu_mit_sprache(
+    let flag = Argumente::from(Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache(
             "flag",
             None::<&str>,
@@ -97,8 +97,8 @@ fn main() {
             sprache,
         ),
         sprache,
-    )));
-    let umbenannt = Argumente::einzel_argument(EinzelArgument::from(Flag::neu_mit_sprache(
+    ));
+    let umbenannt = Argumente::from(Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache(
             NonEmpty { head: "andere", tail: vec!["namen"] },
             "u",
@@ -107,8 +107,8 @@ fn main() {
             sprache,
         ),
         sprache,
-    )));
-    let benötigt = Argumente::einzel_argument(EinzelArgument::from(Flag {
+    ));
+    let benötigt = Argumente::from(Flag {
         beschreibung: Beschreibung::neu_mit_sprache(
             "benötigt",
             "b",
@@ -120,7 +120,7 @@ fn main() {
         invertiere_infix: Vergleich::from(sprache.invertiere_infix),
         konvertiere: Cow::Borrowed(&identity),
         anzeige: Cow::Borrowed(&ToString::to_string),
-    }));
+    });
     let wert = Argumente::einzel_argument(String::argumente_mit_sprache(
         Beschreibung::neu_mit_sprache(
             "wert",
@@ -131,7 +131,7 @@ fn main() {
         ),
         sprache,
     ));
-    let aufzählung = Argumente::einzel_argument(EinzelArgument::wert(Wert {
+    let aufzählung = Argumente::from(Wert {
         beschreibung: Beschreibung::neu_mit_sprache(
             "aufzählung",
             "a",
@@ -144,7 +144,7 @@ fn main() {
         mögliche_werte: EnumArgument::varianten(),
         parse: Cow::Borrowed(&EnumArgument::parse_enum),
         anzeige: Cow::Borrowed(&ToString::to_string),
-    }));
+    });
     #[allow(clippy::shadow_unrelated)]
     let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung| Args {
         flag,
@@ -153,25 +153,10 @@ fn main() {
         wert,
         aufzählung,
     };
-    let argumente: Argumente<'_, _, String> =
-        kombiniere!(zusammenfassen, flag, umbenannt, benötigt, wert, aufzählung);
+    let argumente = kombiniere!(zusammenfassen, flag, umbenannt, benötigt, wert, aufzählung);
     let argumente_mit_hilfe_und_version = argumente
         .mit_hilfe_und_version_frühes_beenden_mit_sprache(
             &Standard,
-            Beschreibung::neu_mit_sprache(
-                "version",
-                "v",
-                Some("Zeige die Version an."),
-                None,
-                sprache,
-            ),
-            Beschreibung::neu_mit_sprache(
-                "hilfe",
-                "h",
-                Some("Zeige diesen Text an."),
-                None,
-                sprache,
-            ),
             crate_name!(),
             Some("Programm-Beschreibung."),
             crate_version!(),

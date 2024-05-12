@@ -4,6 +4,8 @@
 #![allow(unused_crate_dependencies)]
 
 use std::{
+    borrow::Cow,
+    convert::identity,
     ffi::{OsStr, OsString},
     fmt::{self, Debug, Display},
     num::NonZeroI32,
@@ -12,8 +14,9 @@ use std::{
 use nonempty::nonempty;
 
 use kommandozeilen_argumente::{
-    combine, crate_name, crate_version, Arguments, Description, EnumArgument, Language, NonEmpty,
-    ParseArgument, ParseError,
+    argumente::{flag::Flag, hilfe::Default, wert::Wert},
+    combine, crate_name, crate_version, Arguments, Compare, Description, EnumArgument, Language,
+    NonEmpty, ParseArgument, ParseError,
 };
 
 /// An example enum, to show the use of [`EnumArgument`].
@@ -85,7 +88,7 @@ impl Display for Args {
 
 fn main() {
     let language = Language::ENGLISH;
-    let flag = Arguments::flag_bool_with_language(
+    let flag = Arguments::from(Flag::new_with_language(
         Description::new_with_language(
             "flag",
             None::<&str>,
@@ -94,8 +97,8 @@ fn main() {
             language,
         ),
         language,
-    );
-    let renamed = Arguments::flag_bool_with_language(
+    ));
+    let renamed = Arguments::from(Flag::new_with_language(
         Description::new_with_language(
             NonEmpty { head: "other", tail: vec!["names"] },
             "u",
@@ -104,19 +107,21 @@ fn main() {
             language,
         ),
         language,
-    );
-    let required = Arguments::flag_bool(
-        Description::new_with_language(
+    ));
+    let required = Arguments::from(Flag {
+        beschreibung: Description::new_with_language(
             "required",
             "r",
             Some("A flag without default value, with alternative prefix to invert the flag."),
             None,
             language,
         ),
-        "kein",
-        language.invertiere_infix,
-    );
-    let value = String::arguments_with_language(
+        invertiere_präfix: Compare::from("kein"),
+        invertiere_infix: Compare::from(language.invertiere_infix),
+        konvertiere: Cow::Borrowed(&identity),
+        anzeige: Cow::Borrowed(&ToString::to_string),
+    });
+    let value = Arguments::from(String::arguments_with_language(
         Description::new_with_language(
             "value",
             None::<&str>,
@@ -125,18 +130,21 @@ fn main() {
             language,
         ),
         language,
-    );
-    let enumeration = Arguments::value_enum_display(
-        Description::new_with_language(
+    ));
+    let enumeration = Arguments::from(Wert {
+        beschreibung: Description::new_with_language(
             "enumeration",
             "e",
             Some("An Enumeration-value with default value and alternative meta variable."),
             Some(Enumeration::Two),
             language,
         ),
-        language.wert_infix,
-        "VAR",
-    );
+        wert_infix: Compare::from(language.wert_infix),
+        meta_var: "VAR",
+        mögliche_werte: EnumArgument::variants(),
+        parse: Cow::Borrowed(&EnumArgument::parse_enum),
+        anzeige: Cow::Borrowed(&ToString::to_string),
+    });
     #[allow(clippy::shadow_unrelated)]
     let merge = |flag, renamed, required, value, enumeration| Args {
         flag,
@@ -146,7 +154,8 @@ fn main() {
         enumeration,
     };
     let argumente = combine!(merge, flag, renamed, required, value, enumeration)
-        .hilfe_und_version_mit_sprache(
+        .with_help_and_version_early_exit_with_language(
+            &Default,
             crate_name!(),
             Some("Programm-Description."),
             crate_version!(),
