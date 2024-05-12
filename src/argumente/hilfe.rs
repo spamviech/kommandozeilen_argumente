@@ -1,7 +1,5 @@
 //! Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
 
-use std::borrow::Cow;
-
 use nonempty::NonEmpty;
 
 use crate::argumente::einzelargument::EinzelArgument;
@@ -11,7 +9,7 @@ use crate::argumente::einzelargument::EinzelArgument;
 /// ## English
 /// Text-representation of an argument in the help-text.
 #[derive(Debug, Clone)]
-pub struct Hilfe<'t> {
+pub struct Hilfe {
     /// Darstellen der Syntax zum (de)aktivieren der Flag/setzen des Argument-Wertes.
     ///
     /// ## English
@@ -21,7 +19,7 @@ pub struct Hilfe<'t> {
     ///
     /// ## English
     /// Help-Text for the argument.
-    pub hilfe: Option<Cow<'t, str>>,
+    pub hilfe: Option<String>,
 }
 
 /// Darstellung eines Arguments oder mehrerer Alternativen im Hilfe-Text.
@@ -29,17 +27,17 @@ pub struct Hilfe<'t> {
 /// ## English
 /// Text-representation of an argument or several alternatives in the help-text.
 #[derive(Debug, Clone)]
-pub enum Alternativen<'t> {
+pub enum Alternativen {
     /// Darstellung eines einzelnen Arguments im Hilfe-Text.
     ///
     /// ## English
     /// Text-representation of a singular argument in the help-text.
-    EinzelArgument(Hilfe<'t>),
+    EinzelArgument(Hilfe),
     /// Mehrere als Alternativen geparste Argumente.
     ///
     /// ## English
     /// Multiple arguments parsed as alternatives.
-    Alternativen(Box<NonEmpty<Alternativen<'t>>>),
+    Alternativen(Box<NonEmpty<Alternativen>>),
 }
 
 /// Trait zum simulieren einer Rank-2 Funktion.
@@ -51,12 +49,12 @@ pub trait ErzeugeHilfeText {
     ///
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
-    fn erzeuge_hilfe_text<'t>(
+    fn erzeuge_hilfe_text(
         &self,
-        arg: &'t EinzelArgument<'t, String, String>,
-        meta_standard: &'t str,
-        meta_erlaubte_werte: &'t str,
-    ) -> Hilfe<'t>;
+        arg: EinzelArgument<'_, String, String>,
+        meta_standard: &str,
+        meta_erlaubte_werte: &str,
+    ) -> Hilfe;
 }
 
 /// Standard-Variante den Hilfe-Text für ein einzelnes Argument zu erzeugen, z.B.:
@@ -70,12 +68,12 @@ pub struct Standard;
 #[allow(deprecated)]
 impl ErzeugeHilfeText for Standard {
     #[inline]
-    fn erzeuge_hilfe_text<'t>(
+    fn erzeuge_hilfe_text(
         &self,
-        arg: &'t EinzelArgument<'t, String, String>,
-        meta_standard: &'t str,
-        meta_erlaubte_werte: &'t str,
-    ) -> Hilfe<'t> {
+        arg: EinzelArgument<'_, String, String>,
+        meta_standard: &str,
+        meta_erlaubte_werte: &str,
+    ) -> Hilfe {
         arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)
     }
 }
@@ -91,12 +89,12 @@ pub struct Default;
 #[allow(deprecated)]
 impl ErzeugeHilfeText for Default {
     #[inline]
-    fn erzeuge_hilfe_text<'t>(
+    fn erzeuge_hilfe_text(
         &self,
-        arg: &'t EinzelArgument<'t, String, String>,
-        meta_standard: &'t str,
-        meta_erlaubte_werte: &'t str,
-    ) -> Hilfe<'t> {
+        arg: EinzelArgument<'_, String, String>,
+        meta_standard: &str,
+        meta_erlaubte_werte: &str,
+    ) -> Hilfe {
         Standard.erzeuge_hilfe_text(arg, meta_standard, meta_erlaubte_werte)
     }
 }

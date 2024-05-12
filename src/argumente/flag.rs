@@ -156,7 +156,7 @@ impl<'t, T> Flag<'t, T> {
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
     #[inline]
-    pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> Hilfe<'_> {
+    pub fn erzeuge_hilfe_text(&self, meta_standard: &str) -> Hilfe {
         let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere: _, anzeige } =
             self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
@@ -174,21 +174,37 @@ impl<'t, T> Flag<'t, T> {
             syntax.push_str(kurz_präfix.as_str());
             Name::möglichkeiten_als_regex(kurz_head, kurz_tail, &mut syntax);
         }
-        let hilfe: Option<Cow<'_, str>> = match (hilfe, standard) {
+        let hilfe = match (hilfe, standard) {
             (None, None) => None,
-            (None, Some(standard)) => {
-                Some(Cow::Owned(format!("{meta_standard}: {}", anzeige(standard))))
-            },
-            (Some(hilfe), None) => Some(Cow::Borrowed(hilfe)),
+            (None, Some(standard)) => Some(format!("{meta_standard}: {}", anzeige(standard))),
+            (Some(hilfe), None) => Some(String::from(*hilfe)),
             (Some(hilfe), Some(standard)) => {
                 let mut hilfe_mit_standard = (*hilfe).to_owned();
                 hilfe_mit_standard.push(' ');
                 hilfe_mit_standard.push_str(meta_standard);
                 hilfe_mit_standard.push_str(": ");
                 hilfe_mit_standard.push_str(&anzeige(standard));
-                Some(Cow::Owned(hilfe_mit_standard))
+                Some(hilfe_mit_standard)
             },
         };
         Hilfe { syntax, hilfe }
+    }
+
+    /// Konvertiere den Wert in einen String, unter Zuhilfenahme der jeweiligen `anzeige*`-Funktionen.
+    ///
+    /// ## English
+    /// Convert the value to a string, using the respective `anzeige*`-function.
+    #[inline]
+    pub fn als_string_flag(&self) -> Flag<'_, String> {
+        let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere, anzeige } = self;
+        let konvertiere_boxed: Box<dyn '_ + Bool<'_, String>> =
+            Box::new(|bool: bool| anzeige(&konvertiere(bool)));
+        Flag {
+            beschreibung: beschreibung.as_ref().konvertiere(&**anzeige),
+            invertiere_präfix: invertiere_präfix.clone(),
+            invertiere_infix: invertiere_infix.clone(),
+            konvertiere: Cow::Owned(konvertiere_boxed),
+            anzeige: Cow::Borrowed(&Clone::clone),
+        }
     }
 }

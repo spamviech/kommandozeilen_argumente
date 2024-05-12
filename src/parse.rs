@@ -159,6 +159,7 @@ impl ParseArgument for String {
                 }
             }),
             anzeige: Cow::Borrowed(&<String as Clone>::clone),
+            anzeige_fehler: Cow::Borrowed(&<String as Clone>::clone),
         })
     }
 
@@ -195,6 +196,7 @@ macro_rules! impl_parse_argument {
                         }
                     }),
                     anzeige: Cow::Borrowed(&<$type as ToString>::to_string),
+                    anzeige_fehler: Cow::Borrowed(&<String as Clone>::clone),
                 })
             }
 
@@ -265,8 +267,12 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
                     anzeige: Cow::Owned(erstelle_boxed_anzeige(anzeige)),
                 })
             },
-            EinzelArgument::FrühesBeenden { frühes_beenden, wert } => {
-                EinzelArgument::FrühesBeenden { frühes_beenden, wert: Some(wert) }
+            EinzelArgument::FrühesBeenden { frühes_beenden, wert, anzeige } => {
+                EinzelArgument::FrühesBeenden {
+                    frühes_beenden,
+                    wert: Some(wert),
+                    anzeige: Cow::Owned(erstelle_boxed_anzeige(anzeige)),
+                }
             },
             EinzelArgument::Wert(Wert {
                 beschreibung,
@@ -275,6 +281,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
                 mögliche_werte,
                 parse,
                 anzeige,
+                anzeige_fehler,
             }) => {
                 let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, Option<T>, String>> =
                     Box::new(move |os_str: &OsStr| match parse(os_str) {
@@ -289,6 +296,7 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
                     mögliche_werte: mögliche_werte.map(|nonempty| nonempty.map(Some)),
                     parse: Cow::Owned(boxed_parse),
                     anzeige: Cow::Owned(erstelle_boxed_anzeige(anzeige)),
+                    anzeige_fehler,
                 })
             },
         }
@@ -330,6 +338,7 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
             mögliche_werte: <T as EnumArgument>::varianten(),
             parse: Cow::Owned(boxed_parse),
             anzeige: Cow::Borrowed(&<T as ToString>::to_string),
+            anzeige_fehler: Cow::Borrowed(&<String as Clone>::clone),
         })
     }
 

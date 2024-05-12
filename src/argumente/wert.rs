@@ -108,6 +108,12 @@ pub struct Wert<'t, T, Fehler> {
     /// ## English
     /// Display a value (default/possible values).
     pub anzeige: Cow<'t, dyn Anzeige<'t, T>>,
+
+    /// Anzeige eines Fehlers.
+    ///
+    /// ## English
+    /// Display an error.
+    pub anzeige_fehler: Cow<'t, dyn Anzeige<'t, Fehler>>,
 }
 
 /// It is a value argument.
@@ -127,11 +133,15 @@ impl<T: Debug, Fehler> Debug for Wert<'_, T, Fehler> {
             .field("mögliche_werte", &self.mögliche_werte)
             .field("parse", &"<closure>")
             .field("anzeige", &"<closure>")
+            .field("anzeige_fehler", &"<closure>")
             .finish()
     }
 }
 
-impl<'t, T: Display + FromStr> Wert<'t, T, <T as FromStr>::Err> {
+impl<'t, T: Display + FromStr> Wert<'t, T, <T as FromStr>::Err>
+where
+    <T as FromStr>::Err: Display,
+{
     /// Erzeuge ein Wert-Argument, ausgehend von der [`FromStr`]-Implementierung.
     ///
     /// ## English synonym
@@ -164,11 +174,15 @@ impl<'t, T: Display + FromStr> Wert<'t, T, <T as FromStr>::Err> {
                 }
             }),
             anzeige: Cow::Borrowed(&<T as ToString>::to_string),
+            anzeige_fehler: Cow::Borrowed(&<<T as FromStr>::Err as ToString>::to_string),
         }
     }
 }
 
-impl<'t, T: Display + FromStr> Value<'t, T, <T as FromStr>::Err> {
+impl<'t, T: Display + FromStr> Value<'t, T, <T as FromStr>::Err>
+where
+    <T as FromStr>::Err: Display,
+{
     /// Create a value-argument, based on the [`FromStr`]-implementation.
     ///
     /// ## Deutsches Synonym
@@ -215,6 +229,7 @@ impl<'t, T: Display + EnumArgument> Wert<'t, T, String> {
             mögliche_werte: EnumArgument::varianten(),
             parse: Cow::Borrowed(&EnumArgument::parse_enum),
             anzeige: Cow::Borrowed(&<T as ToString>::to_string),
+            anzeige_fehler: Cow::Borrowed(&Clone::clone),
         }
     }
 }
@@ -266,8 +281,15 @@ impl<'t, T, F> Wert<'t, T, F> {
         self,
         args: I,
     ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
-        let Wert { beschreibung, wert_infix, meta_var, mögliche_werte: _, parse, anzeige: _ } =
-            self;
+        let Wert {
+            beschreibung,
+            wert_infix,
+            meta_var,
+            mögliche_werte: _,
+            parse,
+            anzeige: _,
+            anzeige_fehler: _,
+        } = self;
         let Beschreibung { name, hilfe: _, standard } = beschreibung;
         let mut nicht_verwendet = Vec::new();
         let mut iter = args.into_iter();
@@ -329,8 +351,16 @@ impl<'t, T, F> Wert<'t, T, F> {
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
     #[inline]
-    pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe<'_> {
-        let Wert { beschreibung, wert_infix, meta_var, mögliche_werte, parse: _, anzeige } = self;
+    pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe {
+        let Wert {
+            beschreibung,
+            wert_infix,
+            meta_var,
+            mögliche_werte,
+            parse: _,
+            anzeige,
+            anzeige_fehler: _,
+        } = self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
         let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
         let mut syntax = String::new();
@@ -351,33 +381,33 @@ impl<'t, T, F> Wert<'t, T, F> {
             syntax.push_str(meta_var);
         }
         // TODO a lot of code duplication...
-        let hilfe: Option<Cow<'_, str>> = match (hilfe, standard, mögliche_werte) {
+        let hilfe = match (hilfe, standard, mögliche_werte) {
             (None, None, None) => None,
             (None, None, Some(mögliche_werte)) => {
                 let mut string = format!("[{meta_erlaubte_werte}: ");
                 zeige_elemente(&mut string, &self.anzeige, mögliche_werte);
                 string.push(']');
-                Some(Cow::Owned(string))
+                Some(string)
             },
             (None, Some(standard), None) => {
-                Some(Cow::Owned(format!("[{meta_standard}: {}]", anzeige(standard))))
+                Some(format!("[{meta_standard}: {}]", anzeige(standard)))
             },
             (None, Some(standard), Some(mögliche_werte)) => {
                 let mut string =
                     format!("[{meta_standard}: {}, {meta_erlaubte_werte}: ", anzeige(standard));
                 zeige_elemente(&mut string, &self.anzeige, mögliche_werte);
                 string.push(']');
-                Some(Cow::Owned(string))
+                Some(string)
             },
-            (Some(hilfe), None, None) => Some(Cow::Borrowed(hilfe)),
+            (Some(hilfe), None, None) => Some(String::from(*hilfe)),
             (Some(hilfe), None, Some(mögliche_werte)) => {
                 let mut string = format!("{hilfe} [{meta_erlaubte_werte}: ");
                 zeige_elemente(&mut string, &self.anzeige, mögliche_werte);
                 string.push(']');
-                Some(Cow::Owned(string))
+                Some(string)
             },
             (Some(hilfe), Some(standard), None) => {
-                Some(Cow::Owned(format!("{hilfe} [{meta_standard}: {}]", anzeige(standard))))
+                Some(format!("{hilfe} [{meta_standard}: {}]", anzeige(standard)))
             },
             (Some(hilfe), Some(standard), Some(mögliche_werte)) => {
                 let mut string = format!(
@@ -386,9 +416,45 @@ impl<'t, T, F> Wert<'t, T, F> {
                 );
                 zeige_elemente(&mut string, &self.anzeige, mögliche_werte);
                 string.push(']');
-                Some(Cow::Owned(string))
+                Some(string)
             },
         };
         Hilfe { syntax, hilfe }
+    }
+
+    /// Konvertiere den Wert und Fehler der parse-Funktion in einen String,
+    /// unter Zuhilfenahme der jeweiligen `anzeige*`-Funktionen.
+    ///
+    /// ## English
+    /// Convert the value and error of the parse-function to a string, using the respective `anzeige*`-function.
+    #[inline]
+    pub fn als_string_wert(&self) -> Wert<'_, String, String> {
+        let Wert {
+            beschreibung,
+            wert_infix,
+            meta_var,
+            mögliche_werte,
+            parse,
+            anzeige,
+            anzeige_fehler,
+        } = self;
+        let parse_boxed: Box<dyn '_ + Parse<'_, String, String>> =
+            Box::new(|os_str: &OsStr| match parse(os_str) {
+                Ok(wert) => Ok(anzeige(&wert)),
+                Err(parse_fehler) => {
+                    Err(parse_fehler.konvertiere(|fehler| anzeige_fehler(&fehler)))
+                },
+            });
+        Wert {
+            beschreibung: beschreibung.as_ref().konvertiere(&**anzeige),
+            wert_infix: wert_infix.clone(),
+            meta_var: meta_var.clone(),
+            mögliche_werte: NonEmpty::from_vec(
+                mögliche_werte.as_ref().into_iter().flatten().map(&**anzeige).collect(),
+            ),
+            parse: Cow::Owned(parse_boxed),
+            anzeige: Cow::Borrowed(&Clone::clone),
+            anzeige_fehler: Cow::Borrowed(&Clone::clone),
+        }
     }
 }

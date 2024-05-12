@@ -15,7 +15,7 @@ use crate::{
 ///
 /// ## English synonym
 /// [`EarlyExit`]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[must_use]
 pub struct FrühesBeenden<'t> {
     /// Allgemeine Beschreibung des Arguments.
@@ -93,7 +93,7 @@ impl<'t> FrühesBeenden<'t> {
     /// ## English
     /// Create the Message for the syntax of the arguments and the corresponding help text.
     #[inline]
-    pub fn erzeuge_hilfe_text(&self) -> Hilfe<'_> {
+    pub fn erzeuge_hilfe_text(&self) -> Hilfe {
         let FrühesBeenden { beschreibung, nachricht: _ } = self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
         let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
@@ -109,7 +109,7 @@ impl<'t> FrühesBeenden<'t> {
         if let Some(void) = standard {
             void::unreachable(*void)
         }
-        let hilfe = hilfe.map(Cow::Borrowed);
+        let hilfe = hilfe.map(String::from);
         Hilfe { syntax, hilfe }
     }
 }

@@ -4,7 +4,6 @@ use std::ffi::OsString;
 
 use nonempty::NonEmpty;
 use paste::paste;
-use void::Void;
 
 use crate::{
     argumente::{
@@ -67,7 +66,7 @@ pub trait Kombiniere<'t, T, Fehler> {
         variante: &dyn ErzeugeHilfeText,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> NonEmpty<hilfe::Alternativen<'_>>;
+    ) -> NonEmpty<hilfe::Alternativen>;
 }
 
 // TODO Kurz-Namen verschmelzen
@@ -133,7 +132,7 @@ macro_rules! impl_kombiniere_tuple {
                     variante: &dyn ErzeugeHilfeText,
                     meta_standard: &str,
                     meta_erlaubte_werte: &str,
-                ) -> NonEmpty<hilfe::Alternativen<'_>> {
+                ) -> NonEmpty<hilfe::Alternativen> {
                     let (_f, $([<a_ $suffix:snake:lower>]),+) = self;
                     let mut hilfe_texte = Vec::new();
                     $(

@@ -300,6 +300,16 @@ impl<'t, T> Beschreibung<'t, T> {
     pub fn convert<S>(self, convert: impl FnOnce(T) -> S) -> Description<'t, S> {
         self.konvertiere(convert)
     }
+
+    /// Konvertiere von `&Beschreibung<T>` zu `Beschreibung<&T>`.
+    ///
+    /// ## English synonym
+    /// Convert from `&Description<T>` to `Description<&T>`.
+    #[inline]
+    pub fn as_ref(&self) -> Beschreibung<'t, &T> {
+        let Beschreibung { name, hilfe, standard } = self;
+        Beschreibung { name: name.clone(), hilfe: hilfe.clone(), standard: standard.as_ref() }
+    }
 }
 
 /// Ist `gesucht` in der `collection` enthalten?

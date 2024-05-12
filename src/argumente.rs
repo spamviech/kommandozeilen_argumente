@@ -117,17 +117,39 @@ impl<'t, T, Fehler> From<Flag<'t, T>> for Argumente<'t, T, Fehler> {
     }
 }
 
-impl<'t, T, Fehler> From<(FrühesBeenden<'t>, T)> for Argumente<'t, T, Fehler> {
+impl<'t, T, Fehler, Anzeige: 't + Fn(&T) -> String + Clone> From<(FrühesBeenden<'t>, T, Anzeige)>
+    for Argumente<'t, T, Fehler>
+{
+    #[inline]
+    fn from((frühes_beenden, wert, anzeige): (FrühesBeenden<'t>, T, Anzeige)) -> Self {
+        let anzeige_boxed: Box<dyn 't + dyn_to_owned::Anzeige<'t, T>> = Box::new(anzeige);
+        Argumente::EinzelArgument(EinzelArgument::FrühesBeenden {
+            frühes_beenden,
+            wert,
+            anzeige: Cow::Owned(anzeige_boxed),
+        })
+    }
+}
+
+impl<'t, T: Display, Fehler> From<(FrühesBeenden<'t>, T)> for Argumente<'t, T, Fehler> {
     #[inline]
     fn from((frühes_beenden, wert): (FrühesBeenden<'t>, T)) -> Self {
-        Argumente::EinzelArgument(EinzelArgument::FrühesBeenden { frühes_beenden, wert })
+        Argumente::EinzelArgument(EinzelArgument::FrühesBeenden {
+            frühes_beenden,
+            wert,
+            anzeige: Cow::Borrowed(&ToString::to_string),
+        })
     }
 }
 
 impl<'t, Fehler> From<FrühesBeenden<'t>> for Argumente<'t, (), Fehler> {
     #[inline]
     fn from(frühes_beenden: FrühesBeenden<'t>) -> Self {
-        Argumente::EinzelArgument(EinzelArgument::FrühesBeenden { frühes_beenden, wert: () })
+        Argumente::EinzelArgument(EinzelArgument::FrühesBeenden {
+            frühes_beenden,
+            wert: (),
+            anzeige: Cow::Borrowed(&|wert| format!("{wert:?}")),
+        })
     }
 }
 
@@ -695,7 +717,7 @@ impl<'t, T, Fehler, NeuerFehler> Kombiniere<'t, T, NeuerFehler>
         variante: &dyn ErzeugeHilfeText,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> NonEmpty<hilfe::Alternativen<'_>> {
+    ) -> NonEmpty<hilfe::Alternativen> {
         self.kombiniere.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
     }
 }
@@ -709,12 +731,15 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     pub fn konvertiere_fehler<NeuerFehler>(
         self,
         mapper: impl 't + Fn(Fehler) -> NeuerFehler + Clone,
+        anzeige_neuer_fehler: impl 't + Fn(&NeuerFehler) -> String + Clone,
     ) -> Argumente<'t, T, NeuerFehler> {
         match self {
             Argumente::EinzelArgument(EinzelArgument::Flag(flag)) => Argumente::from(flag),
-            Argumente::EinzelArgument(EinzelArgument::FrühesBeenden { frühes_beenden, wert }) => {
-                Argumente::from((frühes_beenden, wert))
-            },
+            Argumente::EinzelArgument(EinzelArgument::FrühesBeenden {
+                frühes_beenden,
+                wert,
+                anzeige,
+            }) => Argumente::from((frühes_beenden, wert, anzeige.into_owned())),
             Argumente::EinzelArgument(EinzelArgument::Wert(Wert {
                 beschreibung,
                 wert_infix,
@@ -722,22 +747,28 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
                 mögliche_werte,
                 parse,
                 anzeige,
-            })) => Argumente::from(Wert {
-                beschreibung,
-                wert_infix,
-                meta_var,
-                mögliche_werte,
-                parse: {
-                    let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, T, NeuerFehler>> =
-                        Box::new(move |os_str: &OsStr| {
-                            parse(os_str).map_err(|parse_fehler| -> ParseFehler<NeuerFehler> {
-                                parse_fehler.konvertiere(&mapper)
-                            })
-                        });
-                    Cow::Owned(boxed_parse)
-                },
-                anzeige,
-            }),
+                anzeige_fehler: _,
+            })) => {
+                let anzeige_fehler_boxed: Box<dyn 't + dyn_to_owned::Anzeige<'t, NeuerFehler>> =
+                    Box::new(anzeige_neuer_fehler);
+                Argumente::from(Wert {
+                    beschreibung,
+                    wert_infix,
+                    meta_var,
+                    mögliche_werte,
+                    parse: {
+                        let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, T, NeuerFehler>> =
+                            Box::new(move |os_str: &OsStr| {
+                                parse(os_str).map_err(|parse_fehler| -> ParseFehler<NeuerFehler> {
+                                    parse_fehler.konvertiere(&mapper)
+                                })
+                            });
+                        Cow::Owned(boxed_parse)
+                    },
+                    anzeige,
+                    anzeige_fehler: Cow::Owned(anzeige_fehler_boxed),
+                })
+            },
             Argumente::Kombiniere(kombiniere) => {
                 Argumente::kombiniere(KonvertiereKombiniereFehler {
                     kombiniere,
@@ -745,7 +776,9 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
                 })
             },
             Argumente::Alternativen(alternativen) => {
-                Argumente::from(alternativen.map(|alt| alt.konvertiere_fehler(mapper.clone())))
+                Argumente::from(alternativen.map(|alt| {
+                    alt.konvertiere_fehler(mapper.clone(), anzeige_neuer_fehler.clone())
+                }))
             },
         }
     }
@@ -755,8 +788,11 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// ## English synonym
     /// [`error_from`](Self::error_from)
     #[inline]
-    pub fn fehler_from<NeuerFehler: From<Fehler>>(self) -> Argumente<'t, T, NeuerFehler> {
-        self.konvertiere_fehler(NeuerFehler::from)
+    pub fn fehler_from<NeuerFehler: From<Fehler>>(
+        self,
+        anzeige_neuer_fehler: impl 't + Fn(&NeuerFehler) -> String + Clone,
+    ) -> Argumente<'t, T, NeuerFehler> {
+        self.konvertiere_fehler(NeuerFehler::from, anzeige_neuer_fehler)
     }
 }
 
@@ -766,8 +802,11 @@ impl<'t, T> Argumente<'t, T, Void> {
     /// ## English synonym
     /// [`error_from_void`](Self::error_from_void)
     #[inline]
-    pub fn fehler_from_void<NeuerFehler>(self) -> Argumente<'t, T, NeuerFehler> {
-        self.konvertiere_fehler(|void| void::unreachable(void))
+    pub fn fehler_from_void<NeuerFehler>(
+        self,
+        anzeige_neuer_fehler: impl 't + Fn(&NeuerFehler) -> String + Clone,
+    ) -> Argumente<'t, T, NeuerFehler> {
+        self.konvertiere_fehler(|void| void::unreachable(void), anzeige_neuer_fehler)
     }
 }
 
@@ -780,8 +819,9 @@ impl<'t, T, Fehler> Arguments<'t, T, Fehler> {
     pub fn convert_error<NewError>(
         self,
         mapper: impl 't + Fn(Fehler) -> NewError + Clone,
+        display_new_error: impl 't + Fn(&NewError) -> String + Clone,
     ) -> Arguments<'t, T, NewError> {
-        self.konvertiere_fehler(mapper)
+        self.konvertiere_fehler(mapper, display_new_error)
     }
 
     /// [`convert_error`](Self::convert_error) with [`From::from`].
@@ -789,8 +829,11 @@ impl<'t, T, Fehler> Arguments<'t, T, Fehler> {
     /// ## Deutsches Synonym
     /// [`fehler_from`](Self::fehler_from)
     #[inline]
-    pub fn error_from<NeuerFehler: From<Fehler>>(self) -> Argumente<'t, T, NeuerFehler> {
-        self.fehler_from()
+    pub fn error_from<NewError: From<Fehler>>(
+        self,
+        display_new_error: impl 't + Fn(&NewError) -> String + Clone,
+    ) -> Argumente<'t, T, NewError> {
+        self.fehler_from(display_new_error)
     }
 }
 
@@ -800,8 +843,11 @@ impl<'t, T> Arguments<'t, T, Void> {
     /// ## Deutsches Synonym
     /// [`fehler_from_void`](Self::fehler_from_void)
     #[inline]
-    pub fn error_from_void<NewError>(self) -> Arguments<'t, T, NewError> {
-        self.fehler_from_void()
+    pub fn error_from_void<NewError>(
+        self,
+        display_new_error: impl 't + Fn(&NewError) -> String + Clone,
+    ) -> Arguments<'t, T, NewError> {
+        self.fehler_from_void(display_new_error)
     }
 }
 
@@ -819,13 +865,13 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
         variante: &dyn ErzeugeHilfeText,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> NonEmpty<hilfe::Alternativen<'_>> {
+    ) -> NonEmpty<hilfe::Alternativen> {
         match self {
             Argumente::EinzelArgument(arg) => {
-                nonempty![hilfe::Alternativen::EinzelArgument(
-                    // TODO verwende variante!
-                    arg.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)
-                )]
+                nonempty![hilfe::Alternativen::EinzelArgument({
+                    let string_arg = arg.als_string_wert();
+                    variante.erzeuge_hilfe_text(string_arg, meta_standard, meta_erlaubte_werte)
+                })]
             },
             Argumente::Kombiniere(kombiniere) => {
                 kombiniere.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
@@ -1253,10 +1299,7 @@ impl<'t, T, Error> Arguments<'t, T, Error> {
 ///
 /// ## Panics
 /// Programmierfehler, wenn `NonEmpty::iter().map(...)` kein Element hat.
-fn max_syntax_breite(
-    hilfen: &NonEmpty<hilfe::Alternativen<'_>>,
-    alternative_präfix: &str,
-) -> usize {
+fn max_syntax_breite(hilfen: &NonEmpty<hilfe::Alternativen>, alternative_präfix: &str) -> usize {
     hilfen
         .iter()
         .map(|arg| match arg {
@@ -1284,7 +1327,7 @@ fn schreibe_argument_oder_alternativen(
     aktueller_präfix: Cow<'_, str>,
     max_syntax_breite: usize,
     syntax_padding: char,
-    eintrag: &hilfe::Alternativen<'_>,
+    eintrag: &hilfe::Alternativen,
     alternative_präfix: &str,
     alternative_trennzeichen: char,
 ) {
