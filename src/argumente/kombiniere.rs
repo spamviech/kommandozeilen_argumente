@@ -104,7 +104,7 @@ macro_rules! impl_kombiniere_tuple {
                     let mut alle_frühes_beenden = Vec::new();
                     $(
                         let (ergebnis, nicht_verwendet)
-                            = [<arg_ $suffix:snake:lower>].parse(nicht_verwendet.into_iter());
+                            = [<arg_ $suffix:snake:lower>].parse_rekursiv(nicht_verwendet.into_iter());
                         let mut [<wert_ $suffix:snake:lower>] = None;
                         match ergebnis {
                             Ergebnis::Wert(wert) => [<wert_ $suffix:snake:lower>] = Some(wert),

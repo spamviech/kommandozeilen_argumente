@@ -7,6 +7,7 @@ use std::{
     fmt::{self, Debug, Display},
     num::NonZeroI32,
     path::Path,
+    process,
 };
 
 use nonempty::{nonempty, NonEmpty};
@@ -243,11 +244,13 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
 
 impl<'t, T, F> Argumente<'t, T, F> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    /// Verwendete Argumente werden durch [`None`] ersetzt, bevor weitere Argumente geparst werden.
     ///
     /// ## English
     /// Parse the given arguments and return the corresponding value.
+    /// Used arguments are replaced with [`None`], before further arguments are parsed.
     #[inline]
-    pub fn parse(
+    pub fn parse_rekursiv(
         self,
         args: impl Iterator<Item = Option<OsString>>,
     ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
@@ -261,18 +264,20 @@ impl<'t, T, F> Argumente<'t, T, F> {
                 let NonEmpty { head, tail } = *alternativen;
                 let args_vec: Vec<_> = args.into_iter().collect();
                 tail.into_iter().fold(
-                    head.parse(args_vec.clone().into_iter()),
+                    head.parse_rekursiv(args_vec.clone().into_iter()),
                     |(ergebnis, nicht_verwendet), arg| match ergebnis {
-                        Fehler(mut fehler0) => match arg.parse(args_vec.clone().into_iter()) {
-                            (Fehler(fehler1), nicht_verwendet1) => {
-                                fehler0.extend(fehler1);
-                                let von_keinem_verwendet = nicht_verwendet
-                                    .into_iter()
-                                    .filter(|os_string| nicht_verwendet1.contains(os_string))
-                                    .collect();
-                                (Fehler(fehler0), von_keinem_verwendet)
-                            },
-                            end_ergebnis => end_ergebnis,
+                        Fehler(mut fehler0) => {
+                            match arg.parse_rekursiv(args_vec.clone().into_iter()) {
+                                (Fehler(fehler1), nicht_verwendet1) => {
+                                    fehler0.extend(fehler1);
+                                    let von_keinem_verwendet = nicht_verwendet
+                                        .into_iter()
+                                        .filter(|os_string| nicht_verwendet1.contains(os_string))
+                                        .collect();
+                                    (Fehler(fehler0), von_keinem_verwendet)
+                                },
+                                end_ergebnis => end_ergebnis,
+                            }
                         },
                         Wert(_) | FrühesBeenden(_) => (ergebnis, nicht_verwendet),
                     },
@@ -281,24 +286,36 @@ impl<'t, T, F> Argumente<'t, T, F> {
         }
     }
 
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
+    #[inline]
+    pub fn parse(
+        self,
+        args: impl Iterator<Item = OsString>,
+    ) -> (Ergebnis<'t, T, F>, Vec<OsString>) {
+        let (ergebnis, nicht_verwendet) = self.parse_rekursiv(args.map(Some));
+        (ergebnis, nicht_verwendet.into_iter().flatten().collect())
+    }
+
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     ///
     /// ## English synonym
-    /// [`parse_from_env`](Parse::parse_from_env)
+    /// [`parse_from_env`](Self::parse_from_env)
     #[inline]
     pub fn parse_aus_env(self) -> (Ergebnis<'t, T, F>, Vec<OsString>)
     where
         Self: 't,
         F: 't,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_aus_env()
+        self.parse(env::args_os())
     }
 
     /// Parse [`args_os`](std::env::args_os) and try to create the requested type.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_aus_env`](Parse::parse_aus_env)
+    /// [`parse_aus_env`](Self::parse_aus_env)
     #[inline]
     pub fn parse_from_env(self) -> (Ergebnis<'t, T, F>, Vec<OsString>)
     where
@@ -314,7 +331,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     ///
     /// ## English synonym
-    /// [`parse_from_env_with_early_exit`](Parse::parse_from_env_with_early_exit)
+    /// [`parse_from_env_with_early_exit`](Self::parse_from_env_with_early_exit)
     #[inline]
     pub fn parse_aus_env_mit_frühen_beenden(
         self,
@@ -323,8 +340,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
         Self: 't,
         F: 't,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_aus_env_mit_frühen_beenden()
+        self.parse_mit_frühen_beenden(env::args_os())
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -332,7 +348,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_aus_env_mit_frühen_beenden`](Argumente::parse_aus_env_mit_frühen_beenden)
+    /// [`parse_aus_env_mit_frühen_beenden`](Self::parse_aus_env_mit_frühen_beenden)
     #[inline]
     pub fn parse_from_env_with_early_exit(
         self,
@@ -360,8 +376,19 @@ impl<'t, T, F> Argumente<'t, T, F> {
         Self: 't,
         F: 't,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_mit_frühen_beenden(args)
+        let (ergebnis, nicht_verwendet) = self.parse(args);
+        let result = match ergebnis {
+            Ergebnis::Wert(wert) => Ok(wert),
+            Ergebnis::FrühesBeenden(nachrichten) => {
+                #[allow(clippy::print_stdout)]
+                for nachricht in nachrichten {
+                    println!("{nachricht}");
+                }
+                process::exit(0);
+            },
+            Ergebnis::Fehler(fehler) => Err(fehler),
+        };
+        (result, nicht_verwendet)
     }
 
     /// Parse the given command line arguments to create the requested type.
@@ -371,7 +398,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// ## Deutsches Synonym
     /// [`parse_mit_frühen_beenden`](Self::parse_mit_frühen_beenden)
     #[inline]
-    fn parse_with_early_exit(
+    pub fn parse_with_early_exit(
         self,
         args: impl Iterator<Item = OsString>,
     ) -> (Result<T, NonEmpty<Error<'t, F>>>, Vec<OsString>)
@@ -393,6 +420,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// [`parse_complete`](Self::parse_complete)
     #[inline]
     #[must_use]
+    #[allow(clippy::too_many_arguments)]
     pub fn parse_vollständig(
         self,
         args: impl Iterator<Item = OsString>,
@@ -401,21 +429,40 @@ impl<'t, T, F> Argumente<'t, T, F> {
         fehlender_wert: &str,
         parse_fehler: &str,
         invalider_string: &str,
-        arg_nicht_verwendet: &str,
+        argument_nicht_verwendet: &str,
     ) -> T
     where
         F: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_vollständig(
-        //     args,
-        //     fehler_code,
-        //     fehlende_flag,
-        //     fehlender_wert,
-        //     parse_fehler,
-        //     invalider_string,
-        //     arg_nicht_verwendet,
-        // )
+        let (ergebnis, nicht_verwendet) = self.parse(args);
+        #[allow(clippy::print_stderr)]
+        if !nicht_verwendet.is_empty() {
+            eprintln!("{argument_nicht_verwendet}");
+            process::exit(fehler_code.get());
+        }
+        match ergebnis {
+            Ergebnis::Wert(wert) => wert,
+            Ergebnis::FrühesBeenden(nachrichten) => {
+                #[allow(clippy::print_stdout)]
+                for nachricht in nachrichten {
+                    println!("{nachricht}");
+                }
+                process::exit(0);
+            },
+            Ergebnis::Fehler(fehler_liste) => {
+                #[allow(clippy::print_stderr)]
+                for fehler in fehler_liste {
+                    let fehlermeldung = fehler.erstelle_fehlermeldung(
+                        fehlende_flag,
+                        fehlender_wert,
+                        parse_fehler,
+                        invalider_string,
+                    );
+                    eprintln!("{fehlermeldung}");
+                }
+                process::exit(fehler_code.get());
+            },
+        }
     }
 
     /// Parse the given command line arguments to create the requested type.
@@ -428,6 +475,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// [`parse_vollständig`](Self::parse_vollständig)
     #[inline]
     #[must_use]
+    #[allow(clippy::too_many_arguments)]
     pub fn parse_complete(
         self,
         args: impl Iterator<Item = OsString>,
@@ -472,8 +520,15 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_vollständig_mit_sprache(args, fehler_code, sprache)
+        self.parse_vollständig(
+            args,
+            fehler_code,
+            sprache.fehlende_flag,
+            sprache.fehlender_wert,
+            sprache.parse_fehler,
+            sprache.invalider_string,
+            sprache.argument_nicht_verwendet,
+        )
     }
 
     /// Parse the given command line arguments to create the requested type.
@@ -505,6 +560,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
     ///
+    /// [`parse_vollständig_mit_sprache`](Self::parse_vollständig_mit_sprache) mit [`Sprache::DEUTSCH`].
+    ///
     /// ## English version
     /// [`parse_with_error_message`](Self::parse_with_error_message)
     #[inline]
@@ -517,8 +574,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_mit_fehlermeldung(args, fehler_code)
+        self.parse_vollständig_mit_sprache(args, fehler_code, Sprache::DEUTSCH)
     }
 
     /// Parse command line arguments to create the requested type.
@@ -526,6 +582,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
+    ///
+    /// [`parse_complete_with_language`](Self::parse_complete_with_language) with [`Language::ENGLISH`].
     ///
     /// ## Deutsche version
     /// [`parse_mit_fehlermeldung`](Self::parse_mit_fehlermeldung)
@@ -539,8 +597,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_with_error_message(args, error_code)
+        self.parse_complete_with_language(args, error_code, Language::ENGLISH)
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -561,20 +618,20 @@ impl<'t, T, F> Argumente<'t, T, F> {
         fehlender_wert: &str,
         parse_fehler: &str,
         invalider_string: &str,
-        arg_nicht_verwendet: &str,
+        argument_nicht_verwendet: &str,
     ) -> T
     where
         F: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_vollständig_aus_env(
-        //     fehler_code,
-        //     fehlende_flag,
-        //     fehlender_wert,
-        //     parse_fehler,
-        //     invalider_string,
-        //     arg_nicht_verwendet,
-        // )
+        self.parse_vollständig(
+            env::args_os(),
+            fehler_code,
+            fehlende_flag,
+            fehlender_wert,
+            parse_fehler,
+            invalider_string,
+            argument_nicht_verwendet,
+        )
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -628,9 +685,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente()
-        //     .parse_vollständig_mit_sprache_aus_env(fehler_code, sprache)
+        self.parse_vollständig_mit_sprache(env::args_os(), fehler_code, sprache)
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -661,6 +716,9 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
     /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
     ///
+    /// [`parse_vollständig_mit_sprache_aus_env`](Self::parse_vollständig_mit_sprache_aus_env)
+    /// mit [`Sprache::DEUTSCH`].
+    ///
     /// ## English version
     /// [`parse_with_error_message_from_env`](Self::parse_with_error_message_from_env)
     #[inline]
@@ -669,8 +727,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_mit_fehlermeldung_aus_env(fehler_code)
+        self.parse_vollständig_mit_sprache_aus_env(fehler_code, Sprache::DEUTSCH)
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -678,6 +735,9 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
+    ///
+    /// [`parse_complete_with_language_from_env`](Self::parse_complete_with_language_from_env)
+    /// with [`Language::ENGLISH`].
     ///
     /// ## Deutsche Version
     /// [`parse_mit_fehlermeldung_aus_env`](Self::parse_mit_fehlermeldung_aus_env)
@@ -687,8 +747,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        todo!()
-        // Self::kommandozeilen_argumente().parse_with_error_message_from_env(error_code)
+        self.parse_complete_with_language_from_env(error_code, Language::ENGLISH)
     }
 }
 

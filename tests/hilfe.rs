@@ -40,7 +40,7 @@ fn hilfe_test() {
         sprache,
     );
 
-    match arg_mit_hilfe.parse(iter::once(Some(OsString::from("--hilfe".to_owned())))) {
+    match arg_mit_hilfe.parse_rekursiv(iter::once(Some(OsString::from("--hilfe".to_owned())))) {
         (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
             let nicht_verwendet: Vec<_> = nicht_verwendet.into_iter().flatten().collect();
             let übrige = nicht_verwendet.len();
