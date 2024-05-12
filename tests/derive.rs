@@ -11,6 +11,7 @@
 )]
 
 use std::{
+    borrow::Cow,
     ffi::OsString,
     fmt::{self, Debug, Display, Formatter},
     iter, process,
@@ -60,9 +61,10 @@ struct Test {
     flag: bool,
 }
 
-#[derive(Debug, PartialEq, Eq, Parse)]
-#[kommandozeilen_argumente(language: english)]
-struct Empty;
+// TODO allow again?
+// #[derive(Debug, PartialEq, Eq, Parse)]
+// #[kommandozeilen_argumente(language: english)]
+// struct Empty;
 
 const DUMMY: kommandozeilen_argumente::Sprache = kommandozeilen_argumente::Sprache {
     lang_präfix: "(-.-)",
@@ -109,8 +111,14 @@ impl ParseArgument for Flag {
             beschreibung,
             invertiere_präfix: invertiere_präfix.into(),
             invertiere_infix: invertiere_infix.into(),
-            konvertiere: |bool| if bool { Flag::Active } else { Flag::Inactive },
-            anzeige: |flag| format!("{flag:?}"),
+            konvertiere: Cow::Borrowed(&|bool| {
+                if bool {
+                    Flag::Active
+                } else {
+                    Flag::Inactive
+                }
+            }),
+            anzeige: Cow::Borrowed(&|flag| format!("{flag:?}")),
         })
     }
 

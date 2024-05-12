@@ -177,28 +177,33 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fe
             return Err(DatenVariante { variante: variant_ident });
         }
     }
+    let varianten_ts = if varianten.is_empty() {
+        quote!(None)
+    } else {
+        quote!(Some(::#crate_name::nonempty![#(Self::#varianten),*]))
+    };
     let varianten_str: Vec<_> = varianten.iter().map(ToString::to_string).collect();
     let instance = quote!(
         impl #crate_name::EnumArgument for #name {
-            fn varianten() -> Vec<Self> {
-                vec![#(Self::#varianten),*]
+            fn varianten() -> Option<::#crate_name::NonEmpty<Self>> {
+                #varianten_ts
             }
 
-            fn parse_enum(arg: std::ffi::OsString) -> Result<Self, #crate_name::ParseFehler<String>> {
+            fn parse_enum(arg: &::std::ffi::OsStr) -> Result<Self, ::#crate_name::ParseFehler<String>> {
                 if let Some(string) = arg.to_str() {
                     #(
-                        if #crate_name::unicode::Normalisiert::neu(#varianten_str).eq(string, #cases)
+                        if ::#crate_name::unicode::Normalisiert::neu(#varianten_str).eq(string, #cases)
                         {
                             Ok(Self::#varianten)
                         } else
                     )*
                     {
-                        Err(#crate_name::ParseFehler::ParseFehler(
+                        Err(::#crate_name::ParseFehler::ParseFehler(
                             format!("Unbekannte Variante: {}", string))
                         )
                     }
                 } else {
-                    Err(#crate_name::ParseFehler::InvaliderString(arg))
+                    Err(::#crate_name::ParseFehler::InvaliderString(::std::ffi::OsString::from(arg)))
                 }
             }
         }

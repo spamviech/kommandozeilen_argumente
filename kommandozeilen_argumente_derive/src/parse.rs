@@ -47,8 +47,8 @@ impl Sprache {
         use Sprache::{Deutsch, English, TokenStream};
         let crate_name = crate_name();
         match self {
-            Deutsch => quote!(#crate_name::Sprache::DEUTSCH),
-            English => quote!(#crate_name::Sprache::ENGLISH),
+            Deutsch => quote!(::#crate_name::Sprache::DEUTSCH),
+            English => quote!(::#crate_name::Sprache::ENGLISH),
             TokenStream(ts) => ts.clone(),
         }
     }
@@ -81,7 +81,7 @@ fn erstelle_version_methode(
         let lang_präfix = lang_präfix.token_stream(&sprache);
         let kurz_präfix = kurz_präfix.token_stream(&sprache);
         let beschreibung = quote!(
-            #crate_name::Beschreibung::neu(
+            ::#crate_name::Beschreibung::neu(
                 #lang_präfix,
                 #lang_namen,
                 #kurz_präfix,
@@ -90,11 +90,12 @@ fn erstelle_version_methode(
                 None,
             )
         );
+        // TODO erlaube Angabe von programm_name und programm_version
         quote!(
-            #item.zeige_version(
+            #item.mit_version_frühes_beenden(
                 #beschreibung,
-                #crate_name::crate_name!(),
-                #crate_name::crate_version!(),
+                ::#crate_name::crate_name!(),
+                ::#crate_name::crate_version!(),
             )
         )
     }
@@ -116,7 +117,7 @@ fn erstelle_hilfe_methode(
     let lang_präfix = lang_präfix.token_stream(sprache);
     let kurz_präfix = kurz_präfix.token_stream(sprache);
     let beschreibung = quote!(
-        #crate_name::Beschreibung::neu(
+        ::#crate_name::Beschreibung::neu(
             #lang_präfix,
             #lang_namen,
             #kurz_präfix,
@@ -125,14 +126,22 @@ fn erstelle_hilfe_methode(
             None,
         )
     );
+    // TODO erlaube Angabe von programm_name und programm_version
     move |item| {
         quote!(
-            #item.erstelle_hilfe_mit_sprache(
+            #item.mit_hilfe_frühes_beenden(
+                &::#crate_name::argumente::hilfe::Standard,
                 #beschreibung,
-                #crate_name::crate_name!(),
+                ::#crate_name::crate_name!(),
                 #programm_beschreibung,
-                Some(#crate_name::crate_version!()),
-                #sprache_ts
+                Some(::#crate_name::crate_version!()),
+                #sprache_ts.standard,
+                #sprache_ts.erlaubte_werte,
+                #sprache_ts.optionen,
+                #sprache_ts.syntax_präfix,
+                #sprache_ts.syntax_padding,
+                #sprache_ts.alternative_präfix,
+                #sprache_ts.alternative_trennzeichen,
             )
         )
     }
@@ -271,8 +280,8 @@ macro_rules! vergleich_typen {
                         quote!(#sprache_ts.$sprache_ident)
                     };
                     let case = self.case.unwrap_or_default();
-                    quote!(#crate_name::unicode::Vergleich {
-                        string: #crate_name::unicode::Normalisiert::neu(#string),
+                    quote!(::#crate_name::unicode::Vergleich {
+                        string: ::#crate_name::unicode::Normalisiert::neu(#string),
                         case: #case,
                     })
                 }
@@ -941,7 +950,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         Fields::Tuple(_) => return Err(FelderOhneName),
     };
     for field in iter {
-        let NamedField { attributes: field_attrs, name: field_ident, .. } = field;
+        let NamedField { attributes: field_attrs, name: field_ident, ty: field_type, .. } = field;
         let mut hilfe_lits = Vec::new();
         let field_ident_str = field_ident.to_string();
         if field_ident_str.is_empty() {
@@ -995,7 +1004,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                 );
                 let erster = if let Some((head, tail)) = lang_namen.namen.as_ref() {
                     lang = quote!(
-                        #crate_name::NonEmpty {
+                        ::#crate_name::NonEmpty {
                             head: #head,
                             tail: vec![#(#tail),*]
                         }
@@ -1033,7 +1042,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
             quote!(Some(#hilfe_string))
         };
         let erstelle_beschreibung = quote!(
-            let beschreibung = #crate_name::Beschreibung::neu(
+            let beschreibung = ::#crate_name::Beschreibung::neu(
                 #feld_lang_präfix,
                 #lang,
                 #feld_kurz_präfix,
@@ -1046,7 +1055,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
             FeldArgument::EnumArgument => {
                 quote!({
                     #erstelle_beschreibung
-                    #crate_name::ParseArgument::argumente(
+                    ::#crate_name::ParseArgument::argumente(
                         beschreibung,
                         #feld_invertiere_präfix,
                         #feld_invertiere_infix,
@@ -1058,16 +1067,27 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
             FeldArgument::FromStr => {
                 quote!({
                     #erstelle_beschreibung
-                    #crate_name::Argumente::wert_from_str_display(
+                    ::#crate_name::Wert {
                         beschreibung,
-                        #feld_wert_infix,
-                        #feld_meta_var,
-                        None,
-                    )
+                        wert_infix: ::#crate_name::Vergleich::from(#feld_wert_infix),
+                        meta_var: #feld_meta_var,
+                        mögliche_werte: None,
+                        parse: ::std::borrow::Cow::Borrowed(&|os_str: &::std::ffi::OsStr| {
+                            if let Some(string) = os_str.to_str() {
+                                string.parse::<#field_type>().map_err(
+                                    |fehler| ::#crate_name::ParseFehler::ParseFehler(fehler.to_string())
+                                )
+                            } else {
+                                Err(::#crate_name::ParseFehler::InvaliderString(::std::ffi::OsString::from(os_str)))
+                            }
+                        }),
+                        anzeige: ::std::borrow::Cow::Borrowed(&ToString::to_string),
+                        anzeige_fehler: ::std::borrow::Cow::Borrowed(&ToString::to_string),
+                    }
                 })
             },
             FeldArgument::Parse => {
-                quote!(#crate_name::Parse::kommandozeilen_argumente())
+                quote!(::#crate_name::Parse::kommandozeilen_argumente())
             },
         };
         tuples.push((field_ident, erstelle_args));
@@ -1075,9 +1095,9 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
     let (idents, erstelle_args): (Vec<_>, Vec<_>) = tuples.into_iter().unzip();
     let kombiniere = quote!(
         #(
-            let #idents = #erstelle_args;
+            let #idents = ::#crate_name::Argumente::from(#erstelle_args);
         )*
-        #crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*}, #(#idents),*)
+        ::#crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*}, #(#idents),*)
     );
     let nach_version = if let ErstelleVersion(Some(version_hinzufügen)) = erstelle_version {
         version_hinzufügen(kombiniere, sprache)
@@ -1091,10 +1111,10 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
     };
     let ts = quote! {
         #[allow(clippy::shadow_unrelated, clippy::disallowed_script_idents)]
-        impl #crate_name::Parse for #name {
+        impl ::#crate_name::Parse for #name {
             type Fehler = String;
 
-            fn kommandozeilen_argumente<'t>() -> #crate_name::Argumente<'t, Self, Self::Fehler> {
+            fn kommandozeilen_argumente<'t>() -> ::#crate_name::Argumente<'t, Self, Self::Fehler> {
                 #nach_hilfe
             }
         }

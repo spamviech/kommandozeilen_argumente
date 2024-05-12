@@ -3,7 +3,7 @@
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 
 #[doc(no_inline)]
-pub use ::nonempty::NonEmpty;
+pub use ::nonempty::{nonempty, NonEmpty};
 
 #[macro_export]
 /// Crate Name spezifiziert in Cargo.toml.
