@@ -61,10 +61,9 @@ struct Test {
     flag: bool,
 }
 
-// TODO allow again?
-// #[derive(Debug, PartialEq, Eq, Parse)]
-// #[kommandozeilen_argumente(language: english)]
-// struct Empty;
+#[derive(Debug, PartialEq, Eq, Parse)]
+#[kommandozeilen_argumente(language: english)]
+struct Empty;
 
 const DUMMY: kommandozeilen_argumente::Sprache = kommandozeilen_argumente::Sprache {
     lang_präfix: "(-.-)",

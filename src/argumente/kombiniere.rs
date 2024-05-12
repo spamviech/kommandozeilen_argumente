@@ -2,7 +2,7 @@
 
 use std::ffi::OsString;
 
-use nonempty::NonEmpty;
+use nonempty::{nonempty, NonEmpty};
 use paste::paste;
 
 use crate::{
@@ -19,7 +19,10 @@ use crate::{
 /// [`combine`]
 #[macro_export]
 macro_rules! kombiniere {
-    ($f: expr, $arg: expr) => {
+    ($f: expr $(,)?) => {
+        $crate::argumente::Argumente::kombiniere($f)
+    };
+    ($f: expr, $arg: expr $(,)?) => {
         $crate::argumente::Argumente::kombiniere(($f, $arg))
     };
     ($f: expr, $a: expr, $b: expr $(, $tail: ident)* $(,)?) => {{
@@ -38,6 +41,9 @@ macro_rules! kombiniere {
 /// [`kombiniere`]
 #[macro_export]
 macro_rules! combine {
+    ($f: expr $(,)?) => {
+        $crate::kombiniere!($f)
+    };
     ($f: expr, $arg: expr) => {
         $crate::kombiniere!($f, $arg)
     };
@@ -67,6 +73,26 @@ pub trait Kombiniere<'t, T, Fehler> {
         meta_standard: &str,
         meta_erlaubte_werte: &str,
     ) -> NonEmpty<hilfe::Alternativen>;
+}
+
+impl<'t, T, Fehler, F: FnOnce() -> T> Kombiniere<'t, T, Fehler> for F {
+    #[inline]
+    fn parse(
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<OsString>>>,
+    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
+        (Ergebnis::Wert(self()), args.collect())
+    }
+
+    #[inline]
+    fn erzeuge_hilfe_text(
+        &self,
+        _variante: &dyn ErzeugeHilfeText,
+        _meta_standard: &str,
+        _meta_erlaubte_werte: &str,
+    ) -> NonEmpty<hilfe::Alternativen> {
+        nonempty![hilfe::Alternativen::Leer]
+    }
 }
 
 // TODO Kurz-Namen verschmelzen

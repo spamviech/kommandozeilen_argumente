@@ -1361,14 +1361,15 @@ impl<'t, T, Error> Arguments<'t, T, Error> {
 fn max_syntax_breite(hilfen: &NonEmpty<hilfe::Alternativen>, alternative_präfix: &str) -> usize {
     hilfen
         .iter()
-        .map(|arg| match arg {
-            hilfe::Alternativen::EinzelArgument(arg) => arg.syntax.len(),
+        .filter_map(|arg| match arg {
+            hilfe::Alternativen::EinzelArgument(arg) => Some(arg.syntax.len()),
             hilfe::Alternativen::Alternativen(alternativen) => {
                 #[allow(clippy::arithmetic_side_effects)]
-                {
-                    alternative_präfix.len() + max_syntax_breite(alternativen, alternative_präfix)
-                }
+                let breite =
+                    alternative_präfix.len() + max_syntax_breite(alternativen, alternative_präfix);
+                Some(breite)
             },
+            hilfe::Alternativen::Leer => None,
         })
         .max()
         .expect("NonEmpty")
@@ -1434,5 +1435,6 @@ fn schreibe_argument_oder_alternativen(
                 );
             }
         },
+        hilfe::Alternativen::Leer => {},
     }
 }

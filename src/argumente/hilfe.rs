@@ -38,6 +38,11 @@ pub enum Alternativen {
     /// ## English
     /// Multiple arguments parsed as alternatives.
     Alternativen(Box<NonEmpty<Alternativen>>),
+    /// Fester Wert ohne assoziiertes Argument. Wird nicht im Hilfetext angezeigt.
+    ///
+    /// ## English
+    /// Fixed value without associated argument. Wird nicht im Hilfetext angezeigt.
+    Leer,
 }
 
 /// Trait zum simulieren einer Rank-2 Funktion.
