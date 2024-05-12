@@ -44,7 +44,7 @@ pub use self::{
         wert::{EnumArgument, Value, Wert},
         Argumente, Arguments,
     },
-    beschreibung::{Beschreibung, Configuration, Description, Konfiguration},
+    beschreibung::{Beschreibung, Description},
     ergebnis::{Ergebnis, Error, Fehler, ParseError, ParseFehler, Result},
     parse::{Parse, ParseArgument},
     sprache::{Language, Sprache},
