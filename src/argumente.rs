@@ -15,9 +15,11 @@ use void::Void;
 use crate::{
     argumente::{
         einzelargument::EinzelArgument,
+        flag::Flag,
         frühes_beenden::FrühesBeenden,
         hilfe::{ErzeugeHilfeText, Hilfe},
         kombiniere::Kombiniere,
+        wert::Wert,
     },
     beschreibung::Beschreibung,
     ergebnis::{Ergebnis, Error, Fehler},
@@ -103,6 +105,34 @@ impl<'t, T, Fehler> From<EinzelArgument<'t, T, Fehler>> for Argumente<'t, T, Feh
     #[inline]
     fn from(argument: EinzelArgument<'t, T, Fehler>) -> Self {
         Argumente::EinzelArgument(argument)
+    }
+}
+
+impl<'t, T, Fehler> From<Flag<'t, T>> for Argumente<'t, T, Fehler> {
+    #[inline]
+    fn from(flag: Flag<'t, T>) -> Self {
+        Argumente::EinzelArgument(EinzelArgument::from(flag))
+    }
+}
+
+impl<'t, T, Fehler> From<(FrühesBeenden<'t>, T)> for Argumente<'t, T, Fehler> {
+    #[inline]
+    fn from((frühes_beenden, wert): (FrühesBeenden<'t>, T)) -> Self {
+        Argumente::EinzelArgument(EinzelArgument::FrühesBeenden { frühes_beenden, wert })
+    }
+}
+
+impl<'t, Fehler> From<FrühesBeenden<'t>> for Argumente<'t, (), Fehler> {
+    #[inline]
+    fn from(frühes_beenden: FrühesBeenden<'t>) -> Self {
+        Argumente::EinzelArgument(EinzelArgument::FrühesBeenden { frühes_beenden, wert: () })
+    }
+}
+
+impl<'t, T, Fehler> From<Wert<'t, T, Fehler>> for Argumente<'t, T, Fehler> {
+    #[inline]
+    fn from(wert: Wert<'t, T, Fehler>) -> Self {
+        Argumente::EinzelArgument(EinzelArgument::Wert(wert))
     }
 }
 
