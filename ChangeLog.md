@@ -2,10 +2,14 @@
 
 ## Unreleased changes
 
+- Neues API:
+  - Neue Typen `Wert`, `Flag`, `FrühesBeenden` & `EinzelArgument` mit `From`-Implementierung für Argumente.
+  - Alle Felder sind `pub`, keine Invarianten mehr.
+- Erlaube `Alternativen` bei Argumenten.
+- Entferne `derive` aus `default` feature Liste.
 - Normalisiert::as_str hinzugefügt.
 - Behandle clippy-lints.
 - Verwende venial für proc-macro parsing.
-- Entferne `derive` aus `default` feature Liste.
 
 ## 0.2.0
 
