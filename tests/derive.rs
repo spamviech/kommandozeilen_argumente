@@ -18,7 +18,9 @@ use std::{
 
 use nonempty::nonempty;
 
-use kommandozeilen_argumente::{Argumente, EnumArgument, Ergebnis, Parse, ParseArgument};
+use kommandozeilen_argumente::{
+    argumente::einzelargument::EinzelArgument, EnumArgument, Ergebnis, Parse, ParseArgument,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
 #[kommandozeilen_argumente(case: insensitive)]
@@ -102,15 +104,14 @@ impl ParseArgument for Flag {
         invertiere_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
         _wert_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
         _meta_var: &'t str,
-    ) -> ParseArgumente<'t, Self> {
-        // Argumente::flag(
-        //     beschreibung,
-        //     |bool| if bool { Flag::Active } else { Flag::Inactive },
-        //     invertiere_präfix,
-        //     invertiere_infix,
-        //     |flag| format!("{flag:?}"),
-        // )
-        todo!()
+    ) -> EinzelArgument<'t, Self, String> {
+        EinzelArgument::from(kommandozeilen_argumente::Flag {
+            beschreibung,
+            invertiere_präfix: invertiere_präfix.into(),
+            invertiere_infix: invertiere_infix.into(),
+            konvertiere: |bool| if bool { Flag::Active } else { Flag::Inactive },
+            anzeige: |flag| format!("{flag:?}"),
+        })
     }
 
     fn standard() -> Option<Self> {

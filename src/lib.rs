@@ -38,7 +38,12 @@ pub mod unicode;
 #[doc(inline)]
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use self::{
-    argumente::{wert::EnumArgument, Argumente, Arguments},
+    argumente::{
+        flag::Flag,
+        frühes_beenden::{EarlyExit, FrühesBeenden},
+        wert::{EnumArgument, Value, Wert},
+        Argumente, Arguments,
+    },
     beschreibung::{Beschreibung, Configuration, Description, Konfiguration},
     ergebnis::{Ergebnis, Error, Fehler, ParseError, ParseFehler, Result},
     parse::{Parse, ParseArgument},

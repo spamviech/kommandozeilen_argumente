@@ -2,7 +2,6 @@
 
 use std::{
     borrow::Cow,
-    collections::HashMap,
     convert::identity,
     ffi::{OsStr, OsString},
     fmt::Display,
@@ -11,17 +10,15 @@ use std::{
 };
 
 use nonempty::NonEmpty;
-use void::Void;
 
 use crate::{
     argumente::{
         einzelargument::EinzelArgument,
         flag::Flag,
-        frühes_beenden::FrühesBeenden,
         wert::{EnumArgument, Wert},
-        Argumente, Arguments,
+        Argumente,
     },
-    beschreibung::{Beschreibung, Description, Konfiguration},
+    beschreibung::{Beschreibung, Description},
     dyn_to_owned::{self, Anzeige, Bool},
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler},
     sprache::{Language, Sprache},

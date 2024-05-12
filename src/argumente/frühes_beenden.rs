@@ -13,8 +13,8 @@ use crate::{
 
 /// Es handelt sich um ein Flag-Argument, das zu frühem beenden führt.
 ///
-/// ## English
-/// It is a flag argument, causing an early exit.
+/// ## English synonym
+/// [`EarlyExit`]
 #[derive(Debug)]
 #[must_use]
 pub struct FrühesBeenden<'t> {
@@ -31,10 +31,10 @@ pub struct FrühesBeenden<'t> {
     pub nachricht: Cow<'t, str>,
 }
 
-/// Es handelt sich um ein Flag-Argument, das zu frühem beenden führt.
-///
-/// ## English
 /// It is a flag argument, causing an early exit.
+///
+/// ## Deutsches Synonym
+/// [`FrühesBeenden`]
 pub type EarlyExit<'t> = FrühesBeenden<'t>;
 
 impl<'t> FrühesBeenden<'t> {

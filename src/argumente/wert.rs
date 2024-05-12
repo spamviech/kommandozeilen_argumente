@@ -69,8 +69,8 @@ pub trait EnumArgument: Sized {
 
 /// Es handelt sich um ein Wert-Argument.
 ///
-/// ## English
-/// It is a value argument.
+/// ## English synonym
+/// [`Value`]
 #[must_use]
 pub struct Wert<'t, T, Fehler> {
     /// Allgemeine Beschreibung des Arguments.
@@ -109,6 +109,12 @@ pub struct Wert<'t, T, Fehler> {
     /// Display a value (default/possible values).
     pub anzeige: Cow<'t, dyn Anzeige<'t, T>>,
 }
+
+/// It is a value argument.
+///
+/// ## Deutsche Synonym
+/// [`Wert`]
+pub type Value<'t, T, Fehler> = Wert<'t, T, Fehler>;
 
 impl<T: Debug, Fehler> Debug for Wert<'_, T, Fehler> {
     #[inline]
