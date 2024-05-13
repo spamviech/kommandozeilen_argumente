@@ -72,8 +72,8 @@ impl<'t> FrühesBeenden<'t> {
         let mut iter = args.into_iter();
         while let Some(arg_opt) = iter.next() {
             if let Some(arg) = &arg_opt {
-                if name.parse_frühes_beenden(arg) {
-                    nicht_verwendet.push(None);
+                if let Some(angepasstes_arg) = name.parse_frühes_beenden(arg) {
+                    nicht_verwendet.push(angepasstes_arg);
                     nicht_verwendet.extend(iter);
                     return (
                         Ergebnis::FrühesBeenden(NonEmpty::singleton(nachricht)),

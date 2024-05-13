@@ -4,6 +4,7 @@ use std::{
     borrow::Cow,
     convert::AsRef,
     ffi::{OsStr, OsString},
+    iter,
 };
 
 use itertools::Itertools as _;
@@ -55,12 +56,14 @@ pub struct Name<'t> {
 
 impl Name<'_> {
     /// Hilfs-Methode für [`parse_flag`](Name::parse_flag) und seine Varianten.
+    ///
+    /// Rückgabewert: [`Some(angepasstes_arg)`](Some) wenn gefunden, [`None`] sonst.
     fn parse_flag_aux<E>(
         &self,
         name_gefunden: impl FnOnce() -> E,
         parse_invertiert: impl FnOnce(&NonEmpty<Vergleich<'_>>, &Normalisiert<'_>) -> Option<E>,
         arg: &OsStr,
-    ) -> Option<E> {
+    ) -> Option<(E, Option<OsString>)> {
         let Name { lang_präfix, lang, kurz_präfix, kurz } = self;
         let name_kurz_existiert = !kurz.is_empty();
         if let Some(string) = arg.to_str() {
@@ -68,23 +71,46 @@ impl Name<'_> {
             if let Some(lang_str) = &lang_präfix.strip_als_präfix_n(&normalisiert) {
                 #[allow(clippy::redundant_else)]
                 if contains_str(lang, lang_str.as_str()) {
-                    return Some(name_gefunden());
+                    return Some((name_gefunden(), None));
                 } else if let Some(wert) = parse_invertiert(lang, lang_str) {
-                    return Some(wert);
+                    return Some((wert, None));
                 } else {
                     // kein match für {lang_präfix}[invertiert_infix]{lang_name}
                 }
             } else if name_kurz_existiert {
                 // TODO Kurz-Namen verschmelzen
-                if let Some(kurz_graphemes) = kurz_präfix.strip_als_präfix_n(&normalisiert) {
-                    if kurz_graphemes
-                        .as_str()
-                        .graphemes(true)
-                        .exactly_one()
-                        .map(|name| contains_str(kurz, name))
-                        .unwrap_or(false)
-                    {
-                        return Some(name_gefunden());
+                if let Some(kurz_suffix) = kurz_präfix.strip_als_präfix_n(&normalisiert) {
+                    let graphemes: Box<dyn Iterator<Item = &str>> =
+                        match kurz_suffix.as_str().graphemes(true).exactly_one() {
+                            Ok(name) if contains_str(kurz, name) => {
+                                return Some((name_gefunden(), None))
+                            },
+                            Ok(einzelnes) => Box::new(Some(einzelnes).into_iter()),
+                            Err(mehrere) => Box::new(mehrere),
+                        };
+
+                    let (erster_match, andere) = graphemes.fold(
+                        (None, Vec::new()),
+                        |(mut erster_match, mut andere), grapheme| {
+                            if erster_match.is_some() || !contains_str(kurz, grapheme) {
+                                andere.push(grapheme);
+                            } else {
+                                erster_match = Some(grapheme);
+                            }
+                            (erster_match, andere)
+                        },
+                    );
+
+                    if erster_match.is_some() {
+                        let wert = name_gefunden();
+                        let angepasstes_argument = if andere.is_empty() {
+                            None
+                        } else {
+                            Some(OsString::from(
+                                iter::once(kurz_präfix.as_str()).chain(andere).collect::<String>(),
+                            ))
+                        };
+                        return Some((wert, angepasstes_argument));
                     }
                 }
             } else {
@@ -95,13 +121,15 @@ impl Name<'_> {
     }
 
     /// Parse den namen als Flag.
+    ///
+    /// Rückgabewert: [`Some(wert, angepasstes_arg)`](Some) wenn gefunden, [`None`] sonst.
     #[inline]
     pub(crate) fn parse_flag(
         &self,
         invertiere_präfix: &Vergleich<'_>,
         invertiere_infix: &Vergleich<'_>,
         arg: &OsStr,
-    ) -> Option<bool> {
+    ) -> Option<(bool, Option<OsString>)> {
         let parse_invertiert =
             |lang: &NonEmpty<Vergleich<'_>>, lang_str: &Normalisiert<'_>| -> Option<bool> {
                 if let Some(infix_name) = invertiere_präfix.strip_als_präfix_n(lang_str) {
@@ -120,9 +148,12 @@ impl Name<'_> {
     }
 
     /// Parse den namen als Flag, die ein frühes beenden auslöst.
+    ///
+    /// Rückgabewert: [`Some(angepasstes_arg)`](Some) wenn gefunden, [`None`] sonst.
     #[inline]
-    pub(crate) fn parse_frühes_beenden(&self, arg: &OsStr) -> bool {
-        self.parse_flag_aux(|| (), |_, _| None, arg).is_some()
+    #[allow(clippy::option_option)]
+    pub(crate) fn parse_frühes_beenden(&self, arg: &OsStr) -> Option<Option<OsString>> {
+        self.parse_flag_aux(|| (), |_, _| None, arg).map(|((), angepasstes_arg)| angepasstes_arg)
     }
 
     /// Parse den Namen als Wert.

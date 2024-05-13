@@ -130,8 +130,10 @@ impl<'t, T> Flag<'t, T> {
         let mut iter = args.into_iter();
         while let Some(arg_opt) = iter.next() {
             if let Some(arg) = &arg_opt {
-                if let Some(wert) = name.parse_flag(&invertiere_präfix, &invertiere_infix, arg) {
-                    nicht_verwendet.push(None);
+                if let Some((wert, angepasstes_arg)) =
+                    name.parse_flag(&invertiere_präfix, &invertiere_infix, arg)
+                {
+                    nicht_verwendet.push(angepasstes_arg);
                     nicht_verwendet.extend(iter);
                     return (Ergebnis::Wert(konvertiere(wert)), nicht_verwendet);
                 }
