@@ -14,9 +14,9 @@ use std::{
 use nonempty::nonempty;
 
 use kommandozeilen_argumente::{
-    argumente::{flag::Flag, hilfe::Default, wert::Wert},
-    combine, crate_name, crate_version, Arguments, Compare, Description, EnumArgument, Language,
-    NonEmpty, ParseArgument, ParseError,
+    argumente::{flag::Flag, hilfe::Default, wert::Value},
+    combine, crate_name, crate_version, Compare, Description, EnumArgument, Language, NonEmpty,
+    ParseArgument, ParseError,
 };
 
 /// An example enum, to show the use of [`EnumArgument`].
@@ -88,7 +88,7 @@ impl Display for Args {
 
 fn main() {
     let language = Language::ENGLISH;
-    let flag = Arguments::from(Flag::new_with_language(
+    let flag = Flag::new_with_language(
         Description::new_with_language(
             "flag",
             None::<&str>,
@@ -97,8 +97,8 @@ fn main() {
             language,
         ),
         language,
-    ));
-    let renamed = Arguments::from(Flag::new_with_language(
+    );
+    let renamed = Flag::new_with_language(
         Description::new_with_language(
             NonEmpty { head: "other", tail: vec!["names"] },
             "u",
@@ -107,8 +107,8 @@ fn main() {
             language,
         ),
         language,
-    ));
-    let required = Arguments::from(Flag {
+    );
+    let required = Flag {
         beschreibung: Description::new_with_language(
             "required",
             "r",
@@ -120,8 +120,8 @@ fn main() {
         invertiere_infix: Compare::from(language.invertiere_infix),
         konvertiere: Cow::Borrowed(&identity),
         anzeige: Cow::Borrowed(&ToString::to_string),
-    });
-    let value = Arguments::from(String::arguments_with_language(
+    };
+    let value = String::arguments_with_language(
         Description::new_with_language(
             "value",
             None::<&str>,
@@ -130,8 +130,8 @@ fn main() {
             language,
         ),
         language,
-    ));
-    let enumeration = Arguments::from(Wert::new_enum_with_language(
+    );
+    let enumeration = Value::new_enum_with_language(
         Description::new_with_language(
             "enumeration",
             "e",
@@ -140,7 +140,7 @@ fn main() {
             language,
         ),
         language,
-    ));
+    );
     #[allow(clippy::shadow_unrelated)]
     let merge = |flag, renamed, required, value, enumeration| Args {
         flag,

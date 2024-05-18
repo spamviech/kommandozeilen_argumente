@@ -15,8 +15,8 @@ use nonempty::{nonempty, NonEmpty};
 
 use kommandozeilen_argumente::{
     argumente::{flag::Flag, hilfe::Standard, wert::Wert},
-    crate_name, crate_version, kombiniere, Argumente, Beschreibung, EnumArgument, ParseArgument,
-    ParseFehler, Sprache, Vergleich,
+    crate_name, crate_version, kombiniere, Beschreibung, EnumArgument, ParseArgument, ParseFehler,
+    Sprache, Vergleich,
 };
 
 /// Beispiel-enum um den Anwendung von [`EnumArgument`] zu zeigen.
@@ -88,7 +88,7 @@ impl Display for Args {
 
 fn main() {
     let sprache = Sprache::DEUTSCH;
-    let flag = Argumente::from(Flag::neu_mit_sprache(
+    let flag = Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache(
             "flag",
             None::<&str>,
@@ -97,8 +97,8 @@ fn main() {
             sprache,
         ),
         sprache,
-    ));
-    let umbenannt = Argumente::from(Flag::neu_mit_sprache(
+    );
+    let umbenannt = Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache(
             NonEmpty { head: "andere", tail: vec!["namen"] },
             "u",
@@ -107,8 +107,8 @@ fn main() {
             sprache,
         ),
         sprache,
-    ));
-    let benötigt = Argumente::from(Flag {
+    );
+    let benötigt = Flag {
         beschreibung: Beschreibung::neu_mit_sprache(
             "benötigt",
             "b",
@@ -120,8 +120,8 @@ fn main() {
         invertiere_infix: Vergleich::from(sprache.invertiere_infix),
         konvertiere: Cow::Borrowed(&identity),
         anzeige: Cow::Borrowed(&ToString::to_string),
-    });
-    let wert = Argumente::einzel_argument(String::argumente_mit_sprache(
+    };
+    let wert = String::argumente_mit_sprache(
         Beschreibung::neu_mit_sprache(
             "wert",
             None::<&str>,
@@ -130,8 +130,8 @@ fn main() {
             sprache,
         ),
         sprache,
-    ));
-    let aufzählung = Argumente::from(Wert::neu_enum_mit_sprache(
+    );
+    let aufzählung = Wert::neu_enum_mit_sprache(
         Beschreibung::neu_mit_sprache(
             "aufzählung",
             "a",
@@ -140,7 +140,7 @@ fn main() {
             sprache,
         ),
         sprache,
-    ));
+    );
     #[allow(clippy::shadow_unrelated)]
     let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung| Args {
         flag,

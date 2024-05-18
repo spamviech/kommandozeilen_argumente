@@ -23,12 +23,16 @@ macro_rules! kombiniere {
         $crate::argumente::Argumente::kombiniere($f)
     };
     ($f: expr, $arg: expr $(,)?) => {
-        $crate::argumente::Argumente::kombiniere(($f, $arg))
+        $crate::argumente::Argumente::kombiniere(($f, $crate::argumente::Argumente::from($arg)))
     };
     ($f: expr, $a: expr, $b: expr $(, $tail: ident)* $(,)?) => {{
         #[allow(clippy::shadow_unrelated, clippy::shadow_same, clippy::shadow_reuse)]
         {
-            let kombiniere = $crate::argumente::Argumente::kombiniere((|first, second| (first, second), $a, $b));
+            let kombiniere = $crate::argumente::Argumente::kombiniere((
+                |first, second| (first, second),
+                $crate::argumente::Argumente::from($a),
+                $crate::argumente::Argumente::from($b),
+            ));
             let uncurry_f = move |(first, second) $(, $tail)*| $f(first, second $(, $tail)*);
             $crate::kombiniere!(uncurry_f, kombiniere $(, $tail)*)
         }
