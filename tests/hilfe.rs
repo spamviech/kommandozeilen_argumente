@@ -10,15 +10,28 @@
     clippy::use_debug
 )]
 
-use std::{ffi::OsString, iter, process};
+use std::{
+    ffi::OsString,
+    fmt::{self, Debug, Formatter},
+    iter,
+};
 
 use kommandozeilen_argumente::{
     argumente::{einzelargument::EinzelArgument, flag::Flag, hilfe::Standard},
     Argumente, Beschreibung, Ergebnis, Sprache,
 };
 
+// Wrapper um String, mit Debug=Display Implementierung
+struct DString(String);
+
+impl Debug for DString {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.0)
+    }
+}
+
 #[test]
-fn hilfe_test() {
+fn hilfe_test() -> Result<(), DString> {
     let sprache = Sprache::DEUTSCH;
     let flag = Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache(
@@ -45,17 +58,14 @@ fn hilfe_test() {
             let nicht_verwendet: Vec<_> = nicht_verwendet.into_iter().flatten().collect();
             let übrige = nicht_verwendet.len();
             if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {nicht_verwendet:?}");
-                process::exit(1);
+                Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
             } else {
                 for nachricht in nachrichten {
                     println!("{nachricht}");
                 }
+                Ok(())
             }
         },
-        res => {
-            eprintln!("Unerwartetes Ergebnis: {res:?}");
-            process::exit(2);
-        },
+        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
     }
 }

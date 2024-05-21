@@ -14,13 +14,13 @@ use std::{
     borrow::Cow,
     ffi::OsString,
     fmt::{self, Debug, Display, Formatter},
-    iter, process,
+    iter,
 };
 
-use nonempty::nonempty;
+use nonempty::{nonempty, NonEmpty};
 
 use kommandozeilen_argumente::{
-    argumente::einzelargument::EinzelArgument, EnumArgument, Ergebnis, Parse, ParseArgument,
+    argumente::einzelargument::EinzelArgument, EnumArgument, Ergebnis, Fehler, Parse, ParseArgument,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
@@ -149,92 +149,127 @@ struct Test2 {
     inner: Inner,
 }
 
-#[test]
-fn derive_test() {
-    let arg = Test::kommandozeilen_argumente();
-    match arg.parse(iter::once(OsString::from("--hilfe".to_owned()))) {
-        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
-            let übrige = nicht_verwendet.len();
-            if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {nicht_verwendet:?}");
-                process::exit(1);
-            } else {
-                for nachricht in nachrichten {
-                    println!("{nachricht}");
-                }
-            }
-        },
-        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
-            for fehler in fehler_sammlung {
-                eprintln!("{}", fehler.fehlermeldung());
-            }
-            eprintln!("{nicht_verwendet:?}");
-            process::exit(2);
-        },
-        res => {
-            eprintln!("Unerwartetes Ergebnis: {res:?}");
-            process::exit(3);
-        },
+struct DisplayAsNewline<Collection>(Collection);
+
+impl<T: Display> Display for DisplayAsNewline<Vec<T>> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        for item in &self.0 {
+            writeln!(formatter, "{item}")?;
+        }
+        Ok(())
     }
-    println!("--------------");
-    let arg2 = Test2::kommandozeilen_argumente();
-    match arg2.parse(iter::once(OsString::from("--help".to_owned()))) {
-        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
-            let übrige = nicht_verwendet.len();
-            if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {nicht_verwendet:?}");
-                process::exit(1);
-            } else {
-                for nachricht in nachrichten {
-                    println!("{nachricht}");
-                }
-            }
-        },
-        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
-            for fehler in fehler_sammlung {
-                eprintln!("{}", fehler.fehlermeldung());
-            }
-            eprintln!("{nicht_verwendet:?}");
-            process::exit(4);
-        },
-        res => {
-            eprintln!("Unerwartetes Ergebnis: {res:?}");
-            process::exit(5);
-        },
+}
+
+impl Display for DisplayAsNewline<NonEmpty<Cow<'_, str>>> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        for item in &self.0 {
+            writeln!(formatter, "{item}")?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: Display> Display for DisplayAsNewline<NonEmpty<Fehler<'_, T>>> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        for fehler in &self.0 {
+            writeln!(formatter, "{}", fehler.fehlermeldung())?;
+        }
+        Ok(())
+    }
+}
+
+// Wrapper um String, mit Debug=Display Implementierung
+struct DString(String);
+
+impl Debug for DString {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.0)
     }
 }
 
 #[test]
-fn verschmelze_kurzformen() {
+fn derive_hilfe_test() -> Result<(), DString> {
+    let arg = Test::kommandozeilen_argumente();
+    match arg.parse(iter::once(OsString::from("--hilfe".to_owned()))) {
+        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+            for nachricht in nachrichten {
+                println!("{nachricht}");
+            }
+            if nicht_verwendet.is_empty() {
+                Ok(())
+            } else {
+                Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
+            }
+        },
+        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
+            for fehler in &fehler_sammlung {
+                eprintln!("{}", fehler.fehlermeldung());
+            }
+            eprintln!("{nicht_verwendet:?}");
+            Err(DString(format!("Parsen mit fehler:\n{}", DisplayAsNewline(fehler_sammlung))))
+        },
+        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
+    }
+}
+
+#[test]
+fn derive_help_test() -> Result<(), DString> {
+    let arg = Test2::kommandozeilen_argumente();
+    match arg.parse(iter::once(OsString::from("--help".to_owned()))) {
+        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+            for nachricht in nachrichten {
+                println!("{nachricht}");
+            }
+            if nicht_verwendet.is_empty() {
+                Ok(())
+            } else {
+                Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
+            }
+        },
+        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
+            for fehler in &fehler_sammlung {
+                eprintln!("{}", fehler.fehlermeldung());
+            }
+            eprintln!("{nicht_verwendet:?}");
+            Err(DString(format!("Parsen mit fehler:\n{}", DisplayAsNewline(fehler_sammlung))))
+        },
+        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
+    }
+}
+
+#[test]
+fn verschmelze_kurzformen_hilfe() -> Result<(), DString> {
     let arg = Test::kommandozeilen_argumente();
     match arg.parse(iter::once(OsString::from("-vh".to_owned()))) {
         (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
             let übrige = nicht_verwendet.len();
             if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {nicht_verwendet:?}");
-                process::exit(1);
+                Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
             } else if nachrichten.len() != 2 {
-                eprintln!("Unerwartete Anzahl an Nachrichten: {nachrichten:?}");
-                process::exit(2);
+                Err(DString(format!(
+                    "Unerwartete Anzahl an Nachrichten: {}",
+                    DisplayAsNewline(nachrichten)
+                )))
             } else {
                 for nachricht in nachrichten {
                     println!("{nachricht}");
                 }
+                Ok(())
             }
         },
         (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
-            for fehler in fehler_sammlung {
+            for fehler in &fehler_sammlung {
                 eprintln!("{}", fehler.fehlermeldung());
             }
             eprintln!("{nicht_verwendet:?}");
-            process::exit(3);
+            Err(DString(format!("Parsen mit fehler:\n{}", DisplayAsNewline(fehler_sammlung))))
         },
-        res => {
-            eprintln!("Unerwartetes Ergebnis: {res:?}");
-            process::exit(4);
-        },
+        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
     }
-    println!("--------------");
+}
+
+#[test]
+fn verschmelze_kurzformen_wert() -> Result<(), DString> {
     let arg2 = Test2::kommandozeilen_argumente();
     match arg2.parse(iter::once(OsString::from("-fb".to_owned()))) {
         (Ergebnis::Wert(test2), nicht_verwendet) => {
@@ -246,18 +281,14 @@ fn verschmelze_kurzformen() {
                 bool_flag: true,
             };
             if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {nicht_verwendet:?}");
-                process::exit(5);
+                Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
             } else if test2 != erwartet {
-                eprintln!("Unerwarteter Wert: {test2:?} != {erwartet:?}");
-                process::exit(6);
+                Err(DString(format!("Unerwarteter Wert: {test2:?} != {erwartet:?}")))
             } else {
                 println!("{test2:?}");
+                Ok(())
             }
         },
-        res => {
-            eprintln!("Unerwartetes Ergebnis: {res:?}");
-            process::exit(7);
-        },
+        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
     }
 }
