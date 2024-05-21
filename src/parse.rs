@@ -15,6 +15,8 @@ use crate::{
     argumente::{
         einzelargument::EinzelArgument,
         flag::Flag,
+        hilfe::{self, ErzeugeHilfeText},
+        kombiniere::Kombiniere,
         wert::{EnumArgument, Wert},
         Argumente,
     },
@@ -52,7 +54,7 @@ pub trait ParseArgument: Sized {
         invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> EinzelArgument<'t, Self, String>;
+    ) -> Argumente<'t, Self, String>;
 
     /// Sollen Argumente dieses Typs normalerweise einen Standard-Wert haben?
     ///
@@ -69,7 +71,7 @@ pub trait ParseArgument: Sized {
     fn argumente_mit_sprache<'t>(
         beschreibung: Beschreibung<'t, Self>,
         sprache: Sprache,
-    ) -> EinzelArgument<'t, Self, String> {
+    ) -> Argumente<'t, Self, String> {
         Self::argumente(
             beschreibung,
             sprache.invertiere_präfix,
@@ -88,7 +90,7 @@ pub trait ParseArgument: Sized {
     fn arguments_with_language<'t>(
         description: Description<'t, Self>,
         language: Language,
-    ) -> EinzelArgument<'t, Self, String> {
+    ) -> Argumente<'t, Self, String> {
         Self::argumente_mit_sprache(description, language)
     }
 
@@ -98,7 +100,7 @@ pub trait ParseArgument: Sized {
     /// [`new`](ParseArgument::new)
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    fn neu<'t>(beschreibung: Beschreibung<'t, Self>) -> EinzelArgument<'t, Self, String> {
+    fn neu<'t>(beschreibung: Beschreibung<'t, Self>) -> Argumente<'t, Self, String> {
         Self::argumente_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
 
@@ -108,7 +110,7 @@ pub trait ParseArgument: Sized {
     /// [`neu`](ParseArgument::neu)
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    fn new<'t>(beschreibung: Beschreibung<'t, Self>) -> EinzelArgument<'t, Self, String> {
+    fn new<'t>(beschreibung: Beschreibung<'t, Self>) -> Argumente<'t, Self, String> {
         Self::argumente_mit_sprache(beschreibung, Sprache::ENGLISH)
     }
 }
@@ -121,8 +123,8 @@ impl ParseArgument for bool {
         invertiere_infix: impl Into<Vergleich<'t>>,
         _wert_infix: impl Into<Vergleich<'t>>,
         _meta_var: &'t str,
-    ) -> EinzelArgument<'t, Self, String> {
-        EinzelArgument::Flag(Flag {
+    ) -> Argumente<'t, Self, String> {
+        Argumente::from(Flag {
             beschreibung,
             invertiere_präfix: invertiere_präfix.into(),
             invertiere_infix: invertiere_infix.into(),
@@ -145,8 +147,8 @@ impl ParseArgument for String {
         _invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> EinzelArgument<'t, Self, String> {
-        EinzelArgument::wert(Wert {
+    ) -> Argumente<'t, Self, String> {
+        Argumente::from(Wert {
             beschreibung,
             wert_infix: wert_infix.into(),
             meta_var,
@@ -180,8 +182,8 @@ macro_rules! impl_parse_argument {
                 _invertiere_infix: impl Into<Vergleich<'t>>,
                 wert_infix: impl Into<Vergleich<'t>>,
                 meta_var: &'t str,
-            ) -> EinzelArgument<'t, Self, String> {
-                EinzelArgument::wert(Wert {
+            ) -> Argumente<'t, Self, String> {
+                Argumente::from(Wert {
                     beschreibung,
                     wert_infix: wert_infix.into(),
                     meta_var,
@@ -209,6 +211,91 @@ macro_rules! impl_parse_argument {
 }
 impl_parse_argument! {i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize, f32, f64}
 
+/// Hilfs-Typ für die [`ParseArgument`]-Implementierung von [`Option<T>`].
+struct OptionHelper<'t, F, T, Fehler>(F, Argumente<'t, T, Fehler>);
+
+impl<'t, T, Fehler, F: FnOnce(Ergebnis<'t, T, Fehler>) -> Ergebnis<'t, T, Fehler>>
+    Kombiniere<'t, T, Fehler> for OptionHelper<'t, F, T, Fehler>
+{
+    #[inline]
+    fn parse(
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<OsString>>>,
+    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
+        let OptionHelper(funktion, arg) = *self;
+        let (ergebnis, nicht_verwendet) = arg.parse_rekursiv(args);
+        (funktion(ergebnis), nicht_verwendet)
+    }
+
+    #[inline]
+    fn erzeuge_hilfe_text(
+        &self,
+        variante: &dyn ErzeugeHilfeText,
+        meta_standard: &str,
+        meta_erlaubte_werte: &str,
+    ) -> NonEmpty<hilfe::Alternativen> {
+        self.1.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
+    }
+}
+
+/// Erstelle die [`Anzeige`]-closure für [`Option<T>`] als trait-Objekt.
+fn erstelle_boxed_option_anzeige<'t, T>(
+    anzeige: Cow<'t, dyn Anzeige<'t, T>>,
+) -> Box<dyn 't + Anzeige<'t, Option<T>>> {
+    Box::new(move |opt: &Option<T>| {
+        #[allow(clippy::min_ident_chars)]
+        if let Some(t) = opt {
+            anzeige(t)
+        } else {
+            String::from("None")
+        }
+    })
+}
+
+/// Erstelle die closure für das finale anpassen des [`Ergebnis`] bei einer [`Option<T>`].
+fn erstelle_ergebnis_anpassen<'t, T: Clone>(
+    standard: Option<T>,
+) -> impl FnOnce(Ergebnis<'t, T, String>) -> Ergebnis<'t, T, String> {
+    |ergebnis| match (ergebnis, standard) {
+        (Ergebnis::Fehler(fehler_liste), Some(standard)) => {
+            let mut finales_ergebnis = None;
+            for fehler in &fehler_liste {
+                match fehler {
+                    Fehler::FehlenderWert { .. } | Fehler::FehlendeFlag { .. } => {
+                        finales_ergebnis = Some(Ergebnis::Wert(standard.clone()));
+                    },
+                    Fehler::Fehler { .. } => {
+                        finales_ergebnis = None;
+                        break;
+                    },
+                }
+            }
+            if let Some(finales_ergebnis) = finales_ergebnis {
+                finales_ergebnis
+            } else {
+                Ergebnis::Fehler(fehler_liste)
+            }
+        },
+        (ergebnis, _) => ergebnis,
+    }
+}
+
+/// Erstelle die [`Beschreibung`] für den Aufruf von [`ParseArgument::argumente`] bei einer [`Option<T>`].
+fn erstelle_beschreibung<'t, T>(beschreibung: &Beschreibung<'t, Option<T>>) -> Beschreibung<'t, T> {
+    let name_lang_präfix = beschreibung.name.lang_präfix.clone();
+    let name_lang = beschreibung.name.lang.clone();
+    let name_kurz_präfix = beschreibung.name.kurz_präfix.clone();
+    let name_kurz = beschreibung.name.kurz.clone();
+    Beschreibung::neu(
+        name_lang_präfix,
+        name_lang.clone(),
+        name_kurz_präfix,
+        name_kurz.clone(),
+        None::<&str>,
+        None,
+    )
+}
+
 impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
     #[inline]
     fn argumente<'t>(
@@ -217,88 +304,86 @@ impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
         invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> EinzelArgument<'t, Self, String> {
-        let name_lang_präfix = beschreibung.name.lang_präfix.clone();
-        let name_lang = beschreibung.name.lang.clone();
-        let name_kurz_präfix = beschreibung.name.kurz_präfix.clone();
-        let name_kurz = beschreibung.name.kurz.clone();
+    ) -> Argumente<'t, Self, String> {
         let wert_infix_vergleich = wert_infix.into();
-        let einzel_argument = <T as ParseArgument>::argumente(
-            Beschreibung::neu(
-                name_lang_präfix,
-                name_lang.clone(),
-                name_kurz_präfix,
-                name_kurz.clone(),
-                None::<&str>,
-                None,
-            ),
+        let argumente = <T as ParseArgument>::argumente(
+            erstelle_beschreibung(&beschreibung),
             invertiere_präfix,
             invertiere_infix,
-            wert_infix_vergleich.clone(),
+            wert_infix_vergleich,
             meta_var,
         );
-        let erstelle_boxed_anzeige =
-            |anzeige: Cow<'t, dyn Anzeige<'t, T>>| -> Box<dyn Anzeige<'t, Option<T>>> {
-                Box::new(move |opt: &Option<T>| {
-                    #[allow(clippy::min_ident_chars)]
-                    if let Some(t) = opt {
-                        anzeige(t)
-                    } else {
-                        String::from("None")
-                    }
-                })
-            };
+        let ergebnis_anpassen = erstelle_ergebnis_anpassen(beschreibung.standard.clone());
         #[allow(clippy::shadow_unrelated)]
-        match einzel_argument {
-            EinzelArgument::Flag(Flag {
-                beschreibung,
+        match argumente {
+            Argumente::EinzelArgument(EinzelArgument::Flag(Flag {
+                beschreibung: _,
                 invertiere_präfix,
                 invertiere_infix,
                 konvertiere,
                 anzeige,
-            }) => {
+            })) => {
                 let boxed_konvertiere: Box<dyn Bool<'t, Option<T>>> =
                     Box::new(move |bool| Some(konvertiere(bool)));
-                EinzelArgument::Flag(Flag {
-                    beschreibung: beschreibung.konvertiere(Some),
+                Argumente::EinzelArgument(EinzelArgument::Flag(Flag {
+                    beschreibung,
                     invertiere_präfix,
                     invertiere_infix,
                     konvertiere: Cow::Owned(boxed_konvertiere),
-                    anzeige: Cow::Owned(erstelle_boxed_anzeige(anzeige)),
-                })
+                    anzeige: Cow::Owned(erstelle_boxed_option_anzeige(anzeige)),
+                }))
             },
-            EinzelArgument::FrühesBeenden { frühes_beenden, wert, anzeige } => {
-                EinzelArgument::FrühesBeenden {
+            Argumente::EinzelArgument(EinzelArgument::FrühesBeenden {
+                frühes_beenden,
+                wert,
+                anzeige,
+            }) => {
+                // standard ist garantiert [`None`], daher kann [`Beschreibung`] übernommen werden.
+                Argumente::EinzelArgument(EinzelArgument::FrühesBeenden {
                     frühes_beenden,
                     wert: Some(wert),
-                    anzeige: Cow::Owned(erstelle_boxed_anzeige(anzeige)),
-                }
+                    anzeige: Cow::Owned(erstelle_boxed_option_anzeige(anzeige)),
+                })
             },
-            EinzelArgument::Wert(Wert {
-                beschreibung,
+            Argumente::EinzelArgument(EinzelArgument::Wert(Wert {
+                beschreibung: _,
                 wert_infix,
                 meta_var,
                 mögliche_werte,
                 parse,
                 anzeige,
                 anzeige_fehler,
-            }) => {
+            })) => {
                 let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, Option<T>, String>> =
                     Box::new(move |os_str: &OsStr| match parse(os_str) {
                         Ok(wert) => Ok(Some(wert)),
                         Err(_fehler) if os_str == "None" => Ok(None),
                         Err(fehler) => Err(fehler),
                     });
-                EinzelArgument::Wert(Wert {
-                    beschreibung: beschreibung.konvertiere(Some),
+                let mögliche_werte = mögliche_werte.map(|nonempty| {
+                    let mut nonempty = nonempty.map(Some);
+                    nonempty.push(None);
+                    nonempty
+                });
+                let wert = Argumente::from(Wert {
+                    beschreibung,
                     wert_infix,
                     meta_var,
-                    mögliche_werte: mögliche_werte.map(|nonempty| nonempty.map(Some)),
+                    mögliche_werte,
                     parse: Cow::Owned(boxed_parse),
-                    anzeige: Cow::Owned(erstelle_boxed_anzeige(anzeige)),
+                    anzeige: Cow::Owned(erstelle_boxed_option_anzeige(anzeige)),
                     anzeige_fehler,
-                })
+                });
+                Argumente::kombiniere(OptionHelper(ergebnis_anpassen, wert))
             },
+            Argumente::Kombiniere(kombiniere) => Argumente::kombiniere(OptionHelper(
+                ergebnis_anpassen,
+                Argumente::kombiniere((Some, Argumente::Kombiniere(kombiniere))),
+            )),
+            Argumente::Alternativen(alternativen) => Argumente::kombiniere(OptionHelper(
+                ergebnis_anpassen,
+                Argumente::kombiniere((Some, Argumente::Alternativen(alternativen))),
+            )),
         }
     }
 
@@ -316,7 +401,7 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
         _invertiere_infix: impl Into<Vergleich<'t>>,
         wert_infix: impl Into<Vergleich<'t>>,
         meta_var: &'t str,
-    ) -> EinzelArgument<'t, Self, String> {
+    ) -> Argumente<'t, Self, String> {
         let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, T, String>> =
             Box::new(move |os_str: &OsStr| {
                 let Some(string) = os_str.to_str() else {
@@ -331,7 +416,7 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
                     )
                     .ok_or_else(|| ParseFehler::ParseFehler(String::from(string)))
             });
-        EinzelArgument::Wert(Wert {
+        Argumente::from(Wert {
             beschreibung,
             wert_infix: wert_infix.into(),
             meta_var,

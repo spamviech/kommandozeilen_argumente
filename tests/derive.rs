@@ -19,9 +19,7 @@ use std::{
 
 use nonempty::{nonempty, NonEmpty};
 
-use kommandozeilen_argumente::{
-    argumente::einzelargument::EinzelArgument, EnumArgument, Ergebnis, Fehler, Parse, ParseArgument,
-};
+use kommandozeilen_argumente::{Argumente, EnumArgument, Ergebnis, Fehler, Parse, ParseArgument};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
 #[kommandozeilen_argumente(case: insensitive)]
@@ -169,8 +167,8 @@ impl ParseArgument for Flag {
         invertiere_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
         _wert_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
         _meta_var: &'t str,
-    ) -> EinzelArgument<'t, Self, String> {
-        EinzelArgument::from(kommandozeilen_argumente::Flag {
+    ) -> Argumente<'t, Self, String> {
+        Argumente::from(kommandozeilen_argumente::Flag {
             beschreibung,
             invertiere_präfix: invertiere_präfix.into(),
             invertiere_infix: invertiere_infix.into(),
