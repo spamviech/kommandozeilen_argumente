@@ -334,6 +334,9 @@ impl<'t, T, F> Wert<'t, T, F> {
                 nicht_verwendet.push(arg_opt);
             }
         }
+        if let Some(trailing_name) = name_ohne_wert {
+            nicht_verwendet.push(trailing_name);
+        }
         let ergebnis = if let Some(wert) = standard {
             Ergebnis::Wert(wert)
         } else {
