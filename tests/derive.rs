@@ -44,6 +44,44 @@ fn arg_enum_derive() {
     assert_eq!(parse_res, Ok(Bla::Meh));
 }
 
+struct DisplayAsNewline<Collection>(Collection);
+
+impl<T: Display> Display for DisplayAsNewline<Vec<T>> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        for item in &self.0 {
+            writeln!(formatter, "{item}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Display for DisplayAsNewline<NonEmpty<Cow<'_, str>>> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        for item in &self.0 {
+            writeln!(formatter, "{item}")?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: Display> Display for DisplayAsNewline<NonEmpty<Fehler<'_, T>>> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        for fehler in &self.0 {
+            writeln!(formatter, "{}", fehler.fehlermeldung())?;
+        }
+        Ok(())
+    }
+}
+
+// Wrapper um String, mit Debug=Display Implementierung
+struct DString(String);
+
+impl Debug for DString {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.0)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(sprache: deutsch, version, hilfe)]
 struct Test {
@@ -64,6 +102,32 @@ struct Test {
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(language: english)]
 struct Empty;
+
+#[test]
+fn derive_hilfe_test() -> Result<(), DString> {
+    let arg = Test::kommandozeilen_argumente();
+    match arg.parse(iter::once(OsString::from("--hilfe".to_owned()))) {
+        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+            for nachricht in nachrichten {
+                println!("{nachricht}");
+            }
+            if nicht_verwendet.is_empty() {
+                Ok(())
+            } else {
+                Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
+            }
+        },
+        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
+            // FIXME: standard-Wert ignoriert, FrühesBeenden soll FehlenderWert/Flag "überschreiben"
+            for fehler in &fehler_sammlung {
+                eprintln!("{}", fehler.fehlermeldung());
+            }
+            eprintln!("{nicht_verwendet:?}");
+            Err(DString(format!("Parsen mit fehler:\n{}", DisplayAsNewline(fehler_sammlung))))
+        },
+        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
+    }
+}
 
 const DUMMY: kommandozeilen_argumente::Sprache = kommandozeilen_argumente::Sprache {
     lang_präfix: "(-.-)",
@@ -147,69 +211,6 @@ struct Test2 {
     bool_flag: bool,
     #[kommandozeilen_argumente(flatten)]
     inner: Inner,
-}
-
-struct DisplayAsNewline<Collection>(Collection);
-
-impl<T: Display> Display for DisplayAsNewline<Vec<T>> {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        for item in &self.0 {
-            writeln!(formatter, "{item}")?;
-        }
-        Ok(())
-    }
-}
-
-impl Display for DisplayAsNewline<NonEmpty<Cow<'_, str>>> {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        for item in &self.0 {
-            writeln!(formatter, "{item}")?;
-        }
-        Ok(())
-    }
-}
-
-impl<T: Display> Display for DisplayAsNewline<NonEmpty<Fehler<'_, T>>> {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        for fehler in &self.0 {
-            writeln!(formatter, "{}", fehler.fehlermeldung())?;
-        }
-        Ok(())
-    }
-}
-
-// Wrapper um String, mit Debug=Display Implementierung
-struct DString(String);
-
-impl Debug for DString {
-    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        write!(formatter, "{}", self.0)
-    }
-}
-
-#[test]
-fn derive_hilfe_test() -> Result<(), DString> {
-    let arg = Test::kommandozeilen_argumente();
-    match arg.parse(iter::once(OsString::from("--hilfe".to_owned()))) {
-        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
-            for nachricht in nachrichten {
-                println!("{nachricht}");
-            }
-            if nicht_verwendet.is_empty() {
-                Ok(())
-            } else {
-                Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
-            }
-        },
-        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
-            for fehler in &fehler_sammlung {
-                eprintln!("{}", fehler.fehlermeldung());
-            }
-            eprintln!("{nicht_verwendet:?}");
-            Err(DString(format!("Parsen mit fehler:\n{}", DisplayAsNewline(fehler_sammlung))))
-        },
-        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
-    }
 }
 
 #[test]
