@@ -142,14 +142,22 @@ macro_rules! impl_kombiniere_tuple {
                             },
                         }
                     )+
-                    let ergebnis = if let Some(fehler) = NonEmpty::from_vec(alle_fehler) {
-                        Ergebnis::Fehler(fehler)
-                    } else if let Some(nachrichten) = NonEmpty::from_vec(alle_frühes_beenden) {
-                        Ergebnis::FrühesBeenden(nachrichten)
-                    } else {
-                        Ergebnis::Wert(funktion(
-                            $([<wert_ $suffix:snake:lower>].expect("Kein Fehler oder FrühesBeenden!")
-                        ),+))
+                    let ergebnis = match NonEmpty::from_vec(alle_frühes_beenden) {
+                        Some(nachrichten) if alle_fehler.iter().all(|fehler| {
+                            matches!(
+                                fehler,
+                                $crate::Fehler::FehlendeFlag { .. } | $crate::Fehler::FehlenderWert { .. }
+                            )
+                        }) => Ergebnis::FrühesBeenden(nachrichten),
+                        _ => {
+                            if let Some(fehler) = NonEmpty::from_vec(alle_fehler) {
+                                Ergebnis::Fehler(fehler)
+                            } else {
+                                Ergebnis::Wert(funktion(
+                                    $([<wert_ $suffix:snake:lower>].expect("Kein Fehler oder FrühesBeenden!")
+                                ),+))
+                            }
+                        }
                     };
                     (ergebnis, nicht_verwendet)
                 }
