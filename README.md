@@ -83,16 +83,34 @@ The following options are supported at the `struct` declaration.
 - `sprache: <sprache>` | `language: <language>`:
   Default value for some strings, default: `english`.
   Builtin languages for `deutsch`, `englisch` and `english`.
+- `programm(<opts>)` | `program(<opts>)`:
+  General program properties. Overwrite the default values for
+  `hilfe(<opts>)`, `help(<opts>)`, `version(<opts>)` (see below).
+  - `name: <Programm Name>`: The program name shown in help and version text.
+    If left unspecified use the value of `CARGO_PKG_NAME`.
+  - `version: <Programm Version>`: The program version show in help and version text.
+    If left unspecified show no version in the help text
+    and use the value of `CARGO_PKG_VERSION` in the version text.
+  - `beschreibung: <programm-beschreibung>` | `description: <program_description>`:
+    Set the program description shown in the help text.
+- `hilfe` | `help`: create a help text flag (with a `-h` short option).
+  Unless specified in `program(<opts>)`, use the values of `CARGO_PKG_NAME` and `CARGO_PKG_VERSION`.
 - `version`: create a `--version`, `-v` flag.
-- `hilfe` | `help`: create a help text flag.
+  Unless specified in `program(<opts>)`, use the values of `CARGO_PKG_NAME` and `CARGO_PKG_VERSION`.
 - `hilfe(<opts>)`, `help(<opts>)`, `version(<opts>)`:
-  Similar to the variant without ops, but short name is off by default. Possible Opts:
+  Similar to the variant without ops, but short name is off by default. Additionally, as a default,
+  no version is shown in the help text, unless specified otherwise in `program(<opts>)`.
+  Possible Opts:
   - `lang_präfix: <präfix>` | `long_prefix: <prefix>`: Prefix before long name.
   - `lang: <name>`, `long [<namen>]`: Overwrite long name.
   - `kurz_präfix: <präfix>` | `short_prefix: <prefix>`: Prefix before short name.
   - `kurz`: Set short name as first Grapheme of the first long name.
   - `kurz: <name>`, `kurz: [<namen>]`: Overwrite short name.
   - `sprache: <sprache>` | `language: <language>`: Language of the help text and default names.
+  - `name`: Use the value of `CARGO_PKG_NAME` as program name.
+  - `name: <Programm Name>`: The program name.
+  - `version`: Use the value of `CARGO_PKG_VERSION` as program version.
+  - `version: <Programm Version>`: The program version.
   - `beschreibung: <programm-beschreibung>` | `description: <program_description>`:
     Only supported for `hilfe(<opts>)` and `help(<opts>)`.
     Set the program description shown in the help text.

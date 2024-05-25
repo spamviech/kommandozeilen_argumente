@@ -88,16 +88,35 @@ Direkt am `struct` werden folgende Optionen unterstützt:
 - `sprache: <sprache>` | `language: <language>`:
   Standard-Einstellung für einige Strings, Standard: `english`.
   Vorgefertigte Sprachen für `deutsch`, `englisch` und `english`.
-- `version`: erzeuge eine `--version`, `-v` Flag.
-- `hilfe` | `help`: erzeuge eine Flag, die einen Hilfe-Text anzeigt.
+- `programm(<opts>)` | `program(<opts>)`:
+  Allgemeine Programm-Eigenschaften. Überschreibe die Standard-Werte für
+  `hilfe(<opts>)`, `help(<opts>)`, `version(<opts>)` (siehe unten).
+  - `name: <Programm Name>`: Der Programmname, der in Hilfe- und Version-Text verwendet wird.
+    Wenn unspezifiziert, verwende den Wert aus `CARGO_PKG_NAME`.
+  - `version: <Programm Version>`: Die Programmversion die in Hilfe- und Version-Text verwendet wird.
+    Wenn unspezifiziert, zeige keine Version im Hilfe-Text an
+    und verwende den Wert aus `CARGO_PKG_VERSION` im Versions-Text.
+  - `beschreibung: <programm-beschreibung>` | `description: <program_description>`:
+    Setze die im Hilfetext angezeigte Programm-Beschreibung.
+- `hilfe` | `help`: erzeuge eine Flag, die einen Hilfe-Text anzeigt (mit eine Kurz-Variante `-h`).
+  Sofern nicht anders in `programm(<opts>)` spezifiziert,
+  verwende die Werte aus `CARGO_PKG_NAME` und `CARGO_PKG_VERSION`.
+- `version`: erzeuge eine `--version`, `-v` Flag. Sofern nicht anders in `programm(<opts>)` spezifiziert,
+  verwende die Werte aus `CARGO_PKG_NAME` und `CARGO_PKG_VERSION`.
 - `hilfe(<opts>)`, `help(<opts>)`, `version(<opts>)`:
-  Wie die Variante ohne opts, nur Kurzname ist standardmäßig deaktiviert. Mögliche Opts:
+  Wie die Variante ohne opts, aber Kurzname ist standardmäßig deaktiviert. Außerdem wird im Hilfe-Text
+  standardmäßig keine Version angezeigt, sofern nicht anders in `program(<opts>)` spezifiziert.
+  Mögliche Opts:
   - `lang_präfix: <präfix>` | `long_prefix: <prefix>`: Präfix vor Langnamen.
   - `lang: <name>`, `long [<namen>]`: Setze Langnamen explizit.
   - `kurz_präfix: <präfix>` | `short_prefix: <prefix>`: Präfix vor Kurznamen.
   - `kurz`: Setze Kurznamen als erstes Grapheme des originalen Langnamen.
   - `kurz: <name>`, `kurz: [<namen>]`: Setze Kurznamen explizit.
   - `sprache: <sprache>` | `language: <language>`: Sprache von Hilfe-Text und Standard-Namen.
+  - `name`: Verwende den Wert aus `CARGO_PKG_NAME` als Programmname.
+  - `name: <Programm Name>`: Der Programmname.
+  - `version`: Verwende den Wert aus `CARGO_PKG_VERSION` als Programm-Version.
+  - `version: <Programm Version>`: Die Programmversion.
   - `beschreibung: <programm-beschreibung>` | `description: <program_description>`:
     Nur bei `hilfe(<opts>)` und `help(<opts>)` verfügbar.
     Setze die im Hilfetext angezeigte Programm-Beschreibung.
@@ -156,7 +175,7 @@ können im [GitHub-Repository](https://github.com/spamviech/kommandozeilen_argum
 In beiden Fällen wird folgender Hilfe-Text erzeugt:
 
 ```cmd
-kommandozeilen_argumente 0.2.0
+kommandozeilen_argumente 0.3.0
 Programm-Beschreibung.
 
 derive.exe [OPTIONEN]

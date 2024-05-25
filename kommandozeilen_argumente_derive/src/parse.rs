@@ -122,7 +122,9 @@ impl FeldArgument {
 fn erstelle_version_methode(
     feste_sprache: Option<Sprache>,
     namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
+    programm_einstellungen: ProgrammEinstellungen,
 ) -> impl FnOnce(TokenStream, Sprache) -> TokenStream {
+    // TODO Standard-Wert für ProgrammEinstellungen (analog Sprache)
     let crate_name = crate_name();
     move |item, standard_sprache| {
         let sprache = feste_sprache.unwrap_or(standard_sprache);
@@ -144,12 +146,17 @@ fn erstelle_version_methode(
                 None,
             )
         );
-        // TODO erlaube Angabe von programm_name und programm_version
+        let ProgrammEinstellungen {
+            name: programm_name,
+            version: programm_version,
+            beschreibung: _,
+        } = programm_einstellungen;
+        let programm_version = ProgrammVersionDarstellung { programm_version, ist_option: false };
         quote!(
             #item.mit_version_frühes_beenden(
                 #beschreibung,
-                ::#crate_name::crate_name!(),
-                ::#crate_name::crate_version!(),
+                #programm_name,
+                #programm_version,
             )
         )
     }
@@ -159,8 +166,9 @@ fn erstelle_version_methode(
 fn erstelle_hilfe_methode(
     sprache: &Sprache,
     namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
-    programm_beschreibung: ProgrammBeschreibung,
+    programm_einstellungen: ProgrammEinstellungen,
 ) -> impl Fn(TokenStream) -> TokenStream {
+    // TODO Standard-Wert für ProgrammEinstellungen (analog Sprache)
     let crate_name = crate_name();
     let sprache_ts = sprache.token_stream();
     let lang_standard = quote!(#sprache_ts.hilfe_lang);
@@ -180,15 +188,20 @@ fn erstelle_hilfe_methode(
             None,
         )
     );
-    // TODO erlaube Angabe von programm_name und programm_version
+    let ProgrammEinstellungen {
+        name: programm_name,
+        version: programm_version,
+        beschreibung: programm_beschreibung,
+    } = programm_einstellungen;
+    let programm_version = ProgrammVersionDarstellung { programm_version, ist_option: true };
     move |item| {
         quote!(
             #item.mit_hilfe_frühes_beenden(
                 &::#crate_name::argumente::hilfe::Standard,
                 #beschreibung,
-                ::#crate_name::crate_name!(),
+                #programm_name,
                 #programm_beschreibung,
-                Some(::#crate_name::crate_version!()),
+                #programm_version,
                 #sprache_ts.standard,
                 #sprache_ts.erlaubte_werte,
                 #sprache_ts.optionen,
@@ -271,6 +284,74 @@ impl Display for ParseWertFehler {
 type ErstelleFehler = Box<dyn FnOnce(Option<String>) -> ParseWertFehler>;
 
 /// Beschreibung für das Programm.
+#[derive(Debug, Clone)]
+#[allow(clippy::missing_docs_in_private_items)]
+struct ProgrammEinstellungen {
+    name: ProgrammName,
+    version: ProgrammVersion,
+    beschreibung: Option<ProgrammBeschreibung>,
+}
+
+/// Programm-Name im Hilfe/Version-Text
+#[derive(Debug, Clone)]
+struct ProgrammName(Option<String>);
+
+impl ToTokens for ProgrammName {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        if let Some(string) = &self.0 {
+            tokens.extend(quote!(#string));
+        } else {
+            let crate_name = crate_name();
+            tokens.extend(quote!(::#crate_name::crate_name!()));
+        }
+    }
+}
+
+/// Programm-Version im Hilfe/Version-Text
+#[derive(Debug, Clone)]
+enum ProgrammVersion {
+    /// Der explizite Text wurde angegeben.
+    Spezifiziert(String),
+    /// Es wurde der Wert aus der `CARGO_PKG_VERSION`-Variable gewünscht.
+    CrateMacro,
+    /// Kein Wert wurde spezifiziert.
+    Unspezifiziert,
+}
+
+/// Helper für [`ProgrammVersion`] um alternative [`ToTokens`]-Implementierungen anzubieten.
+struct ProgrammVersionDarstellung {
+    /// Die spezifizierte Version.
+    programm_version: ProgrammVersion,
+    /// Wir der Wert in einer Option angegeben.
+    /// Bei einer Option wird für [`ProgrammVersion::Unspezifiziert`] [`None`] erzeugt,
+    /// ansonsten der Wert aus der `CARGO_PKG_VERSION`-Variable.
+    ist_option: bool,
+}
+
+impl ToTokens for ProgrammVersionDarstellung {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let crate_name = crate_name();
+        let add_some_wenn_option =
+            |ts: TokenStream| if self.ist_option { quote!(Some(#ts)) } else { ts };
+        match &self.programm_version {
+            ProgrammVersion::Spezifiziert(string) => {
+                tokens.extend(add_some_wenn_option(quote!(#string)));
+            },
+            ProgrammVersion::CrateMacro => {
+                tokens.extend(add_some_wenn_option(quote!(::#crate_name::crate_version!())));
+            },
+            ProgrammVersion::Unspezifiziert => {
+                if self.ist_option {
+                    tokens.extend(quote!(None));
+                } else {
+                    tokens.extend(add_some_wenn_option(quote!(::#crate_name::crate_version!())));
+                }
+            },
+        }
+    }
+}
+
+/// Programm-Beschreibung im Hilfe-Text
 #[derive(Debug, Clone)]
 struct ProgrammBeschreibung(Option<String>);
 
@@ -445,7 +526,7 @@ fn parse_wert_arg(
     args: Vec<Argument>,
     mut sprache: Option<&mut Option<Sprache>>,
     mut erstelle_hilfe: Option<&mut ErstelleHilfe>,
-    mut programm_beschreibung: Option<&mut ProgrammBeschreibung>,
+    mut programm_einstellungen: Option<&mut ProgrammEinstellungen>,
     mut erstelle_version: Option<&mut ErstelleVersion>,
     mut lang_präfix: Option<&mut LangPräfix>,
     mut lang_namen: Option<&mut LangNamen>,
@@ -462,15 +543,21 @@ fn parse_wert_arg(
     let crate_name = crate_name();
     /// Setzte den Wert für das Argument, oder gebe [`ParseWertFehler::NichtUnterstützt`] zurück.
     macro_rules! setze_argument {
-        ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
-            if let Some(var) = $mut_var.as_mut() {
-                **var = $wert;
-            } else {
+        (< $([$mut_var: expr, $wert: expr $(,)?]),+ $(,)?>, $sub_arg: expr $(,)?) => {
+            $(
+                if let Some(var) = $mut_var.as_mut() {
+                    **var = $wert;
+                } else
+            )+
+            {
                 return Err(Box::new(|arg_name| NichtUnterstützt {
                     arg_name,
                     argument: $sub_arg,
                 }));
             }
+        };
+        ($mut_var: expr, $wert: expr, $sub_arg: expr $(,)?) => {
+            setze_argument!(<[$mut_var, $wert]>, $sub_arg)
         };
     }
     /// Hilfs-Makro für [`setze_argument_namen!`], [`setze_argument_string!`] und [`setze_argument_case!`].
@@ -507,9 +594,36 @@ fn parse_wert_arg(
     for Argument { name, wert } in args {
         match wert {
             ArgumentWert::KeinWert => match name.as_str() {
+                "name" => setze_argument!(
+                    programm_einstellungen.as_mut().map(
+                        #[allow(clippy::shadow_unrelated)]
+                        |programm_beschreibung| { &mut programm_beschreibung.name }
+                    ),
+                    ProgrammName(None),
+                    Argument { name, wert }
+                ),
                 "version" => setze_argument!(
-                    erstelle_version,
-                    ErstelleVersion(Some(Box::new(erstelle_version_methode(None, None)))),
+                    <
+                        [
+                            programm_einstellungen.as_mut().map(
+                                #[allow(clippy::shadow_unrelated)]
+                                |programm_beschreibung| { &mut programm_beschreibung.version }
+                            ),
+                            ProgrammVersion::CrateMacro,
+                        ],
+                        [
+                            erstelle_version,
+                            ErstelleVersion(Some(Box::new(erstelle_version_methode(
+                                None,
+                                None,
+                                ProgrammEinstellungen {
+                                    name: ProgrammName(None),
+                                    version: ProgrammVersion::Unspezifiziert,
+                                    beschreibung: None
+                                }
+                            )))),
+                        ],
+                    >,
                     Argument { name, wert }
                 ),
                 "hilfe" => setze_argument!(
@@ -517,7 +631,11 @@ fn parse_wert_arg(
                     ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
                         &Deutsch,
                         None,
-                        ProgrammBeschreibung(None)
+                        ProgrammEinstellungen {
+                            name: ProgrammName(None),
+                            version: ProgrammVersion::Unspezifiziert,
+                            beschreibung: Some(ProgrammBeschreibung(None))
+                        }
                     )))),
                     Argument { name, wert }
                 ),
@@ -526,7 +644,11 @@ fn parse_wert_arg(
                     ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
                         &English,
                         None,
-                        ProgrammBeschreibung(None)
+                        ProgrammEinstellungen {
+                            name: ProgrammName(None),
+                            version: ProgrammVersion::Unspezifiziert,
+                            beschreibung: Some(ProgrammBeschreibung(None))
+                        }
                     )))),
                     Argument { name, wert }
                 ),
@@ -584,8 +706,27 @@ fn parse_wert_arg(
                     Some(Sprache::parse(ts)),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
+                "name" => setze_argument!(
+                    programm_einstellungen.as_mut().map(
+                        #[allow(clippy::shadow_unrelated)]
+                        |programm_beschreibung| { &mut programm_beschreibung.name }
+                    ),
+                    ProgrammName(Some(literal_oder_to_string(&ts))),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
+                "version" => setze_argument!(
+                    programm_einstellungen.as_mut().map(
+                        #[allow(clippy::shadow_unrelated)]
+                        |programm_beschreibung| { &mut programm_beschreibung.version }
+                    ),
+                    ProgrammVersion::Spezifiziert(literal_oder_to_string(&ts)),
+                    Argument { name, wert: ArgumentWert::Stream(ts) }
+                ),
                 "beschreibung" | "description" => setze_argument!(
-                    programm_beschreibung,
+                    programm_einstellungen.as_mut().and_then(
+                        #[allow(clippy::shadow_unrelated)]
+                        |programm_beschreibung| { programm_beschreibung.beschreibung.as_mut() }
+                    ),
                     ProgrammBeschreibung(Some(literal_oder_to_string(&ts))),
                     Argument { name, wert: ArgumentWert::Stream(ts) }
                 ),
@@ -660,7 +801,7 @@ fn parse_wert_arg(
             ArgumentWert::Unterargument(sub_args) => {
                 /// Parse ein Unterargument rekursiv.
                 macro_rules! rekursiv {
-                    ($programm_beschreibung:expr, $sub_sprache:ident, $präfix_und_namen: ident) => {
+                    ($programm_beschreibung:expr, $sub_sprache:ident, $präfix_und_namen: ident $(,)?) => {
                         let mut $sub_sprache = None;
                         let mut sub_lang_präfix = LangPräfix::default();
                         let mut sub_lang = LangNamen::default();
@@ -714,11 +855,15 @@ fn parse_wert_arg(
                 }
                 match (name.as_str(), erstelle_hilfe.as_mut(), erstelle_version.as_mut()) {
                     ("hilfe" | "help", Some(erstelle_hilfe), _) => {
-                        let mut sub_programm_beschreibung = ProgrammBeschreibung(None);
+                        let mut sub_programm_beschreibung = ProgrammEinstellungen {
+                            name: ProgrammName(None),
+                            version: ProgrammVersion::Unspezifiziert,
+                            beschreibung: Some(ProgrammBeschreibung(None)),
+                        };
                         rekursiv!(
                             Some(&mut sub_programm_beschreibung),
                             sub_sprache,
-                            präfix_und_namen
+                            präfix_und_namen,
                         );
                         let standard_sprache = if name == "hilfe" { Deutsch } else { English };
                         **erstelle_hilfe = ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
@@ -728,11 +873,24 @@ fn parse_wert_arg(
                         ))));
                     },
                     ("version", _, Some(erstelle_version)) => {
-                        rekursiv!(None, sub_sprache, präfix_und_namen);
-                        **erstelle_version = ErstelleVersion(Some(Box::new(
-                            erstelle_version_methode(sub_sprache, Some(präfix_und_namen)),
-                        )));
+                        let mut sub_programm_beschreibung = ProgrammEinstellungen {
+                            name: ProgrammName(None),
+                            version: ProgrammVersion::Unspezifiziert,
+                            beschreibung: None,
+                        };
+                        rekursiv!(
+                            Some(&mut sub_programm_beschreibung),
+                            sub_sprache,
+                            präfix_und_namen,
+                        );
+                        **erstelle_version =
+                            ErstelleVersion(Some(Box::new(erstelle_version_methode(
+                                sub_sprache,
+                                Some(präfix_und_namen),
+                                sub_programm_beschreibung,
+                            ))));
                     },
+                    // TODO programm/program(<opts>)
                     ("case", _, _) => {
                         for sub_arg in sub_args {
                             if let Argument { name: sub_name, wert: ArgumentWert::Stream(ts) } =
