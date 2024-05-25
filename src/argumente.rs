@@ -307,7 +307,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
         Self: 't,
         F: 't,
     {
-        self.parse(env::args_os())
+        self.parse(env::args_os().skip(1))
     }
 
     /// Parse [`args_os`](std::env::args_os) and try to create the requested type.
@@ -338,7 +338,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
         Self: 't,
         F: 't,
     {
-        self.parse_mit_frühen_beenden(env::args_os())
+        self.parse_mit_frühen_beenden(env::args_os().skip(1))
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -622,7 +622,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
         F: Display,
     {
         self.parse_vollständig(
-            env::args_os(),
+            env::args_os().skip(1),
             fehler_code,
             fehlende_flag,
             fehlender_wert,
@@ -683,7 +683,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_vollständig_mit_sprache(env::args_os(), fehler_code, sprache)
+        self.parse_vollständig_mit_sprache(env::args_os().skip(1), fehler_code, sprache)
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
