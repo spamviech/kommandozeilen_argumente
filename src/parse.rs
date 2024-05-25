@@ -4,7 +4,7 @@ use std::{
     borrow::Cow,
     convert::identity,
     ffi::{OsStr, OsString},
-    fmt::Display,
+    fmt::{Debug, Display},
     num::NonZeroI32,
     str::FromStr,
 };
@@ -296,7 +296,7 @@ fn erstelle_beschreibung<'t, T>(beschreibung: &Beschreibung<'t, Option<T>>) -> B
     )
 }
 
-impl<T: 'static + ParseArgument + Clone + Display> ParseArgument for Option<T> {
+impl<T: 'static + ParseArgument + Clone + Debug + Display> ParseArgument for Option<T> {
     #[inline]
     fn argumente<'t>(
         beschreibung: Beschreibung<'t, Self>,

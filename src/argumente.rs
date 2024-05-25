@@ -71,6 +71,15 @@ pub enum Argumente<'t, T, Fehler> {
     Alternativen(Box<NonEmpty<Self>>),
 }
 
+/// Helper umd [`Kombiniere::debug_fmt`] mit [`fmt::Formatter::debug_tuple`] zu verwenden.
+struct KombiniereDebug<'s, 't, T, Fehler>(&'s dyn Kombiniere<'t, T, Fehler>);
+
+impl<T, Fehler> Debug for KombiniereDebug<'_, '_, T, Fehler> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.debug_fmt(formatter)
+    }
+}
+
 impl<T: Debug, Fehler: Debug> Debug for Argumente<'_, T, Fehler> {
     #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -78,8 +87,8 @@ impl<T: Debug, Fehler: Debug> Debug for Argumente<'_, T, Fehler> {
             Argumente::EinzelArgument(arg0) => {
                 formatter.debug_tuple("EinzelArgument").field(arg0).finish()
             },
-            Argumente::Kombiniere(_arg0) => {
-                formatter.debug_tuple("Kombiniere").field(&"<kombiniere>").finish()
+            Argumente::Kombiniere(arg0) => {
+                formatter.debug_tuple("Kombiniere").field(&KombiniereDebug(&**arg0)).finish()
             },
             Argumente::Alternativen(arg0) => {
                 formatter.debug_tuple("Alternativen").field(arg0).finish()
@@ -939,7 +948,7 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
     }
 }
 
-impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
+impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch die Programm-Version anzeigt wird.
     ///
     /// ## English synonym
@@ -1180,7 +1189,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     }
 }
 
-impl<'t, T, Error> Arguments<'t, T, Error> {
+impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     /// Add an [`EarlyExit`](crate::argumente::frühes_beenden::EarlyExit`)-flag, showing the program version.
     ///
     /// ## Deutsches Synonym

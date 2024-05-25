@@ -1,6 +1,9 @@
 //! Kombiniere mehrere [Argumente] zu einem neuen, basierend auf einer Funktion.
 
-use std::ffi::OsString;
+use std::{
+    ffi::OsString,
+    fmt::{self, Debug, Formatter},
+};
 
 use nonempty::{nonempty, NonEmpty};
 use paste::paste;
@@ -77,6 +80,16 @@ pub trait Kombiniere<'t, T, Fehler> {
         meta_standard: &str,
         meta_erlaubte_werte: &str,
     ) -> NonEmpty<hilfe::Alternativen>;
+
+    /// Provide a specialized [`Debug`]-implementation.
+    /// If left unspecified, a placeholder-string is used instead.
+    ///
+    /// ## Errors
+    /// Following the same rules as [`Debug::fmt`](std::fmt::Debug::fmt).
+    #[inline]
+    fn debug_fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        write!(formatter, "<konvertiere>")
+    }
 }
 
 impl<'t, T, Fehler, F: FnOnce() -> T> Kombiniere<'t, T, Fehler> for F {
@@ -96,6 +109,11 @@ impl<'t, T, Fehler, F: FnOnce() -> T> Kombiniere<'t, T, Fehler> for F {
         _meta_erlaubte_werte: &str,
     ) -> NonEmpty<hilfe::Alternativen> {
         nonempty![hilfe::Alternativen::Leer]
+    }
+
+    #[inline]
+    fn debug_fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        write!(formatter, "<closure>")
     }
 }
 
@@ -117,8 +135,10 @@ macro_rules! impl_kombiniere_tuple {
                 )
             where
                 F: Fn($([<T $suffix:camel>]),+) -> T,
+                Fehler: Debug,
                 $(
                     [<'t $suffix:snake:lower>]: 't,
+                    [<T $suffix:camel>]: Debug,
                 )+
             {
                 #[inline]
@@ -169,15 +189,25 @@ macro_rules! impl_kombiniere_tuple {
                     meta_standard: &str,
                     meta_erlaubte_werte: &str,
                 ) -> NonEmpty<hilfe::Alternativen> {
-                    let (_f, $([<a_ $suffix:snake:lower>]),+) = self;
+                    let (_f, $([<arg_ $suffix:snake:lower>]),+) = self;
                     let mut hilfe_texte = Vec::new();
                     $(
                         hilfe_texte.extend(
-                            [<a_ $suffix:snake:lower>]
+                            [<arg_ $suffix:snake:lower>]
                                 .erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
                         );
                     )+
                     NonEmpty::from_vec(hilfe_texte).expect("Mindestens ein suffix als Macro-Argument!")
+                }
+
+                #[inline]
+                fn debug_fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+                    let (_funktion, $([<arg_ $suffix:snake:lower>]),+) = self;
+                    write!(formatter, "(<closure>")?;
+                    $(
+                        write!(formatter, "{:?}", [<arg_ $suffix:snake:lower>])?;
+                    )+
+                    write!(formatter, ")")
                 }
             }
         }
