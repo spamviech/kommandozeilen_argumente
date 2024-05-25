@@ -116,7 +116,6 @@ fn derive_hilfe_test() -> Result<(), DString> {
             }
         },
         (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
-            // FIXME: standard-Wert ignoriert, FrühesBeenden soll FehlenderWert/Flag "überschreiben"
             for fehler in &fehler_sammlung {
                 eprintln!("{}", fehler.fehlermeldung());
             }
@@ -198,7 +197,7 @@ struct Inner {
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(version, help(lang: [hilfe, help], kurz: h))]
 struct Test2 {
-    #[kommandozeilen_argumente(default: Bla::Meh, long: [bla, meh, muh])]
+    #[kommandozeilen_argumente(default: Bla::Meh, long: [bla, meh, muh], short: v)]
     /// bla
     bla: Bla,
     /// flag
@@ -269,6 +268,37 @@ fn verschmelze_kurzformen_hilfe() -> Result<(), DString> {
 
 #[test]
 fn verschmelze_kurzformen_wert() -> Result<(), DString> {
+    // FIXME soll nicht für Wert-Argumente (vor allem am Anfang der Liste) funktionieren!
+    let arg2 = Test2::kommandozeilen_argumente();
+    match arg2.parse(
+        [OsString::from(String::from("-vfb")), OsString::from(String::from("Muh"))].into_iter(),
+    ) {
+        (Ergebnis::Wert(test2), nicht_verwendet) => {
+            let erwartet = Test2 {
+                bla: Bla::Meh,
+                inner: Inner { inner_flag: false },
+                flag: Flag::Active,
+                bool_flag: true,
+            };
+            // Der Wert Kurz-Name soll nicht "nach hinten durchrutschen"!
+            let erwartet_nicht_verwendet =
+                [OsString::from(String::from("-v")), OsString::from(String::from("Muh"))];
+            if nicht_verwendet != erwartet_nicht_verwendet {
+                Err(DString(format!("Unerwartete nicht verwendete Argumente: {nicht_verwendet:?}")))
+            } else if test2 != erwartet {
+                Err(DString(format!("Unerwarteter Wert: {test2:?} != {erwartet:?}")))
+            } else {
+                println!("{test2:?}");
+                println!("{nicht_verwendet:?}");
+                Ok(())
+            }
+        },
+        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
+    }
+}
+
+#[test]
+fn verschmelze_kurzformen_erfolgreich() -> Result<(), DString> {
     let arg2 = Test2::kommandozeilen_argumente();
     match arg2.parse(iter::once(OsString::from("-fb".to_owned()))) {
         (Ergebnis::Wert(test2), nicht_verwendet) => {
