@@ -9,7 +9,7 @@ use litrs::StringLit;
 use proc_macro2::{Ident, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use unicode_segmentation::UnicodeSegmentation;
-use venial::{parse_item, Fields, Item, NamedField, Struct};
+use venial::{parse_item, Fields, Item, NamedField, Struct, TypeExpr};
 
 use crate::utility::{
     crate_name, genau_eines, path_is_ident, split_klammer_argumente, Argument, ArgumentWert, Case,
@@ -62,6 +62,60 @@ enum FeldArgument {
     FromStr,
     /// Parse
     Parse,
+}
+
+impl FeldArgument {
+    /// Erstelle den [`TokenStream`] zum erstellen der [`Argumente`] für das [`FeldArgument`].
+    fn erstelle_args(
+        self,
+        erstelle_beschreibung: &TokenStream,
+        feld_invertiere_präfix: &TokenStream,
+        feld_invertiere_infix: &TokenStream,
+        feld_wert_infix: &TokenStream,
+        feld_meta_var: &TokenStream,
+        feld_typ: &TypeExpr,
+    ) -> TokenStream {
+        let crate_name = crate_name();
+        match self {
+            FeldArgument::EnumArgument => {
+                quote!({
+                    #erstelle_beschreibung
+                    ::#crate_name::ParseArgument::argumente(
+                        beschreibung,
+                        #feld_invertiere_präfix,
+                        #feld_invertiere_infix,
+                        #feld_wert_infix,
+                        #feld_meta_var
+                    )
+                })
+            },
+            FeldArgument::FromStr => {
+                quote!({
+                    #erstelle_beschreibung
+                    ::#crate_name::Wert {
+                        beschreibung,
+                        wert_infix: ::#crate_name::Vergleich::from(#feld_wert_infix),
+                        meta_var: #feld_meta_var,
+                        mögliche_werte: None,
+                        parse: ::std::borrow::Cow::Borrowed(&|os_str: &::std::ffi::OsStr| {
+                            if let Some(string) = os_str.to_str() {
+                                string.parse::<#feld_typ>().map_err(
+                                    |fehler| ::#crate_name::ParseFehler::ParseFehler(fehler.to_string())
+                                )
+                            } else {
+                                Err(::#crate_name::ParseFehler::InvaliderString(::std::ffi::OsString::from(os_str)))
+                            }
+                        }),
+                        anzeige: ::std::borrow::Cow::Borrowed(&ToString::to_string),
+                        anzeige_fehler: ::std::borrow::Cow::Borrowed(&ToString::to_string),
+                    }
+                })
+            },
+            FeldArgument::Parse => {
+                quote!(::#crate_name::Parse::kommandozeilen_argumente())
+            },
+        }
+    }
 }
 
 /// Erstelle eine Funktion um eine `--version`-Flag zu einem `item` hinzuzufügen.
@@ -950,7 +1004,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         Fields::Tuple(_) => return Err(FelderOhneName),
     };
     for field in iter {
-        let NamedField { attributes: field_attrs, name: field_ident, ty: field_type, .. } = field;
+        let NamedField { attributes: field_attrs, name: field_ident, ty: feld_typ, .. } = field;
         let mut hilfe_lits = Vec::new();
         let field_ident_str = field_ident.to_string();
         if field_ident_str.is_empty() {
@@ -1051,45 +1105,14 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                 #standard,
             );
         );
-        let erstelle_args = match feld_argument {
-            FeldArgument::EnumArgument => {
-                quote!({
-                    #erstelle_beschreibung
-                    ::#crate_name::ParseArgument::argumente(
-                        beschreibung,
-                        #feld_invertiere_präfix,
-                        #feld_invertiere_infix,
-                        #feld_wert_infix,
-                        #feld_meta_var
-                    )
-                })
-            },
-            FeldArgument::FromStr => {
-                quote!({
-                    #erstelle_beschreibung
-                    ::#crate_name::Wert {
-                        beschreibung,
-                        wert_infix: ::#crate_name::Vergleich::from(#feld_wert_infix),
-                        meta_var: #feld_meta_var,
-                        mögliche_werte: None,
-                        parse: ::std::borrow::Cow::Borrowed(&|os_str: &::std::ffi::OsStr| {
-                            if let Some(string) = os_str.to_str() {
-                                string.parse::<#field_type>().map_err(
-                                    |fehler| ::#crate_name::ParseFehler::ParseFehler(fehler.to_string())
-                                )
-                            } else {
-                                Err(::#crate_name::ParseFehler::InvaliderString(::std::ffi::OsString::from(os_str)))
-                            }
-                        }),
-                        anzeige: ::std::borrow::Cow::Borrowed(&ToString::to_string),
-                        anzeige_fehler: ::std::borrow::Cow::Borrowed(&ToString::to_string),
-                    }
-                })
-            },
-            FeldArgument::Parse => {
-                quote!(::#crate_name::Parse::kommandozeilen_argumente())
-            },
-        };
+        let erstelle_args = feld_argument.erstelle_args(
+            &erstelle_beschreibung,
+            &feld_invertiere_präfix,
+            &feld_invertiere_infix,
+            &feld_wert_infix,
+            &feld_meta_var,
+            &feld_typ,
+        );
         tuples.push((field_ident, erstelle_args));
     }
     let (idents, erstelle_args): (Vec<_>, Vec<_>) = tuples.into_iter().unzip();
