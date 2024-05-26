@@ -314,6 +314,9 @@ enum ProgrammVersion {
     Spezifiziert(String),
     /// Es wurde der Wert aus der `CARGO_PKG_VERSION`-Variable gewünscht.
     CrateMacro,
+    /// Version beim `hilfe`/`help` ohne Sub-Argument.
+    /// Verwende den Wert aus der `CARGO_PKG_VERSION`-Variable
+    HilfeOhneSubArgument,
     /// Kein Wert wurde spezifiziert.
     Unspezifiziert,
 }
@@ -337,7 +340,7 @@ impl ToTokens for ProgrammVersionDarstellung {
             ProgrammVersion::Spezifiziert(string) => {
                 tokens.extend(add_some_wenn_option(quote!(#string)));
             },
-            ProgrammVersion::CrateMacro => {
+            ProgrammVersion::CrateMacro | ProgrammVersion::HilfeOhneSubArgument => {
                 tokens.extend(add_some_wenn_option(quote!(::#crate_name::crate_version!())));
             },
             ProgrammVersion::Unspezifiziert => {
@@ -633,7 +636,7 @@ fn parse_wert_arg(
                         None,
                         ProgrammEinstellungen {
                             name: ProgrammName(None),
-                            version: ProgrammVersion::Unspezifiziert,
+                            version: ProgrammVersion::HilfeOhneSubArgument,
                             beschreibung: Some(ProgrammBeschreibung(None))
                         }
                     )))),
@@ -646,7 +649,7 @@ fn parse_wert_arg(
                         None,
                         ProgrammEinstellungen {
                             name: ProgrammName(None),
-                            version: ProgrammVersion::Unspezifiziert,
+                            version: ProgrammVersion::HilfeOhneSubArgument,
                             beschreibung: Some(ProgrammBeschreibung(None))
                         }
                     )))),
