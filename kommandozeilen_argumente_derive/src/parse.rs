@@ -122,11 +122,11 @@ impl FeldArgument {
 fn erstelle_version_methode(
     feste_sprache: Option<Sprache>,
     namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
-    programm_einstellungen: ProgrammEinstellungen,
-) -> impl FnOnce(TokenStream, Sprache) -> TokenStream {
+    programm_einstellungen: ProgrammEinstellungen<()>,
+) -> impl FnOnce(TokenStream, Sprache, &ProgrammName, &ProgrammVersion) -> TokenStream {
     // TODO Standard-Wert für ProgrammEinstellungen (analog Sprache)
     let crate_name = crate_name();
-    move |item, standard_sprache| {
+    move |item, standard_sprache, standard_name, standard_version| {
         let sprache = feste_sprache.unwrap_or(standard_sprache);
         let sprache_ts = sprache.token_stream();
         let lang_standard = quote!(#sprache_ts.version_lang);
@@ -166,8 +166,8 @@ fn erstelle_version_methode(
 fn erstelle_hilfe_methode(
     sprache: &Sprache,
     namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
-    programm_einstellungen: ProgrammEinstellungen,
-) -> impl Fn(TokenStream) -> TokenStream {
+    programm_einstellungen: ProgrammEinstellungen<ProgrammBeschreibung>,
+) -> impl Fn(TokenStream, &ProgrammName, &ProgrammVersion, &ProgrammBeschreibung) -> TokenStream {
     // TODO Standard-Wert für ProgrammEinstellungen (analog Sprache)
     let crate_name = crate_name();
     let sprache_ts = sprache.token_stream();
@@ -194,7 +194,7 @@ fn erstelle_hilfe_methode(
         beschreibung: programm_beschreibung,
     } = programm_einstellungen;
     let programm_version = ProgrammVersionDarstellung { programm_version, ist_option: true };
-    move |item| {
+    move |item, standard_name, standard_version, standard_beschreibung| {
         quote!(
             #item.mit_hilfe_frühes_beenden(
                 &::#crate_name::argumente::hilfe::Standard,
@@ -286,10 +286,10 @@ type ErstelleFehler = Box<dyn FnOnce(Option<String>) -> ParseWertFehler>;
 /// Beschreibung für das Programm.
 #[derive(Debug, Clone)]
 #[allow(clippy::missing_docs_in_private_items)]
-struct ProgrammEinstellungen {
+struct ProgrammEinstellungen<Beschreibung> {
     name: ProgrammName,
     version: ProgrammVersion,
-    beschreibung: Option<ProgrammBeschreibung>,
+    beschreibung: Beschreibung,
 }
 
 /// Programm-Name im Hilfe/Version-Text
@@ -369,10 +369,25 @@ impl ToTokens for ProgrammBeschreibung {
 }
 
 /// Funktion um eine `--hilfe`-Flag zu erstellen.
-struct ErstelleHilfe(Option<Box<dyn FnOnce(TokenStream) -> TokenStream>>);
+struct ErstelleHilfe(
+    #[allow(clippy::type_complexity)]
+    Option<
+        Box<
+            dyn FnOnce(
+                TokenStream,
+                &ProgrammName,
+                &ProgrammVersion,
+                &ProgrammBeschreibung,
+            ) -> TokenStream,
+        >,
+    >,
+);
 
 /// Funktion um eine `--version`-Flag zu erstellen.
-struct ErstelleVersion(Option<Box<dyn FnOnce(TokenStream, Sprache) -> TokenStream>>);
+struct ErstelleVersion(
+    #[allow(clippy::type_complexity)]
+    Option<Box<dyn FnOnce(TokenStream, Sprache, &ProgrammName, &ProgrammVersion) -> TokenStream>>,
+);
 
 /// Erstelle einen newtype-Typ mit identischer [`ToTokens`]-Implementierung.
 macro_rules! create_newtype {
@@ -528,9 +543,10 @@ fn literal_oder_to_string(token_stream: &TokenStream) -> String {
 fn parse_wert_arg(
     args: Vec<Argument>,
     mut sprache: Option<&mut Option<Sprache>>,
+    mut standard_programm_einstellungen: Option<&mut ProgrammEinstellungen<ProgrammBeschreibung>>,
     mut erstelle_hilfe: Option<&mut ErstelleHilfe>,
-    mut programm_einstellungen: Option<&mut ProgrammEinstellungen>,
     mut erstelle_version: Option<&mut ErstelleVersion>,
+    mut programm_einstellungen: Option<&mut ProgrammEinstellungen<Option<ProgrammBeschreibung>>>,
     mut lang_präfix: Option<&mut LangPräfix>,
     mut lang_namen: Option<&mut LangNamen>,
     mut kurz_präfix: Option<&mut KurzPräfix>,
@@ -622,7 +638,7 @@ fn parse_wert_arg(
                                 ProgrammEinstellungen {
                                     name: ProgrammName(None),
                                     version: ProgrammVersion::Unspezifiziert,
-                                    beschreibung: None
+                                    beschreibung: ()
                                 }
                             )))),
                         ],
@@ -637,7 +653,7 @@ fn parse_wert_arg(
                         ProgrammEinstellungen {
                             name: ProgrammName(None),
                             version: ProgrammVersion::HilfeOhneSubArgument,
-                            beschreibung: Some(ProgrammBeschreibung(None))
+                            beschreibung: ProgrammBeschreibung(None)
                         }
                     )))),
                     Argument { name, wert }
@@ -650,7 +666,7 @@ fn parse_wert_arg(
                         ProgrammEinstellungen {
                             name: ProgrammName(None),
                             version: ProgrammVersion::HilfeOhneSubArgument,
-                            beschreibung: Some(ProgrammBeschreibung(None))
+                            beschreibung: ProgrammBeschreibung(None)
                         }
                     )))),
                     Argument { name, wert }
@@ -814,8 +830,9 @@ fn parse_wert_arg(
                             sub_args,
                             Some(&mut $sub_sprache),
                             None,
-                            $programm_beschreibung,
                             None,
+                            None,
+                            $programm_beschreibung,
                             Some(&mut sub_lang_präfix),
                             Some(&mut sub_lang),
                             Some(&mut sub_kurz_präfix),
@@ -868,6 +885,13 @@ fn parse_wert_arg(
                             sub_sprache,
                             präfix_und_namen,
                         );
+                        let sub_programm_beschreibung = ProgrammEinstellungen {
+                            name: sub_programm_beschreibung.name,
+                            version: sub_programm_beschreibung.version,
+                            beschreibung: sub_programm_beschreibung
+                                .beschreibung
+                                .expect("Some-Wert wird bei rekursiven Aufruf nie None!"),
+                        };
                         let standard_sprache = if name == "hilfe" { Deutsch } else { English };
                         **erstelle_hilfe = ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
                             &sub_sprache.unwrap_or(standard_sprache),
@@ -886,6 +910,11 @@ fn parse_wert_arg(
                             sub_sprache,
                             präfix_und_namen,
                         );
+                        let sub_programm_beschreibung = ProgrammEinstellungen {
+                            name: sub_programm_beschreibung.name,
+                            version: sub_programm_beschreibung.version,
+                            beschreibung: (),
+                        };
                         **erstelle_version =
                             ErstelleVersion(Some(Box::new(erstelle_version_methode(
                                 sub_sprache,
@@ -1122,6 +1151,11 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
     let mut erstelle_version = ErstelleVersion(None);
     let mut erstelle_hilfe = ErstelleHilfe(None);
     let mut sprache = None;
+    let mut standard_programm_einstellungen = ProgrammEinstellungen {
+        name: ProgrammName(None),
+        version: ProgrammVersion::Unspezifiziert,
+        beschreibung: ProgrammBeschreibung(None),
+    };
     let mut lang_präfix = LangPräfix::default();
     let mut kurz_präfix = KurzPräfix::default();
     let mut invertiere_präfix = InvertierePräfix::default();
@@ -1133,9 +1167,10 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         parse_wert_arg(
             args,
             Some(&mut sprache),
+            Some(&mut standard_programm_einstellungen),
             Some(&mut erstelle_hilfe),
-            None,
             Some(&mut erstelle_version),
+            None,
             Some(&mut lang_präfix),
             None,
             Some(&mut kurz_präfix),
@@ -1200,6 +1235,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
                 unwrap_or_call_return!(
                     parse_wert_arg(
                         feld_args,
+                        None,
                         None,
                         None,
                         None,
@@ -1284,12 +1320,22 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Fehler> {
         ::#crate_name::kombiniere!(|#(#idents),*| Self {#(#idents),*}, #(#idents),*)
     );
     let nach_version = if let ErstelleVersion(Some(version_hinzufügen)) = erstelle_version {
-        version_hinzufügen(kombiniere, sprache)
+        version_hinzufügen(
+            kombiniere,
+            sprache,
+            &standard_programm_einstellungen.name,
+            &standard_programm_einstellungen.version,
+        )
     } else {
         kombiniere
     };
     let nach_hilfe = if let ErstelleHilfe(Some(hilfe_hinzufügen)) = erstelle_hilfe {
-        hilfe_hinzufügen(nach_version)
+        hilfe_hinzufügen(
+            nach_version,
+            &standard_programm_einstellungen.name,
+            &standard_programm_einstellungen.version,
+            &standard_programm_einstellungen.beschreibung,
+        )
     } else {
         nach_version
     };
