@@ -22,24 +22,26 @@ use crate::{
 /// [`combine`]
 #[macro_export]
 macro_rules! kombiniere {
-    ($f: expr $(,)?) => {
-        $crate::argumente::Argumente::kombiniere($f)
-    };
-    ($f: expr, $arg: expr $(,)?) => {
-        $crate::argumente::Argumente::kombiniere(($f, $crate::argumente::Argumente::from($arg)))
-    };
-    ($f: expr, $a: expr, $b: expr $(, $tail: ident)* $(,)?) => {{
+    ($funktion: expr, $a: expr, $b: expr, $c: expr, $d: expr, $e: expr, $f: expr, $g: expr $(, $tail: ident)+ $(,)?) => {
         #[allow(clippy::shadow_unrelated, clippy::shadow_same, clippy::shadow_reuse)]
         {
-            let kombiniere = $crate::argumente::Argumente::kombiniere((
-                |first, second| (first, second),
+            let kombiniere =$crate::argumente::Argumente::kombiniere((
+                |a, b, c, d, e, f, g| (a, b, c, d, e, f, g),
                 $crate::argumente::Argumente::from($a),
                 $crate::argumente::Argumente::from($b),
+                $crate::argumente::Argumente::from($c),
+                $crate::argumente::Argumente::from($d),
+                $crate::argumente::Argumente::from($e),
+                $crate::argumente::Argumente::from($f),
+                $crate::argumente::Argumente::from($g),
             ));
-            let uncurry_f = move |(first, second) $(, $tail)*| $f(first, second $(, $tail)*);
-            $crate::kombiniere!(uncurry_f, kombiniere $(, $tail)*)
+            let uncurry_f = move |(a, b, c, d, e, f, g) $(, $tail)+| $funktion(a, b, c, d, e, f, g $(, $tail)+);
+            $crate::kombiniere!(uncurry_f, kombiniere $(, $tail)+)
         }
-    }};
+    };
+    ($funktion: expr $(, $tail: expr)* $(,)?) => {
+        $crate::argumente::Argumente::kombiniere(($funktion $(, $crate::argumente::Argumente::from($tail))*))
+    };
 }
 
 /// Combine multiple arguments with the given function.
@@ -48,14 +50,11 @@ macro_rules! kombiniere {
 /// [`kombiniere`]
 #[macro_export]
 macro_rules! combine {
-    ($f: expr $(,)?) => {
-        $crate::kombiniere!($f)
+    ($function: expr, $a: expr, $b: expr, $c: expr, $d: expr, $e: expr, $f: expr, $g: expr $(, $tail: ident)+ $(,)?) => {
+        $crate::kombiniere!($function, $a, $b, $c, $d, $e, $f, $g $(, $tail)+)
     };
-    ($f: expr, $arg: expr) => {
-        $crate::kombiniere!($f, $arg)
-    };
-    ($f: expr, $a: expr, $b: expr $(, $tail: ident)* $(,)?) => {
-        $crate::kombiniere!($f, $a, $b $(, $tail)*)
+    ($function: expr $(, $tail: expr)* $(,)?) => {
+        $crate::kombiniere!($function $(, $tail)*)
     };
 }
 
