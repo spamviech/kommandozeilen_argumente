@@ -124,7 +124,6 @@ fn erstelle_version_methode(
     namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
     programm_einstellungen: ProgrammEinstellungen<()>,
 ) -> impl FnOnce(TokenStream, Sprache, &ProgrammName, &ProgrammVersion) -> TokenStream {
-    // TODO Standard-Wert für ProgrammEinstellungen (analog Sprache)
     let crate_name = crate_name();
     move |item, standard_sprache, standard_name, standard_version| {
         let sprache = feste_sprache.unwrap_or(standard_sprache);
@@ -149,14 +148,18 @@ fn erstelle_version_methode(
         let ProgrammEinstellungen {
             name: programm_name,
             version: programm_version,
-            beschreibung: _,
+            beschreibung: (),
         } = programm_einstellungen;
-        let programm_version = ProgrammVersionDarstellung { programm_version, ist_option: false };
+        let programm_name = programm_name.or(standard_name);
+        let programm_version_darstellung = ProgrammVersionDarstellung {
+            programm_version: programm_version.or_default(standard_version),
+            ist_option: false,
+        };
         quote!(
             #item.mit_version_frühes_beenden(
                 #beschreibung,
                 #programm_name,
-                #programm_version,
+                #programm_version_darstellung,
             )
         )
     }
@@ -167,8 +170,8 @@ fn erstelle_hilfe_methode(
     sprache: &Sprache,
     namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
     programm_einstellungen: ProgrammEinstellungen<ProgrammBeschreibung>,
-) -> impl Fn(TokenStream, &ProgrammName, &ProgrammVersion, &ProgrammBeschreibung) -> TokenStream {
-    // TODO Standard-Wert für ProgrammEinstellungen (analog Sprache)
+) -> impl FnOnce(TokenStream, &ProgrammName, &ProgrammVersion, &ProgrammBeschreibung) -> TokenStream
+{
     let crate_name = crate_name();
     let sprache_ts = sprache.token_stream();
     let lang_standard = quote!(#sprache_ts.hilfe_lang);
@@ -193,15 +196,20 @@ fn erstelle_hilfe_methode(
         version: programm_version,
         beschreibung: programm_beschreibung,
     } = programm_einstellungen;
-    let programm_version = ProgrammVersionDarstellung { programm_version, ist_option: true };
     move |item, standard_name, standard_version, standard_beschreibung| {
+        let programm_name = programm_name.or(standard_name);
+        let programm_version_darstellung = ProgrammVersionDarstellung {
+            programm_version: programm_version.or_default(standard_version),
+            ist_option: true,
+        };
+        let programm_beschreibung = programm_beschreibung.or(standard_beschreibung);
         quote!(
             #item.mit_hilfe_frühes_beenden(
                 &::#crate_name::argumente::hilfe::Standard,
                 #beschreibung,
                 #programm_name,
                 #programm_beschreibung,
-                #programm_version,
+                #programm_version_darstellung,
                 #sprache_ts.standard,
                 #sprache_ts.erlaubte_werte,
                 #sprache_ts.optionen,
@@ -307,6 +315,14 @@ impl ToTokens for ProgrammName {
     }
 }
 
+impl ProgrammName {
+    /// Returns self if it contains [`Some`], otherwise returns the `alternative`.
+    fn or(mut self, alternative: &Self) -> Self {
+        self.0 = self.0.or(alternative.0.clone());
+        self
+    }
+}
+
 /// Programm-Version im Hilfe/Version-Text
 #[derive(Debug, Clone)]
 enum ProgrammVersion {
@@ -319,6 +335,19 @@ enum ProgrammVersion {
     HilfeOhneSubArgument,
     /// Kein Wert wurde spezifiziert.
     Unspezifiziert,
+}
+
+impl ProgrammVersion {
+    /// Returns self if it contains [`ProgrammVersion::Spezifiziert`], or [`ProgrammVersion::CrateMacro`],
+    /// otherwise returns the `alternative`.
+    fn or_default(self, default: &Self) -> Self {
+        match self {
+            ProgrammVersion::Spezifiziert(_) | ProgrammVersion::CrateMacro => self,
+            ProgrammVersion::HilfeOhneSubArgument | ProgrammVersion::Unspezifiziert => {
+                default.clone()
+            },
+        }
+    }
 }
 
 /// Helper für [`ProgrammVersion`] um alternative [`ToTokens`]-Implementierungen anzubieten.
@@ -365,6 +394,14 @@ impl ToTokens for ProgrammBeschreibung {
         } else {
             tokens.extend(quote!(None));
         }
+    }
+}
+
+impl ProgrammBeschreibung {
+    /// Returns self if it contains [`Some`], otherwise returns the `alternative`.
+    fn or(mut self, alternative: &Self) -> Self {
+        self.0 = self.0.or(alternative.0.clone());
+        self
     }
 }
 
