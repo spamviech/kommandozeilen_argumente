@@ -38,7 +38,7 @@ impl Display for Aufzählung {
 /// Struktur zur Definition der Kommandozeilen-Argumente.
 #[derive(Debug, Parse)]
 #[kommandozeilen_argumente(hilfe(beschreibung: "Programm-Beschreibung.", kurz))]
-#[kommandozeilen_argumente(version, sprache: deutsch)]
+#[kommandozeilen_argumente(version, sprache: deutsch, programm(version))]
 // wegen `invertiere_präfix`
 #[allow(clippy::disallowed_script_idents)]
 struct Args {

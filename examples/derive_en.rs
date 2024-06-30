@@ -38,7 +38,7 @@ impl Display for Enumeration {
 /// struct to define the command line arguments.
 #[derive(Debug, Parse)]
 #[kommandozeilen_argumente(help(description: "program description.", short))]
-#[kommandozeilen_argumente(version, language: english)]
+#[kommandozeilen_argumente(version, language: english, program(version))]
 struct Args {
     /// A flag with default settings.
     flag: bool,
