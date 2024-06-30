@@ -820,7 +820,7 @@ fn parse_wert_arg(
             ArgumentWert::Unterargument(sub_args) => {
                 /// Parse ein Unterargument rekursiv.
                 macro_rules! rekursiv {
-                    ($programm_beschreibung:expr, $sub_sprache:ident, $präfix_und_namen: ident $(,)?) => {
+                    ($programm_einstellungen: expr, $sub_sprache: ident, $präfix_und_namen: ident $(,)?) => {
                         let mut $sub_sprache = None;
                         let mut sub_lang_präfix = LangPräfix::default();
                         let mut sub_lang = LangNamen::default();
@@ -832,7 +832,7 @@ fn parse_wert_arg(
                             None,
                             None,
                             None,
-                            $programm_beschreibung,
+                            $programm_einstellungen,
                             Some(&mut sub_lang_präfix),
                             Some(&mut sub_lang),
                             Some(&mut sub_kurz_präfix),
@@ -873,24 +873,29 @@ fn parse_wert_arg(
                             (sub_lang_präfix, sub_lang_ts, sub_kurz_präfix, sub_kurz_ts);
                     }
                 }
-                match (name.as_str(), erstelle_hilfe.as_mut(), erstelle_version.as_mut()) {
-                    ("hilfe" | "help", Some(erstelle_hilfe), _) => {
-                        let mut sub_programm_beschreibung = ProgrammEinstellungen {
+                match (
+                    name.as_str(),
+                    erstelle_hilfe.as_mut(),
+                    erstelle_version.as_mut(),
+                    standard_programm_einstellungen.as_mut(),
+                ) {
+                    ("hilfe" | "help", Some(erstelle_hilfe), _, _) => {
+                        let mut sub_programm_einstellungen = ProgrammEinstellungen {
                             name: ProgrammName(None),
                             version: ProgrammVersion::Unspezifiziert,
                             beschreibung: Some(ProgrammBeschreibung(None)),
                         };
                         rekursiv!(
-                            Some(&mut sub_programm_beschreibung),
+                            Some(&mut sub_programm_einstellungen),
                             sub_sprache,
                             präfix_und_namen,
                         );
                         let sub_programm_beschreibung = ProgrammEinstellungen {
-                            name: sub_programm_beschreibung.name,
-                            version: sub_programm_beschreibung.version,
-                            beschreibung: sub_programm_beschreibung
+                            name: sub_programm_einstellungen.name,
+                            version: sub_programm_einstellungen.version,
+                            beschreibung: sub_programm_einstellungen
                                 .beschreibung
-                                .expect("Some-Wert wird bei rekursiven Aufruf nie None!"),
+                                .expect("Some-Wert für Programm-Beschreibung wird bei rekursiven Aufruf nie None!"),
                         };
                         let standard_sprache = if name == "hilfe" { Deutsch } else { English };
                         **erstelle_hilfe = ErstelleHilfe(Some(Box::new(erstelle_hilfe_methode(
@@ -899,20 +904,20 @@ fn parse_wert_arg(
                             sub_programm_beschreibung,
                         ))));
                     },
-                    ("version", _, Some(erstelle_version)) => {
-                        let mut sub_programm_beschreibung = ProgrammEinstellungen {
+                    ("version", _, Some(erstelle_version), _) => {
+                        let mut sub_programm_einstellungen = ProgrammEinstellungen {
                             name: ProgrammName(None),
                             version: ProgrammVersion::Unspezifiziert,
                             beschreibung: None,
                         };
                         rekursiv!(
-                            Some(&mut sub_programm_beschreibung),
+                            Some(&mut sub_programm_einstellungen),
                             sub_sprache,
                             präfix_und_namen,
                         );
                         let sub_programm_beschreibung = ProgrammEinstellungen {
-                            name: sub_programm_beschreibung.name,
-                            version: sub_programm_beschreibung.version,
+                            name: sub_programm_einstellungen.name,
+                            version: sub_programm_einstellungen.version,
                             beschreibung: (),
                         };
                         **erstelle_version =
@@ -922,8 +927,52 @@ fn parse_wert_arg(
                                 sub_programm_beschreibung,
                             ))));
                     },
-                    // TODO programm/program(<opts>)
-                    ("case", _, _) => {
+                    ("programm" | "program", _, _, Some(standard_programm_einstellungen)) => {
+                        let mut sub_programm_einstellungen = ProgrammEinstellungen {
+                            name: ProgrammName(None),
+                            version: ProgrammVersion::Unspezifiziert,
+                            beschreibung: Some(ProgrammBeschreibung(None)),
+                        };
+                        let result = parse_wert_arg(
+                            sub_args,
+                            None,
+                            None,
+                            None,
+                            None,
+                            Some(&mut sub_programm_einstellungen),
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                        );
+                        if let Err(erstelle_fehler) = result {
+                            return Err(Box::new(|arg_name| match erstelle_fehler(arg_name) {
+                                #[allow(clippy::shadow_unrelated)]
+                                NichtUnterstützt { arg_name, argument } => NichtUnterstützt {
+                                    arg_name,
+                                    argument: Argument {
+                                        name,
+                                        wert: ArgumentWert::Unterargument(vec![argument]),
+                                    },
+                                },
+                                fehler @ KeinLangName { .. } => fehler,
+                            }));
+                        };
+                        **standard_programm_einstellungen = ProgrammEinstellungen {
+                            name: sub_programm_einstellungen.name,
+                            version: sub_programm_einstellungen.version,
+                            beschreibung: sub_programm_einstellungen
+                                .beschreibung
+                                .expect("Some-Wert für Programm-Beschreibung wird bei rekursivem Aufruf nie None!"),
+                        };
+                    },
+                    ("case", _, _, _) => {
                         for sub_arg in sub_args {
                             if let Argument { name: sub_name, wert: ArgumentWert::Stream(ts) } =
                                 sub_arg
