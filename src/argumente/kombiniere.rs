@@ -1,9 +1,6 @@
 //! Kombiniere mehrere [Argumente] zu einem neuen, basierend auf einer Funktion.
 
-use std::{
-    ffi::OsString,
-    fmt::{self, Debug, Formatter},
-};
+use std::fmt::{self, Debug, Formatter};
 
 use nonempty::{nonempty, NonEmpty};
 use paste::paste;
@@ -13,6 +10,7 @@ use crate::{
         hilfe::{self, ErzeugeHilfeText},
         Argumente,
     },
+    beschreibung::ArgumentInput,
     ergebnis::Ergebnis,
 };
 
@@ -69,8 +67,8 @@ pub trait Kombiniere<'t, T, Fehler> {
     /// Parse the given arguments and return the corresponding value.
     fn parse(
         self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<OsString>>>,
-    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>);
+        args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
+    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>);
 
     /// Erzeuge den Hilfetext für die enthaltenen [`Einzelargumente`](EinzelArgument).
     fn erzeuge_hilfe_text(
@@ -95,8 +93,8 @@ impl<'t, T, Fehler, F: FnOnce() -> T> Kombiniere<'t, T, Fehler> for F {
     #[inline]
     fn parse(
         self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<OsString>>>,
-    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
+        args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
+    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
         (Ergebnis::Wert(self()), args.collect())
     }
 
@@ -143,8 +141,8 @@ macro_rules! impl_kombiniere_tuple {
                 #[inline]
                 fn parse(
                     self: Box<Self>,
-                    args: Box<dyn '_ + Iterator<Item = Option<OsString>>>,
-                ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
+                    args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
+                ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
                     let (funktion, $([<arg_ $suffix:snake:lower>]),+) = *self;
                     let nicht_verwendet: Vec<_> = args.collect();
                     let mut alle_fehler = Vec::new();

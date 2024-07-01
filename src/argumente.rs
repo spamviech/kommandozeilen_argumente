@@ -22,7 +22,7 @@ use crate::{
         kombiniere::Kombiniere,
         wert::Wert,
     },
-    beschreibung::Beschreibung,
+    beschreibung::{ArgumentInput, Beschreibung},
     dyn_to_owned,
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler},
     sprache::{Language, Sprache},
@@ -251,8 +251,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
     #[inline]
     pub fn parse_rekursiv(
         self,
-        args: impl Iterator<Item = Option<OsString>>,
-    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
+        args: impl Iterator<Item = Option<ArgumentInput>>,
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<ArgumentInput>>) {
         use Argumente::{Alternativen, EinzelArgument, Kombiniere};
         use Ergebnis::{Fehler, FrühesBeenden, Wert};
         match self {
@@ -292,8 +292,9 @@ impl<'t, T, F> Argumente<'t, T, F> {
     pub fn parse(
         self,
         args: impl Iterator<Item = OsString>,
-    ) -> (Ergebnis<'t, T, F>, Vec<OsString>) {
-        let (ergebnis, nicht_verwendet) = self.parse_rekursiv(args.map(Some));
+    ) -> (Ergebnis<'t, T, F>, Vec<ArgumentInput>) {
+        let (ergebnis, nicht_verwendet) =
+            self.parse_rekursiv(args.map(ArgumentInput::Unchanged).map(Some));
         (ergebnis, nicht_verwendet.into_iter().flatten().collect())
     }
 
@@ -302,7 +303,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// ## English synonym
     /// [`parse_from_env`](Self::parse_from_env)
     #[inline]
-    pub fn parse_aus_env(self) -> (Ergebnis<'t, T, F>, Vec<OsString>)
+    pub fn parse_aus_env(self) -> (Ergebnis<'t, T, F>, Vec<ArgumentInput>)
     where
         Self: 't,
         F: 't,
@@ -315,7 +316,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// ## Deutsches Synonym
     /// [`parse_aus_env`](Self::parse_aus_env)
     #[inline]
-    pub fn parse_from_env(self) -> (Ergebnis<'t, T, F>, Vec<OsString>)
+    pub fn parse_from_env(self) -> (Ergebnis<'t, T, F>, Vec<ArgumentInput>)
     where
         Self: 't,
         F: 't,
@@ -333,7 +334,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     #[inline]
     pub fn parse_aus_env_mit_frühen_beenden(
         self,
-    ) -> (Result<T, NonEmpty<Fehler<'t, F>>>, Vec<OsString>)
+    ) -> (Result<T, NonEmpty<Fehler<'t, F>>>, Vec<ArgumentInput>)
     where
         Self: 't,
         F: 't,
@@ -350,7 +351,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     #[inline]
     pub fn parse_from_env_with_early_exit(
         self,
-    ) -> (Result<T, NonEmpty<Error<'t, F>>>, Vec<OsString>)
+    ) -> (Result<T, NonEmpty<Error<'t, F>>>, Vec<ArgumentInput>)
     where
         Self: 't,
         F: 't,
@@ -369,7 +370,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     pub fn parse_mit_frühen_beenden(
         self,
         args: impl Iterator<Item = OsString>,
-    ) -> (Result<T, NonEmpty<Fehler<'t, F>>>, Vec<OsString>)
+    ) -> (Result<T, NonEmpty<Fehler<'t, F>>>, Vec<ArgumentInput>)
     where
         Self: 't,
         F: 't,
@@ -399,7 +400,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     pub fn parse_with_early_exit(
         self,
         args: impl Iterator<Item = OsString>,
-    ) -> (Result<T, NonEmpty<Error<'t, F>>>, Vec<OsString>)
+    ) -> (Result<T, NonEmpty<Error<'t, F>>>, Vec<ArgumentInput>)
     where
         Self: 't,
         F: 't,
@@ -762,8 +763,8 @@ impl<'t, T, Fehler, NeuerFehler> Kombiniere<'t, T, NeuerFehler>
 {
     fn parse(
         self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<OsString>>>,
-    ) -> (Ergebnis<'t, T, NeuerFehler>, Vec<Option<OsString>>) {
+        args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
+    ) -> (Ergebnis<'t, T, NeuerFehler>, Vec<Option<ArgumentInput>>) {
         let (ergebnis, nicht_verwendet) = self.kombiniere.parse(args);
         let konvertiert = ergebnis.konvertiere_fehler(self.konvertiere_fehler);
         (konvertiert, nicht_verwendet)

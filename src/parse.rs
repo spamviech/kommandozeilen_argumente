@@ -20,7 +20,7 @@ use crate::{
         wert::{EnumArgument, Wert},
         Argumente,
     },
-    beschreibung::{Beschreibung, Description},
+    beschreibung::{ArgumentInput, Beschreibung, Description},
     dyn_to_owned::{self, Anzeige, Bool},
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler},
     sprache::{Language, Sprache},
@@ -220,8 +220,8 @@ impl<'t, T, Fehler, F: FnOnce(Ergebnis<'t, T, Fehler>) -> Ergebnis<'t, T, Fehler
     #[inline]
     fn parse(
         self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<OsString>>>,
-    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
+        args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
+    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
         let OptionHelper(funktion, arg) = *self;
         let (ergebnis, nicht_verwendet) = arg.parse_rekursiv(args);
         (funktion(ergebnis), nicht_verwendet)
@@ -460,13 +460,13 @@ pub trait Parse: Sized {
     /// Parse the given command line arguments to create the requested type.
     #[inline]
     fn parse<'t>(
-        args: impl Iterator<Item = Option<OsString>>,
-    ) -> (Ergebnis<'t, Self, Self::Fehler>, Vec<Option<OsString>>)
+        args: impl Iterator<Item = OsString>,
+    ) -> (Ergebnis<'t, Self, Self::Fehler>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Fehler: 't,
     {
-        Self::kommandozeilen_argumente().parse_rekursiv(args)
+        Self::kommandozeilen_argumente().parse(args)
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -474,7 +474,7 @@ pub trait Parse: Sized {
     /// ## English synonym
     /// [`parse_from_env`](Parse::parse_from_env)
     #[inline]
-    fn parse_aus_env<'t>() -> (Ergebnis<'t, Self, Self::Fehler>, Vec<OsString>)
+    fn parse_aus_env<'t>() -> (Ergebnis<'t, Self, Self::Fehler>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Fehler: 't,
@@ -487,7 +487,7 @@ pub trait Parse: Sized {
     /// ## Deutsches Synonym
     /// [`parse_aus_env`](Parse::parse_aus_env)
     #[inline]
-    fn parse_from_env<'t>() -> (Ergebnis<'t, Self, Self::Fehler>, Vec<OsString>)
+    fn parse_from_env<'t>() -> (Ergebnis<'t, Self, Self::Fehler>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Fehler: 't,
@@ -505,7 +505,7 @@ pub trait Parse: Sized {
     #[inline]
     #[allow(clippy::type_complexity)]
     fn parse_aus_env_mit_frühen_beenden<'t>(
-    ) -> (Result<Self, NonEmpty<Fehler<'t, Self::Fehler>>>, Vec<OsString>)
+    ) -> (Result<Self, NonEmpty<Fehler<'t, Self::Fehler>>>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Fehler: 't,
@@ -522,7 +522,7 @@ pub trait Parse: Sized {
     #[inline]
     #[allow(clippy::type_complexity)]
     fn parse_from_env_with_early_exit<'t>(
-    ) -> (Result<Self, NonEmpty<Error<'t, Self::Fehler>>>, Vec<OsString>)
+    ) -> (Result<Self, NonEmpty<Error<'t, Self::Fehler>>>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Fehler: 't,
@@ -541,7 +541,7 @@ pub trait Parse: Sized {
     #[allow(clippy::type_complexity)]
     fn parse_mit_frühen_beenden<'t>(
         args: impl Iterator<Item = OsString>,
-    ) -> (Result<Self, NonEmpty<Fehler<'t, Self::Fehler>>>, Vec<OsString>)
+    ) -> (Result<Self, NonEmpty<Fehler<'t, Self::Fehler>>>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Fehler: 't,
@@ -559,7 +559,7 @@ pub trait Parse: Sized {
     #[allow(clippy::type_complexity)]
     fn parse_with_early_exit<'t>(
         args: impl Iterator<Item = OsString>,
-    ) -> (Result<Self, NonEmpty<Error<'t, Self::Fehler>>>, Vec<OsString>)
+    ) -> (Result<Self, NonEmpty<Error<'t, Self::Fehler>>>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Fehler: 't,

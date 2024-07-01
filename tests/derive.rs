@@ -19,7 +19,9 @@ use std::{
 
 use nonempty::{nonempty, NonEmpty};
 
-use kommandozeilen_argumente::{Argumente, EnumArgument, Ergebnis, Fehler, Parse, ParseArgument};
+use kommandozeilen_argumente::{
+    ArgumentInput, Argumente, EnumArgument, Ergebnis, Fehler, Parse, ParseArgument,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
 #[kommandozeilen_argumente(case: insensitive)]
@@ -268,7 +270,8 @@ fn verschmelze_kurzformen_hilfe() -> Result<(), DString> {
 
 #[test]
 fn verschmelze_kurzformen_wert() -> Result<(), DString> {
-    // FIXME soll nicht für Wert-Argumente (vor allem am Anfang der Liste) funktionieren!
+    // soll nicht für Wert-Argumente (vor allem am Anfang der Liste) funktionieren!
+    // FIXME wert am Anfang soll keinen Parse-Fehler auslösen!
     let arg2 = Test2::kommandozeilen_argumente();
     match arg2.parse(
         [OsString::from(String::from("-vfb")), OsString::from(String::from("Muh"))].into_iter(),
@@ -281,8 +284,10 @@ fn verschmelze_kurzformen_wert() -> Result<(), DString> {
                 bool_flag: true,
             };
             // Der Wert Kurz-Name soll nicht "nach hinten durchrutschen"!
-            let erwartet_nicht_verwendet =
-                [OsString::from(String::from("-v")), OsString::from(String::from("Muh"))];
+            let erwartet_nicht_verwendet = [
+                ArgumentInput::Unchanged(OsString::from(String::from("-v"))),
+                ArgumentInput::Unchanged(OsString::from(String::from("Muh"))),
+            ];
             if nicht_verwendet != erwartet_nicht_verwendet {
                 Err(DString(format!("Unerwartete nicht verwendete Argumente: {nicht_verwendet:?}")))
             } else if test2 != erwartet {

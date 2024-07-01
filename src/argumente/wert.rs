@@ -11,7 +11,7 @@ use nonempty::NonEmpty;
 
 use crate::{
     argumente::hilfe::Hilfe,
-    beschreibung::{Beschreibung, Description, Name},
+    beschreibung::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Anzeige, Parse},
     ergebnis::{Ergebnis, Fehler, ParseFehler},
     sprache::{Language, Sprache},
@@ -277,10 +277,10 @@ impl<'t, T, F> Wert<'t, T, F> {
     /// ## English
     /// Parse the given arguments and return the corresponding value.
     #[inline]
-    pub fn parse<I: Iterator<Item = Option<OsString>>>(
+    pub fn parse<I: Iterator<Item = Option<ArgumentInput>>>(
         self,
         args: I,
-    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<ArgumentInput>>) {
         let Wert {
             beschreibung,
             wert_infix,
@@ -301,7 +301,7 @@ impl<'t, T, F> Wert<'t, T, F> {
                           name: Name<'t>,
                           wert_infix: Vergleich<'t>,
                           iter: I|
-         -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
+         -> (Ergebnis<'t, T, F>, Vec<Option<ArgumentInput>>) {
             nicht_verwendet.push(None);
             nicht_verwendet.extend(iter);
             let ergebnis = match parse(arg) {
@@ -317,8 +317,12 @@ impl<'t, T, F> Wert<'t, T, F> {
         };
         while let Some(arg_opt) = iter.next() {
             if let Some(arg) = &arg_opt {
-                if let Some(_name_arg) = name_ohne_wert.take() {
-                    return parse_wert(arg, nicht_verwendet, name, wert_infix, iter);
+                if let Some(name_arg) = name_ohne_wert.take() {
+                    if let ArgumentInput::Unchanged(arg) = arg {
+                        return parse_wert(arg, nicht_verwendet, name, wert_infix, iter);
+                    }
+                    nicht_verwendet.push(name_arg);
+                    nicht_verwendet.push(arg_opt);
                 } else if let Some(wert_opt) = name.parse_mit_wert(&wert_infix, arg) {
                     if let Some(wert_str) = wert_opt {
                         return parse_wert(&wert_str, nicht_verwendet, name, wert_infix, iter);

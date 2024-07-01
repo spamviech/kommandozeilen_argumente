@@ -31,6 +31,16 @@ impl<'t, S: Into<Cow<'t, str>>> From<S> for Normalisiert<'t> {
     }
 }
 
+impl Normalisiert<'_> {
+    /// Convert the [`Normalisiert`] into an owned version with `'static` lifetime,
+    /// cloning the contents if required.
+    #[must_use]
+    #[inline]
+    pub fn into_owned(self) -> Normalisiert<'static> {
+        Normalisiert(Cow::Owned(self.0.into_owned()))
+    }
+}
+
 /// A normalized unicode string.
 ///
 /// The String is in
@@ -274,7 +284,10 @@ impl Vergleich<'_> {
     }
 
     /// Versuche einen String vom Anfang des anderen Strings zu entfernen.
-    pub(crate) fn strip_als_präfix<'t>(&self, string: &'t Normalisiert<'t>) -> Option<&'t str> {
+    pub(crate) fn strip_als_präfix<'t>(
+        &self,
+        string: &'t Normalisiert<'t>,
+    ) -> Option<(&'t str, &'t str)> {
         let string_str = string.as_ref();
         let string_länge = string_str.len();
         let mut graphemes_indices = string_str.grapheme_indices(true);
@@ -285,7 +298,7 @@ impl Vergleich<'_> {
         präfixe.iter().rev().find(|(präfix, _ix)| self.eq(*präfix)).map(|(_präfix, ix)| {
             // Index von [`graphemes_indices`] ist valide.
             #[allow(clippy::string_slice, clippy::indexing_slicing)]
-            &string_str[*ix..string_länge]
+            (&string_str[0..*ix], &string_str[*ix..string_länge])
         })
     }
 
@@ -293,7 +306,7 @@ impl Vergleich<'_> {
     pub(crate) fn strip_als_präfix_n<'t>(
         &self,
         string: &'t Normalisiert<'t>,
-    ) -> Option<Normalisiert<'t>> {
+    ) -> Option<(Normalisiert<'t>, Normalisiert<'t>)> {
         let string_str = string.as_ref();
         let string_länge = string_str.len();
         let mut graphemes_indices = string_str.grapheme_indices(true);
@@ -304,7 +317,10 @@ impl Vergleich<'_> {
         präfixe.iter().rev().find(|(präfix, _ix)| self.eq(*präfix)).map(|(_präfix, ix)| {
             // Index von [`graphemes_indices`] ist valide.
             #[allow(clippy::string_slice, clippy::indexing_slicing)]
-            Normalisiert(Cow::Borrowed(&string_str[*ix..string_länge]))
+            (
+                Normalisiert(Cow::Borrowed(&string_str[0..*ix])),
+                Normalisiert(Cow::Borrowed(&string_str[*ix..string_länge])),
+            )
         })
     }
 }

@@ -2,7 +2,6 @@
 
 use std::{
     borrow::Cow,
-    ffi::OsString,
     fmt::{self, Debug, Display},
 };
 
@@ -10,6 +9,7 @@ use void::Void;
 
 use crate::{
     argumente::{flag::Flag, frühes_beenden::FrühesBeenden, hilfe::Hilfe, wert::Wert},
+    beschreibung::ArgumentInput,
     dyn_to_owned::Anzeige,
     ergebnis::Ergebnis,
 };
@@ -165,8 +165,8 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
     #[inline]
     pub fn parse(
         self,
-        args: impl Iterator<Item = Option<OsString>>,
-    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<OsString>>) {
+        args: impl Iterator<Item = Option<ArgumentInput>>,
+    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
         match self {
             EinzelArgument::Flag(flag) => flag.parse(args),
             EinzelArgument::FrühesBeenden { frühes_beenden, wert, anzeige: _ } => {

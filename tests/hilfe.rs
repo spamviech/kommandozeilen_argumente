@@ -18,6 +18,7 @@ use std::{
 
 use kommandozeilen_argumente::{
     argumente::{einzelargument::EinzelArgument, flag::Flag, hilfe::Standard},
+    beschreibung::ArgumentInput,
     Argumente, Beschreibung, Ergebnis, Sprache,
 };
 
@@ -53,7 +54,9 @@ fn hilfe_test() -> Result<(), DString> {
         sprache,
     );
 
-    match arg_mit_hilfe.parse_rekursiv(iter::once(Some(OsString::from("--hilfe".to_owned())))) {
+    match arg_mit_hilfe.parse_rekursiv(iter::once(Some(ArgumentInput::Unchanged(OsString::from(
+        "--hilfe".to_owned(),
+    ))))) {
         (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
             let nicht_verwendet: Vec<_> = nicht_verwendet.into_iter().flatten().collect();
             let übrige = nicht_verwendet.len();

@@ -3,7 +3,6 @@
 use std::{
     borrow::Cow,
     convert::identity,
-    ffi::OsString,
     fmt::{self, Debug},
 };
 
@@ -11,7 +10,7 @@ use nonempty::NonEmpty;
 
 use crate::{
     argumente::hilfe::Hilfe,
-    beschreibung::{Beschreibung, Description, Name},
+    beschreibung::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Anzeige, Bool},
     ergebnis::{Ergebnis, Fehler},
     sprache::{Language, Sprache},
@@ -121,8 +120,8 @@ impl<'t, T> Flag<'t, T> {
     #[inline]
     pub fn parse<F>(
         self,
-        args: impl Iterator<Item = Option<OsString>>,
-    ) -> (Ergebnis<'t, T, F>, Vec<Option<OsString>>) {
+        args: impl Iterator<Item = Option<ArgumentInput>>,
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<ArgumentInput>>) {
         let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere, anzeige: _ } =
             self;
         let Beschreibung { name, hilfe: _, standard } = beschreibung;

@@ -1,13 +1,13 @@
 //! Flag-Argumente, die zu frühen Beenden führen.
 
-use std::{borrow::Cow, ffi::OsString};
+use std::borrow::Cow;
 
 use nonempty::NonEmpty;
 use void::Void;
 
 use crate::{
     argumente::hilfe::Hilfe,
-    beschreibung::{Beschreibung, Description, Name},
+    beschreibung::{ArgumentInput, Beschreibung, Description, Name},
     ergebnis::Ergebnis,
 };
 
@@ -64,8 +64,8 @@ impl<'t> FrühesBeenden<'t> {
     #[inline]
     pub fn parse<F>(
         self,
-        args: impl Iterator<Item = Option<OsString>>,
-    ) -> (Ergebnis<'t, (), F>, Vec<Option<OsString>>) {
+        args: impl Iterator<Item = Option<ArgumentInput>>,
+    ) -> (Ergebnis<'t, (), F>, Vec<Option<ArgumentInput>>) {
         let FrühesBeenden { beschreibung, nachricht } = self;
         let Beschreibung { name, hilfe: _, standard } = beschreibung;
         let mut nicht_verwendet = Vec::new();
