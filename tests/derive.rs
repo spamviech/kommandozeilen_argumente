@@ -20,7 +20,8 @@ use std::{
 use nonempty::{nonempty, NonEmpty};
 
 use kommandozeilen_argumente::{
-    ArgumentInput, Argumente, EnumArgument, Ergebnis, Fehler, Parse, ParseArgument,
+    beschreibung::MergedShortNameSuffix, ArgumentInput, Argumente, EnumArgument, Ergebnis, Fehler,
+    Normalisiert, Parse, ParseArgument,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
@@ -199,7 +200,7 @@ struct Inner {
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(version, help(lang: [hilfe, help], kurz: h))]
 struct Test2 {
-    #[kommandozeilen_argumente(default: Bla::Meh, long: [bla, meh, muh], short: v)]
+    #[kommandozeilen_argumente(default: Bla::Meh, long: [bla, meh, muh], short: x)]
     /// bla
     bla: Bla,
     /// flag
@@ -274,7 +275,7 @@ fn verschmelze_kurzformen_wert() -> Result<(), DString> {
     // FIXME wert am Anfang soll keinen Parse-Fehler auslösen!
     let arg2 = Test2::kommandozeilen_argumente();
     match arg2.parse(
-        [OsString::from(String::from("-vfb")), OsString::from(String::from("Muh"))].into_iter(),
+        [OsString::from(String::from("-xfb")), OsString::from(String::from("Muh"))].into_iter(),
     ) {
         (Ergebnis::Wert(test2), nicht_verwendet) => {
             let erwartet = Test2 {
@@ -285,7 +286,11 @@ fn verschmelze_kurzformen_wert() -> Result<(), DString> {
             };
             // Der Wert Kurz-Name soll nicht "nach hinten durchrutschen"!
             let erwartet_nicht_verwendet = [
-                ArgumentInput::Unchanged(OsString::from(String::from("-v"))),
+                ArgumentInput::AdjustedMergedShortNames {
+                    prefix: Normalisiert::neu(Cow::from("-")),
+                    graphemes: vec![Box::from("x")],
+                    suffix: MergedShortNameSuffix::Removed,
+                },
                 ArgumentInput::Unchanged(OsString::from(String::from("Muh"))),
             ];
             if nicht_verwendet != erwartet_nicht_verwendet {
