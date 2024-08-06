@@ -4,6 +4,7 @@ use std::{
     borrow::Cow,
     convert::AsRef,
     ffi::{OsStr, OsString},
+    iter,
 };
 
 use itertools::Itertools as _;
@@ -63,7 +64,7 @@ pub enum ArgumentInput {
         /// The prefix of the adjusted merged short names argument.
         prefix: Normalisiert<'static>,
         /// The graphemes of the remaining short names.
-        graphemes: Vec<Box<str>>,
+        graphemes: NonEmpty<Box<str>>,
         /// Is the suffix still intact.
         suffix: MergedShortNameSuffix,
     },
@@ -103,14 +104,14 @@ impl Name<'_> {
 
         if erster_match.is_some() {
             let wert = name_gefunden();
-            let angepasstes_argument = if andere.is_empty() {
-                None
-            } else {
+            let angepasstes_argument = if let Some(andere) = NonEmpty::from_vec(andere) {
                 Some(ArgumentInput::AdjustedMergedShortNames {
                     prefix: prefix.into_owned(),
                     graphemes: andere,
                     suffix,
                 })
+            } else {
+                None
             };
             return Some((wert, angepasstes_argument));
         }
@@ -124,47 +125,63 @@ impl Name<'_> {
         &self,
         name_gefunden: impl FnOnce() -> E,
         parse_invertiert: impl FnOnce(&NonEmpty<Vergleich<'_>>, &Normalisiert<'_>) -> Option<E>,
-        arg: &ArgumentInput,
-    ) -> Option<(E, Option<ArgumentInput>)> {
+        arg: &OsStr,
+    ) -> Option<E> {
         let Name { lang_präfix, lang, kurz_präfix, kurz } = self;
         let name_kurz_existiert = !kurz.is_empty();
+        if let Some(string) = arg.to_str() {
+            let normalisiert = Normalisiert::neu(string);
+            if let Some((_prefix, lang_str)) = &lang_präfix.strip_als_präfix_n(&normalisiert) {
+                #[allow(clippy::redundant_else)]
+                if contains_str(lang, lang_str.as_str()) {
+                    return Some(name_gefunden());
+                } else if let Some(wert) = parse_invertiert(lang, lang_str) {
+                    return Some(wert);
+                } else {
+                    // kein match für {lang_präfix}[invertiert_infix]{lang_name}
+                }
+            } else if name_kurz_existiert {
+                if let Some((_prefix, kurz_suffix)) = kurz_präfix.strip_als_präfix_n(&normalisiert)
+                {
+                    if contains_str(kurz, kurz_suffix.as_str()) {
+                        return Some(name_gefunden());
+                    }
+                }
+            } else {
+                // kein match für "{lang_präfix}.*" und es gibt keine Kurz-Namen.
+            }
+        }
+        None
+    }
+
+    fn parse_flag_merge_short_forms_aux<E>(
+        &self,
+        name_gefunden: impl FnOnce() -> E,
+        arg: &ArgumentInput,
+    ) -> Option<(E, Option<ArgumentInput>)> {
+        let Name { lang_präfix: _, lang: _, kurz_präfix, kurz } = self;
+        if kurz.is_empty() {
+            return None;
+        }
         match arg {
             ArgumentInput::Unchanged(arg) => {
                 if let Some(string) = arg.to_str() {
                     let normalisiert = Normalisiert::neu(string);
-                    if let Some((_prefix, lang_str)) =
-                        &lang_präfix.strip_als_präfix_n(&normalisiert)
+                    if let Some((prefix, kurz_suffix)) =
+                        kurz_präfix.strip_als_präfix_n(&normalisiert)
                     {
-                        #[allow(clippy::redundant_else)]
-                        if contains_str(lang, lang_str.as_str()) {
-                            return Some((name_gefunden(), None));
-                        } else if let Some(wert) = parse_invertiert(lang, lang_str) {
-                            return Some((wert, None));
-                        } else {
-                            // kein match für {lang_präfix}[invertiert_infix]{lang_name}
-                        }
-                    } else if name_kurz_existiert {
-                        if let Some((prefix, kurz_suffix)) =
-                            kurz_präfix.strip_als_präfix_n(&normalisiert)
-                        {
-                            let graphemes: Box<dyn Iterator<Item = &str>> =
-                                match kurz_suffix.as_str().graphemes(true).exactly_one() {
-                                    Ok(name) if contains_str(kurz, name) => {
-                                        return Some((name_gefunden(), None))
-                                    },
-                                    Ok(einzelnes) => Box::new(Some(einzelnes).into_iter()),
-                                    Err(mehrere) => Box::new(mehrere),
-                                };
+                        let graphemes: Box<dyn Iterator<Item = &str>> =
+                            match kurz_suffix.as_str().graphemes(true).exactly_one() {
+                                Ok(einzelnes) => Box::new(iter::once(einzelnes)),
+                                Err(mehrere) => Box::new(mehrere),
+                            };
 
-                            return Name::parse_merged_short_name(
-                                prefix,
-                                kurz,
-                                name_gefunden,
-                                graphemes,
-                            );
-                        }
-                    } else {
-                        // kein match für "{lang_präfix}.*" und es gibt keine Kurz-Namen.
+                        return Name::parse_merged_short_name(
+                            prefix,
+                            kurz,
+                            name_gefunden,
+                            graphemes,
+                        );
                     }
                 }
             },
@@ -188,8 +205,8 @@ impl Name<'_> {
         &self,
         invertiere_präfix: &Vergleich<'_>,
         invertiere_infix: &Vergleich<'_>,
-        arg: &ArgumentInput,
-    ) -> Option<(bool, Option<ArgumentInput>)> {
+        arg: &OsStr,
+    ) -> Option<bool> {
         let parse_invertiert = |lang: &NonEmpty<Vergleich<'_>>,
                                 lang_str: &Normalisiert<'_>|
          -> Option<bool> {
@@ -207,17 +224,32 @@ impl Name<'_> {
         };
         self.parse_flag_aux(|| true, parse_invertiert, arg)
     }
+    /// Parse den namen als Flag.
+    ///
+    /// Rückgabewert: [`Some(wert, angepasstes_arg)`](Some) wenn gefunden, [`None`] sonst.
+    #[inline]
+    pub(crate) fn parse_flag_merge_short_forms(
+        &self,
+        arg: &ArgumentInput,
+    ) -> Option<(bool, Option<ArgumentInput>)> {
+        self.parse_flag_merge_short_forms_aux(|| true, arg)
+    }
 
     /// Parse den namen als Flag, die ein frühes beenden auslöst.
     ///
     /// Rückgabewert: [`Some(angepasstes_arg)`](Some) wenn gefunden, [`None`] sonst.
     #[inline]
     #[allow(clippy::option_option)]
-    pub(crate) fn parse_frühes_beenden(
+    pub(crate) fn parse_frühes_beenden(&self, arg: &OsStr) -> bool {
+        self.parse_flag_aux(|| (), |_, _| None, arg).is_some()
+    }
+
+    pub(crate) fn parse_frühes_beenden_merge_short_forms(
         &self,
         arg: &ArgumentInput,
     ) -> Option<Option<ArgumentInput>> {
-        self.parse_flag_aux(|| (), |_, _| None, arg).map(|((), angepasstes_arg)| angepasstes_arg)
+        self.parse_flag_merge_short_forms_aux(|| (), arg)
+            .map(|((), angepasstes_arg)| angepasstes_arg)
     }
 
     /// Parse den Namen als Wert.
@@ -225,27 +257,55 @@ impl Name<'_> {
     pub(crate) fn parse_mit_wert<'t>(
         &self,
         wert_infix: &Vergleich<'_>,
-        arg: &'t ArgumentInput,
+        arg: &'t OsStr,
     ) -> Option<Option<Cow<'t, OsStr>>> {
         let Name { lang_präfix, lang, kurz_präfix, kurz } = self;
         let kurz_existiert = !kurz.is_empty();
-        // TODO allow merge short names when last short name?
-        if let ArgumentInput::Unchanged(arg) = arg {
-            if let Some(string) = arg.to_str() {
-                let normalisiert = Normalisiert::neu(string);
-                if let Some((_prefix, lang_str)) = lang_präfix.strip_als_präfix_n(&normalisiert) {
-                    let suffixe = filter_prefix(lang, &lang_str);
-                    for suffix in suffixe {
-                        let suffix_normalisiert = Normalisiert::neu(suffix);
-                        #[allow(clippy::redundant_else)]
-                        if suffix.is_empty() {
-                            return Some(None);
-                        } else if let Some((_infix, wert_graphemes)) =
-                            wert_infix.strip_als_präfix_n(&suffix_normalisiert)
-                        {
-                            let wert_str = wert_graphemes.as_str();
-                            let wert_länge = wert_str.len();
-                            let wert_cow = match normalisiert.cow_ref() {
+        if let Some(string) = arg.to_str() {
+            let normalisiert = Normalisiert::neu(string);
+            if let Some((_prefix, lang_str)) = lang_präfix.strip_als_präfix_n(&normalisiert) {
+                let suffixe = filter_prefix(lang, &lang_str);
+                for suffix in suffixe {
+                    let suffix_normalisiert = Normalisiert::neu(suffix);
+                    #[allow(clippy::redundant_else)]
+                    if suffix.is_empty() {
+                        return Some(None);
+                    } else if let Some((_infix, wert_graphemes)) =
+                        wert_infix.strip_als_präfix_n(&suffix_normalisiert)
+                    {
+                        let wert_str = wert_graphemes.as_str();
+                        let wert_länge = wert_str.len();
+                        let wert_cow = match normalisiert.cow_ref() {
+                            Cow::Borrowed(_) => {
+                                let string_länge = string.len();
+                                // Berechne Index aus suffix-Länge
+                                #[allow(clippy::arithmetic_side_effects)]
+                                let start_index = string_länge - wert_länge - 1;
+                                #[allow(clippy::string_slice, clippy::indexing_slicing)]
+                                Cow::Borrowed(string[start_index..string_länge].as_ref())
+                            },
+                            Cow::Owned(_) => {
+                                Cow::Owned(OsString::from(wert_graphemes.as_str().to_owned()))
+                            },
+                        };
+                        return Some(Some(wert_cow));
+                    } else {
+                        // Suffix ist nicht leer, beginnt aber nicht mit wert_infix
+                    }
+                }
+            } else if kurz_existiert {
+                if let Some((_prefix, kurz_str)) = kurz_präfix.strip_als_präfix_n(&normalisiert) {
+                    let mut kurz_graphemes = kurz_str.as_str().graphemes(true);
+                    if kurz_graphemes.next().is_some_and(|name| contains_str(kurz, name)) {
+                        let rest = Normalisiert::neu(kurz_graphemes.as_str());
+                        let wert_str = if rest.as_str().is_empty() {
+                            None
+                        } else {
+                            let wert_str = wert_infix
+                                .strip_als_präfix_n(&rest)
+                                .map_or_else(|| rest.clone(), |(_infix, suffix)| suffix);
+                            let wert_länge = wert_str.as_str().len();
+                            Some(match normalisiert.cow_ref() {
                                 Cow::Borrowed(_) => {
                                     let string_länge = string.len();
                                     // Berechne Index aus suffix-Länge
@@ -255,49 +315,84 @@ impl Name<'_> {
                                     Cow::Borrowed(string[start_index..string_länge].as_ref())
                                 },
                                 Cow::Owned(_) => {
-                                    Cow::Owned(OsString::from(wert_graphemes.as_str().to_owned()))
+                                    Cow::Owned(OsString::from(wert_str.cow().into_owned()))
                                 },
-                            };
-                            return Some(Some(wert_cow));
-                        } else {
-                            // Suffix ist nicht leer, beginnt aber nicht mit wert_infix
-                        }
+                            })
+                        };
+                        return Some(wert_str);
                     }
-                } else if kurz_existiert {
-                    if let Some((_prefix, kurz_str)) =
+                }
+            } else {
+                // kein match für "{lang_name_präfix}.*" und Argument hat keinen kurz_namen.
+            }
+        }
+        None
+    }
+
+    /// Parse den Namen als Wert.
+    #[allow(clippy::option_option)]
+    pub(crate) fn parse_mit_wert_merge_short_forms(
+        &self,
+        arg: &ArgumentInput,
+    ) -> Option<Option<ArgumentInput>> {
+        let Name { lang_präfix: _, lang: _, kurz_präfix, kurz } = self;
+        if kurz.is_empty() {
+            return None;
+        }
+        match arg {
+            ArgumentInput::Unchanged(arg) => {
+                if let Some(string) = arg.to_str() {
+                    let normalisiert = Normalisiert::neu(string);
+                    if let Some((prefix, kurz_suffix)) =
                         kurz_präfix.strip_als_präfix_n(&normalisiert)
                     {
-                        let mut kurz_graphemes = kurz_str.as_str().graphemes(true);
-                        if kurz_graphemes.next().is_some_and(|name| contains_str(kurz, name)) {
-                            let rest = Normalisiert::neu(kurz_graphemes.as_str());
-                            let wert_str = if rest.as_str().is_empty() {
-                                None
-                            } else {
-                                let wert_str = wert_infix
-                                    .strip_als_präfix_n(&rest)
-                                    .map_or_else(|| rest.clone(), |(_infix, suffix)| suffix);
-                                let wert_länge = wert_str.as_str().len();
-                                Some(match normalisiert.cow_ref() {
-                                    Cow::Borrowed(_) => {
-                                        let string_länge = string.len();
-                                        // Berechne Index aus suffix-Länge
-                                        #[allow(clippy::arithmetic_side_effects)]
-                                        let start_index = string_länge - wert_länge - 1;
-                                        #[allow(clippy::string_slice, clippy::indexing_slicing)]
-                                        Cow::Borrowed(string[start_index..string_länge].as_ref())
-                                    },
-                                    Cow::Owned(_) => {
-                                        Cow::Owned(OsString::from(wert_str.cow().into_owned()))
-                                    },
-                                })
-                            };
-                            return Some(wert_str);
+                        let graphemes: Vec<&str> = kurz_suffix.as_str().graphemes(true).collect();
+
+                        if let Some((last, graphemes)) = graphemes.split_last() {
+                            if contains_str(kurz, last) {
+                                let remainder = if let Some(graphemes) = NonEmpty::collect(
+                                    graphemes
+                                        .into_iter()
+                                        .map(|&s: &&str| -> Box<str> { Box::from(s) }),
+                                ) {
+                                    Some(ArgumentInput::AdjustedMergedShortNames {
+                                        prefix: prefix.into_owned(),
+                                        graphemes,
+                                        suffix: MergedShortNameSuffix::Removed,
+                                    })
+                                } else {
+                                    None
+                                };
+                                return Some(remainder);
+                            }
                         }
                     }
-                } else {
-                    // kein match für "{lang_name_präfix}.*" und Argument hat keinen kurz_namen.
                 }
-            }
+            },
+            ArgumentInput::AdjustedMergedShortNames {
+                prefix,
+                graphemes,
+                suffix: MergedShortNameSuffix::Unchanged,
+            } if kurz_präfix.eq(prefix.as_str()) => {
+                if contains_str(kurz, graphemes.last()) {
+                    let remainder = if let Some((_last, tail)) = graphemes.tail.split_last() {
+                        Some(ArgumentInput::AdjustedMergedShortNames {
+                            prefix: prefix.clone(),
+                            graphemes: NonEmpty {
+                                head: graphemes.head.clone(),
+                                tail: Vec::from(tail),
+                            },
+                            suffix: MergedShortNameSuffix::Removed,
+                        })
+                    } else {
+                        None
+                    };
+                    return Some(remainder);
+                }
+            },
+            ArgumentInput::AdjustedMergedShortNames { prefix: _, graphemes: _, suffix: _ } => {
+                // only allow the last grapheme
+            },
         }
         None
     }
