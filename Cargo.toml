@@ -17,7 +17,7 @@ resolver = "2"
 authors = ["spamviech <spamviech@web.de>"]
 edition = "2021"
 license = "MIT"
-rust-version = "1.79"
+rust-version = "1.80"
 repository = "https://github.com/spamviech/kommandozeilen_argumente"
 publish = false
 
@@ -78,7 +78,7 @@ workspace = true
 absolute_paths_not_starting_with_crate = "warn"
 elided_lifetimes_in_paths = "warn"
 explicit_outlives_requirements = "warn"
-keyword_idents = "warn"
+keyword_idents = { level = "warn", priority = 1 }
 macro_use_extern_crate = "warn"
 meta_variable_misuse = "warn"
 missing_abi = "warn"
@@ -109,13 +109,13 @@ non_ascii_idents = "allow"
 unstable_features = "allow"
 
 [workspace.lints.clippy]
-correctness = "deny"
-suspicious = "warn"
-complexity = "warn"
-perf = "warn"
-style = "warn"
-pedantic = "warn"
-cargo = "warn"
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
 # restriction group lints
 absolute_paths = "warn"
 alloc_instead_of_core = "warn"
@@ -230,3 +230,4 @@ empty_enum_variants_with_brackets = "warn"
 infinite_loop = "warn"
 integer_division_remainder_used = "allow"  # gedacht für Kryptographischen Kontext
 iter_over_hash_type = "allow"              # Reihenfolge nicht relevant, wenn HashMap/Set verwendet wird
+renamed_function_params = "allow"          # oft nur ein einzelner Buchstabe (min_ident_chars) ¯\_(ツ)_/¯

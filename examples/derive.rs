@@ -29,6 +29,7 @@ enum Aufzählung {
 }
 
 impl Display for Aufzählung {
+    #[allow(clippy::renamed_function_params)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         #[allow(clippy::implicit_return)]
         Debug::fmt(self, formatter)
@@ -62,7 +63,8 @@ impl Display for Args {
         clippy::pattern_type_mismatch,
         clippy::question_mark_used,
         clippy::implicit_return,
-        clippy::non_ascii_literal
+        clippy::non_ascii_literal,
+        clippy::renamed_function_params
     )]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Args { flag, umbenannt, benötigt, wert, aufzählung } = self;

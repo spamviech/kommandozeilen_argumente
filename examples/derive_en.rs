@@ -29,6 +29,7 @@ enum Enumeration {
 }
 
 impl Display for Enumeration {
+    #[allow(clippy::renamed_function_params)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         #[allow(clippy::implicit_return)]
         Debug::fmt(self, formatter)
@@ -56,7 +57,12 @@ struct Args {
 }
 
 impl Display for Args {
-    #[allow(clippy::pattern_type_mismatch, clippy::question_mark_used, clippy::implicit_return)]
+    #[allow(
+        clippy::pattern_type_mismatch,
+        clippy::question_mark_used,
+        clippy::implicit_return,
+        clippy::renamed_function_params
+    )]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Args { flag, renamed, required, value, enumeration } = self;
         writeln!(formatter, "flag: {flag}")?;
