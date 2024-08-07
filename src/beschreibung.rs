@@ -350,19 +350,17 @@ impl Name<'_> {
 
                         if let Some((last, graphemes)) = graphemes.split_last() {
                             if contains_str(kurz, last) {
-                                let remainder = if let Some(graphemes) = NonEmpty::collect(
-                                    graphemes
-                                        .into_iter()
-                                        .map(|&s: &&str| -> Box<str> { Box::from(s) }),
-                                ) {
-                                    Some(ArgumentInput::AdjustedMergedShortNames {
-                                        prefix: prefix.into_owned(),
-                                        graphemes,
-                                        suffix: MergedShortNameSuffix::Removed,
-                                    })
-                                } else {
-                                    None
-                                };
+                                let boxed_graphemes = graphemes
+                                    .into_iter()
+                                    .map(|&s: &&str| -> Box<str> { Box::from(s) });
+                                let remainder =
+                                    NonEmpty::collect(boxed_graphemes).map(|graphemes| {
+                                        ArgumentInput::AdjustedMergedShortNames {
+                                            prefix: prefix.into_owned(),
+                                            graphemes,
+                                            suffix: MergedShortNameSuffix::Removed,
+                                        }
+                                    });
                                 return Some(remainder);
                             }
                         }
@@ -375,18 +373,15 @@ impl Name<'_> {
                 suffix: MergedShortNameSuffix::Unchanged,
             } if kurz_präfix.eq(prefix.as_str()) => {
                 if contains_str(kurz, graphemes.last()) {
-                    let remainder = if let Some((_last, tail)) = graphemes.tail.split_last() {
-                        Some(ArgumentInput::AdjustedMergedShortNames {
+                    let remainder = graphemes.tail.split_last().map(|(_last, tail)| {
+                        let graphemes =
+                            NonEmpty { head: graphemes.head.clone(), tail: Vec::from(tail) };
+                        ArgumentInput::AdjustedMergedShortNames {
                             prefix: prefix.clone(),
-                            graphemes: NonEmpty {
-                                head: graphemes.head.clone(),
-                                tail: Vec::from(tail),
-                            },
+                            graphemes,
                             suffix: MergedShortNameSuffix::Removed,
-                        })
-                    } else {
-                        None
-                    };
+                        }
+                    });
                     return Some(remainder);
                 }
             },
