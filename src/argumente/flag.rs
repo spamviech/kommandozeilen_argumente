@@ -3,6 +3,7 @@
 use std::{
     borrow::Cow,
     convert::identity,
+    ffi::OsStr,
     fmt::{self, Debug},
 };
 
@@ -118,7 +119,44 @@ impl<'t, T> Flag<'t, T> {
     /// ## English
     /// Parse the given arguments and return the corresponding value.
     #[inline]
-    pub fn parse<F>(
+    pub fn parse<'a, F>(
+        self,
+        args: impl Iterator<Item = Option<&'a OsStr>>,
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<&'a OsStr>>) {
+        let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere, anzeige: _ } =
+            self;
+        let Beschreibung { name, hilfe: _, standard } = beschreibung;
+        let mut nicht_verwendet = Vec::new();
+        let mut iter = args.into_iter();
+        while let Some(arg_opt) = iter.next() {
+            if let Some(arg) = &arg_opt {
+                if let Some(wert) = name.parse_flag(&invertiere_präfix, &invertiere_infix, arg) {
+                    nicht_verwendet.push(None);
+                    nicht_verwendet.extend(iter);
+                    return (Ergebnis::Wert(konvertiere(wert)), nicht_verwendet);
+                }
+            }
+            nicht_verwendet.push(arg_opt);
+        }
+        let ergebnis = if let Some(wert) = standard {
+            Ergebnis::Wert(wert)
+        } else {
+            let fehler = Fehler::FehlendeFlag {
+                name,
+                invertiere_präfix: invertiere_präfix.string,
+                invertiere_infix: invertiere_infix.string,
+            };
+            Ergebnis::Fehler(NonEmpty::singleton(fehler))
+        };
+        (ergebnis, nicht_verwendet)
+    }
+
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
+    #[inline]
+    pub fn parse_merged_short_forms<F>(
         self,
         args: impl Iterator<Item = Option<ArgumentInput>>,
     ) -> (Ergebnis<'t, T, F>, Vec<Option<ArgumentInput>>) {
@@ -129,9 +167,7 @@ impl<'t, T> Flag<'t, T> {
         let mut iter = args.into_iter();
         while let Some(arg_opt) = iter.next() {
             if let Some(arg) = &arg_opt {
-                if let Some((wert, angepasstes_arg)) =
-                    name.parse_flag(&invertiere_präfix, &invertiere_infix, arg)
-                {
+                if let Some((wert, angepasstes_arg)) = name.parse_flag_merge_short_forms(arg) {
                     nicht_verwendet.push(angepasstes_arg);
                     nicht_verwendet.extend(iter);
                     return (Ergebnis::Wert(konvertiere(wert)), nicht_verwendet);

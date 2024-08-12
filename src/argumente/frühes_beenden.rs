@@ -1,6 +1,6 @@
 //! Flag-Argumente, die zu frühen Beenden führen.
 
-use std::borrow::Cow;
+use std::{borrow::Cow, ffi::OsStr};
 
 use nonempty::NonEmpty;
 use void::Void;
@@ -62,7 +62,38 @@ impl<'t> FrühesBeenden<'t> {
     /// ## English
     /// Parse the given arguments and return the corresponding value.
     #[inline]
-    pub fn parse<F>(
+    pub fn parse<'a, F>(
+        self,
+        args: impl Iterator<Item = Option<&'a OsStr>>,
+    ) -> (Ergebnis<'t, (), F>, Vec<Option<&'a OsStr>>) {
+        let FrühesBeenden { beschreibung, nachricht } = self;
+        let Beschreibung { name, hilfe: _, standard } = beschreibung;
+        let mut nicht_verwendet = Vec::new();
+        let mut iter = args.into_iter();
+        while let Some(arg_opt) = iter.next() {
+            if let Some(arg) = &arg_opt {
+                if name.parse_frühes_beenden(arg) {
+                    nicht_verwendet.push(None);
+                    nicht_verwendet.extend(iter);
+                    return (
+                        Ergebnis::FrühesBeenden(NonEmpty::singleton(nachricht)),
+                        nicht_verwendet,
+                    );
+                }
+            }
+            nicht_verwendet.push(arg_opt);
+        }
+        let ergebnis =
+            if let Some(wert) = standard { void::unreachable(wert) } else { Ergebnis::Wert(()) };
+        (ergebnis, nicht_verwendet)
+    }
+
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
+    #[inline]
+    pub fn parse_merged_short_forms<F>(
         self,
         args: impl Iterator<Item = Option<ArgumentInput>>,
     ) -> (Ergebnis<'t, (), F>, Vec<Option<ArgumentInput>>) {
@@ -72,7 +103,7 @@ impl<'t> FrühesBeenden<'t> {
         let mut iter = args.into_iter();
         while let Some(arg_opt) = iter.next() {
             if let Some(arg) = &arg_opt {
-                if let Some(angepasstes_arg) = name.parse_frühes_beenden(arg) {
+                if let Some(angepasstes_arg) = name.parse_frühes_beenden_merge_short_forms(arg) {
                     nicht_verwendet.push(angepasstes_arg);
                     nicht_verwendet.extend(iter);
                     return (
