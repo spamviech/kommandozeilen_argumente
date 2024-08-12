@@ -249,10 +249,10 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// Parse the given arguments and return the corresponding value.
     /// Used arguments are replaced with [`None`], before further arguments are parsed.
     #[inline]
-    pub fn parse_rekursiv(
+    pub fn parse_rekursiv<'a>(
         self,
-        args: impl Iterator<Item = Option<ArgumentInput>>,
-    ) -> (Ergebnis<'t, T, F>, Vec<Option<ArgumentInput>>) {
+        args: impl Iterator<Item = Option<&'a OsStr>>,
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<&'a OsStr>>) {
         use Argumente::{Alternativen, EinzelArgument, Kombiniere};
         use Ergebnis::{Fehler, FrühesBeenden, Wert};
         match self {
@@ -285,6 +285,50 @@ impl<'t, T, F> Argumente<'t, T, F> {
     }
 
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    /// Verwendete Argumente werden durch [`None`] ersetzt, bevor weitere Argumente geparst werden.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
+    /// Used arguments are replaced with [`None`], before further arguments are parsed.
+    #[inline]
+    pub fn parse_rekursiv_merged_short_forms(
+        self,
+        args: impl Iterator<Item = Option<ArgumentInput>>,
+    ) -> (Ergebnis<'t, T, F>, Vec<Option<ArgumentInput>>) {
+        use Argumente::{Alternativen, EinzelArgument, Kombiniere};
+        use Ergebnis::{Fehler, FrühesBeenden, Wert};
+        match self {
+            EinzelArgument(arg) => arg.parse_merged_short_forms(args),
+            Kombiniere(kombiniere) => kombiniere.parse_merged_short_forms(Box::new(args)),
+            Alternativen(alternativen) => {
+                let NonEmpty { head, tail } = *alternativen;
+                let args_vec: Vec<_> = args.into_iter().collect();
+                tail.into_iter().fold(
+                    head.parse_rekursiv_merged_short_forms(args_vec.clone().into_iter()),
+                    |(ergebnis, nicht_verwendet), arg| match ergebnis {
+                        Fehler(mut fehler0) => {
+                            match arg
+                                .parse_rekursiv_merged_short_forms(args_vec.clone().into_iter())
+                            {
+                                (Fehler(fehler1), nicht_verwendet1) => {
+                                    fehler0.extend(fehler1);
+                                    let von_keinem_verwendet = nicht_verwendet
+                                        .into_iter()
+                                        .filter(|os_string| nicht_verwendet1.contains(os_string))
+                                        .collect();
+                                    (Fehler(fehler0), von_keinem_verwendet)
+                                },
+                                end_ergebnis => end_ergebnis,
+                            }
+                        },
+                        Wert(_) | FrühesBeenden(_) => (ergebnis, nicht_verwendet),
+                    },
+                )
+            },
+        }
+    }
+
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
     /// Parse the given arguments and return the corresponding value.
@@ -293,6 +337,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
         self,
         args: impl Iterator<Item = OsString>,
     ) -> (Ergebnis<'t, T, F>, Vec<ArgumentInput>) {
+        // FIXME wie werden required argumente behandelt?
         let (ergebnis, nicht_verwendet) =
             self.parse_rekursiv(args.map(ArgumentInput::Unchanged).map(Some));
         (ergebnis, nicht_verwendet.into_iter().flatten().collect())
@@ -761,11 +806,20 @@ struct KonvertiereKombiniereFehler<'t, T, Fehler, NeuerFehler> {
 impl<'t, T, Fehler, NeuerFehler> Kombiniere<'t, T, NeuerFehler>
     for KonvertiereKombiniereFehler<'t, T, Fehler, NeuerFehler>
 {
-    fn parse(
+    fn parse<'a>(
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
+    ) -> (Ergebnis<'t, T, NeuerFehler>, Vec<Option<&'a OsStr>>) {
+        let (ergebnis, nicht_verwendet) = self.kombiniere.parse(args);
+        let konvertiert = ergebnis.konvertiere_fehler(self.konvertiere_fehler);
+        (konvertiert, nicht_verwendet)
+    }
+
+    fn parse_merged_short_forms(
         self: Box<Self>,
         args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
     ) -> (Ergebnis<'t, T, NeuerFehler>, Vec<Option<ArgumentInput>>) {
-        let (ergebnis, nicht_verwendet) = self.kombiniere.parse(args);
+        let (ergebnis, nicht_verwendet) = self.kombiniere.parse_merged_short_forms(args);
         let konvertiert = ergebnis.konvertiere_fehler(self.konvertiere_fehler);
         (konvertiert, nicht_verwendet)
     }

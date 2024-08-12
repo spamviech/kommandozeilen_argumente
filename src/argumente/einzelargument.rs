@@ -2,6 +2,7 @@
 
 use std::{
     borrow::Cow,
+    ffi::OsStr,
     fmt::{self, Debug, Display},
 };
 
@@ -163,10 +164,10 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
     /// ## English
     /// Parse the given arguments and return the corresponding value.
     #[inline]
-    pub fn parse(
+    pub fn parse<'a>(
         self,
-        args: impl Iterator<Item = Option<ArgumentInput>>,
-    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
+        args: impl Iterator<Item = Option<&'a OsStr>>,
+    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<&'a OsStr>>) {
         match self {
             EinzelArgument::Flag(flag) => flag.parse(args),
             EinzelArgument::FrühesBeenden { frühes_beenden, wert, anzeige: _ } => {
@@ -174,6 +175,25 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
                 (ergebnis.konvertiere(|()| wert), nicht_verwendet)
             },
             EinzelArgument::Wert(wert) => wert.parse(args),
+        }
+    }
+
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
+    #[inline]
+    pub fn parse_merged_short_forms(
+        self,
+        args: impl Iterator<Item = Option<ArgumentInput>>,
+    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
+        match self {
+            EinzelArgument::Flag(flag) => flag.parse_merged_short_forms(args),
+            EinzelArgument::FrühesBeenden { frühes_beenden, wert, anzeige: _ } => {
+                let (ergebnis, nicht_verwendet) = frühes_beenden.parse_merged_short_forms(args);
+                (ergebnis.konvertiere(|()| wert), nicht_verwendet)
+            },
+            EinzelArgument::Wert(wert) => wert.parse_merged_short_forms(args),
         }
     }
 }

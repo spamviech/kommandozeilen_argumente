@@ -1,6 +1,9 @@
 //! Kombiniere mehrere [Argumente] zu einem neuen, basierend auf einer Funktion.
 
-use std::fmt::{self, Debug, Formatter};
+use std::{
+    ffi::OsStr,
+    fmt::{self, Debug, Formatter},
+};
 
 use nonempty::{nonempty, NonEmpty};
 use paste::paste;
@@ -65,7 +68,16 @@ pub trait Kombiniere<'t, T, Fehler> {
     ///
     /// ## English
     /// Parse the given arguments and return the corresponding value.
-    fn parse(
+    fn parse<'a>(
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
+    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<&'a OsStr>>);
+
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
+    fn parse_merged_short_forms(
         self: Box<Self>,
         args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
     ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>);
@@ -91,7 +103,15 @@ pub trait Kombiniere<'t, T, Fehler> {
 
 impl<'t, T, Fehler, F: FnOnce() -> T> Kombiniere<'t, T, Fehler> for F {
     #[inline]
-    fn parse(
+    fn parse<'a>(
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
+    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<&'a OsStr>>) {
+        (Ergebnis::Wert(self()), args.collect())
+    }
+
+    #[inline]
+    fn parse_merged_short_forms(
         self: Box<Self>,
         args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
     ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
@@ -139,7 +159,48 @@ macro_rules! impl_kombiniere_tuple {
                 )+
             {
                 #[inline]
-                fn parse(
+                fn parse<'a>(
+                    self: Box<Self>,
+                    args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
+                ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<&'a OsStr>>) {
+                    let (funktion, $([<arg_ $suffix:snake:lower>]),+) = *self;
+                    let nicht_verwendet: Vec<_> = args.collect();
+                    let mut alle_fehler = Vec::new();
+                    let mut alle_frühes_beenden = Vec::new();
+                    $(
+                        let (ergebnis, nicht_verwendet)
+                            = [<arg_ $suffix:snake:lower>].parse_rekursiv(nicht_verwendet.into_iter());
+                        let mut [<wert_ $suffix:snake:lower>] = None;
+                        match ergebnis {
+                            Ergebnis::Wert(wert) => [<wert_ $suffix:snake:lower>] = Some(wert),
+                            Ergebnis::FrühesBeenden(nachrichten) => alle_frühes_beenden.extend(nachrichten),
+                            Ergebnis::Fehler(fehler_liste) => {
+                                alle_fehler.extend(fehler_liste)
+                            },
+                        }
+                    )+
+                    let ergebnis = match NonEmpty::from_vec(alle_frühes_beenden) {
+                        Some(nachrichten) if alle_fehler.iter().all(|fehler| {
+                            matches!(
+                                fehler,
+                                $crate::Fehler::FehlendeFlag { .. } | $crate::Fehler::FehlenderWert { .. }
+                            )
+                        }) => Ergebnis::FrühesBeenden(nachrichten),
+                        _ => {
+                            if let Some(fehler) = NonEmpty::from_vec(alle_fehler) {
+                                Ergebnis::Fehler(fehler)
+                            } else {
+                                Ergebnis::Wert(funktion(
+                                    $([<wert_ $suffix:snake:lower>].expect("Kein Fehler oder FrühesBeenden!")
+                                ),+))
+                            }
+                        }
+                    };
+                    (ergebnis, nicht_verwendet)
+                }
+
+                #[inline]
+                fn parse_merged_short_forms(
                     self: Box<Self>,
                     args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
                 ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
@@ -149,7 +210,7 @@ macro_rules! impl_kombiniere_tuple {
                     let mut alle_frühes_beenden = Vec::new();
                     $(
                         let (ergebnis, nicht_verwendet)
-                            = [<arg_ $suffix:snake:lower>].parse_rekursiv(nicht_verwendet.into_iter());
+                            = [<arg_ $suffix:snake:lower>].parse_rekursiv_merged_short_forms(nicht_verwendet.into_iter());
                         let mut [<wert_ $suffix:snake:lower>] = None;
                         match ergebnis {
                             Ergebnis::Wert(wert) => [<wert_ $suffix:snake:lower>] = Some(wert),
