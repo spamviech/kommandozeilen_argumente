@@ -35,6 +35,7 @@ pub mod flag;
 pub mod frühes_beenden;
 pub mod hilfe;
 pub mod kombiniere;
+pub mod parser;
 pub mod wert;
 
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
