@@ -338,8 +338,10 @@ impl<'t, T, F> Argumente<'t, T, F> {
         args: impl Iterator<Item = OsString>,
     ) -> (Ergebnis<'t, T, F>, Vec<ArgumentInput>) {
         // FIXME wie werden required argumente behandelt?
+        // let (ergebnis, nicht_verwendet) =
+        //     self.parse_rekursiv(args.map(ArgumentInput::Unchanged).map(Some));
         let (ergebnis, nicht_verwendet) =
-            self.parse_rekursiv(args.map(ArgumentInput::Unchanged).map(Some));
+            self.parse_rekursiv_merged_short_forms(args.map(ArgumentInput::Unchanged).map(Some));
         (ergebnis, nicht_verwendet.into_iter().flatten().collect())
     }
 

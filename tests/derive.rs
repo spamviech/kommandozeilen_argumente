@@ -288,7 +288,7 @@ fn verschmelze_kurzformen_wert() -> Result<(), DString> {
             let erwartet_nicht_verwendet = [
                 ArgumentInput::AdjustedMergedShortNames {
                     prefix: Normalisiert::neu(Cow::from("-")),
-                    graphemes: vec![Box::from("x")],
+                    graphemes: nonempty![Box::from("x")],
                     suffix: MergedShortNameSuffix::Removed,
                 },
                 ArgumentInput::Unchanged(OsString::from(String::from("Muh"))),

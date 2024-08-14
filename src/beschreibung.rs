@@ -104,15 +104,13 @@ impl Name<'_> {
 
         if erster_match.is_some() {
             let wert = name_gefunden();
-            let angepasstes_argument = if let Some(andere) = NonEmpty::from_vec(andere) {
-                Some(ArgumentInput::AdjustedMergedShortNames {
+            let angepasstes_argument = NonEmpty::from_vec(andere).map(|remaining| {
+                ArgumentInput::AdjustedMergedShortNames {
                     prefix: prefix.into_owned(),
-                    graphemes: andere,
+                    graphemes: remaining,
                     suffix,
-                })
-            } else {
-                None
-            };
+                }
+            });
             return Some((wert, angepasstes_argument));
         }
         None
@@ -154,6 +152,9 @@ impl Name<'_> {
         None
     }
 
+    /// Hilfs-Methode für [`parse_flag_merge_short_forms`](Name::parse_flag_merge_short_forms) und seine Varianten.
+    ///
+    /// Rückgabewert: [`Some(angepasstes_arg)`](Some) wenn gefunden, [`None`] sonst.
     fn parse_flag_merge_short_forms_aux<E>(
         &self,
         name_gefunden: impl FnOnce() -> E,
@@ -244,6 +245,11 @@ impl Name<'_> {
         self.parse_flag_aux(|| (), |_, _| None, arg).is_some()
     }
 
+    /// Parse den namen als Flag, die ein frühes beenden auslöst.
+    ///
+    /// Rückgabewert: [`Some(angepasstes_arg)`](Some) wenn gefunden, [`None`] sonst.
+    #[inline]
+    #[allow(clippy::option_option)]
     pub(crate) fn parse_frühes_beenden_merge_short_forms(
         &self,
         arg: &ArgumentInput,
@@ -351,13 +357,13 @@ impl Name<'_> {
                         if let Some((last, graphemes)) = graphemes.split_last() {
                             if contains_str(kurz, last) {
                                 let boxed_graphemes = graphemes
-                                    .into_iter()
-                                    .map(|&s: &&str| -> Box<str> { Box::from(s) });
+                                    .iter()
+                                    .map(|&grapheme: &&str| -> Box<str> { Box::from(grapheme) });
                                 let remainder =
-                                    NonEmpty::collect(boxed_graphemes).map(|graphemes| {
+                                    NonEmpty::collect(boxed_graphemes).map(|remaining| {
                                         ArgumentInput::AdjustedMergedShortNames {
                                             prefix: prefix.into_owned(),
-                                            graphemes,
+                                            graphemes: remaining,
                                             suffix: MergedShortNameSuffix::Removed,
                                         }
                                     });
