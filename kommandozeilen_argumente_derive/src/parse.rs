@@ -300,6 +300,7 @@ struct ProgrammEinstellungen<Beschreibung> {
     beschreibung: Beschreibung,
 }
 
+// TODO erlaube env-Variable
 /// Programm-Name im Hilfe/Version-Text
 #[derive(Debug, Clone)]
 struct ProgrammName(Option<String>);
@@ -323,6 +324,7 @@ impl ProgrammName {
     }
 }
 
+// TODO erlaube env-Variable
 /// Programm-Version im Hilfe/Version-Text
 #[derive(Debug, Clone)]
 enum ProgrammVersion {
