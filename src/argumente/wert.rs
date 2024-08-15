@@ -13,7 +13,7 @@ use crate::{
     argumente::hilfe::Hilfe,
     beschreibung::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Anzeige, Parse},
-    ergebnis::{Ergebnis, Fehler, KommentierterParseFehler, ParseFehler},
+    ergebnis::{Ergebnis, Fehler, KommentierterParseFehler, ParseFehler, ZwischenErgebnis},
     sprache::{Language, Sprache},
     unicode::Vergleich,
 };
@@ -280,7 +280,7 @@ impl<'t, T, F> Wert<'t, T, F> {
     pub fn parse<'a, I: Iterator<Item = Option<&'a OsStr>>>(
         self,
         args: I,
-    ) -> (Ergebnis<'t, T, F>, Vec<Option<&'a OsStr>>) {
+    ) -> (ZwischenErgebnis<'t, T, F, Self>, Vec<Option<&'a OsStr>>) {
         let Wert {
             beschreibung,
             wert_infix,
@@ -290,7 +290,7 @@ impl<'t, T, F> Wert<'t, T, F> {
             anzeige: _,
             anzeige_fehler: _,
         } = self;
-        let Beschreibung { name, hilfe: _, standard } = beschreibung;
+        let Beschreibung { name, hilfe: _, standard: _ } = beschreibung;
         let mut nicht_verwendet = Vec::new();
         let mut iter = args.into_iter();
         let mut name_ohne_wert = None;
@@ -301,19 +301,19 @@ impl<'t, T, F> Wert<'t, T, F> {
                           name: Name<'t>,
                           wert_infix: Vergleich<'t>,
                           iter: I|
-         -> (Ergebnis<'t, T, F>, Vec<Option<&'a OsStr>>) {
+         -> (ZwischenErgebnis<'t, T, F, Self>, Vec<Option<&'a OsStr>>) {
             nicht_verwendet.push(None);
             nicht_verwendet.extend(iter);
             let ergebnis = match parse(arg) {
-                Ok(wert) => Ergebnis::Wert(wert),
-                Err(fehler) => Ergebnis::Fehler(NonEmpty::singleton(Fehler::ParseFehler(
-                    KommentierterParseFehler {
+                Ok(wert) => ZwischenErgebnis::Wert(wert),
+                Err(fehler) => {
+                    ZwischenErgebnis::Fehler(NonEmpty::singleton(KommentierterParseFehler {
                         name,
                         wert_infix: wert_infix.string,
                         meta_var,
                         fehler,
-                    },
-                ))),
+                    }))
+                },
             };
             (ergebnis, nicht_verwendet)
         };
@@ -339,16 +339,18 @@ impl<'t, T, F> Wert<'t, T, F> {
         if let Some(trailing_name) = name_ohne_wert {
             nicht_verwendet.push(trailing_name);
         }
-        let ergebnis = if let Some(wert) = standard {
-            Ergebnis::Wert(wert)
-        } else {
-            Ergebnis::Fehler(NonEmpty::singleton(Fehler::FehlenderWert {
-                name,
-                wert_infix: wert_infix.string,
-                meta_var,
-            }))
-        };
-        (ergebnis, nicht_verwendet)
+        let beschreibung =
+            Beschreibung { name, hilfe: beschreibung.hilfe, standard: beschreibung.standard };
+        let incomplete = ZwischenErgebnis::Incomplete(Wert {
+            beschreibung,
+            wert_infix,
+            meta_var,
+            mögliche_werte: self.mögliche_werte,
+            parse,
+            anzeige: self.anzeige,
+            anzeige_fehler: self.anzeige_fehler,
+        });
+        (incomplete, nicht_verwendet)
     }
 
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.

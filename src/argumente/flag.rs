@@ -13,7 +13,7 @@ use crate::{
     argumente::hilfe::Hilfe,
     beschreibung::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Anzeige, Bool},
-    ergebnis::{Ergebnis, Fehler},
+    ergebnis::{Ergebnis, Fehler, ZwischenErgebnis},
     sprache::{Language, Sprache},
     unicode::Vergleich,
 };
@@ -122,10 +122,10 @@ impl<'t, T> Flag<'t, T> {
     pub fn parse<'a, F>(
         self,
         args: impl Iterator<Item = Option<&'a OsStr>>,
-    ) -> (Ergebnis<'t, T, F>, Vec<Option<&'a OsStr>>) {
+    ) -> (ZwischenErgebnis<'t, T, F, Self>, Vec<Option<&'a OsStr>>) {
         let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere, anzeige: _ } =
             self;
-        let Beschreibung { name, hilfe: _, standard } = beschreibung;
+        let Beschreibung { name, hilfe: _, standard: _ } = beschreibung;
         let mut nicht_verwendet = Vec::new();
         let mut iter = args.into_iter();
         while let Some(arg_opt) = iter.next() {
@@ -133,22 +133,21 @@ impl<'t, T> Flag<'t, T> {
                 if let Some(wert) = name.parse_flag(&invertiere_präfix, &invertiere_infix, arg) {
                     nicht_verwendet.push(None);
                     nicht_verwendet.extend(iter);
-                    return (Ergebnis::Wert(konvertiere(wert)), nicht_verwendet);
+                    return (ZwischenErgebnis::Wert(konvertiere(wert)), nicht_verwendet);
                 }
             }
             nicht_verwendet.push(arg_opt);
         }
-        let ergebnis = if let Some(wert) = standard {
-            Ergebnis::Wert(wert)
-        } else {
-            let fehler = Fehler::FehlendeFlag {
-                name,
-                invertiere_präfix: invertiere_präfix.string,
-                invertiere_infix: invertiere_infix.string,
-            };
-            Ergebnis::Fehler(NonEmpty::singleton(fehler))
-        };
-        (ergebnis, nicht_verwendet)
+        let beschreibung =
+            Beschreibung { name, hilfe: beschreibung.hilfe, standard: beschreibung.standard };
+        let incomplete = ZwischenErgebnis::Incomplete(Flag {
+            beschreibung,
+            invertiere_präfix,
+            invertiere_infix,
+            konvertiere,
+            anzeige: self.anzeige,
+        });
+        (incomplete, nicht_verwendet)
     }
 
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.

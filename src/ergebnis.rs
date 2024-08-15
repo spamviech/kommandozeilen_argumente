@@ -47,6 +47,93 @@ pub enum ZwischenErgebnis<'t, T, E, A> {
 /// [`ZwischenErgebnis`]
 pub type IntermediateResult<'t, T, E, A> = ZwischenErgebnis<'t, T, E, A>;
 
+impl<'t, T, E, A> ZwischenErgebnis<'t, T, E, A> {
+    /// Konvertiere einen erfolgreich geparsten Wert mit der spezifizierten Funktion.
+    ///
+    /// ## English synonym
+    /// [`convert`](IntermediateResult::convert)
+    #[inline]
+    pub fn konvertiere<S>(self, mapper: impl FnOnce(T) -> S) -> ZwischenErgebnis<'t, S, E, A> {
+        match self {
+            ZwischenErgebnis::Wert(wert) => ZwischenErgebnis::Wert(mapper(wert)),
+            ZwischenErgebnis::FrühesBeenden(nachrichten) => {
+                ZwischenErgebnis::FrühesBeenden(nachrichten)
+            },
+            ZwischenErgebnis::Fehler(fehler) => ZwischenErgebnis::Fehler(fehler),
+            ZwischenErgebnis::Incomplete(incomplete) => ZwischenErgebnis::Incomplete(incomplete),
+        }
+    }
+
+    /// Konvertiere einen Fehler-Wert mit der spezifizierten Funktion.
+    ///
+    /// ## English synonym
+    /// [`convert_error`](IntermediateResult::convert_error)
+    #[inline]
+    pub fn konvertiere_fehler<F>(self, mapper: impl Fn(E) -> F) -> ZwischenErgebnis<'t, T, F, A> {
+        match self {
+            ZwischenErgebnis::Wert(wert) => ZwischenErgebnis::Wert(wert),
+            ZwischenErgebnis::FrühesBeenden(nachrichten) => {
+                ZwischenErgebnis::FrühesBeenden(nachrichten)
+            },
+            ZwischenErgebnis::Fehler(nonempty) => {
+                ZwischenErgebnis::Fehler(nonempty.map(|fehler| fehler.konvertiere(&mapper)))
+            },
+            ZwischenErgebnis::Incomplete(incomplete) => ZwischenErgebnis::Incomplete(incomplete),
+        }
+    }
+
+    /// Konvertiere einen [`ZwischenErgebnis`] ohne eindeutiges [`Ergebnis`].
+    ///
+    /// ## English synonym
+    /// [`convert_incomplete`](IntermediateResult::convert_incomplete)
+    #[inline]
+    pub fn konvertiere_incomplete<B>(
+        self,
+        mapper: impl FnOnce(A) -> B,
+    ) -> ZwischenErgebnis<'t, T, E, B> {
+        match self {
+            ZwischenErgebnis::Wert(wert) => ZwischenErgebnis::Wert(wert),
+            ZwischenErgebnis::FrühesBeenden(frühes_beenden) => {
+                ZwischenErgebnis::FrühesBeenden(frühes_beenden)
+            },
+            ZwischenErgebnis::Fehler(fehler) => ZwischenErgebnis::Fehler(fehler),
+            ZwischenErgebnis::Incomplete(incomplete) => {
+                ZwischenErgebnis::Incomplete(mapper(incomplete))
+            },
+        }
+    }
+
+    /// Convert a successfully parsed value using the specified function.
+    ///
+    /// ## Deutsches Synonym
+    /// [`konvertiere`](ZwischenErgebnis::konvertiere)
+    #[inline]
+    pub fn convert<S>(self, mapper: impl FnOnce(T) -> S) -> IntermediateResult<'t, S, E, A> {
+        self.konvertiere(mapper)
+    }
+
+    /// Convert an error-value using the specified function.
+    ///
+    /// ## Deutsches Synonym
+    /// [`konvertiere_fehler`](ZwischenErgebnis::konvertiere_fehler)
+    #[inline]
+    pub fn convert_error<F>(self, mapper: impl Fn(E) -> F) -> IntermediateResult<'t, T, F, A> {
+        self.konvertiere_fehler(mapper)
+    }
+
+    /// Convert an [`IntermediateResult`] without unambiguous [`Result`].
+    ///
+    /// ## Deutsches Synonym
+    /// [`konvertiere_incomplete`](ZwischenErgebnis::konvertiere_incomplete)
+    #[inline]
+    pub fn convert_incomplete<B>(
+        self,
+        mapper: impl FnOnce(A) -> B,
+    ) -> IntermediateResult<'t, T, E, B> {
+        self.konvertiere_incomplete(mapper)
+    }
+}
+
 /// Ergebnis des Parsen von Kommandozeilen-Argumenten.
 ///
 /// ## English synonym

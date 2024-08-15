@@ -12,7 +12,7 @@ use crate::{
     argumente::{flag::Flag, frühes_beenden::FrühesBeenden, hilfe::Hilfe, wert::Wert},
     beschreibung::ArgumentInput,
     dyn_to_owned::Anzeige,
-    ergebnis::Ergebnis,
+    ergebnis::{Ergebnis, ZwischenErgebnis},
 };
 
 /// Konfiguration eines einzelnen Kommandozeilen-Arguments.
@@ -167,14 +167,34 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
     pub fn parse<'a>(
         self,
         args: impl Iterator<Item = Option<&'a OsStr>>,
-    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<&'a OsStr>>) {
+    ) -> (ZwischenErgebnis<'t, T, Fehler, Self>, Vec<Option<&'a OsStr>>) {
         match self {
-            EinzelArgument::Flag(flag) => flag.parse(args),
-            EinzelArgument::FrühesBeenden { frühes_beenden, wert, anzeige: _ } => {
-                let (ergebnis, nicht_verwendet) = frühes_beenden.parse(args);
-                (ergebnis.konvertiere(|()| wert), nicht_verwendet)
+            EinzelArgument::Flag(flag) => {
+                let (zwischen_ergebnis, nicht_verwendet) = flag.parse(args);
+                (zwischen_ergebnis.konvertiere_incomplete(EinzelArgument::Flag), nicht_verwendet)
             },
-            EinzelArgument::Wert(wert) => wert.parse(args),
+            EinzelArgument::FrühesBeenden { frühes_beenden, wert, anzeige } => {
+                let (zwischen_ergebnis, nicht_verwendet) = frühes_beenden.parse(args);
+                let zwischen_ergebnis = match zwischen_ergebnis {
+                    ZwischenErgebnis::Wert(()) => ZwischenErgebnis::Wert(wert),
+                    ZwischenErgebnis::FrühesBeenden(nachrichten) => {
+                        ZwischenErgebnis::FrühesBeenden(nachrichten)
+                    },
+                    ZwischenErgebnis::Fehler(fehler) => ZwischenErgebnis::Fehler(fehler),
+                    ZwischenErgebnis::Incomplete(incomplete) => {
+                        ZwischenErgebnis::Incomplete(EinzelArgument::FrühesBeenden {
+                            frühes_beenden: incomplete,
+                            wert,
+                            anzeige,
+                        })
+                    },
+                };
+                (zwischen_ergebnis, nicht_verwendet)
+            },
+            EinzelArgument::Wert(wert) => {
+                let (zwischen_ergebnis, nicht_verwendet) = wert.parse(args);
+                (zwischen_ergebnis.konvertiere_incomplete(EinzelArgument::Wert), nicht_verwendet)
+            },
         }
     }
 

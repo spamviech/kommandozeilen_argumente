@@ -8,7 +8,7 @@ use void::Void;
 use crate::{
     argumente::hilfe::Hilfe,
     beschreibung::{ArgumentInput, Beschreibung, Description, Name},
-    ergebnis::Ergebnis,
+    ergebnis::{Ergebnis, ZwischenErgebnis},
 };
 
 /// Es handelt sich um ein Flag-Argument, das zu frühem beenden führt.
@@ -65,7 +65,7 @@ impl<'t> FrühesBeenden<'t> {
     pub fn parse<'a, F>(
         self,
         args: impl Iterator<Item = Option<&'a OsStr>>,
-    ) -> (Ergebnis<'t, (), F>, Vec<Option<&'a OsStr>>) {
+    ) -> (ZwischenErgebnis<'t, (), F, Self>, Vec<Option<&'a OsStr>>) {
         let FrühesBeenden { beschreibung, nachricht } = self;
         let Beschreibung { name, hilfe: _, standard } = beschreibung;
         let mut nicht_verwendet = Vec::new();
@@ -76,16 +76,20 @@ impl<'t> FrühesBeenden<'t> {
                     nicht_verwendet.push(None);
                     nicht_verwendet.extend(iter);
                     return (
-                        Ergebnis::FrühesBeenden(NonEmpty::singleton(nachricht)),
+                        ZwischenErgebnis::FrühesBeenden(NonEmpty::singleton(nachricht)),
                         nicht_verwendet,
                     );
                 }
             }
             nicht_verwendet.push(arg_opt);
         }
-        let ergebnis =
-            if let Some(wert) = standard { void::unreachable(wert) } else { Ergebnis::Wert(()) };
-        (ergebnis, nicht_verwendet)
+        let incomplete = if let Some(wert) = standard {
+            void::unreachable(wert)
+        } else {
+            let beschreibung = Beschreibung { name, hilfe: beschreibung.hilfe, standard };
+            ZwischenErgebnis::Incomplete(FrühesBeenden { beschreibung, nachricht })
+        };
+        (incomplete, nicht_verwendet)
     }
 
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
