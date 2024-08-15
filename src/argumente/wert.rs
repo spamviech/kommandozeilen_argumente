@@ -13,7 +13,7 @@ use crate::{
     argumente::hilfe::Hilfe,
     beschreibung::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Anzeige, Parse},
-    ergebnis::{Ergebnis, Fehler, ParseFehler},
+    ergebnis::{Ergebnis, Fehler, KommentierterParseFehler, ParseFehler},
     sprache::{Language, Sprache},
     unicode::Vergleich,
 };
@@ -306,12 +306,14 @@ impl<'t, T, F> Wert<'t, T, F> {
             nicht_verwendet.extend(iter);
             let ergebnis = match parse(arg) {
                 Ok(wert) => Ergebnis::Wert(wert),
-                Err(fehler) => Ergebnis::Fehler(NonEmpty::singleton(Fehler::Fehler {
-                    name,
-                    wert_infix: wert_infix.string,
-                    meta_var,
-                    fehler,
-                })),
+                Err(fehler) => Ergebnis::Fehler(NonEmpty::singleton(Fehler::ParseFehler(
+                    KommentierterParseFehler {
+                        name,
+                        wert_infix: wert_infix.string,
+                        meta_var,
+                        fehler,
+                    },
+                ))),
             };
             (ergebnis, nicht_verwendet)
         };
@@ -384,12 +386,14 @@ impl<'t, T, F> Wert<'t, T, F> {
             nicht_verwendet.extend(iter);
             let ergebnis = match parse(arg) {
                 Ok(wert) => Ergebnis::Wert(wert),
-                Err(fehler) => Ergebnis::Fehler(NonEmpty::singleton(Fehler::Fehler {
-                    name,
-                    wert_infix: wert_infix.string,
-                    meta_var,
-                    fehler,
-                })),
+                Err(fehler) => Ergebnis::Fehler(NonEmpty::singleton(Fehler::ParseFehler(
+                    KommentierterParseFehler {
+                        name,
+                        wert_infix: wert_infix.string,
+                        meta_var,
+                        fehler,
+                    },
+                ))),
             };
             (ergebnis, nicht_verwendet)
         };

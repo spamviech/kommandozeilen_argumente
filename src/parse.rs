@@ -274,7 +274,7 @@ fn erstelle_ergebnis_anpassen<'t, T: Clone>(
                     Fehler::FehlenderWert { .. } | Fehler::FehlendeFlag { .. } => {
                         finales_ergebnis = Some(Ergebnis::Wert(standard.clone()));
                     },
-                    Fehler::Fehler { .. } => {
+                    Fehler::ParseFehler(_parse_fehler) => {
                         finales_ergebnis = None;
                         break;
                     },

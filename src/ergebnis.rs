@@ -11,6 +11,42 @@ use crate::{
     unicode::Normalisiert,
 };
 
+/// Zwischenergebnis des Parsen von Kommandozeilen-Argumenten.
+///
+/// ## English synonym
+/// [`Result`]
+#[derive(Debug)]
+#[must_use]
+#[allow(clippy::module_name_repetitions)]
+pub enum ZwischenErgebnis<'t, T, E, A> {
+    /// Erfolgreiches Parsen.
+    ///
+    /// ## English
+    /// Successful parsing.
+    Wert(T),
+    /// Frühes Beenden durch zeigen der Nachrichten gewünscht.
+    ///
+    /// ## English
+    /// Request an early exit, showing the given messages.
+    FrühesBeenden(NonEmpty<Cow<'t, str>>),
+    /// Fehler beim Parsen der Kommandozeilen-Argumente.
+    ///
+    /// ## English
+    /// Error while parsing command line arguments.
+    Fehler(NonEmpty<AnnotatedParseError<'t, E>>),
+    /// Parsen nach einem Zwischen-Schritt hat kein eindeutiges [`Ergebnis`] geliefert.
+    ///
+    /// ## English
+    /// An intermediate parse step didn't produce a unambiguous [`Result`].
+    Incomplete(A),
+}
+
+/// Intermediate result when parsing command line arguments.
+///
+/// ## Deutsches Synonym
+/// [`ZwischenErgebnis`]
+pub type IntermediateResult<'t, T, E, A> = ZwischenErgebnis<'t, T, E, A>;
+
 /// Ergebnis des Parsen von Kommandozeilen-Argumenten.
 ///
 /// ## English synonym
@@ -145,31 +181,7 @@ pub enum Fehler<'t, E> {
     ///
     /// ## English
     /// Error while parsing the value.
-    Fehler {
-        /// Alle Namen des Wert-Arguments.
-        ///
-        /// ## English
-        /// All names of the value argument.
-        name: Name<'t>,
-
-        /// Infix um einen Wert im selben Argument wie den Namen anzugeben.
-        ///
-        /// ## English
-        /// Infix to give a value in the same argument as the name.
-        wert_infix: Normalisiert<'t>,
-
-        /// Verwendete Meta-Variable für den Wert.
-        ///
-        /// ## English
-        /// Used Meta-variable of the value.
-        meta_var: &'t str,
-
-        /// Beim Parsen aufgetretener Fehler.
-        ///
-        /// ## English
-        /// Reported error from parsing.
-        fehler: ParseFehler<E>,
-    },
+    ParseFehler(AnnotatedParseError<'t, E>),
 }
 
 /// Possible errors when parsing command line arguments.
@@ -192,9 +204,7 @@ impl<'t, E> Fehler<'t, E> {
             Fehler::FehlenderWert { name, wert_infix, meta_var } => {
                 Fehler::FehlenderWert { name, wert_infix, meta_var }
             },
-            Fehler::Fehler { name, wert_infix, meta_var, fehler } => {
-                Fehler::Fehler { name, wert_infix, meta_var, fehler: fehler.konvertiere(mapper) }
-            },
+            Fehler::ParseFehler(fehler) => Fehler::ParseFehler(fehler.konvertiere(mapper)),
         }
     }
 
@@ -204,6 +214,65 @@ impl<'t, E> Fehler<'t, E> {
     /// [`konvertiere`](Ergebnis::konvertiere)
     #[inline]
     pub fn convert<F>(self, mapper: impl FnOnce(E) -> F) -> Error<'t, F> {
+        self.konvertiere(mapper)
+    }
+}
+
+/// Fehler beim Parsen des genannten Wertes.
+///
+/// ## English
+/// Error while parsing the value.
+#[derive(Debug, Clone)]
+#[must_use]
+pub struct KommentierterParseFehler<'t, E> {
+    /// Alle Namen des Wert-Arguments.
+    ///
+    /// ## English
+    /// All names of the value argument.
+    pub name: Name<'t>,
+
+    /// Infix um einen Wert im selben Argument wie den Namen anzugeben.
+    ///
+    /// ## English
+    /// Infix to give a value in the same argument as the name.
+    pub wert_infix: Normalisiert<'t>,
+
+    /// Verwendete Meta-Variable für den Wert.
+    ///
+    /// ## English
+    /// Used Meta-variable of the value.
+    pub meta_var: &'t str,
+
+    /// Beim Parsen aufgetretener Fehler.
+    ///
+    /// ## English
+    /// Reported error from parsing.
+    pub fehler: ParseFehler<E>,
+}
+
+/// Possible errors when parsing command line arguments.
+///
+/// ## Deutsches Synonym
+/// [`Fehler`]
+pub type AnnotatedParseError<'t, E> = KommentierterParseFehler<'t, E>;
+
+impl<'t, E> KommentierterParseFehler<'t, E> {
+    /// Konvertiere einen Fehler mit der spezifizierten Funktion.
+    ///
+    /// ## English synonym
+    /// [`convert`](Result::convert)
+    #[inline]
+    pub fn konvertiere<F>(self, mapper: impl FnOnce(E) -> F) -> KommentierterParseFehler<'t, F> {
+        let KommentierterParseFehler { name, wert_infix, meta_var, fehler } = self;
+        KommentierterParseFehler { name, wert_infix, meta_var, fehler: fehler.konvertiere(mapper) }
+    }
+
+    /// Convert an error using the specified function.
+    ///
+    /// ## Deutsches Synonym
+    /// [`konvertiere`](Ergebnis::konvertiere)
+    #[inline]
+    pub fn convert<F>(self, mapper: impl FnOnce(E) -> F) -> KommentierterParseFehler<'t, F> {
         self.konvertiere(mapper)
     }
 }
@@ -330,7 +399,12 @@ impl<E: Display> Fehler<'_, E> {
             Fehler::FehlenderWert { name, wert_infix, meta_var } => {
                 fehlermeldung(fehlender_wert, name, Either::Right((wert_infix, meta_var)))
             },
-            Fehler::Fehler { name, wert_infix, meta_var, fehler } => {
+            Fehler::ParseFehler(KommentierterParseFehler {
+                name,
+                wert_infix,
+                meta_var,
+                fehler,
+            }) => {
                 let (fehler_art, fehler_anzeige) = match fehler {
                     ParseFehler::InvaliderString(os_string) => {
                         (invalider_string, format!("{os_string:?}"))
