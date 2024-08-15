@@ -18,7 +18,8 @@ use std::{
 
 use kommandozeilen_argumente::{
     argumente::{einzelargument::EinzelArgument, flag::Flag, hilfe::Standard},
-    Argumente, Beschreibung, Ergebnis, Sprache,
+    ergebnis::ZwischenErgebnis,
+    Argumente, Beschreibung, Sprache,
 };
 
 // Wrapper um String, mit Debug=Display Implementierung
@@ -56,7 +57,7 @@ fn hilfe_test() -> Result<(), DString> {
     match arg_mit_hilfe
         .parse_rekursiv(iter::once(Some(OsString::from("--hilfe".to_owned()).as_os_str())))
     {
-        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+        (ZwischenErgebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
             let nicht_verwendet: Vec<_> = nicht_verwendet.into_iter().flatten().collect();
             let übrige = nicht_verwendet.len();
             if übrige > 0 {

@@ -22,7 +22,7 @@ use crate::{
     },
     beschreibung::{ArgumentInput, Beschreibung, Description},
     dyn_to_owned::{self, Anzeige, Bool},
-    ergebnis::{Ergebnis, Error, Fehler, ParseFehler},
+    ergebnis::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
     sprache::{Language, Sprache},
     unicode::Vergleich,
 };
@@ -212,7 +212,12 @@ macro_rules! impl_parse_argument {
 impl_parse_argument! {i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize, f32, f64}
 
 /// Hilfs-Typ für die [`ParseArgument`]-Implementierung von [`Option<T>`].
-struct OptionHelper<'t, F, T, Fehler>(F, Argumente<'t, T, Fehler>);
+struct OptionHelper<'t, F, T, Fehler> {
+    /// Finales anpassen des Ergebnis beim parser einer [`Option<T>`].
+    ergebnis_anpassen: F,
+    /// Argument-Definition für parsen einer [`Option<T>`].
+    argumente: Argumente<'t, T, Fehler>,
+}
 
 impl<'t, T, Fehler, F: FnOnce(Ergebnis<'t, T, Fehler>) -> Ergebnis<'t, T, Fehler>>
     Kombiniere<'t, T, Fehler> for OptionHelper<'t, F, T, Fehler>
@@ -221,10 +226,9 @@ impl<'t, T, Fehler, F: FnOnce(Ergebnis<'t, T, Fehler>) -> Ergebnis<'t, T, Fehler
     fn parse<'a>(
         self: Box<Self>,
         args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
-    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<&'a OsStr>>) {
-        let OptionHelper(funktion, arg) = *self;
-        let (ergebnis, nicht_verwendet) = arg.parse_rekursiv(args);
-        (funktion(ergebnis), nicht_verwendet)
+    ) -> (ZwischenErgebnis<'t, T, Fehler, Argumente<'t, T, Fehler>>, Vec<Option<&'a OsStr>>) {
+        let OptionHelper { ergebnis_anpassen: _, argumente } = *self;
+        argumente.parse_rekursiv(args)
     }
 
     #[inline]
@@ -232,9 +236,9 @@ impl<'t, T, Fehler, F: FnOnce(Ergebnis<'t, T, Fehler>) -> Ergebnis<'t, T, Fehler
         self: Box<Self>,
         args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
     ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
-        let OptionHelper(funktion, arg) = *self;
-        let (ergebnis, nicht_verwendet) = arg.parse_rekursiv_merged_short_forms(args);
-        (funktion(ergebnis), nicht_verwendet)
+        let OptionHelper { ergebnis_anpassen, argumente } = *self;
+        let (ergebnis, nicht_verwendet) = argumente.parse_rekursiv_merged_short_forms(args);
+        (ergebnis_anpassen(ergebnis), nicht_verwendet)
     }
 
     #[inline]
@@ -244,7 +248,7 @@ impl<'t, T, Fehler, F: FnOnce(Ergebnis<'t, T, Fehler>) -> Ergebnis<'t, T, Fehler
         meta_standard: &str,
         meta_erlaubte_werte: &str,
     ) -> NonEmpty<hilfe::Alternativen> {
-        self.1.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
+        self.argumente.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
     }
 }
 
@@ -268,16 +272,11 @@ fn erstelle_ergebnis_anpassen<'t, T: Clone>(
 ) -> impl FnOnce(Ergebnis<'t, T, String>) -> Ergebnis<'t, T, String> {
     |ergebnis| match (ergebnis, standard) {
         (Ergebnis::Fehler(fehler_liste), Some(standard)) => {
-            let mut finales_ergebnis = None;
+            let mut finales_ergebnis = Some(Ergebnis::Wert(standard.clone()));
             for fehler in &fehler_liste {
-                match fehler {
-                    Fehler::FehlenderWert { .. } | Fehler::FehlendeFlag { .. } => {
-                        finales_ergebnis = Some(Ergebnis::Wert(standard.clone()));
-                    },
-                    Fehler::ParseFehler(_parse_fehler) => {
-                        finales_ergebnis = None;
-                        break;
-                    },
+                if let Fehler::ParseFehler(_parse_fehler) = fehler {
+                    finales_ergebnis = None;
+                    break;
                 }
             }
             if let Some(finales_ergebnis) = finales_ergebnis {
@@ -384,16 +383,16 @@ impl<T: 'static + ParseArgument + Clone + Debug + Display> ParseArgument for Opt
                     anzeige: Cow::Owned(erstelle_boxed_option_anzeige(anzeige)),
                     anzeige_fehler,
                 });
-                Argumente::kombiniere(OptionHelper(ergebnis_anpassen, wert))
+                Argumente::kombiniere(OptionHelper { ergebnis_anpassen, argumente: wert })
             },
-            Argumente::Kombiniere(kombiniere) => Argumente::kombiniere(OptionHelper(
+            Argumente::Kombiniere(kombiniere) => Argumente::kombiniere(OptionHelper {
                 ergebnis_anpassen,
-                Argumente::kombiniere((Some, Argumente::Kombiniere(kombiniere))),
-            )),
-            Argumente::Alternativen(alternativen) => Argumente::kombiniere(OptionHelper(
+                argumente: Argumente::kombiniere((Some, Argumente::Kombiniere(kombiniere))),
+            }),
+            Argumente::Alternativen(alternativen) => Argumente::kombiniere(OptionHelper {
                 ergebnis_anpassen,
-                Argumente::kombiniere((Some, Argumente::Alternativen(alternativen))),
-            )),
+                argumente: Argumente::kombiniere((Some, Argumente::Alternativen(alternativen))),
+            }),
         }
     }
 
