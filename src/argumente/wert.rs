@@ -7,6 +7,7 @@ use std::{
     str::FromStr,
 };
 
+use either::Either;
 use nonempty::NonEmpty;
 
 use crate::{
@@ -272,6 +273,26 @@ fn zeige_elemente<'t, T: 't>(
 }
 
 impl<'t, T, F> Wert<'t, T, F> {
+    ///TODO
+    ///
+    /// ## Errors
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    pub fn parse_single_arg(
+        self,
+        arg: &OsStr,
+    ) -> Option<
+        // None if --name/-n not found
+        Either<
+            // --name=value
+            Result<T, ParseFehler<F>>,
+            // --name, value in next arg
+            Box<dyn FnOnce(&OsStr) -> Result<T, ParseFehler<F>>>,
+        >,
+    > {
+        todo!()
+    }
+
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
