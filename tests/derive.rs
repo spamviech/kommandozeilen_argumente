@@ -20,8 +20,8 @@ use std::{
 use nonempty::{nonempty, NonEmpty};
 
 use kommandozeilen_argumente::{
-    beschreibung::MergedShortNameSuffix, ArgumentInput, Argumente, EnumArgument, Ergebnis, Fehler,
-    Normalisiert, Parse, ParseArgument,
+    beschreibung::{AdjustedMergedShortNames, MergedShortNameSuffix},
+    ArgumentInput, Argumente, EnumArgument, Ergebnis, Fehler, Normalisiert, Parse, ParseArgument,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
@@ -286,11 +286,11 @@ fn verschmelze_kurzformen_wert() -> Result<(), DString> {
             };
             // Der Wert Kurz-Name soll nicht "nach hinten durchrutschen"!
             let erwartet_nicht_verwendet = [
-                ArgumentInput::AdjustedMergedShortNames {
+                ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
                     prefix: Normalisiert::neu(Cow::from("-")),
                     graphemes: nonempty![Box::from("x")],
                     suffix: MergedShortNameSuffix::Removed,
-                },
+                }),
                 ArgumentInput::Unchanged(OsString::from(String::from("Muh"))),
             ];
             if nicht_verwendet != erwartet_nicht_verwendet {

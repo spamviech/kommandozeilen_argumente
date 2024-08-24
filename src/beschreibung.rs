@@ -54,20 +54,24 @@ pub struct Name<'t> {
     pub kurz: Vec<Vergleich<'t>>,
 }
 
+/// The remainder after successfully parsing merged short name arguments.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AdjustedMergedShortNames {
+    /// The prefix of the adjusted merged short names argument.
+    pub prefix: Normalisiert<'static>,
+    /// The graphemes of the remaining short names.
+    pub graphemes: NonEmpty<Box<str>>,
+    /// Is the suffix still intact.
+    pub suffix: MergedShortNameSuffix,
+}
+
 /// Helper type to track parsing of merged short names.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ArgumentInput {
     /// The input was not used yet.
     Unchanged(OsString),
     /// The remainder after successfully parsing merged short name arguments.
-    AdjustedMergedShortNames {
-        /// The prefix of the adjusted merged short names argument.
-        prefix: Normalisiert<'static>,
-        /// The graphemes of the remaining short names.
-        graphemes: NonEmpty<Box<str>>,
-        /// Is the suffix still intact.
-        suffix: MergedShortNameSuffix,
-    },
+    AdjustedMergedShortNames(AdjustedMergedShortNames),
 }
 
 /// Is the suffix still intact.
@@ -105,11 +109,11 @@ impl Name<'_> {
         if erster_match.is_some() {
             let wert = name_gefunden();
             let angepasstes_argument = NonEmpty::from_vec(andere).map(|remaining| {
-                ArgumentInput::AdjustedMergedShortNames {
+                ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
                     prefix: prefix.into_owned(),
                     graphemes: remaining,
                     suffix,
-                }
+                })
             });
             return Some((wert, angepasstes_argument));
         }
@@ -186,7 +190,11 @@ impl Name<'_> {
                     }
                 }
             },
-            ArgumentInput::AdjustedMergedShortNames { prefix, graphemes, suffix: _ } => {
+            ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
+                prefix,
+                graphemes,
+                suffix: _,
+            }) => {
                 return Name::parse_merged_short_name(
                     prefix.clone(),
                     kurz,
@@ -361,11 +369,13 @@ impl Name<'_> {
                                     .map(|&grapheme: &&str| -> Box<str> { Box::from(grapheme) });
                                 let remainder =
                                     NonEmpty::collect(boxed_graphemes).map(|remaining| {
-                                        ArgumentInput::AdjustedMergedShortNames {
-                                            prefix: prefix.into_owned(),
-                                            graphemes: remaining,
-                                            suffix: MergedShortNameSuffix::Removed,
-                                        }
+                                        ArgumentInput::AdjustedMergedShortNames(
+                                            AdjustedMergedShortNames {
+                                                prefix: prefix.into_owned(),
+                                                graphemes: remaining,
+                                                suffix: MergedShortNameSuffix::Removed,
+                                            },
+                                        )
                                     });
                                 return Some(remainder);
                             }
@@ -373,25 +383,29 @@ impl Name<'_> {
                     }
                 }
             },
-            ArgumentInput::AdjustedMergedShortNames {
+            ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
                 prefix,
                 graphemes,
                 suffix: MergedShortNameSuffix::Unchanged,
-            } if kurz_präfix.eq(prefix.as_str()) => {
+            }) if kurz_präfix.eq(prefix.as_str()) => {
                 if contains_str(kurz, graphemes.last()) {
                     let remainder = graphemes.tail.split_last().map(|(_last, tail)| {
                         let graphemes =
                             NonEmpty { head: graphemes.head.clone(), tail: Vec::from(tail) };
-                        ArgumentInput::AdjustedMergedShortNames {
+                        ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
                             prefix: prefix.clone(),
                             graphemes,
                             suffix: MergedShortNameSuffix::Removed,
-                        }
+                        })
                     });
                     return Some(remainder);
                 }
             },
-            ArgumentInput::AdjustedMergedShortNames { prefix: _, graphemes: _, suffix: _ } => {
+            ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
+                prefix: _,
+                graphemes: _,
+                suffix: _,
+            }) => {
                 // only allow the last grapheme
             },
         }
