@@ -13,7 +13,7 @@ use crate::{
     argumente::hilfe::Hilfe,
     beschreibung::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Anzeige, Bool},
-    ergebnis::{Ergebnis, Fehler, ZwischenErgebnis},
+    ergebnis::{Ergebnis, Fehler, SingeArgResult, ZwischenErgebnis},
     sprache::{Language, Sprache},
     unicode::Vergleich,
 };
@@ -114,6 +114,14 @@ impl<'t> Flag<'t, bool> {
 }
 
 impl<'t, T> Flag<'t, T> {
+    ///TODO
+    // empty if --name/-n not found
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    pub fn parse_single_arg<'s, F>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, F>> {
+        todo!()
+    }
+
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English

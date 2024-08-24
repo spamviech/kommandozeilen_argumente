@@ -12,7 +12,7 @@ use crate::{
     argumente::{flag::Flag, frühes_beenden::FrühesBeenden, hilfe::Hilfe, wert::Wert},
     beschreibung::ArgumentInput,
     dyn_to_owned::Anzeige,
-    ergebnis::{Ergebnis, ZwischenErgebnis},
+    ergebnis::{Ergebnis, SingeArgResult, ZwischenErgebnis},
 };
 
 /// Konfiguration eines einzelnen Kommandozeilen-Arguments.
@@ -159,6 +159,25 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
 }
 
 impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
+    ///TODO
+    // empty if --name/-n not found
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    pub fn parse_single_arg<'s>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>>
+    where
+        T: Clone,
+    {
+        match self {
+            EinzelArgument::Flag(flag) => flag.parse_single_arg(arg),
+            EinzelArgument::FrühesBeenden { frühes_beenden, wert, anzeige: _ } => frühes_beenden
+                .parse_single_arg(arg)
+                .into_iter()
+                .map(|res| res.convert(|()| wert.clone()))
+                .collect(),
+            EinzelArgument::Wert(wert) => wert.parse_single_arg(arg),
+        }
+    }
+
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English

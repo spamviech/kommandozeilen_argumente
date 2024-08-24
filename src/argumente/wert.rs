@@ -279,7 +279,7 @@ impl<'t, T, F> Wert<'t, T, F> {
     // empty if --name/-n not found
     #[inline]
     #[allow(clippy::type_complexity)]
-    pub fn parse_single_arg(self, arg: &OsStr) -> Vec<SingeArgResult<T, F>> {
+    pub fn parse_single_arg<'s>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, F>> {
         todo!()
     }
 

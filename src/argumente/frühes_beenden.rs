@@ -8,7 +8,7 @@ use void::Void;
 use crate::{
     argumente::hilfe::Hilfe,
     beschreibung::{ArgumentInput, Beschreibung, Description, Name},
-    ergebnis::{Ergebnis, ZwischenErgebnis},
+    ergebnis::{Ergebnis, SingeArgResult, ZwischenErgebnis},
 };
 
 /// Es handelt sich um ein Flag-Argument, das zu frühem beenden führt.
@@ -55,6 +55,14 @@ impl<'t> FrühesBeenden<'t> {
     #[inline]
     pub fn new(description: Description<'t, Void>, message: impl Into<Cow<'t, str>>) -> Self {
         FrühesBeenden::neu(description, message)
+    }
+
+    ///TODO
+    // empty if --name/-n not found
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    pub fn parse_single_arg<'s, F>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, (), F>> {
+        todo!()
     }
 
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
