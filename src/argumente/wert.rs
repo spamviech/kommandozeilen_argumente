@@ -12,9 +12,11 @@ use nonempty::NonEmpty;
 
 use crate::{
     argumente::hilfe::Hilfe,
-    beschreibung::{ArgumentInput, Beschreibung, Description, Name},
+    beschreibung::{AdjustedMergedShortNames, ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Anzeige, Parse},
-    ergebnis::{Ergebnis, Fehler, KommentierterParseFehler, ParseFehler, ZwischenErgebnis},
+    ergebnis::{
+        Ergebnis, Fehler, KommentierterParseFehler, ParseFehler, SingeArgResult, ZwischenErgebnis,
+    },
     sprache::{Language, Sprache},
     unicode::Vergleich,
 };
@@ -274,22 +276,10 @@ fn zeige_elemente<'t, T: 't>(
 
 impl<'t, T, F> Wert<'t, T, F> {
     ///TODO
-    ///
-    /// ## Errors
+    // empty if --name/-n not found
     #[inline]
     #[allow(clippy::type_complexity)]
-    pub fn parse_single_arg(
-        self,
-        arg: &OsStr,
-    ) -> Option<
-        // None if --name/-n not found
-        Either<
-            // --name=value
-            Result<T, ParseFehler<F>>,
-            // --name, value in next arg
-            Box<dyn FnOnce(&OsStr) -> Result<T, ParseFehler<F>>>,
-        >,
-    > {
+    pub fn parse_single_arg(self, arg: &OsStr) -> Vec<SingeArgResult<T, F>> {
         todo!()
     }
 

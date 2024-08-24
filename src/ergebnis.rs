@@ -1,15 +1,47 @@
 //! Ergebnis- und Fehler-Typ für parsen von Kommandozeilen-Argumenten.
 
-use std::{borrow::Cow, ffi::OsString, fmt::Display, iter};
+use std::{
+    borrow::Cow,
+    ffi::{OsStr, OsString},
+    fmt::{self, Debug, Display},
+    iter, result,
+};
 
 use either::Either;
 use nonempty::NonEmpty;
 
 use crate::{
-    beschreibung::Name,
+    beschreibung::{AdjustedMergedShortNames, Name},
     sprache::{Language, Sprache},
     unicode::Normalisiert,
 };
+
+/// TODO
+pub enum SingeArgResult<T, E> {
+    /// --name=value, -nvalue
+    FullParse(result::Result<T, E>),
+    /// --name/-n, value in next arg
+    NameOnly(Box<dyn Fn(&OsStr) -> Result<T, ParseFehler<E>>>),
+    /// -n, merged with other letters, value in next arg
+    MergedShortForms(AdjustedMergedShortNames, Box<dyn Fn(&OsStr) -> Result<T, ParseFehler<E>>>),
+}
+
+impl<T: Debug, E: Debug> Debug for SingeArgResult<T, E> {
+    #[inline]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::FullParse(result) => formatter.debug_tuple("FullParse").field(result).finish(),
+            Self::NameOnly(_parse_value) => {
+                formatter.debug_tuple("NameOnly").field(&"<closure>").finish()
+            },
+            Self::MergedShortForms(adjusted_arg, _parse_value) => formatter
+                .debug_tuple("MergedShortForms")
+                .field(adjusted_arg)
+                .field(&"<closure>")
+                .finish(),
+        }
+    }
+}
 
 /// Zwischenergebnis des Parsen von Kommandozeilen-Argumenten.
 ///
