@@ -18,25 +18,46 @@ use crate::{
 
 /// TODO
 pub enum SingeArgResult<'t, T, E> {
-    /// --name=value, -nvalue
-    FullParse(Option<AdjustedMergedShortNames>, result::Result<T, ParseFehler<E>>),
+    /// --name=value, -nvalue | no value required (`flag`/`early_exit`)
+    FullParse {
+        /// The current arg, after removing the short name from the list.
+        adjusted_arg: Option<AdjustedMergedShortNames>,
+        /// The result of parsing the argument.
+        result: result::Result<T, ParseFehler<E>>,
+    },
     /// --name/-n, value in next arg
-    NameOnly(
-        Option<AdjustedMergedShortNames>,
-        Box<dyn 't + Fn(&OsStr) -> result::Result<T, ParseFehler<E>>>,
-    ),
+    NameOnly {
+        /// The current arg, after removing the short name from the list.
+        adjusted_arg: Option<AdjustedMergedShortNames>,
+        /// Parse the value from the next arg. Is only valid when used on the directly following argument!
+        parse_next_arg: Box<dyn 't + Fn(&OsStr) -> SingeArgResult<'t, T, E>>,
+    },
+    /// More values required
+    IncompleteParse {
+        /// The current arg, after removing the short name from the list
+        adjusted_arg: Option<AdjustedMergedShortNames>,
+        /// Parse a following argument, using the result of parsing the current argument as context.
+        parse_following_arg: Box<dyn 't + Fn(&OsStr) -> Option<SingeArgResult<'t, T, E>>>,
+    },
 }
 
 impl<T: Debug, E: Debug> Debug for SingeArgResult<'_, T, E> {
     #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SingeArgResult::FullParse(adjusted_arg, result) => {
+            SingeArgResult::FullParse { adjusted_arg, result } => {
                 formatter.debug_tuple("FullParse").field(adjusted_arg).field(result).finish()
             },
-            SingeArgResult::NameOnly(adjusted_arg, _parse_value) => {
-                formatter.debug_tuple("NameOnly").field(adjusted_arg).field(&"<closure>").finish()
-            },
+            SingeArgResult::NameOnly { adjusted_arg, parse_next_arg: _ } => formatter
+                .debug_struct("NameOnly")
+                .field("adjusted_arg", adjusted_arg)
+                .field("parse_next_arg", &"<closure>")
+                .finish(),
+            SingeArgResult::IncompleteParse { adjusted_arg, parse_following_arg: _ } => formatter
+                .debug_struct("IncompleteParse")
+                .field("adjusted_arg", adjusted_arg)
+                .field("parse_following_arg", &"<closure>")
+                .finish(),
         }
     }
 }
@@ -44,15 +65,25 @@ impl<T: Debug, E: Debug> Debug for SingeArgResult<'_, T, E> {
 impl<'t, T: 't, E: 't> SingeArgResult<'t, T, E> {
     /// TODO
     #[inline]
-    pub fn convert<S>(self, mapper: impl 't + Fn(T) -> S) -> SingeArgResult<'t, S, E> {
+    pub fn convert<S>(self, mapper: impl 't + Clone + Fn(T) -> S) -> SingeArgResult<'t, S, E> {
         match self {
-            SingeArgResult::FullParse(adjusted_arg, result) => {
-                SingeArgResult::FullParse(adjusted_arg, result.map(mapper))
+            SingeArgResult::FullParse { adjusted_arg, result } => {
+                SingeArgResult::FullParse { adjusted_arg, result: result.map(mapper) }
             },
-            SingeArgResult::NameOnly(adjusted_arg, parse_next_arg) => SingeArgResult::NameOnly(
+            SingeArgResult::NameOnly { adjusted_arg, parse_next_arg } => SingeArgResult::NameOnly {
                 adjusted_arg,
-                Box::new(move |arg| parse_next_arg(arg).map(&mapper)),
-            ),
+                parse_next_arg: Box::new(move |arg: &OsStr| -> SingeArgResult<'t, S, E> {
+                    parse_next_arg(arg).convert(mapper.clone())
+                }),
+            },
+            SingeArgResult::IncompleteParse { adjusted_arg, parse_following_arg } => {
+                SingeArgResult::IncompleteParse {
+                    adjusted_arg,
+                    parse_following_arg: Box::new(move |arg| {
+                        parse_following_arg(arg).map(|res| res.convert(mapper.clone()))
+                    }),
+                }
+            },
         }
     }
 }
