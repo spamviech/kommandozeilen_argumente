@@ -19,14 +19,10 @@ use crate::{
 /// TODO
 pub enum SingeArgResult<'t, T, E> {
     /// --name=value, -nvalue
-    FullParse(result::Result<T, E>),
+    FullParse(Option<AdjustedMergedShortNames>, result::Result<T, ParseFehler<E>>),
     /// --name/-n, value in next arg
-    NameOnly(Box<dyn 't + Fn(&OsStr) -> result::Result<T, ParseFehler<E>>>),
-    /// -n, merged with other letters, no value required
-    MergedShortForms(AdjustedMergedShortNames, result::Result<T, ParseFehler<E>>),
-    /// -n, merged with other letters, value in next arg
-    MergedShortFormsMissingValue(
-        AdjustedMergedShortNames,
+    NameOnly(
+        Option<AdjustedMergedShortNames>,
         Box<dyn 't + Fn(&OsStr) -> result::Result<T, ParseFehler<E>>>,
     ),
 }
@@ -35,20 +31,12 @@ impl<T: Debug, E: Debug> Debug for SingeArgResult<'_, T, E> {
     #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SingeArgResult::FullParse(result) => {
-                formatter.debug_tuple("FullParse").field(result).finish()
+            SingeArgResult::FullParse(adjusted_arg, result) => {
+                formatter.debug_tuple("FullParse").field(adjusted_arg).field(result).finish()
             },
-            SingeArgResult::NameOnly(_parse_value) => {
-                formatter.debug_tuple("NameOnly").field(&"<closure>").finish()
+            SingeArgResult::NameOnly(adjusted_arg, _parse_value) => {
+                formatter.debug_tuple("NameOnly").field(adjusted_arg).field(&"<closure>").finish()
             },
-            SingeArgResult::MergedShortForms(adjusted_arg, result) => {
-                formatter.debug_tuple("MergedShortForms").field(adjusted_arg).field(result).finish()
-            },
-            SingeArgResult::MergedShortFormsMissingValue(adjusted_arg, _parse_value) => formatter
-                .debug_tuple("MergedShortFormsMissingValue")
-                .field(adjusted_arg)
-                .field(&"<closure>")
-                .finish(),
         }
     }
 }
@@ -58,19 +46,13 @@ impl<'t, T: 't, E: 't> SingeArgResult<'t, T, E> {
     #[inline]
     pub fn convert<S>(self, mapper: impl 't + Fn(T) -> S) -> SingeArgResult<'t, S, E> {
         match self {
-            SingeArgResult::FullParse(result) => SingeArgResult::FullParse(result.map(mapper)),
-            SingeArgResult::NameOnly(parse_next_arg) => {
-                SingeArgResult::NameOnly(Box::new(move |arg| parse_next_arg(arg).map(&mapper)))
+            SingeArgResult::FullParse(adjusted_arg, result) => {
+                SingeArgResult::FullParse(adjusted_arg, result.map(mapper))
             },
-            SingeArgResult::MergedShortForms(adjusted_arg, result) => {
-                SingeArgResult::MergedShortForms(adjusted_arg, result.map(mapper))
-            },
-            SingeArgResult::MergedShortFormsMissingValue(adjusted_arg, parse_next_arg) => {
-                SingeArgResult::MergedShortFormsMissingValue(
-                    adjusted_arg,
-                    Box::new(move |arg| parse_next_arg(arg).map(&mapper)),
-                )
-            },
+            SingeArgResult::NameOnly(adjusted_arg, parse_next_arg) => SingeArgResult::NameOnly(
+                adjusted_arg,
+                Box::new(move |arg| parse_next_arg(arg).map(&mapper)),
+            ),
         }
     }
 }
