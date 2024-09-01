@@ -14,7 +14,7 @@ use crate::{
         Argumente,
     },
     beschreibung::ArgumentInput,
-    ergebnis::{Ergebnis, ZwischenErgebnis},
+    ergebnis::{Ergebnis, SingeArgResult, ZwischenErgebnis},
 };
 
 /// Kombiniere mehrere Argumente mit der übergebenen Funktion.
@@ -64,6 +64,14 @@ macro_rules! combine {
 /// ## English
 /// Allow combining multiple arguments.
 pub trait Kombiniere<'t, T, Fehler> {
+    /// Parse das übergebene Argument und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given argument and return the corresponding value.
+    fn parse_single_arg<'s>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
+        todo!("{arg:?}")
+    }
+
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
@@ -102,7 +110,12 @@ pub trait Kombiniere<'t, T, Fehler> {
     }
 }
 
-impl<'t, T, Fehler, F: FnOnce() -> T> Kombiniere<'t, T, Fehler> for F {
+impl<'t, T, Fehler, F: Fn() -> T> Kombiniere<'t, T, Fehler> for F {
+    #[inline]
+    fn parse_single_arg<'s>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
+        vec![SingeArgResult::FullParse { adjusted_arg: None, result: Ok(self()) }]
+    }
+
     #[inline]
     fn parse<'a>(
         self: Box<Self>,
@@ -135,6 +148,108 @@ impl<'t, T, Fehler, F: FnOnce() -> T> Kombiniere<'t, T, Fehler> for F {
     }
 }
 
+impl<'t, 'ta, 'tb, F, T, Fehler, TA, TB> Kombiniere<'t, T, Fehler>
+    for (F, &Argumente<'ta, TA, Fehler>, &Argumente<'tb, TB, Fehler>)
+where
+    F: 't + Fn(TA, TB) -> T,
+    Fehler: Debug,
+    'ta: 't,
+    'tb: 't,
+    TA: Debug + Clone,
+    TB: Debug + Clone,
+{
+    fn parse<'a>(
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
+    ) -> (ZwischenErgebnis<'t, T, Fehler, Argumente<'t, T, Fehler>>, Vec<Option<&'a OsStr>>) {
+        todo!()
+    }
+
+    fn parse_merged_short_forms(
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
+    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
+        todo!()
+    }
+
+    fn erzeuge_hilfe_text(
+        &self,
+        variante: &dyn ErzeugeHilfeText,
+        meta_standard: &str,
+        meta_erlaubte_werte: &str,
+    ) -> NonEmpty<hilfe::Alternativen> {
+        todo!()
+    }
+}
+
+impl<'t, 'ta, 'tb, 'tc, F, T, Fehler, TA, TB, TC> Kombiniere<'t, T, Fehler>
+    for (F, Argumente<'ta, TA, Fehler>, Argumente<'tb, TB, Fehler>, Argumente<'tc, TC, Fehler>)
+where
+    F: 't + Fn(TA, TB, TC) -> T,
+    Fehler: Debug,
+    'ta: 't,
+    'tb: 't,
+    'tc: 't,
+    TA: Debug + Clone,
+    TB: Debug + Clone,
+    TC: Debug + Clone,
+{
+    #[inline]
+    fn parse_single_arg<'s>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
+        let (funktion, arg_a, arg_b, arg_c) = self;
+        let mut results = Vec::new();
+        let res_a = arg_a.parse_single_arg(arg);
+        results.extend(res_a.into_iter().map(|single_arg_result| match single_arg_result {
+            SingeArgResult::FullParse { adjusted_arg, result: Ok(value_a) } => {
+                SingeArgResult::IncompleteParse {
+                    adjusted_arg,
+                    parse_following_arg: Box::new(move |new_arg| {
+                        let adjusted_function =
+                            |value_b, value_c| funktion(value_a.clone(), value_b, value_c);
+                        (adjusted_function, arg_b, arg_c).parse_single_arg(new_arg)
+                    }),
+                }
+            },
+            SingeArgResult::FullParse { adjusted_arg, result: Err(err) } => todo!(),
+            SingeArgResult::NameOnly { adjusted_arg, parse_next_arg } => todo!(),
+            SingeArgResult::IncompleteParse { adjusted_arg, parse_following_arg } => todo!(),
+        }));
+        todo!();
+        results
+    }
+
+    #[inline]
+    fn parse<'a>(
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
+    ) -> (ZwischenErgebnis<'t, T, Fehler, Argumente<'t, T, Fehler>>, Vec<Option<&'a OsStr>>) {
+        todo!()
+    }
+
+    #[inline]
+    fn parse_merged_short_forms(
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
+    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
+        todo!()
+    }
+
+    #[inline]
+    fn erzeuge_hilfe_text(
+        &self,
+        variante: &dyn ErzeugeHilfeText,
+        meta_standard: &str,
+        meta_erlaubte_werte: &str,
+    ) -> NonEmpty<hilfe::Alternativen> {
+        todo!()
+    }
+
+    #[inline]
+    fn debug_fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        todo!()
+    }
+}
+
 /// Implementiere das [`Kombiniere`]-trait für ein Tupel (f, a0, a1, ...)
 macro_rules! impl_kombiniere_tuple {
     ($($suffix: ident),+ $(,)?) => {
@@ -159,6 +274,12 @@ macro_rules! impl_kombiniere_tuple {
                     [<T $suffix:camel>]: Debug,
                 )+
             {
+                #[inline]
+                fn parse_single_arg<'s>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
+                    let (funktion, $([<arg_ $suffix:snake:lower>]),+) = self;
+                    todo!()
+                }
+
                 #[inline]
                 fn parse<'a>(
                     self: Box<Self>,
@@ -350,7 +471,8 @@ macro_rules! impl_kombiniere_tuple {
 
 impl_kombiniere_tuple!(A);
 impl_kombiniere_tuple!(A, B);
-impl_kombiniere_tuple!(A, B, C);
+/*
+// impl_kombiniere_tuple!(A, B, C);
 impl_kombiniere_tuple!(A, B, C, D);
 impl_kombiniere_tuple!(A, B, C, D, E);
 impl_kombiniere_tuple!(A, B, C, D, E, F);
@@ -375,3 +497,4 @@ impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, 
 impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y);
 #[rustfmt::skip]
 impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z);
+*/

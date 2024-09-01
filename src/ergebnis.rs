@@ -23,7 +23,7 @@ pub enum SingeArgResult<'t, T, E> {
         /// The current arg, after removing the short name from the list.
         adjusted_arg: Option<AdjustedMergedShortNames>,
         /// The result of parsing the argument.
-        result: result::Result<T, ParseFehler<E>>,
+        result: result::Result<T, ParseFehler<Vec<E>>>,
     },
     /// --name/-n, value in next arg
     NameOnly {
@@ -37,7 +37,7 @@ pub enum SingeArgResult<'t, T, E> {
         /// The current arg, after removing the short name from the list
         adjusted_arg: Option<AdjustedMergedShortNames>,
         /// Parse a following argument, using the result of parsing the current argument as context.
-        parse_following_arg: Box<dyn 't + Fn(&OsStr) -> Option<SingeArgResult<'t, T, E>>>,
+        parse_following_arg: Box<dyn 't + Fn(&OsStr) -> Vec<SingeArgResult<'t, T, E>>>,
     },
 }
 
@@ -80,7 +80,10 @@ impl<'t, T: 't, E: 't> SingeArgResult<'t, T, E> {
                 SingeArgResult::IncompleteParse {
                     adjusted_arg,
                     parse_following_arg: Box::new(move |arg| {
-                        parse_following_arg(arg).map(|res| res.convert(mapper.clone()))
+                        parse_following_arg(arg)
+                            .into_iter()
+                            .map(|res| res.convert(mapper.clone()))
+                            .collect()
                     }),
                 }
             },

@@ -25,7 +25,7 @@ use crate::{
     },
     beschreibung::{ArgumentInput, Beschreibung},
     dyn_to_owned,
-    ergebnis::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
+    ergebnis::{Ergebnis, Error, Fehler, ParseFehler, SingeArgResult, ZwischenErgebnis},
     sprache::{Language, Sprache},
     Description,
 };
@@ -244,6 +244,12 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
 }
 
 impl<'t, T, F> Argumente<'t, T, F> {
+    /// TODO
+    #[inline]
+    pub fn parse_single_arg<'s>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, F>> {
+        todo!("{arg:?}")
+    }
+
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     /// Verwendete Argumente werden durch [`None`] ersetzt, bevor weitere Argumente geparst werden.
     ///
