@@ -68,7 +68,7 @@ pub trait Kombiniere<'t, T, Fehler> {
     ///
     /// ## English
     /// Parse the given argument and return the corresponding value.
-    fn parse_single_arg<'s>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
+    fn parse_single_arg<'s>(&self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
         todo!("{arg:?}")
     }
 
@@ -112,7 +112,7 @@ pub trait Kombiniere<'t, T, Fehler> {
 
 impl<'t, T, Fehler, F: Fn() -> T> Kombiniere<'t, T, Fehler> for F {
     #[inline]
-    fn parse_single_arg<'s>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
+    fn parse_single_arg<'s>(&self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
         vec![SingeArgResult::FullParse { adjusted_arg: None, result: Ok(self()) }]
     }
 
@@ -195,7 +195,7 @@ where
     TC: Debug + Clone,
 {
     #[inline]
-    fn parse_single_arg<'s>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
+    fn parse_single_arg<'s>(&self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
         let (funktion, arg_a, arg_b, arg_c) = self;
         let mut results = Vec::new();
         let res_a = arg_a.parse_single_arg(arg);
@@ -203,10 +203,10 @@ where
             SingeArgResult::FullParse { adjusted_arg, result: Ok(value_a) } => {
                 SingeArgResult::IncompleteParse {
                     adjusted_arg,
-                    parse_following_arg: Box::new(move |new_arg| {
+                    parse_following_arg: Box::new(move |new_arg: &OsStr| {
                         let adjusted_function =
                             |value_b, value_c| funktion(value_a.clone(), value_b, value_c);
-                        (adjusted_function, arg_b, arg_c).parse_single_arg(new_arg)
+                        (adjusted_function, arg_b.clone(), arg_c.clone()).parse_single_arg(new_arg)
                     }),
                 }
             },
@@ -275,7 +275,7 @@ macro_rules! impl_kombiniere_tuple {
                 )+
             {
                 #[inline]
-                fn parse_single_arg<'s>(&'s self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
+                fn parse_single_arg<'s>(&self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
                     let (funktion, $([<arg_ $suffix:snake:lower>]),+) = self;
                     todo!()
                 }
@@ -471,7 +471,6 @@ macro_rules! impl_kombiniere_tuple {
 
 impl_kombiniere_tuple!(A);
 impl_kombiniere_tuple!(A, B);
-/*
 // impl_kombiniere_tuple!(A, B, C);
 impl_kombiniere_tuple!(A, B, C, D);
 impl_kombiniere_tuple!(A, B, C, D, E);
@@ -497,4 +496,3 @@ impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, 
 impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y);
 #[rustfmt::skip]
 impl_kombiniere_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z);
-*/

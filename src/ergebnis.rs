@@ -30,14 +30,14 @@ pub enum SingeArgResult<'t, T, E> {
         /// The current arg, after removing the short name from the list.
         adjusted_arg: Option<AdjustedMergedShortNames>,
         /// Parse the value from the next arg. Is only valid when used on the directly following argument!
-        parse_next_arg: Box<dyn 't + Fn(&OsStr) -> SingeArgResult<'t, T, E>>,
+        parse_next_arg: Box<dyn 't + Fn(&'t OsStr) -> SingeArgResult<'t, T, E>>,
     },
     /// More values required
     IncompleteParse {
         /// The current arg, after removing the short name from the list
         adjusted_arg: Option<AdjustedMergedShortNames>,
         /// Parse a following argument, using the result of parsing the current argument as context.
-        parse_following_arg: Box<dyn 't + Fn(&OsStr) -> Vec<SingeArgResult<'t, T, E>>>,
+        parse_following_arg: Box<dyn 't + Fn(&'t OsStr) -> Vec<SingeArgResult<'t, T, E>>>,
     },
 }
 
