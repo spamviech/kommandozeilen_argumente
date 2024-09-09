@@ -4,7 +4,7 @@ use std::{
     borrow::Cow,
     ffi::{OsStr, OsString},
     fmt::{self, Debug, Display},
-    iter, result,
+    iter,
 };
 
 use either::Either;
@@ -16,6 +16,85 @@ use crate::{
     unicode::Normalisiert,
 };
 
+/// Ergebnis des Parsen von Kommandozeilen-Argumenten.
+///
+/// ## English synonym
+/// [`Result`]
+#[derive(Debug)]
+#[must_use]
+pub enum ResultForParseSingleArg<'t, T, E> {
+    /// Erfolgreiches Parsen.
+    ///
+    /// ## English
+    /// Successful parsing.
+    Wert(T),
+    /// Frühes Beenden durch zeigen der Nachrichten gewünscht.
+    ///
+    /// ## English
+    /// Request an early exit, showing the given messages.
+    FrühesBeenden(NonEmpty<Cow<'t, str>>),
+    /// Fehler beim Parsen der Kommandozeilen-Argumente.
+    ///
+    /// ## English
+    /// Error while parsing command line arguments.
+    Fehler(NonEmpty<AnnotatedParseError<'t, E>>),
+}
+
+impl<'t, T, E> ResultForParseSingleArg<'t, T, E> {
+    /// Konvertiere einen erfolgreich geparsten Wert mit der spezifizierten Funktion.
+    ///
+    /// ## English synonym
+    /// [`convert`](Result::convert)
+    #[inline]
+    pub fn konvertiere<S>(self, mapper: impl FnOnce(T) -> S) -> ResultForParseSingleArg<'t, S, E> {
+        match self {
+            ResultForParseSingleArg::Wert(wert) => ResultForParseSingleArg::Wert(mapper(wert)),
+            ResultForParseSingleArg::FrühesBeenden(nachrichten) => {
+                ResultForParseSingleArg::FrühesBeenden(nachrichten)
+            },
+            ResultForParseSingleArg::Fehler(fehler) => ResultForParseSingleArg::Fehler(fehler),
+        }
+    }
+
+    /// Konvertiere einen Fehler-Wert mit der spezifizierten Funktion.
+    ///
+    /// ## English synonym
+    /// [`convert_error`](Result::convert_error)
+    #[inline]
+    pub fn konvertiere_fehler<F>(
+        self,
+        mapper: impl Fn(E) -> F,
+    ) -> ResultForParseSingleArg<'t, T, F> {
+        match self {
+            ResultForParseSingleArg::Wert(wert) => ResultForParseSingleArg::Wert(wert),
+            ResultForParseSingleArg::FrühesBeenden(nachrichten) => {
+                ResultForParseSingleArg::FrühesBeenden(nachrichten)
+            },
+            ResultForParseSingleArg::Fehler(nonempty) => {
+                ResultForParseSingleArg::Fehler(nonempty.map(|fehler| fehler.konvertiere(&mapper)))
+            },
+        }
+    }
+
+    /// Convert a successfully parsed value using the specified function.
+    ///
+    /// ## Deutsches Synonym
+    /// [`konvertiere`](Ergebnis::konvertiere)
+    #[inline]
+    pub fn convert<S>(self, mapper: impl FnOnce(T) -> S) -> ResultForParseSingleArg<'t, S, E> {
+        self.konvertiere(mapper)
+    }
+
+    /// Convert an error-value using the specified function.
+    ///
+    /// ## Deutsches Synonym
+    /// [`konvertiere_fehler`](Ergebnis::konvertiere_fehler)
+    #[inline]
+    pub fn convert_error<F>(self, mapper: impl Fn(E) -> F) -> ResultForParseSingleArg<'t, T, F> {
+        self.konvertiere_fehler(mapper)
+    }
+}
+
 /// TODO
 pub enum SingeArgResult<'t, T, E> {
     /// --name=value, -nvalue | no value required (`flag`/`early_exit`)
@@ -23,7 +102,7 @@ pub enum SingeArgResult<'t, T, E> {
         /// The current arg, after removing the short name from the list.
         adjusted_arg: Option<AdjustedMergedShortNames>,
         /// The result of parsing the argument.
-        result: result::Result<T, ParseFehler<Vec<E>>>,
+        result: ResultForParseSingleArg<'t, T, E>,
     },
     /// --name/-n, value in next arg
     NameOnly {
@@ -68,7 +147,7 @@ impl<'t, T: 't, E: 't> SingeArgResult<'t, T, E> {
     pub fn convert<S>(self, mapper: impl 't + Clone + Fn(T) -> S) -> SingeArgResult<'t, S, E> {
         match self {
             SingeArgResult::FullParse { adjusted_arg, result } => {
-                SingeArgResult::FullParse { adjusted_arg, result: result.map(mapper) }
+                SingeArgResult::FullParse { adjusted_arg, result: result.convert(mapper) }
             },
             SingeArgResult::NameOnly { adjusted_arg, parse_next_arg } => SingeArgResult::NameOnly {
                 adjusted_arg,

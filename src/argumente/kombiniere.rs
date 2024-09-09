@@ -14,7 +14,7 @@ use crate::{
         Argumente,
     },
     beschreibung::ArgumentInput,
-    ergebnis::{Ergebnis, SingeArgResult, ZwischenErgebnis},
+    ergebnis::{Ergebnis, ResultForParseSingleArg, SingeArgResult, ZwischenErgebnis},
 };
 
 /// Kombiniere mehrere Argumente mit der übergebenen Funktion.
@@ -113,7 +113,10 @@ pub trait Kombiniere<'t, T, Fehler> {
 impl<'t, T, Fehler, F: Fn() -> T> Kombiniere<'t, T, Fehler> for F {
     #[inline]
     fn parse_single_arg<'s>(&self, arg: &'s OsStr) -> Vec<SingeArgResult<'s, T, Fehler>> {
-        vec![SingeArgResult::FullParse { adjusted_arg: None, result: Ok(self()) }]
+        vec![SingeArgResult::FullParse {
+            adjusted_arg: None,
+            result: ResultForParseSingleArg::Wert(self()),
+        }]
     }
 
     #[inline]
@@ -200,21 +203,55 @@ where
         let mut results = Vec::new();
         let res_a = arg_a.parse_single_arg(arg);
         results.extend(res_a.into_iter().map(|single_arg_result| match single_arg_result {
-            SingeArgResult::FullParse { adjusted_arg, result: Ok(value_a) } => {
+            SingeArgResult::FullParse {
+                adjusted_arg,
+                result: ResultForParseSingleArg::Wert(value_a),
+            } => SingeArgResult::IncompleteParse {
+                adjusted_arg,
+                parse_following_arg: Box::new(move |new_arg: &OsStr| {
+                    let adjusted_function =
+                        |value_b, value_c| funktion(value_a.clone(), value_b, value_c);
+                    (adjusted_function, arg_b.clone(), arg_c.clone()).parse_single_arg(new_arg)
+                }),
+            },
+            SingeArgResult::FullParse {
+                adjusted_arg,
+                result: ResultForParseSingleArg::FrühesBeenden(nachrichten),
+            } => SingeArgResult::IncompleteParse {
+                adjusted_arg,
+                parse_following_arg: Box::new(move |new_arg: &OsStr| {
+                    self.parse_single_arg(new_arg);
+                    todo!()
+                }),
+            },
+            SingeArgResult::FullParse {
+                adjusted_arg,
+                result: ResultForParseSingleArg::Fehler(err),
+            } => SingeArgResult::IncompleteParse {
+                adjusted_arg,
+                parse_following_arg: Box::new(move |new_arg: &OsStr| {
+                    self.parse_single_arg(new_arg);
+                    todo!()
+                }),
+            },
+            SingeArgResult::NameOnly { adjusted_arg, parse_next_arg } => SingeArgResult::NameOnly {
+                adjusted_arg,
+                parse_next_arg: Box::new(move |next_arg: &OsStr| {
+                    let single_arg_result_a = parse_next_arg(next_arg);
+                    todo!("recursive match res_a")
+                }),
+            },
+            SingeArgResult::IncompleteParse { adjusted_arg, parse_following_arg } => {
                 SingeArgResult::IncompleteParse {
                     adjusted_arg,
                     parse_following_arg: Box::new(move |new_arg: &OsStr| {
-                        let adjusted_function =
-                            |value_b, value_c| funktion(value_a.clone(), value_b, value_c);
-                        (adjusted_function, arg_b.clone(), arg_c.clone()).parse_single_arg(new_arg)
+                        let res_a = parse_following_arg(new_arg);
+                        todo!("recursive match res_a")
                     }),
                 }
             },
-            SingeArgResult::FullParse { adjusted_arg, result: Err(err) } => todo!(),
-            SingeArgResult::NameOnly { adjusted_arg, parse_next_arg } => todo!(),
-            SingeArgResult::IncompleteParse { adjusted_arg, parse_following_arg } => todo!(),
         }));
-        todo!();
+        todo!("arg_b, arg_c");
         results
     }
 
