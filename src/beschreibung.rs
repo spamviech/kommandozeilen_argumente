@@ -74,6 +74,15 @@ pub enum ArgumentInput {
     AdjustedMergedShortNames(AdjustedMergedShortNames),
 }
 
+/// Helper type to track parsing of merged short names.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ArgumentInputRef<'a> {
+    /// The input was not used yet.
+    Unchanged(Cow<'a, OsStr>),
+    /// The remainder after successfully parsing merged short name arguments.
+    AdjustedMergedShortNames(AdjustedMergedShortNames),
+}
+
 /// Is the suffix still intact.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MergedShortNameSuffix {

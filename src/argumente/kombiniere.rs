@@ -1,6 +1,8 @@
 //! Kombiniere mehrere [Argumente] zu einem neuen, basierend auf einer Funktion.
 
 use std::{
+    borrow::Cow,
+    collections::HashMap,
     ffi::OsStr,
     fmt::{self, Debug, Formatter},
 };
@@ -13,7 +15,7 @@ use crate::{
         hilfe::{self, ErzeugeHilfeText},
         Argumente,
     },
-    beschreibung::ArgumentInput,
+    beschreibung::{ArgumentInput, ArgumentInputRef},
     ergebnis::{Ergebnis, ZwischenErgebnis},
 };
 
@@ -64,6 +66,46 @@ macro_rules! combine {
 /// ## English
 /// Allow combining multiple arguments.
 pub trait Kombiniere<'t, T, Fehler> {
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
+    #[allow(clippy::type_complexity)]
+    fn parse_unmerged<'a>(
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
+    ) -> (Vec<&'a OsStr>, HashMap<Cow<'a, OsStr>, Cow<'a, OsStr>>, Vec<Option<&'a OsStr>>) {
+        todo!()
+    }
+
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
+    #[allow(clippy::type_complexity)]
+    fn parse_merged<'a>(
+        self: Box<Self>,
+        args: Box<dyn '_ + Iterator<Item = Option<ArgumentInputRef<'a>>>>,
+        known_flags: Vec<&'a OsStr>,
+        known_values: HashMap<Cow<'a, OsStr>, Cow<'a, OsStr>>,
+    ) -> (Vec<&'a OsStr>, HashMap<Cow<'a, OsStr>, Cow<'a, OsStr>>, Vec<Option<ArgumentInputRef<'a>>>)
+    {
+        todo!()
+    }
+
+    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
+    ///
+    /// ## English
+    /// Parse the given arguments and return the corresponding value.
+    #[allow(clippy::type_complexity)]
+    fn parse_values<'a>(
+        self: Box<Self>,
+        known_flags: Vec<&'a OsStr>,
+        known_values: HashMap<Cow<'a, OsStr>, Cow<'a, OsStr>>,
+    ) -> Ergebnis<'t, T, Fehler> {
+        todo!()
+    }
+
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
