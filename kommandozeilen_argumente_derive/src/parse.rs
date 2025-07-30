@@ -571,7 +571,7 @@ fn literal_oder_to_string(token_stream: &TokenStream) -> String {
         .ok()
         .and_then(|literal| StringLit::try_from(literal).ok())
     {
-        string_lit.into_value().into_owned()
+        string_lit.into_value()
     } else {
         token_stream.to_string()
     }
