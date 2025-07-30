@@ -66,101 +66,6 @@ macro_rules! combine {
 /// ## English
 /// Allow combining multiple arguments.
 pub trait Kombiniere<'t, T, Fehler> {
-    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
-    ///
-    /// ## English
-    /// Parse the given arguments and return the corresponding value.
-    #[allow(clippy::type_complexity)]
-    fn parse_unmerged<'a>(
-        self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
-    ) -> (Vec<&'a OsStr>, HashMap<Cow<'a, OsStr>, Cow<'a, OsStr>>, Vec<Option<&'a OsStr>>) {
-        todo!()
-    }
-
-    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
-    ///
-    /// ## English
-    /// Parse the given arguments and return the corresponding value.
-    #[allow(clippy::type_complexity)]
-    fn parse_merged<'a>(
-        self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<ArgumentInputRef<'a>>>>,
-        known_flags: Vec<&'a OsStr>,
-        known_values: HashMap<Cow<'a, OsStr>, Cow<'a, OsStr>>,
-    ) -> (Vec<&'a OsStr>, HashMap<Cow<'a, OsStr>, Cow<'a, OsStr>>, Vec<Option<ArgumentInputRef<'a>>>)
-    {
-        todo!()
-    }
-
-    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
-    ///
-    /// ## English
-    /// Parse the given arguments and return the corresponding value.
-    #[allow(clippy::type_complexity)]
-    fn parse_values<'a>(
-        self: Box<Self>,
-        known_flags: Vec<&'a OsStr>,
-        known_values: HashMap<Cow<'a, OsStr>, Cow<'a, OsStr>>,
-    ) -> Ergebnis<'t, T, Fehler> {
-        todo!()
-    }
-
-    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
-    ///
-    /// ## English
-    /// Parse the given arguments and return the corresponding value.
-    #[allow(clippy::type_complexity)]
-    fn parse<'a>(
-        self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
-    ) -> (ZwischenErgebnis<'t, T, Fehler, Argumente<'t, T, Fehler>>, Vec<Option<&'a OsStr>>);
-
-    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
-    ///
-    /// ## English
-    /// Parse the given arguments and return the corresponding value.
-    fn parse_merged_short_forms(
-        self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
-    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>);
-
-    /// Erzeuge den Hilfetext für die enthaltenen [`Einzelargumente`](EinzelArgument).
-    fn erzeuge_hilfe_text(
-        &self,
-        variante: &dyn ErzeugeHilfeText,
-        meta_standard: &str,
-        meta_erlaubte_werte: &str,
-    ) -> NonEmpty<hilfe::Alternativen>;
-
-    /// Provide a specialized [`Debug`]-implementation.
-    /// If left unspecified, a placeholder-string is used instead.
-    ///
-    /// ## Errors
-    /// Following the same rules as [`Debug::fmt`](std::fmt::Debug::fmt).
-    #[inline]
-    fn debug_fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        write!(formatter, "<konvertiere>")
-    }
-}
-
-impl<'t, T, Fehler, F: FnOnce() -> T> Kombiniere<'t, T, Fehler> for F {
-    #[inline]
-    fn parse<'a>(
-        self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
-    ) -> (ZwischenErgebnis<'t, T, Fehler, Argumente<'t, T, Fehler>>, Vec<Option<&'a OsStr>>) {
-        (ZwischenErgebnis::Wert(self()), args.collect())
-    }
-
-    #[inline]
-    fn parse_merged_short_forms(
-        self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
-    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
-        (Ergebnis::Wert(self()), args.collect())
-    }
-
     #[inline]
     fn erzeuge_hilfe_text(
         &self,
@@ -201,105 +106,105 @@ macro_rules! impl_kombiniere_tuple {
                     [<T $suffix:camel>]: Debug,
                 )+
             {
-                #[inline]
-                fn parse<'a>(
-                    self: Box<Self>,
-                    args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
-                ) -> (ZwischenErgebnis<'t, T, Fehler,  Argumente<'t, T, Fehler>>, Vec<Option<&'a OsStr>>) {
-                    let (funktion, $([<arg_ $suffix:snake:lower>]),+) = *self;
-                    let nicht_verwendet: Vec<_> = args.collect();
-                    let mut any_fehler = false;
-                    let mut any_frühes_beenden = false;
-                    let mut any_incomplete = false;
-                    $(
-                        let ([<zwischen_ergebnis_ $suffix:snake:lower>], nicht_verwendet)
-                            = [<arg_ $suffix:snake:lower>].parse_rekursiv(nicht_verwendet.into_iter());
-                        match &[<zwischen_ergebnis_ $suffix:snake:lower>] {
-                            ZwischenErgebnis::Wert(_wert) => {}
-                            ZwischenErgebnis::FrühesBeenden(_nachrichten) => any_frühes_beenden = true,
-                            ZwischenErgebnis::Fehler(_fehler_liste) => any_fehler = true,
-                            ZwischenErgebnis::Incomplete(_incomplete) => any_incomplete = true,
-                        }
-                    )+
-                    let zwischen_ergebnis = if any_incomplete {
-                        let tuple = (funktion, $([<zwischen_ergebnis_ $suffix:snake:lower>]),+);
-                        ZwischenErgebnis::Incomplete(Argumente::Kombiniere(Box::new(tuple)))
-                    } else if any_frühes_beenden {
-                        let mut alle_nachrichten = Vec::new();
-                        $(
-                            if let ZwischenErgebnis::FrühesBeenden(nachrichten)
-                                = [<zwischen_ergebnis_ $suffix:snake:lower>]
-                            {
-                                alle_nachrichten.extend(nachrichten);
-                            }
-                        )+
-                        let alle_nachrichten = NonEmpty::from_vec(alle_nachrichten)
-                            .expect("Mindestens ein ZwischenErgebnis::FrühesBeenden");
-                        ZwischenErgebnis::FrühesBeenden(alle_nachrichten)
-                    } else if any_fehler {
-                        let mut alle_fehler = Vec::new();
-                        $(
-                            if let ZwischenErgebnis::Fehler(fehler_liste)
-                                = [<zwischen_ergebnis_ $suffix:snake:lower>]
-                            {
-                                alle_fehler.extend(fehler_liste);
-                            }
-                        )+
-                        let alle_fehler = NonEmpty::from_vec(alle_fehler)
-                            .expect("Mindestens ein ZwischenErgebnis::Fehler");
-                        ZwischenErgebnis::Fehler(alle_fehler)
-                    } else {
-                        $(
-                            let ZwischenErgebnis::Wert([<wert_ $suffix:snake:lower>])
-                             = [<zwischen_ergebnis_ $suffix:snake:lower>] else {
-                                unreachable!("Weder Incomplete, FrühesBeenden, noch Fehler!")
-                             };
-                        )+
-                        ZwischenErgebnis::Wert(funktion($([<wert_ $suffix:snake:lower>]),+))
-                    };
-                    (zwischen_ergebnis, nicht_verwendet)
-                }
+                // #[inline]
+                // fn parse<'a>(
+                //     self: Box<Self>,
+                //     args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
+                // ) -> (ZwischenErgebnis<'t, T, Fehler,  Argumente<'t, T, Fehler>>, Vec<Option<&'a OsStr>>) {
+                //     let (funktion, $([<arg_ $suffix:snake:lower>]),+) = *self;
+                //     let nicht_verwendet: Vec<_> = args.collect();
+                //     let mut any_fehler = false;
+                //     let mut any_frühes_beenden = false;
+                //     let mut any_incomplete = false;
+                //     $(
+                //         let ([<zwischen_ergebnis_ $suffix:snake:lower>], nicht_verwendet)
+                //             = [<arg_ $suffix:snake:lower>].parse_rekursiv(nicht_verwendet.into_iter());
+                //         match &[<zwischen_ergebnis_ $suffix:snake:lower>] {
+                //             ZwischenErgebnis::Wert(_wert) => {}
+                //             ZwischenErgebnis::FrühesBeenden(_nachrichten) => any_frühes_beenden = true,
+                //             ZwischenErgebnis::Fehler(_fehler_liste) => any_fehler = true,
+                //             ZwischenErgebnis::Incomplete(_incomplete) => any_incomplete = true,
+                //         }
+                //     )+
+                //     let zwischen_ergebnis = if any_incomplete {
+                //         let tuple = (funktion, $([<zwischen_ergebnis_ $suffix:snake:lower>]),+);
+                //         ZwischenErgebnis::Incomplete(Argumente::Kombiniere(Box::new(tuple)))
+                //     } else if any_frühes_beenden {
+                //         let mut alle_nachrichten = Vec::new();
+                //         $(
+                //             if let ZwischenErgebnis::FrühesBeenden(nachrichten)
+                //                 = [<zwischen_ergebnis_ $suffix:snake:lower>]
+                //             {
+                //                 alle_nachrichten.extend(nachrichten);
+                //             }
+                //         )+
+                //         let alle_nachrichten = NonEmpty::from_vec(alle_nachrichten)
+                //             .expect("Mindestens ein ZwischenErgebnis::FrühesBeenden");
+                //         ZwischenErgebnis::FrühesBeenden(alle_nachrichten)
+                //     } else if any_fehler {
+                //         let mut alle_fehler = Vec::new();
+                //         $(
+                //             if let ZwischenErgebnis::Fehler(fehler_liste)
+                //                 = [<zwischen_ergebnis_ $suffix:snake:lower>]
+                //             {
+                //                 alle_fehler.extend(fehler_liste);
+                //             }
+                //         )+
+                //         let alle_fehler = NonEmpty::from_vec(alle_fehler)
+                //             .expect("Mindestens ein ZwischenErgebnis::Fehler");
+                //         ZwischenErgebnis::Fehler(alle_fehler)
+                //     } else {
+                //         $(
+                //             let ZwischenErgebnis::Wert([<wert_ $suffix:snake:lower>])
+                //              = [<zwischen_ergebnis_ $suffix:snake:lower>] else {
+                //                 unreachable!("Weder Incomplete, FrühesBeenden, noch Fehler!")
+                //              };
+                //         )+
+                //         ZwischenErgebnis::Wert(funktion($([<wert_ $suffix:snake:lower>]),+))
+                //     };
+                //     (zwischen_ergebnis, nicht_verwendet)
+                // }
 
-                #[inline]
-                fn parse_merged_short_forms(
-                    self: Box<Self>,
-                    args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
-                ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
-                    let (funktion, $([<arg_ $suffix:snake:lower>]),+) = *self;
-                    let nicht_verwendet: Vec<_> = args.collect();
-                    let mut alle_fehler = Vec::new();
-                    let mut alle_frühes_beenden = Vec::new();
-                    $(
-                        let (ergebnis, nicht_verwendet)
-                            = [<arg_ $suffix:snake:lower>].parse_rekursiv_merged_short_forms(nicht_verwendet.into_iter());
-                        let mut [<wert_ $suffix:snake:lower>] = None;
-                        match ergebnis {
-                            Ergebnis::Wert(wert) => [<wert_ $suffix:snake:lower>] = Some(wert),
-                            Ergebnis::FrühesBeenden(nachrichten) => alle_frühes_beenden.extend(nachrichten),
-                            Ergebnis::Fehler(fehler_liste) => {
-                                alle_fehler.extend(fehler_liste)
-                            },
-                        }
-                    )+
-                    let ergebnis = match NonEmpty::from_vec(alle_frühes_beenden) {
-                        Some(nachrichten) if alle_fehler.iter().all(|fehler| {
-                            matches!(
-                                fehler,
-                                $crate::Fehler::FehlendeFlag { .. } | $crate::Fehler::FehlenderWert { .. }
-                            )
-                        }) => Ergebnis::FrühesBeenden(nachrichten),
-                        _ => {
-                            if let Some(fehler) = NonEmpty::from_vec(alle_fehler) {
-                                Ergebnis::Fehler(fehler)
-                            } else {
-                                Ergebnis::Wert(funktion(
-                                    $([<wert_ $suffix:snake:lower>].expect("Kein Fehler oder FrühesBeenden!")
-                                ),+))
-                            }
-                        }
-                    };
-                    (ergebnis, nicht_verwendet)
-                }
+                // #[inline]
+                // fn parse_merged_short_forms(
+                //     self: Box<Self>,
+                //     args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
+                // ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
+                //     let (funktion, $([<arg_ $suffix:snake:lower>]),+) = *self;
+                //     let nicht_verwendet: Vec<_> = args.collect();
+                //     let mut alle_fehler = Vec::new();
+                //     let mut alle_frühes_beenden = Vec::new();
+                //     $(
+                //         let (ergebnis, nicht_verwendet)
+                //             = [<arg_ $suffix:snake:lower>].parse_rekursiv_merged_short_forms(nicht_verwendet.into_iter());
+                //         let mut [<wert_ $suffix:snake:lower>] = None;
+                //         match ergebnis {
+                //             Ergebnis::Wert(wert) => [<wert_ $suffix:snake:lower>] = Some(wert),
+                //             Ergebnis::FrühesBeenden(nachrichten) => alle_frühes_beenden.extend(nachrichten),
+                //             Ergebnis::Fehler(fehler_liste) => {
+                //                 alle_fehler.extend(fehler_liste)
+                //             },
+                //         }
+                //     )+
+                //     let ergebnis = match NonEmpty::from_vec(alle_frühes_beenden) {
+                //         Some(nachrichten) if alle_fehler.iter().all(|fehler| {
+                //             matches!(
+                //                 fehler,
+                //                 $crate::Fehler::FehlendeFlag { .. } | $crate::Fehler::FehlenderWert { .. }
+                //             )
+                //         }) => Ergebnis::FrühesBeenden(nachrichten),
+                //         _ => {
+                //             if let Some(fehler) = NonEmpty::from_vec(alle_fehler) {
+                //                 Ergebnis::Fehler(fehler)
+                //             } else {
+                //                 Ergebnis::Wert(funktion(
+                //                     $([<wert_ $suffix:snake:lower>].expect("Kein Fehler oder FrühesBeenden!")
+                //                 ),+))
+                //             }
+                //         }
+                //     };
+                //     (ergebnis, nicht_verwendet)
+                // }
 
                 #[inline]
                 fn erzeuge_hilfe_text(
@@ -355,21 +260,21 @@ macro_rules! impl_kombiniere_tuple {
                     [<T $suffix:camel>]: Debug,
                 )+
             {
-                #[inline]
-                fn parse<'a>(
-                    self: Box<Self>,
-                    args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
-                ) -> (ZwischenErgebnis<'t, T, Fehler,  Argumente<'t, T, Fehler>>, Vec<Option<&'a OsStr>>) {
-                    todo!()
-                }
+                // #[inline]
+                // fn parse<'a>(
+                //     self: Box<Self>,
+                //     args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
+                // ) -> (ZwischenErgebnis<'t, T, Fehler,  Argumente<'t, T, Fehler>>, Vec<Option<&'a OsStr>>) {
+                //     todo!()
+                // }
 
-                #[inline]
-                fn parse_merged_short_forms(
-                    self: Box<Self>,
-                    args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
-                ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
-                    todo!()
-                }
+                // #[inline]
+                // fn parse_merged_short_forms(
+                //     self: Box<Self>,
+                //     args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
+                // ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
+                //     todo!()
+                // }
 
                 #[inline]
                 fn erzeuge_hilfe_text(

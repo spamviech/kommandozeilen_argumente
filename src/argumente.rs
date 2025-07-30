@@ -245,96 +245,6 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
 
 impl<'t, T, F> Argumente<'t, T, F> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
-    /// Verwendete Argumente werden durch [`None`] ersetzt, bevor weitere Argumente geparst werden.
-    ///
-    /// ## English
-    /// Parse the given arguments and return the corresponding value.
-    /// Used arguments are replaced with [`None`], before further arguments are parsed.
-    #[inline]
-    pub fn parse_rekursiv<'a>(
-        self,
-        args: impl Iterator<Item = Option<&'a OsStr>>,
-    ) -> (ZwischenErgebnis<'t, T, F, Self>, Vec<Option<&'a OsStr>>) {
-        use Argumente::{Alternativen, EinzelArgument, Kombiniere};
-        use ZwischenErgebnis::{Fehler, FrühesBeenden, Incomplete, Wert};
-        match self {
-            EinzelArgument(arg) => {
-                let (zwischen_ergebnis, nicht_verwendet) = arg.parse(args);
-                (zwischen_ergebnis.konvertiere_incomplete(EinzelArgument), nicht_verwendet)
-            },
-            Kombiniere(kombiniere) => kombiniere.parse(Box::new(args)),
-            Alternativen(alternativen) => {
-                let NonEmpty { head, tail } = *alternativen;
-                let args_vec: Vec<_> = args.collect();
-                tail.into_iter().fold(
-                    head.parse_rekursiv(args_vec.clone().into_iter()),
-                    |(ergebnis, nicht_verwendet), arg| match ergebnis {
-                        Fehler(mut fehler0) => {
-                            match arg.parse_rekursiv(args_vec.clone().into_iter()) {
-                                (Fehler(fehler1), nicht_verwendet1) => {
-                                    fehler0.extend(fehler1);
-                                    let von_keinem_verwendet = nicht_verwendet
-                                        .into_iter()
-                                        .filter(|os_string| nicht_verwendet1.contains(os_string))
-                                        .collect();
-                                    (Fehler(fehler0), von_keinem_verwendet)
-                                },
-                                end_ergebnis => end_ergebnis,
-                            }
-                        },
-                        Wert(_) | FrühesBeenden(_) => (ergebnis, nicht_verwendet),
-                        Incomplete(_) => todo!(),
-                    },
-                )
-            },
-        }
-    }
-
-    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
-    /// Verwendete Argumente werden durch [`None`] ersetzt, bevor weitere Argumente geparst werden.
-    ///
-    /// ## English
-    /// Parse the given arguments and return the corresponding value.
-    /// Used arguments are replaced with [`None`], before further arguments are parsed.
-    #[inline]
-    pub fn parse_rekursiv_merged_short_forms(
-        self,
-        args: impl Iterator<Item = Option<ArgumentInput>>,
-    ) -> (Ergebnis<'t, T, F>, Vec<Option<ArgumentInput>>) {
-        use Argumente::{Alternativen, EinzelArgument, Kombiniere};
-        use Ergebnis::{Fehler, FrühesBeenden, Wert};
-        match self {
-            EinzelArgument(arg) => arg.parse_merged_short_forms(args),
-            Kombiniere(kombiniere) => kombiniere.parse_merged_short_forms(Box::new(args)),
-            Alternativen(alternativen) => {
-                let NonEmpty { head, tail } = *alternativen;
-                let args_vec: Vec<_> = args.into_iter().collect();
-                tail.into_iter().fold(
-                    head.parse_rekursiv_merged_short_forms(args_vec.clone().into_iter()),
-                    |(ergebnis, nicht_verwendet), arg| match ergebnis {
-                        Fehler(mut fehler0) => {
-                            match arg
-                                .parse_rekursiv_merged_short_forms(args_vec.clone().into_iter())
-                            {
-                                (Fehler(fehler1), nicht_verwendet1) => {
-                                    fehler0.extend(fehler1);
-                                    let von_keinem_verwendet = nicht_verwendet
-                                        .into_iter()
-                                        .filter(|os_string| nicht_verwendet1.contains(os_string))
-                                        .collect();
-                                    (Fehler(fehler0), von_keinem_verwendet)
-                                },
-                                end_ergebnis => end_ergebnis,
-                            }
-                        },
-                        Wert(_) | FrühesBeenden(_) => (ergebnis, nicht_verwendet),
-                    },
-                )
-            },
-        }
-    }
-
-    /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
     /// ## English
     /// Parse the given arguments and return the corresponding value.
@@ -343,12 +253,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
         self,
         args: impl Iterator<Item = OsString>,
     ) -> (Ergebnis<'t, T, F>, Vec<ArgumentInput>) {
-        // FIXME wie werden required argumente behandelt?
-        // let (ergebnis, nicht_verwendet) =
-        //     self.parse_rekursiv(args.map(ArgumentInput::Unchanged).map(Some));
-        let (ergebnis, nicht_verwendet) =
-            self.parse_rekursiv_merged_short_forms(args.map(ArgumentInput::Unchanged).map(Some));
-        (ergebnis, nicht_verwendet.into_iter().flatten().collect())
+        todo!("parse({:?})", args.collect::<Vec<_>>());
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -816,53 +721,6 @@ trait AnzeigeFehler<Fehler>: Fn(&Fehler) -> String + DynClone {}
 impl<Fehler, F: Fn(&Fehler) -> String + DynClone> AnzeigeFehler<Fehler> for F {}
 clone_trait_object!(<Fehler> AnzeigeFehler<Fehler>);
 
-/// Hilf-Struktur um den Fehler-Typ für ein [`Kombiniere`] trait-Objekt anzupassen.
-struct KonvertiereKombiniereFehler<'t, T, Fehler, NeuerFehler> {
-    /// Die ursprünglichen Argumente.
-    kombiniere: Box<dyn 't + Kombiniere<'t, T, Fehler>>,
-    /// Die Funktion zum konvertieren des Fehlers.
-    konvertiere_fehler: Box<dyn 't + KonvertiereFehler<Fehler, NeuerFehler>>,
-    /// Die Funktion zum anzeigen des konvertieren Fehlers.
-    anzeige_neuer_fehler: Box<dyn 't + AnzeigeFehler<NeuerFehler>>,
-}
-
-impl<'t, T, Fehler: 't, NeuerFehler> Kombiniere<'t, T, NeuerFehler>
-    for KonvertiereKombiniereFehler<'t, T, Fehler, NeuerFehler>
-{
-    fn parse<'a>(
-        self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
-    ) -> (ZwischenErgebnis<'t, T, NeuerFehler, Argumente<'t, T, NeuerFehler>>, Vec<Option<&'a OsStr>>)
-    {
-        let KonvertiereKombiniereFehler { kombiniere, konvertiere_fehler, anzeige_neuer_fehler } =
-            *self;
-        let (ergebnis, nicht_verwendet) = kombiniere.parse(args);
-        let konvertiert =
-            ergebnis.konvertiere_fehler(&konvertiere_fehler).konvertiere_incomplete(|argumente| {
-                argumente.konvertiere_fehler(konvertiere_fehler, anzeige_neuer_fehler)
-            });
-        (konvertiert, nicht_verwendet)
-    }
-
-    fn parse_merged_short_forms(
-        self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
-    ) -> (Ergebnis<'t, T, NeuerFehler>, Vec<Option<ArgumentInput>>) {
-        let (ergebnis, nicht_verwendet) = self.kombiniere.parse_merged_short_forms(args);
-        let konvertiert = ergebnis.konvertiere_fehler(self.konvertiere_fehler);
-        (konvertiert, nicht_verwendet)
-    }
-
-    fn erzeuge_hilfe_text(
-        &self,
-        variante: &dyn ErzeugeHilfeText,
-        meta_standard: &str,
-        meta_erlaubte_werte: &str,
-    ) -> NonEmpty<hilfe::Alternativen> {
-        self.kombiniere.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
-    }
-}
-
 impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Konvertiere den Fehler mit der spezifizierten Funktion.
     ///
@@ -874,55 +732,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
         mapper: impl 't + Fn(Fehler) -> NeuerFehler + Clone,
         anzeige_neuer_fehler: impl 't + Fn(&NeuerFehler) -> String + Clone,
     ) -> Argumente<'t, T, NeuerFehler> {
-        match self {
-            Argumente::EinzelArgument(EinzelArgument::Flag(flag)) => Argumente::from(flag),
-            Argumente::EinzelArgument(EinzelArgument::FrühesBeenden {
-                frühes_beenden,
-                wert,
-                anzeige,
-            }) => Argumente::from((frühes_beenden, wert, anzeige.into_owned())),
-            Argumente::EinzelArgument(EinzelArgument::Wert(Wert {
-                beschreibung,
-                wert_infix,
-                meta_var,
-                mögliche_werte,
-                parse,
-                anzeige,
-                anzeige_fehler: _,
-            })) => {
-                let anzeige_fehler_boxed: Box<dyn 't + dyn_to_owned::Anzeige<'t, NeuerFehler>> =
-                    Box::new(anzeige_neuer_fehler);
-                Argumente::from(Wert {
-                    beschreibung,
-                    wert_infix,
-                    meta_var,
-                    mögliche_werte,
-                    parse: {
-                        let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, T, NeuerFehler>> =
-                            Box::new(move |os_str: &OsStr| {
-                                parse(os_str).map_err(|parse_fehler| -> ParseFehler<NeuerFehler> {
-                                    parse_fehler.konvertiere(&mapper)
-                                })
-                            });
-                        Cow::Owned(boxed_parse)
-                    },
-                    anzeige,
-                    anzeige_fehler: Cow::Owned(anzeige_fehler_boxed),
-                })
-            },
-            Argumente::Kombiniere(kombiniere) => {
-                Argumente::kombiniere(KonvertiereKombiniereFehler {
-                    kombiniere,
-                    konvertiere_fehler: Box::new(mapper),
-                    anzeige_neuer_fehler: Box::new(anzeige_neuer_fehler),
-                })
-            },
-            Argumente::Alternativen(alternativen) => {
-                Argumente::from(alternativen.map(|alt| {
-                    alt.konvertiere_fehler(mapper.clone(), anzeige_neuer_fehler.clone())
-                }))
-            },
-        }
+        todo!()
     }
 
     /// [`konvertiere_fehler`](Self::konvertiere_fehler) mit [`From::from`].

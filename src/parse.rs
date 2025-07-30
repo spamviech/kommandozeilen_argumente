@@ -223,25 +223,6 @@ impl<'t, T, Fehler, F: FnOnce(Ergebnis<'t, T, Fehler>) -> Ergebnis<'t, T, Fehler
     Kombiniere<'t, T, Fehler> for OptionHelper<'t, F, T, Fehler>
 {
     #[inline]
-    fn parse<'a>(
-        self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<&'a OsStr>>>,
-    ) -> (ZwischenErgebnis<'t, T, Fehler, Argumente<'t, T, Fehler>>, Vec<Option<&'a OsStr>>) {
-        let OptionHelper { ergebnis_anpassen: _, argumente } = *self;
-        argumente.parse_rekursiv(args)
-    }
-
-    #[inline]
-    fn parse_merged_short_forms(
-        self: Box<Self>,
-        args: Box<dyn '_ + Iterator<Item = Option<ArgumentInput>>>,
-    ) -> (Ergebnis<'t, T, Fehler>, Vec<Option<ArgumentInput>>) {
-        let OptionHelper { ergebnis_anpassen, argumente } = *self;
-        let (ergebnis, nicht_verwendet) = argumente.parse_rekursiv_merged_short_forms(args);
-        (ergebnis_anpassen(ergebnis), nicht_verwendet)
-    }
-
-    #[inline]
     fn erzeuge_hilfe_text(
         &self,
         variante: &dyn ErzeugeHilfeText,
