@@ -61,7 +61,7 @@ Parsed in this stage (only long names):
 Results of this stage are:
 
 - A vector of early\_exit arguments, containing name, message & original input.
-- A vector of flag-arguments with their name (all are true) & the original input.
+- A vector of flag-arguments with their name, value (might be inverted) & the original input.
 - A map of value-arguments with name -> (value-string, original input).
 - Remaining arguments with the parsed long names and associated value-strings removed.
 

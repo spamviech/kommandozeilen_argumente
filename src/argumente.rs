@@ -2,6 +2,7 @@
 
 use std::{
     borrow::Cow,
+    collections::HashMap,
     env,
     ffi::{OsStr, OsString},
     fmt::{self, Debug, Display},
@@ -240,6 +241,79 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     #[inline]
     pub fn alternatives_boxed(alternatives: Box<NonEmpty<Self>>) -> Self {
         Self::alternativen_boxed(alternatives)
+    }
+}
+
+/// TODO
+#[derive(Debug)]
+pub struct ParsedEarlyExit<'s> {
+    /// TODO
+    pub name: Cow<'s, str>,
+    /// TODO
+    pub message: Cow<'s, str>,
+    /// TODO
+    pub input: Cow<'s, str>,
+}
+/// TODO
+#[derive(Debug)]
+pub struct ParsedShortFlag<'s> {
+    /// TODO
+    pub name: Cow<'s, str>,
+    /// TODO
+    pub input: Cow<'s, str>,
+}
+/// TODO
+#[derive(Debug)]
+pub struct ParsedValueName<'s> {
+    /// TODO
+    pub name: Cow<'s, str>,
+}
+/// TODO
+#[derive(Debug)]
+pub struct ParsedValue<'s> {
+    /// TODO
+    pub value: Cow<'s, str>,
+    /// TODO
+    pub input: Cow<'s, str>,
+}
+
+/// TODO
+#[derive(Debug)]
+pub struct ParseMergedShortFormsResult<'s> {
+    /// A vector of early\_exit arguments, containing name, message & original input.
+    pub early_exits: Vec<ParsedEarlyExit<'s>>,
+    /// A vector of flag-arguments with their name (all are true) & the original input.
+    pub flags: Vec<ParsedShortFlag<'s>>,
+    /// A map of value-arguments with name -> (value-string, original input).
+    pub values: HashMap<ParsedValueName<'s>, ParsedValue<'s>>,
+    /// Remaining arguments with the parsed merged short names and associated value-strings removed.
+    pub remaining: Vec<Option<OsString>>,
+}
+
+impl<T, F> Argumente<'_, T, F> {
+    /// Parse merged short form arguments.
+    ///
+    /// Rules to allow merging of short names:
+    ///
+    /// - All short names in the same string share the same (short) prefix.
+    /// - Only short names consisting of a single [grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes) participate.
+    /// - At most one value argument per block.
+    ///   It must be the last argument name in the string, optionally followed by \[a value-infix and\] the value sub-string.
+    /// - Merging of short names must be allowed for this particular argument.
+    #[inline]
+    pub fn parse_merged_short_forms(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'_> {
+        use self::EinzelArgument::{Flag, FrühesBeenden, Wert};
+        use Argumente::{Alternativen, EinzelArgument, Kombiniere};
+        match self {
+            EinzelArgument(Flag(flag)) => todo!(),
+            EinzelArgument(FrühesBeenden { frühes_beenden, wert, anzeige }) => todo!(),
+            EinzelArgument(Wert(wert)) => todo!(),
+            Kombiniere(kombiniere) => todo!(),
+            Alternativen(non_empty) => todo!(),
+        }
     }
 }
 
