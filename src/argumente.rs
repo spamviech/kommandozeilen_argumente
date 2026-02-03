@@ -12,6 +12,7 @@ use std::{
 };
 
 use dyn_clone::{clone_trait_object, DynClone};
+use itertools::Itertools as _;
 use nonempty::{nonempty, NonEmpty};
 use void::Void;
 
@@ -309,7 +310,25 @@ impl<T, F> Argumente<'_, T, F> {
         match self {
             EinzelArgument(einzelargument) => einzelargument.parse_merged_short_forms(args),
             Kombiniere(kombiniere) => todo!(),
-            Alternativen(non_empty) => todo!(),
+            Alternativen(non_empty) => {
+                let args = args.collect_vec();
+                let mut result = None;
+                for arg in non_empty.iter() {
+                    let ret = arg.parse_merged_short_forms(args.iter().cloned());
+                    let ParseMergedShortFormsResult { early_exits, flags, values, remaining: _ } =
+                        &ret;
+                    if !early_exits.is_empty() || !flags.is_empty() || !values.is_empty() {
+                        // TODO do I now need to commit to this alternative?
+                        result = Some(ret);
+                    }
+                }
+                result.unwrap_or_else(|| ParseMergedShortFormsResult {
+                    early_exits: Vec::new(),
+                    flags: Vec::new(),
+                    values: HashMap::new(),
+                    remaining: args.into_iter().map(Some).collect_vec(),
+                })
+            },
         }
     }
 }
