@@ -305,12 +305,9 @@ impl<T, F> Argumente<'_, T, F> {
         &self,
         args: impl Iterator<Item = OsString>,
     ) -> ParseMergedShortFormsResult<'_> {
-        use self::EinzelArgument::{Flag, FrühesBeenden, Wert};
         use Argumente::{Alternativen, EinzelArgument, Kombiniere};
         match self {
-            EinzelArgument(Flag(flag)) => todo!(),
-            EinzelArgument(FrühesBeenden { frühes_beenden, wert, anzeige }) => todo!(),
-            EinzelArgument(Wert(wert)) => todo!(),
+            EinzelArgument(einzelargument) => einzelargument.parse_merged_short_forms(args),
             Kombiniere(kombiniere) => todo!(),
             Alternativen(non_empty) => todo!(),
         }

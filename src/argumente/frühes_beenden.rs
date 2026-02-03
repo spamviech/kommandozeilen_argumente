@@ -1,12 +1,15 @@
 //! Flag-Argumente, die zu frühen Beenden führen.
 
-use std::{borrow::Cow, ffi::OsStr};
+use std::{
+    borrow::Cow,
+    ffi::{OsStr, OsString},
+};
 
 use nonempty::NonEmpty;
 use void::Void;
 
 use crate::{
-    argumente::hilfe::Hilfe,
+    argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
     beschreibung::{ArgumentInput, Beschreibung, Description, Name},
     ergebnis::{Ergebnis, SingeArgResult, ZwischenErgebnis},
 };
@@ -80,5 +83,25 @@ impl<'t> FrühesBeenden<'t> {
         }
         let hilfe = hilfe.map(String::from);
         Hilfe { syntax, hilfe }
+    }
+}
+
+impl FrühesBeenden<'_> {
+    /// Parse merged short form arguments.
+    ///
+    /// Rules to allow merging of short names:
+    ///
+    /// - All short names in the same string share the same (short) prefix.
+    /// - Only short names consisting of a single [grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes) participate.
+    /// - At most one value argument per block.
+    ///   It must be the last argument name in the string, optionally followed by \[a value-infix and\] the value sub-string.
+    /// - Merging of short names must be allowed for this particular argument.
+    #[inline]
+    pub fn parse_merged_short_forms(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'_> {
+        let FrühesBeenden { beschreibung, nachricht } = self;
+        todo!();
     }
 }

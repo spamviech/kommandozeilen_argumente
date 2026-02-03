@@ -2,14 +2,17 @@
 
 use std::{
     borrow::Cow,
-    ffi::OsStr,
+    ffi::{OsStr, OsString},
     fmt::{self, Debug, Display},
 };
 
 use void::Void;
 
 use crate::{
-    argumente::{flag::Flag, frühes_beenden::FrühesBeenden, hilfe::Hilfe, wert::Wert},
+    argumente::{
+        flag::Flag, frühes_beenden::FrühesBeenden, hilfe::Hilfe, wert::Wert,
+        ParseMergedShortFormsResult,
+    },
     beschreibung::ArgumentInput,
     dyn_to_owned::Anzeige,
     ergebnis::{Ergebnis, SingeArgResult, ZwischenErgebnis},
@@ -193,6 +196,32 @@ impl<T, Fehler> EinzelArgument<'_, T, Fehler> {
                 }
             },
             EinzelArgument::Wert(wert) => EinzelArgument::Wert(wert.als_string_wert()),
+        }
+    }
+}
+
+impl<T, F> EinzelArgument<'_, T, F> {
+    /// Parse merged short form arguments.
+    ///
+    /// Rules to allow merging of short names:
+    ///
+    /// - All short names in the same string share the same (short) prefix.
+    /// - Only short names consisting of a single [grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes) participate.
+    /// - At most one value argument per block.
+    ///   It must be the last argument name in the string, optionally followed by \[a value-infix and\] the value sub-string.
+    /// - Merging of short names must be allowed for this particular argument.
+    #[inline]
+    pub fn parse_merged_short_forms(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'_> {
+        use EinzelArgument::{Flag, FrühesBeenden, Wert};
+        match self {
+            Flag(flag) => flag.parse_merged_short_forms(args),
+            FrühesBeenden { frühes_beenden, wert: _, anzeige: _ } => {
+                frühes_beenden.parse_merged_short_forms(args)
+            },
+            Wert(wert) => wert.parse_merged_short_forms(args),
         }
     }
 }

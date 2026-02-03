@@ -3,14 +3,14 @@
 use std::{
     borrow::Cow,
     convert::identity,
-    ffi::OsStr,
+    ffi::{OsStr, OsString},
     fmt::{self, Debug},
 };
 
 use nonempty::NonEmpty;
 
 use crate::{
-    argumente::hilfe::Hilfe,
+    argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
     beschreibung::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Anzeige, Bool},
     ergebnis::{Ergebnis, Fehler, SingeArgResult, ZwischenErgebnis},
@@ -169,5 +169,25 @@ impl<'t, T> Flag<'t, T> {
             konvertiere: Cow::Owned(konvertiere_boxed),
             anzeige: Cow::Borrowed(&Clone::clone),
         }
+    }
+}
+
+impl<T> Flag<'_, T> {
+    /// Parse merged short form arguments.
+    ///
+    /// Rules to allow merging of short names:
+    ///
+    /// - All short names in the same string share the same (short) prefix.
+    /// - Only short names consisting of a single [grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes) participate.
+    /// - At most one value argument per block.
+    ///   It must be the last argument name in the string, optionally followed by \[a value-infix and\] the value sub-string.
+    /// - Merging of short names must be allowed for this particular argument.
+    #[inline]
+    pub fn parse_merged_short_forms(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'_> {
+        let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere, anzeige } = self;
+        todo!();
     }
 }

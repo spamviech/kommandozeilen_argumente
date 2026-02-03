@@ -11,7 +11,7 @@ use either::Either;
 use nonempty::NonEmpty;
 
 use crate::{
-    argumente::hilfe::Hilfe,
+    argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
     beschreibung::{AdjustedMergedShortNames, ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Anzeige, Parse},
     ergebnis::{
@@ -385,5 +385,33 @@ impl<'t, T, F> Wert<'t, T, F> {
             anzeige: Cow::Borrowed(&Clone::clone),
             anzeige_fehler: Cow::Borrowed(&Clone::clone),
         }
+    }
+}
+
+impl<T, F> Wert<'_, T, F> {
+    /// Parse merged short form arguments.
+    ///
+    /// Rules to allow merging of short names:
+    ///
+    /// - All short names in the same string share the same (short) prefix.
+    /// - Only short names consisting of a single [grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes) participate.
+    /// - At most one value argument per block.
+    ///   It must be the last argument name in the string, optionally followed by \[a value-infix and\] the value sub-string.
+    /// - Merging of short names must be allowed for this particular argument.
+    #[inline]
+    pub fn parse_merged_short_forms(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'_> {
+        let Wert {
+            beschreibung,
+            wert_infix,
+            meta_var,
+            mögliche_werte,
+            parse,
+            anzeige,
+            anzeige_fehler,
+        } = self;
+        todo!();
     }
 }
