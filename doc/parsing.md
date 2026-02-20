@@ -22,8 +22,9 @@ Rules to allow merging of short names:
     It must be the last argument name in the string, optionally followed by \[a value-infix and\] the value sub-string.
 - Merging of short names must be allowed for this particular argument.
 
-Results of this stage are:
+Results of this stage are a `NonEmpty` (alternatives) of:
 
+- `Argumente<'_, T, F>` of the alternative taken.
 - A vector of early\_exit arguments, containing name, message & original input.
 - A vector of flag-arguments with their name (all are true) & the original input.
 - A map of value-arguments with name -> (value-string, original input).
@@ -39,8 +40,9 @@ Parsed in this stage (only short names):
 - A value argument, followed by \[a value-infix and\] the value sub-string.
 - A value argument, followed by the value string in the next input-OsString.
 
-Results of this stage are:
+Results of this stage are a `NonEmpty` (alternatives) of:
 
+- `Argumente<'_, T, F>` of the alternative taken.
 - A vector of early\_exit arguments, containing name, message & original input.
 - A vector of flag-arguments with their name (all are true) & the original input.
 - A map of value-arguments with name -> (value-string, original input).
@@ -58,8 +60,9 @@ Parsed in this stage (only long names):
 - A value argument, followed by \[a value-infix and\] the value sub-string.
 - A value argument, followed by the value string in the next input-OsString.
 
-Results of this stage are:
+Results of this stage are a `NonEmpty` (alternatives) of:
 
+- `Argumente<'_, T, F>` of the alternative taken.
 - A vector of early\_exit arguments, containing name, message & original input.
 - A vector of flag-arguments with their name, value (might be inverted) & the original input.
 - A map of value-arguments with name -> (value-string, original input).
@@ -69,16 +72,44 @@ Parsed arguments are then merged with the previous stage.
 
 ## Parse OsString for value arguments
 
+Execute for each alternative.
+
 Inputs:
 
+- `Argumente<'_, T, F>` of the alternative taken.
+- A vector of early\_exit arguments, containing name, message & original input.
+- A vector of flag-arguments with their name, value (might be inverted) & the original input.
 - A map of value-arguments with name -> (value-string, original input).
+- Remaining arguments with the parsed long names and associated value-strings removed.
 
 Stage responsibility:
 Value-strings are parsed according to the parse-value-function.
 The result is stored with as `dyn std::any::Any` and a `TypeId`,
 to allow holding them in the same map.
 
-Outputs: A map of value-arguments with name -> `(value: Box<dyn Any>, TypeId)`
+Outputs:
+
+- A map of value-arguments with name -> `(value: Box<dyn Any>, TypeId)`
+- Remaining arguments with the parsed long names and associated value-strings removed.
+
+## Pick alternative
+
+Inputs: `NonEmpty` (alternatives) of:
+
+- A vector of early\_exit arguments, containing name, message & original input.
+- A vector of flag-arguments with their name (all are true) & the original input.
+- A map of value-arguments with name -> (value: Any, TypeId)
+- Remaining arguments with the parsed arguments and associated value-strings removed.
+
+Stage responsibility:
+Pick the alternative without an error or return all errors
+
+Outputs:
+
+- A vector of early\_exit arguments, containing name, message & original input.
+- A vector of flag-arguments with their name (all are true) & the original input.
+- A map of value-arguments with name -> (value: Any, TypeId)
+- Remaining arguments with the parsed arguments and associated value-strings removed.
 
 ## Accumulate results
 

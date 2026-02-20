@@ -214,12 +214,12 @@ impl<T, F> EinzelArgument<'_, T, F> {
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'_> {
+    ) -> ParseMergedShortFormsResult<'_, T, F> {
         use EinzelArgument::{Flag, FrühesBeenden, Wert};
         match self {
-            Flag(flag) => flag.parse_merged_short_forms(args),
+            Flag(flag) => flag.parse_merged_short_forms::<F>(args),
             FrühesBeenden { frühes_beenden, wert: _, anzeige: _ } => {
-                frühes_beenden.parse_merged_short_forms(args)
+                frühes_beenden.parse_merged_short_forms::<T, F>(args)
             },
             Wert(wert) => wert.parse_merged_short_forms(args),
         }

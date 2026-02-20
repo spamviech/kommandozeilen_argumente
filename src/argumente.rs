@@ -246,7 +246,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
 }
 
 /// TODO
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParsedEarlyExit<'s> {
     /// TODO
     pub name: Cow<'s, str>,
@@ -256,7 +256,7 @@ pub struct ParsedEarlyExit<'s> {
     pub input: Cow<'s, str>,
 }
 /// TODO
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParsedShortFlag<'s> {
     /// TODO
     pub name: Cow<'s, str>,
@@ -264,13 +264,13 @@ pub struct ParsedShortFlag<'s> {
     pub input: Cow<'s, str>,
 }
 /// TODO
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParsedValueName<'s> {
     /// TODO
     pub name: Cow<'s, str>,
 }
 /// TODO
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParsedValue<'s> {
     /// TODO
     pub value: Cow<'s, str>,
@@ -279,8 +279,10 @@ pub struct ParsedValue<'s> {
 }
 
 /// TODO
-#[derive(Debug)]
-pub struct ParseMergedShortFormsResult<'s> {
+#[derive(Debug, Clone)]
+pub struct ParseMergedShortFormsResult<'s, T, F> {
+    /// Argument definition used to produce this parse result.
+    pub definition: &'s Argumente<'s, T, F>,
     /// A vector of early\_exit arguments, containing name, message & original input.
     pub early_exits: Vec<ParsedEarlyExit<'s>>,
     /// A vector of flag-arguments with their name (all are true) & the original input.
@@ -291,7 +293,11 @@ pub struct ParseMergedShortFormsResult<'s> {
     pub remaining: Vec<Option<OsString>>,
 }
 
-impl<T, F> Argumente<'_, T, F> {
+impl<T, F> Argumente<'_, T, F>
+where
+    T: Clone,
+    F: Clone,
+{
     /// Parse merged short form arguments.
     ///
     /// Rules to allow merging of short names:
@@ -301,33 +307,27 @@ impl<T, F> Argumente<'_, T, F> {
     /// - At most one value argument per block.
     ///   It must be the last argument name in the string, optionally followed by \[a value-infix and\] the value sub-string.
     /// - Merging of short names must be allowed for this particular argument.
+    ///
+    /// ## Panics
+    ///
+    /// On programmer error only.
     #[inline]
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'_> {
+    ) -> NonEmpty<ParseMergedShortFormsResult<'_, T, F>> {
         use Argumente::{Alternativen, EinzelArgument, Kombiniere};
         match self {
-            EinzelArgument(einzelargument) => einzelargument.parse_merged_short_forms(args),
+            EinzelArgument(einzelargument) => {
+                NonEmpty::singleton(einzelargument.parse_merged_short_forms(args))
+            },
             Kombiniere(kombiniere) => todo!(),
             Alternativen(non_empty) => {
                 let args = args.collect_vec();
-                let mut result = None;
-                for arg in non_empty.iter() {
-                    let ret = arg.parse_merged_short_forms(args.iter().cloned());
-                    let ParseMergedShortFormsResult { early_exits, flags, values, remaining: _ } =
-                        &ret;
-                    if !early_exits.is_empty() || !flags.is_empty() || !values.is_empty() {
-                        // TODO do I now need to commit to this alternative?
-                        result = Some(ret);
-                    }
-                }
-                result.unwrap_or_else(|| ParseMergedShortFormsResult {
-                    early_exits: Vec::new(),
-                    flags: Vec::new(),
-                    values: HashMap::new(),
-                    remaining: args.into_iter().map(Some).collect_vec(),
-                })
+
+                let nested =
+                    non_empty.iter().map(|arg| arg.parse_merged_short_forms(args.iter().cloned()));
+                NonEmpty::collect(nested.flatten()).expect("Iterator of NonEmpty<NonEmpty<_>>.")
             },
         }
     }

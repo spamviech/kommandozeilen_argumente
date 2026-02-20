@@ -97,10 +97,10 @@ impl FrühesBeenden<'_> {
     ///   It must be the last argument name in the string, optionally followed by \[a value-infix and\] the value sub-string.
     /// - Merging of short names must be allowed for this particular argument.
     #[inline]
-    pub fn parse_merged_short_forms(
+    pub fn parse_merged_short_forms<T, F>(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'_> {
+    ) -> ParseMergedShortFormsResult<'_, T, F> {
         let FrühesBeenden { beschreibung, nachricht } = self;
         todo!();
     }

@@ -402,7 +402,7 @@ impl<T, F> Wert<'_, T, F> {
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'_> {
+    ) -> ParseMergedShortFormsResult<'_, T, F> {
         let Wert {
             beschreibung,
             wert_infix,
