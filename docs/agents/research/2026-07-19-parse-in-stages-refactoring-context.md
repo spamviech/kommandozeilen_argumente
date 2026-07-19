@@ -41,7 +41,7 @@ that stage relies on is still an unimplemented `todo!()` stub, and the higher-le
 logic (`Kombiniere` for tuples, used by the `kombiniere!`/`combine!` macros and the derive macro)
 has its actual parsing logic commented out, leaving only the help-text generation working.
 
-```
+```text
 src/
 ├── lib.rs                     — public re-exports (Argumente, Ergebnis, Beschreibung, Parse, ...)
 ├── parse.rs                   — ParseArgument/Parse traits: how to build an Argumente<T,F> per Rust type
@@ -102,12 +102,14 @@ Describes six stages (see Summary). Key structural decisions baked into the desi
 ### Core data model: `Argumente<'t, T, Fehler>` (`src/argumente.rs:58`)
 
 Three variants:
+
 - `EinzelArgument(EinzelArgument<'t, T, Fehler>)` — a single argument (flag/value/early-exit)
 - `Kombiniere(Box<dyn Kombiniere<'t, T, Fehler>>)` — combination of multiple `Argumente` via a
   user function (built by the `kombiniere!`/`combine!` macros, or the derive macro)
 - `Alternativen(Box<NonEmpty<Self>>)` — take the first alternative that doesn't error
 
 `EinzelArgument<'t, T, Fehler>` (`src/argumente/einzelargument.rs:26`) is itself:
+
 - `Flag(Flag<'t, T>)`
 - `FrühesBeenden { frühes_beenden, wert, anzeige }`
 - `Wert(Wert<'t, T, Fehler>)`
@@ -121,6 +123,7 @@ for the new `Argumente` enum design — the whole rewrite (of which staged-parsi
 plan) has been in progress across multiple prior sessions.
 
 New scaffolding added on this branch, all still `todo!()`:
+
 - `Flag::parse_merged_short_forms` (`src/argumente/flag.rs:186-192`)
 - `Wert::parse_merged_short_forms` (`src/argumente/wert.rs:401-416`)
 - `FrühesBeenden::parse_merged_short_forms` (`src/argumente/frühes_beenden.rs:100-106`)
@@ -149,6 +152,7 @@ map, remaining `Vec<Option<OsString>>`). All fields are currently documented onl
 
 `src/beschreibung.rs` contains the actual low-level string/name matching that stage 1 and 2 build
 on:
+
 - `Name::parse_flag` / `parse_flag_aux` — non-merged flag matching (already working, pre-dates this
   branch)
 - `Name::parse_merged_short_name` (`beschreibung.rs:97`) and
@@ -163,6 +167,7 @@ on:
   `AdjustedMergedShortNames`)
 
 `src/ergebnis.rs` defines the intermediate/final result plumbing:
+
 - `Ergebnis<'t, T, E>` (final: `Wert`/`FrühesBeenden`/`Fehler`) vs.
   `ZwischenErgebnis<'t, T, E, A>` (adds an `Incomplete(A)` variant for "an intermediate stage
   couldn't produce an unambiguous result yet")
