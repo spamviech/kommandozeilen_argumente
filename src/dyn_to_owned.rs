@@ -32,4 +32,4 @@ macro_rules! erstelle_dyn_to_owned {
 
 erstelle_dyn_to_owned!(Bool<'t, T>, Fn(bool) -> T);
 erstelle_dyn_to_owned!(Parse<'t, T, Fehler>, Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>);
-erstelle_dyn_to_owned!(Anzeige<'t, T>, Fn(&T) -> String);
+erstelle_dyn_to_owned!(Show<'t, T>, Fn(&T) -> String);

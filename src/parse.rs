@@ -21,7 +21,7 @@ use crate::{
         Argumente,
     },
     beschreibung::{ArgumentInput, Beschreibung, Description},
-    dyn_to_owned::{self, Anzeige, Bool},
+    dyn_to_owned::{self, Bool, Show},
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
     sprache::{Language, Sprache},
     unicode::Vergleich,
@@ -233,10 +233,10 @@ impl<'t, T, Fehler, F: FnOnce(Ergebnis<'t, T, Fehler>) -> Ergebnis<'t, T, Fehler
     }
 }
 
-/// Erstelle die [`Anzeige`]-closure für [`Option<T>`] als trait-Objekt.
+/// Erstelle die [`Show`]-closure für [`Option<T>`] als trait-Objekt.
 fn erstelle_boxed_option_anzeige<'t, T>(
-    anzeige: Cow<'t, dyn Anzeige<'t, T>>,
-) -> Box<dyn 't + Anzeige<'t, Option<T>>> {
+    anzeige: Cow<'t, dyn Show<'t, T>>,
+) -> Box<dyn 't + Show<'t, Option<T>>> {
     Box::new(move |opt: &Option<T>| {
         #[allow(clippy::min_ident_chars)]
         if let Some(t) = opt {

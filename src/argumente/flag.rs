@@ -12,7 +12,7 @@ use nonempty::NonEmpty;
 use crate::{
     argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
     beschreibung::{ArgumentInput, Beschreibung, Description, Name},
-    dyn_to_owned::{Anzeige, Bool},
+    dyn_to_owned::{Bool, Show},
     ergebnis::{Ergebnis, Fehler, SingeArgResult, ZwischenErgebnis},
     sprache::{Language, Sprache},
     unicode::Vergleich,
@@ -52,7 +52,7 @@ pub struct Flag<'t, T> {
     ///
     /// ## English
     /// Display a value (default value).
-    pub anzeige: Cow<'t, dyn Anzeige<'t, T>>,
+    pub anzeige: Cow<'t, dyn Show<'t, T>>,
 }
 
 impl<T: Debug> Debug for Flag<'_, T> {

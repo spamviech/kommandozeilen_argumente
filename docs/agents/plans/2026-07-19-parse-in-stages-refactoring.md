@@ -276,19 +276,19 @@ No dependencies on other sub-phases; these are leaf modules everything else buil
 
 **Tasks**:
 
-- [ ] Rename `src/unicode.rs` types: make `Normalized<'t>`/`Compare<'t>` the primary structs
+- [x] Rename `src/unicode.rs` types: make `Normalized<'t>`/`Compare<'t>` the primary structs
   (all methods/impls: `new`, `as_str`, `eq_with_case`, `cow_ref`, `cow`, `into_owned`,
   `strip_as_prefix`/`strip_as_prefix_n` renamed from `strip_als_präfix`/`strip_als_präfix_n`).
   Add `Normalisiert<'t>`/`Vergleich<'t>` as mirror structs (same shape, German method names
   `neu`, `eq_mit_case`, ...) with `impl From<Normalized<'_>> for Normalisiert<'_>` and back
   (same for `Compare`/`Vergleich`, recursing through `Normalized`↔`Normalisiert`). `Case` enum
   is unchanged (already English-only).
-- [ ] Rename `src/dyn_to_owned.rs`'s `Anzeige<'t,T>` trait to `Show<'t,T>` (plain rename, no
+- [x] Rename `src/dyn_to_owned.rs`'s `Anzeige<'t,T>` trait to `Show<'t,T>` (plain rename, no
   mirror); update its one macro invocation line and all call sites crate-wide.
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
 
 ---
 

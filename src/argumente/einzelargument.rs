@@ -14,7 +14,7 @@ use crate::{
         ParseMergedShortFormsResult,
     },
     beschreibung::ArgumentInput,
-    dyn_to_owned::Anzeige,
+    dyn_to_owned::Show,
     ergebnis::{Ergebnis, SingeArgResult, ZwischenErgebnis},
 };
 
@@ -49,7 +49,7 @@ pub enum EinzelArgument<'t, T, Fehler> {
         ///
         /// ## English
         /// Display a value (default value).
-        anzeige: Cow<'t, dyn Anzeige<'t, T>>,
+        anzeige: Cow<'t, dyn Show<'t, T>>,
     },
 
     /// Es handelt sich um ein Wert-Argument.

@@ -13,7 +13,7 @@ use nonempty::NonEmpty;
 use crate::{
     argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
     beschreibung::{AdjustedMergedShortNames, ArgumentInput, Beschreibung, Description, Name},
-    dyn_to_owned::{Anzeige, Parse},
+    dyn_to_owned::{Parse, Show},
     ergebnis::{
         Ergebnis, Fehler, KommentierterParseFehler, ParseFehler, SingeArgResult, ZwischenErgebnis,
     },
@@ -110,13 +110,13 @@ pub struct Wert<'t, T, Fehler> {
     ///
     /// ## English
     /// Display a value (default/possible values).
-    pub anzeige: Cow<'t, dyn Anzeige<'t, T>>,
+    pub anzeige: Cow<'t, dyn Show<'t, T>>,
 
     /// Anzeige eines Fehlers.
     ///
     /// ## English
     /// Display an error.
-    pub anzeige_fehler: Cow<'t, dyn Anzeige<'t, Fehler>>,
+    pub anzeige_fehler: Cow<'t, dyn Show<'t, Fehler>>,
 }
 
 /// It is a value argument.
@@ -260,7 +260,7 @@ impl<'t, T: Display + EnumArgument> Value<'t, T, String> {
 /// Hilfsfunktion für [`Argumente::parse`]
 fn zeige_elemente<'t, T: 't>(
     string: &mut String,
-    #[allow(clippy::ptr_arg)] anzeige: &Cow<'_, dyn Anzeige<'_, T>>,
+    #[allow(clippy::ptr_arg)] anzeige: &Cow<'_, dyn Show<'_, T>>,
     elemente: impl IntoIterator<Item = &'t T>,
 ) {
     let mut erstes = true;

@@ -126,7 +126,7 @@ impl<'t, T, Fehler, Anzeige: 't + Fn(&T) -> String + Clone> From<(FrühesBeenden
 {
     #[inline]
     fn from((frühes_beenden, wert, anzeige): (FrühesBeenden<'t>, T, Anzeige)) -> Self {
-        let anzeige_boxed: Box<dyn 't + dyn_to_owned::Anzeige<'t, T>> = Box::new(anzeige);
+        let anzeige_boxed: Box<dyn 't + dyn_to_owned::Show<'t, T>> = Box::new(anzeige);
         Argumente::EinzelArgument(EinzelArgument::FrühesBeenden {
             frühes_beenden,
             wert,

@@ -5,6 +5,113 @@ use std::{borrow::Cow, convert::AsRef};
 use unicode_normalization::{is_nfc_quick, IsNormalized, UnicodeNormalization};
 use unicode_segmentation::UnicodeSegmentation;
 
+/// A normalized unicode string.
+///
+/// The String is in
+/// [`Unicode Normalization Form C`](https://docs.rs/unicode-normalization/latest/unicode_normalization/trait.UnicodeNormalization.html#tymethod.nfc),
+/// with standardized variation sequences.
+///
+/// ## Deutsches Synonym
+/// [`Normalisiert`]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[allow(single_use_lifetimes)]
+pub struct Normalized<'t>(Cow<'t, str>);
+
+impl AsRef<str> for Normalized<'_> {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl<'t, S: Into<Cow<'t, str>>> From<S> for Normalized<'t> {
+    #[inline]
+    fn from(input: S) -> Self {
+        Normalized::new(input)
+    }
+}
+
+impl Normalized<'_> {
+    /// Convert the [`Normalized`] into an owned version with `'static` lifetime,
+    /// cloning the contents if required.
+    #[must_use]
+    #[inline]
+    pub fn into_owned(self) -> Normalized<'static> {
+        Normalized(Cow::Owned(self.0.into_owned()))
+    }
+}
+
+impl<'t> Normalized<'t> {
+    /// Normalize a unicode string, unless it is already normalized ([`is_nfc_quick`]),
+    /// or contains certain cjk characters.
+    ///
+    /// First, cjk characters are normalized with
+    /// [`cjk_compat_variants`](UnicodeNormalization::cjk_compat_variants).
+    /// Afterwards, the string is transformed into
+    /// [`Unicode Normalization Form C`](https://docs.rs/unicode-normalization/latest/unicode_normalization/trait.UnicodeNormalization.html#tymethod.nfc)
+    /// using [`nfc`](UnicodeNormalization::nfc).
+    ///
+    /// ## Deutsches Synonym
+    /// [`neu`](Normalisiert::neu)
+    #[inline]
+    #[must_use]
+    pub fn new(string: impl Into<Cow<'t, str>>) -> Normalized<'t> {
+        let cow = string.into();
+        let normalized = match is_nfc_quick(cow.chars()) {
+            IsNormalized::Yes if !cow.chars().eq(cow.cjk_compat_variants()) => cow,
+            IsNormalized::Yes | IsNormalized::No | IsNormalized::Maybe => {
+                Cow::Owned(cow.cjk_compat_variants().nfc().collect())
+            },
+        };
+        Normalized(normalized)
+    }
+
+    /// Extracts a string slice containing the normalized unicode string.
+    ///
+    /// ## Deutsches Synonym
+    /// [`as_str`](Normalisiert::as_str)
+    #[inline]
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
+
+    /// Check whether two Strings are identical after unicode normalization,
+    /// optionally in a [`case-insensitive way`](unicase::eq).
+    ///
+    /// ## Deutsches Synonym
+    /// [`eq_mit_case`](Normalisiert::eq_mit_case)
+    #[inline]
+    #[must_use]
+    pub fn eq_with_case(&self, string: &str, case_sensitive: Case) -> bool {
+        let normalized = Normalized::new(string);
+        match case_sensitive {
+            Case::Sensitive => *self == normalized,
+            Case::Insensitive => unicase::eq(self, &normalized),
+        }
+    }
+
+    /// Extracts a reference of the [`Cow`] containing the normalized unicode string.
+    ///
+    /// ## Deutsches Synonym
+    /// [`cow_ref`](Normalisiert::cow_ref)
+    #[inline]
+    #[must_use]
+    pub fn cow_ref(&self) -> &Cow<'t, str> {
+        &self.0
+    }
+
+    /// Extracts the [`Cow`] containing the normalized unicode string.
+    ///
+    /// ## Deutsches Synonym
+    /// [`cow`](Normalisiert::cow)
+    #[inline]
+    #[must_use]
+    pub fn cow(self) -> Cow<'t, str> {
+        self.0
+    }
+}
+
 /// Ein normalisierter Unicode String.
 ///
 /// Der String ist in
@@ -41,16 +148,6 @@ impl Normalisiert<'_> {
     }
 }
 
-/// A normalized unicode string.
-///
-/// The String is in
-/// [`Unicode Normalization Form C`](https://docs.rs/unicode-normalization/latest/unicode_normalization/trait.UnicodeNormalization.html#tymethod.nfc),
-/// with standardized variation sequences.
-///
-/// ## Deutsches Synonym
-/// [`Normalisiert`]
-pub type Normalized<'t> = Normalisiert<'t>;
-
 impl<'t> Normalisiert<'t> {
     /// Normalisiere einen Unicode-String, sofern er nicht bereits normalisiert ist
     /// ([`is_nfc_quick`]) oder bestimmte cjk-Zeichen enthalten sind.
@@ -65,37 +162,13 @@ impl<'t> Normalisiert<'t> {
     #[inline]
     #[must_use]
     pub fn neu(string: impl Into<Cow<'t, str>>) -> Normalisiert<'t> {
-        let cow = string.into();
-        let normalisiert = match is_nfc_quick(cow.chars()) {
-            IsNormalized::Yes if !cow.chars().eq(cow.cjk_compat_variants()) => cow,
-            IsNormalized::Yes | IsNormalized::No | IsNormalized::Maybe => {
-                Cow::Owned(cow.cjk_compat_variants().nfc().collect())
-            },
-        };
-        Normalisiert(normalisiert)
-    }
-
-    /// Normalize a unicode string, unless it is already normalized ([`is_nfc_quick`]),
-    /// or contains certain cjk characters.
-    ///
-    /// First, cjk characters are normalized with
-    /// [`cjk_compat_variants`](UnicodeNormalization::cjk_compat_variants).
-    /// Afterwards, the string is transformed into
-    /// [`Unicode Normalization Form C`](https://docs.rs/unicode-normalization/latest/unicode_normalization/trait.UnicodeNormalization.html#tymethod.nfc)
-    /// using [`nfc`](UnicodeNormalization::nfc).
-    ///
-    /// ## Deutsches Synonym
-    /// [`neu`](Normalisiert::neu)
-    #[inline]
-    #[must_use]
-    pub fn new(string: impl Into<Cow<'t, str>>) -> Normalized<'t> {
-        Normalisiert::neu(string)
+        Normalized::new(string).into()
     }
 
     /// Erhalte den String slice, der den normalisierten Unicode String enthält.
     ///
     /// ## English
-    /// Extracts a string slice containing the normalized unicode string.
+    /// [`as_str`](Normalized::as_str)
     #[inline]
     #[must_use]
     pub fn as_str(&self) -> &str {
@@ -106,7 +179,7 @@ impl<'t> Normalisiert<'t> {
     /// optional [`ohne Groß-/Kleinschreibung zu beachten`](unicase::eq).
     ///
     /// ## English
-    /// [`eq_with_case`](Self::eq_with_case)
+    /// [`eq_with_case`](Normalized::eq_with_case)
     #[inline]
     #[must_use]
     pub fn eq_mit_case(&self, string: &str, case_sensitive: Case) -> bool {
@@ -117,21 +190,10 @@ impl<'t> Normalisiert<'t> {
         }
     }
 
-    /// Check whether two Strings are identical after unicode normalization,
-    /// optionally in a [`case-insensitive way`](unicase::eq).
-    ///
-    /// ## Deutsches Synonym
-    /// [`eq_mit_case`](Self::eq_mit_case)
-    #[inline]
-    #[must_use]
-    pub fn eq_with_case(&self, string: &str, case_sensitive: Case) -> bool {
-        self.eq_mit_case(string, case_sensitive)
-    }
-
     /// Erhalte eine Referenz auf den [`Cow`], der den normalisierten Unicode String enthält.
     ///
     /// ## English
-    /// Extracts a reference of the [`Cow`] containing the normalized unicode string.
+    /// [`cow_ref`](Normalized::cow_ref)
     #[inline]
     #[must_use]
     pub fn cow_ref(&self) -> &Cow<'t, str> {
@@ -141,11 +203,25 @@ impl<'t> Normalisiert<'t> {
     /// Erhalte den [`Cow`], der den normalisierten Unicode String enthält.
     ///
     /// ## English
-    /// Extracts the [`Cow`] containing the normalized unicode string.
+    /// [`cow`](Normalized::cow)
     #[inline]
     #[must_use]
     pub fn cow(self) -> Cow<'t, str> {
         self.0
+    }
+}
+
+impl<'t> From<Normalized<'t>> for Normalisiert<'t> {
+    #[inline]
+    fn from(input: Normalized<'t>) -> Self {
+        Normalisiert(input.0)
+    }
+}
+
+impl<'t> From<Normalisiert<'t>> for Normalized<'t> {
+    #[inline]
+    fn from(input: Normalisiert<'t>) -> Self {
+        Normalized(input.0)
     }
 }
 
@@ -186,6 +262,134 @@ impl From<Case> for bool {
     }
 }
 
+/// Normalized unicode string, as well as if it should be compared in a case-(in)sensitive way.
+///
+/// ## Deutsches Synonym
+/// [`Vergleich`]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[allow(single_use_lifetimes)]
+pub struct Compare<'t> {
+    /// The string to compare to.
+    ///
+    /// ## Deutsches Synonym
+    /// [`string`](Vergleich::string)
+    pub string: Normalized<'t>,
+
+    /// Is the comparison case-(in)sensitive?
+    ///
+    /// ## Deutsches Synonym
+    /// [`case`](Vergleich::case)
+    pub case: Case,
+}
+
+/// Erzeuge [`From`]-Implementierung für `$type` und `($type, Case)`.
+macro_rules! impl_compare_from {
+    ($type: ty) => {
+        #[allow(single_use_lifetimes)]
+        impl<'t> From<$type> for Compare<'t> {
+            #[inline]
+            fn from(input: $type) -> Self {
+                Compare { string: Normalized::new(input), case: Case::Sensitive }
+            }
+        }
+
+        #[allow(single_use_lifetimes)]
+        impl<'t> From<($type, Case)> for Compare<'t> {
+            #[inline]
+            fn from((string, case): ($type, Case)) -> Self {
+                Compare { string: Normalized::new(string), case }
+            }
+        }
+    };
+}
+
+impl_compare_from! {String}
+impl_compare_from! {&'t str}
+
+impl<'t> From<Normalized<'t>> for Compare<'t> {
+    #[inline]
+    fn from(input: Normalized<'t>) -> Self {
+        Compare { string: input, case: Case::Sensitive }
+    }
+}
+
+impl<'t> From<(Normalized<'t>, Case)> for Compare<'t> {
+    #[inline]
+    fn from((string, case): (Normalized<'t>, Case)) -> Self {
+        Compare { string, case }
+    }
+}
+
+impl AsRef<str> for Compare<'_> {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl PartialEq<str> for Compare<'_> {
+    /// Check whether two Strings are identical after unicode normalization,
+    /// optionally in a [`case-insensitive way`](unicase::eq).
+    #[inline]
+    fn eq(&self, gesucht: &str) -> bool {
+        let Compare { string, case } = self;
+        string.eq_with_case(gesucht, *case)
+    }
+}
+
+impl Compare<'_> {
+    /// Extracts a string slice containing the normalized unicode string.
+    ///
+    /// ## Deutsches Synonym
+    /// [`as_str`](Vergleich::as_str)
+    #[inline]
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        self.string.as_ref()
+    }
+
+    /// Versuche einen String vom Anfang des anderen Strings zu entfernen.
+    pub(crate) fn strip_as_prefix<'t>(
+        &self,
+        string: &'t Normalized<'t>,
+    ) -> Option<(&'t str, &'t str)> {
+        let string_str = string.as_ref();
+        let string_länge = string_str.len();
+        let mut graphemes_indices = string_str.grapheme_indices(true);
+        let mut präfixe = vec![(string_str, string_länge)];
+        while let Some((ix, _str)) = graphemes_indices.next_back() {
+            präfixe.push((graphemes_indices.as_str(), ix));
+        }
+        präfixe.iter().rev().find(|(präfix, _ix)| self.eq(*präfix)).map(|(_präfix, ix)| {
+            // Index von [`graphemes_indices`] ist valide.
+            #[allow(clippy::string_slice, clippy::indexing_slicing)]
+            (&string_str[0..*ix], &string_str[*ix..string_länge])
+        })
+    }
+
+    /// Versuche einen String vom Anfang des anderen Strings zu entfernen.
+    pub(crate) fn strip_as_prefix_n<'t>(
+        &self,
+        string: &'t Normalized<'t>,
+    ) -> Option<(Normalized<'t>, Normalized<'t>)> {
+        let string_str = string.as_ref();
+        let string_länge = string_str.len();
+        let mut graphemes_indices = string_str.grapheme_indices(true);
+        let mut präfixe = vec![(string_str, string_länge)];
+        while let Some((ix, _str)) = graphemes_indices.next_back() {
+            präfixe.push((graphemes_indices.as_str(), ix));
+        }
+        präfixe.iter().rev().find(|(präfix, _ix)| self.eq(*präfix)).map(|(_präfix, ix)| {
+            // Index von [`graphemes_indices`] ist valide.
+            #[allow(clippy::string_slice, clippy::indexing_slicing)]
+            (
+                Normalized(Cow::Borrowed(&string_str[0..*ix])),
+                Normalized(Cow::Borrowed(&string_str[*ix..string_länge])),
+            )
+        })
+    }
+}
+
 /// Normalisierter Unicode-String, sowie ob dieser unter berücksichtigen von
 /// Groß-/Kleinschreibung verglichen werden soll.
 ///
@@ -197,13 +401,13 @@ pub struct Vergleich<'t> {
     /// Der zu vergleichende String.
     ///
     /// ## English
-    /// The string to compare to.
+    /// [`string`](Compare::string)
     pub string: Normalisiert<'t>,
 
     /// Soll der String unter Berücksichtigung von Groß-/Kleinschreibung verglichen werden.
     ///
     /// ## English
-    /// Is the comparison case-(in)sensitive?
+    /// [`case`](Compare::case)
     pub case: Case,
 }
 
@@ -251,12 +455,6 @@ impl AsRef<str> for Vergleich<'_> {
         self.as_str()
     }
 }
-
-/// Normalized unicode string, as well as if it should be compared in a case-(in)sensitive way.
-///
-/// ## Deutsches Synonym
-/// [`Vergleich`]
-pub type Compare<'t> = Vergleich<'t>;
 
 impl PartialEq<str> for Vergleich<'_> {
     /// Überprüfe ob zwei Strings nach Unicode Normalisierung identisch sind,
@@ -322,5 +520,19 @@ impl Vergleich<'_> {
                 Normalisiert(Cow::Borrowed(&string_str[*ix..string_länge])),
             )
         })
+    }
+}
+
+impl<'t> From<Compare<'t>> for Vergleich<'t> {
+    #[inline]
+    fn from(input: Compare<'t>) -> Self {
+        Vergleich { string: input.string.into(), case: input.case }
+    }
+}
+
+impl<'t> From<Vergleich<'t>> for Compare<'t> {
+    #[inline]
+    fn from(input: Vergleich<'t>) -> Self {
+        Compare { string: input.string.into(), case: input.case }
     }
 }
