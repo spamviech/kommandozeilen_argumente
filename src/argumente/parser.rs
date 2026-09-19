@@ -2,7 +2,7 @@
 
 use std::fmt::{self, Debug};
 
-use crate::{beschreibung::ArgumentInput, ergebnis::Ergebnis};
+use crate::{description::ArgumentInput, ergebnis::Ergebnis};
 
 /// Noch nicht verwendete Argumente.
 type ArgumentList = Vec<Option<ArgumentInput>>;

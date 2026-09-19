@@ -10,7 +10,7 @@ use void::Void;
 
 use crate::{
     argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
-    beschreibung::{ArgumentInput, Beschreibung, Description, Name},
+    description::{ArgumentInput, Beschreibung, Description, Name},
     ergebnis::{Ergebnis, SingeArgResult, ZwischenErgebnis},
 };
 
@@ -57,7 +57,7 @@ impl<'t> FrühesBeenden<'t> {
     /// [`neu`](FrühesBeenden::neu)
     #[inline]
     pub fn new(description: Description<'t, Void>, message: impl Into<Cow<'t, str>>) -> Self {
-        FrühesBeenden::neu(description, message)
+        FrühesBeenden::neu(description.into(), message)
     }
 
     /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
@@ -68,15 +68,15 @@ impl<'t> FrühesBeenden<'t> {
     pub fn erzeuge_hilfe_text(&self) -> Hilfe {
         let FrühesBeenden { beschreibung, nachricht: _ } = self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
-        let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
+        let Name { long_prefix, long, short_prefix, short } = name;
         let mut syntax = String::new();
-        syntax.push_str(lang_präfix.as_str());
-        let NonEmpty { head, tail } = lang;
-        Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut syntax);
-        if let Some((kurz_head, kurz_tail)) = kurz.split_first() {
+        syntax.push_str(long_prefix.as_str());
+        let NonEmpty { head, tail } = long;
+        Name::alternatives_as_regex(head, tail.as_slice(), &mut syntax);
+        if let Some((kurz_head, kurz_tail)) = short.split_first() {
             syntax.push_str(" | ");
-            syntax.push_str(kurz_präfix.as_str());
-            Name::möglichkeiten_als_regex(kurz_head, kurz_tail, &mut syntax);
+            syntax.push_str(short_prefix.as_str());
+            Name::alternatives_as_regex(kurz_head, kurz_tail, &mut syntax);
         }
         if let Some(void) = standard {
             void::unreachable(*void)

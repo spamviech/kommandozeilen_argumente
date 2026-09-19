@@ -12,7 +12,7 @@ use nonempty::NonEmpty;
 
 use crate::{
     argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
-    beschreibung::{AdjustedMergedShortNames, ArgumentInput, Beschreibung, Description, Name},
+    description::{AdjustedMergedShortNames, ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Parse, Show},
     ergebnis::{
         Ergebnis, Fehler, KommentierterParseFehler, ParseFehler, SingeArgResult, ZwischenErgebnis,
@@ -192,7 +192,7 @@ where
     /// [`neu`](Wert::neu)
     #[inline]
     pub fn new(description: Description<'t, T>, possible_values: Option<NonEmpty<T>>) -> Self {
-        Wert::new_with_language(description, possible_values, Language::ENGLISH)
+        Wert::new_with_language(description.into(), possible_values, Language::ENGLISH)
     }
 
     /// Create a value-argument, based on the [`FromStr`]-implementation.
@@ -205,7 +205,7 @@ where
         possible_values: Option<NonEmpty<T>>,
         language: Language,
     ) -> Self {
-        Wert::neu_mit_sprache(description, possible_values, language.into())
+        Wert::neu_mit_sprache(description.into(), possible_values, language.into())
     }
 }
 
@@ -244,7 +244,7 @@ impl<'t, T: Display + EnumArgument> Value<'t, T, String> {
     /// [`neu_enum`](Wert::neu_enum)
     #[inline]
     pub fn new_enum(description: Description<'t, T>) -> Self {
-        Wert::new_enum_with_language(description, Language::ENGLISH)
+        Wert::new_enum_with_language(description.into(), Language::ENGLISH)
     }
 
     /// Create a value-argument, based on the [`EnumArgument`]-implementation.
@@ -253,7 +253,7 @@ impl<'t, T: Display + EnumArgument> Value<'t, T, String> {
     /// [`neu_enum_mit_sprache`](Wert::neu_enum_mit_sprache)
     #[inline]
     pub fn new_enum_with_language(description: Description<'t, T>, language: Language) -> Self {
-        Wert::neu_enum_mit_sprache(description, language.into())
+        Wert::neu_enum_mit_sprache(description.into(), language.into())
     }
 }
 
@@ -291,19 +291,19 @@ impl<'t, T, F> Wert<'t, T, F> {
             anzeige_fehler: _,
         } = self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
-        let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
+        let Name { long_prefix, long, short_prefix, short } = name;
         let mut syntax = String::new();
-        syntax.push_str(lang_präfix.as_str());
-        let NonEmpty { head, tail } = lang;
-        Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut syntax);
+        syntax.push_str(long_prefix.as_str());
+        let NonEmpty { head, tail } = long;
+        Name::alternatives_as_regex(head, tail.as_slice(), &mut syntax);
         syntax.push_str("( |");
         syntax.push_str(wert_infix.as_str());
         syntax.push(')');
         syntax.push_str(meta_var);
-        if let Some((kurz_head, kurz_tail)) = kurz.split_first() {
+        if let Some((kurz_head, kurz_tail)) = short.split_first() {
             syntax.push_str(" | ");
-            syntax.push_str(kurz_präfix.as_str());
-            Name::möglichkeiten_als_regex(kurz_head, kurz_tail, &mut syntax);
+            syntax.push_str(short_prefix.as_str());
+            Name::alternatives_as_regex(kurz_head, kurz_tail, &mut syntax);
             syntax.push_str("[ |");
             syntax.push_str(wert_infix.as_str());
             syntax.push(']');

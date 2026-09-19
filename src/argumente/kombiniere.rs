@@ -15,7 +15,7 @@ use crate::{
         hilfe::{self, ErzeugeHilfeText},
         Argumente,
     },
-    beschreibung::{ArgumentInput, ArgumentInputRef},
+    description::{ArgumentInput, ArgumentInputRef},
     ergebnis::{Ergebnis, ZwischenErgebnis},
 };
 

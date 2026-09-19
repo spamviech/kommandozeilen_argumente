@@ -25,7 +25,7 @@ use crate::{
         kombiniere::Kombiniere,
         wert::Wert,
     },
-    beschreibung::{ArgumentInput, Beschreibung},
+    description::{ArgumentInput, Beschreibung},
     dyn_to_owned,
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
     language::{Language, Sprache},
@@ -1271,8 +1271,8 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     ) -> Self {
         self.mit_hilfe_und_version_frühes_beenden(
             variant,
-            version_description,
-            help_description,
+            version_description.into(),
+            help_description.into(),
             program_name,
             program_description,
             program_version,

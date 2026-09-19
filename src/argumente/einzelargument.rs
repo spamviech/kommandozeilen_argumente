@@ -13,7 +13,7 @@ use crate::{
         flag::Flag, frühes_beenden::FrühesBeenden, hilfe::Hilfe, wert::Wert,
         ParseMergedShortFormsResult,
     },
-    beschreibung::ArgumentInput,
+    description::ArgumentInput,
     dyn_to_owned::Show,
     ergebnis::{Ergebnis, SingeArgResult, ZwischenErgebnis},
 };

@@ -20,7 +20,7 @@ use crate::{
         wert::{EnumArgument, Wert},
         Argumente,
     },
-    beschreibung::{ArgumentInput, Beschreibung, Description},
+    description::{ArgumentInput, Beschreibung, Description},
     dyn_to_owned::{self, Bool, Show},
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
     language::{Language, Sprache},
@@ -91,7 +91,7 @@ pub trait ParseArgument: Sized {
         description: Description<'t, Self>,
         language: Language,
     ) -> Argumente<'t, Self, String> {
-        Self::argumente_mit_sprache(description, language.into())
+        Self::argumente_mit_sprache(description.into(), language.into())
     }
 
     /// Erstelle ein [Argumente] für die übergebene [`Beschreibung`].
@@ -272,14 +272,14 @@ fn erstelle_ergebnis_anpassen<'t, T: Clone>(
 
 /// Erstelle die [`Beschreibung`] für den Aufruf von [`ParseArgument::argumente`] bei einer [`Option<T>`].
 fn erstelle_beschreibung<'t, T>(beschreibung: &Beschreibung<'t, Option<T>>) -> Beschreibung<'t, T> {
-    let name_lang_präfix = beschreibung.name.lang_präfix.clone();
-    let name_lang = beschreibung.name.lang.clone();
-    let name_kurz_präfix = beschreibung.name.kurz_präfix.clone();
-    let name_kurz = beschreibung.name.kurz.clone();
+    let name_long_prefix = beschreibung.name.long_prefix.clone();
+    let name_lang = beschreibung.name.long.clone();
+    let name_short_prefix = beschreibung.name.short_prefix.clone();
+    let name_kurz = beschreibung.name.short.clone();
     Beschreibung::neu(
-        name_lang_präfix,
+        name_long_prefix,
         name_lang.clone(),
-        name_kurz_präfix,
+        name_short_prefix,
         name_kurz.clone(),
         None::<&str>,
         None,

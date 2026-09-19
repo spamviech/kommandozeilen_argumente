@@ -28,7 +28,7 @@ macro_rules! crate_version {
 }
 
 pub mod argumente;
-pub mod beschreibung;
+pub mod description;
 pub mod dyn_to_owned;
 pub mod ergebnis;
 pub mod language;
@@ -44,7 +44,7 @@ pub use self::{
         wert::{EnumArgument, Value, Wert},
         Argumente, Arguments,
     },
-    beschreibung::{ArgumentInput, Beschreibung, Description},
+    description::{ArgumentInput, Beschreibung, Description},
     ergebnis::{Ergebnis, Error, Fehler, ParseError, ParseFehler, Result},
     language::{Language, Sprache},
     parse::{Parse, ParseArgument},

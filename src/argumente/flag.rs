@@ -11,7 +11,7 @@ use nonempty::NonEmpty;
 
 use crate::{
     argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
-    beschreibung::{ArgumentInput, Beschreibung, Description, Name},
+    description::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Bool, Show},
     ergebnis::{Ergebnis, Fehler, SingeArgResult, ZwischenErgebnis},
     language::{Language, Sprache},
@@ -109,7 +109,7 @@ impl<'t> Flag<'t, bool> {
     /// [`neu_mit_sprache`](Flag::neu_mit_sprache)
     #[inline]
     pub fn new_with_language(description: Description<'t, bool>, language: Language) -> Self {
-        Flag::neu_mit_sprache(description, language.into())
+        Flag::neu_mit_sprache(description.into(), language.into())
     }
 }
 
@@ -123,19 +123,19 @@ impl<'t, T> Flag<'t, T> {
         let Flag { beschreibung, invertiere_präfix, invertiere_infix, konvertiere: _, anzeige } =
             self;
         let Beschreibung { name, hilfe, standard } = beschreibung;
-        let Name { lang_präfix, lang, kurz_präfix, kurz } = name;
+        let Name { long_prefix, long, short_prefix, short } = name;
         let mut syntax = String::new();
-        syntax.push_str(lang_präfix.as_str());
+        syntax.push_str(long_prefix.as_str());
         syntax.push('[');
         syntax.push_str(invertiere_präfix.as_str());
         syntax.push_str(invertiere_infix.as_str());
         syntax.push(']');
-        let NonEmpty { head, tail } = lang;
-        Name::möglichkeiten_als_regex(head, tail.as_slice(), &mut syntax);
-        if let Some((kurz_head, kurz_tail)) = kurz.split_first() {
+        let NonEmpty { head, tail } = long;
+        Name::alternatives_as_regex(head, tail.as_slice(), &mut syntax);
+        if let Some((kurz_head, kurz_tail)) = short.split_first() {
             syntax.push_str(" | ");
-            syntax.push_str(kurz_präfix.as_str());
-            Name::möglichkeiten_als_regex(kurz_head, kurz_tail, &mut syntax);
+            syntax.push_str(short_prefix.as_str());
+            Name::alternatives_as_regex(kurz_head, kurz_tail, &mut syntax);
         }
         let hilfe = match (hilfe, standard) {
             (None, None) => None,

@@ -11,7 +11,7 @@ use either::Either;
 use nonempty::NonEmpty;
 
 use crate::{
-    beschreibung::{AdjustedMergedShortNames, Name},
+    description::{AdjustedMergedShortNames, Name},
     language::{Language, Sprache},
     unicode::Normalisiert,
 };
@@ -517,33 +517,33 @@ impl<E: Display> Fehler<'_, E> {
         /// Hilfsfunktion um die Beschreibung des Fehlers zu erzeugen.
         fn fehlermeldung(
             fehler_beschreibung: &str,
-            Name { lang_präfix, lang, kurz_präfix, kurz }: &Name<'_>,
+            Name { long_prefix, long, short_prefix, short }: &Name<'_>,
             flag_oder_wert: Either<
                 (&Normalisiert<'_>, &Normalisiert<'_>),
                 (&Normalisiert<'_>, &str),
             >,
         ) -> String {
             let mut fehlermeldung = format!("{fehler_beschreibung}: ");
-            fehlermeldung.push_str(lang_präfix.as_ref());
+            fehlermeldung.push_str(long_prefix.as_ref());
             match flag_oder_wert {
                 Either::Left((invertiere_präfix, invertiere_infix)) => {
                     fehlermeldung.push('[');
                     fehlermeldung.push_str(invertiere_präfix.as_ref());
                     fehlermeldung.push_str(invertiere_infix.as_ref());
                     fehlermeldung.push(']');
-                    namen_regex_hinzufügen(&mut fehlermeldung, &lang.head, &lang.tail);
+                    namen_regex_hinzufügen(&mut fehlermeldung, &long.head, &long.tail);
                 },
                 Either::Right((wert_infix, meta_var)) => {
-                    namen_regex_hinzufügen(&mut fehlermeldung, &lang.head, &lang.tail);
+                    namen_regex_hinzufügen(&mut fehlermeldung, &long.head, &long.tail);
                     fehlermeldung.push_str("( |");
                     fehlermeldung.push_str(wert_infix.as_ref());
                     fehlermeldung.push(')');
                     fehlermeldung.push_str(meta_var);
                 },
             }
-            if let Some((head, tail)) = kurz.split_first() {
+            if let Some((head, tail)) = short.split_first() {
                 fehlermeldung.push_str(" | ");
-                fehlermeldung.push_str(kurz_präfix.as_ref());
+                fehlermeldung.push_str(short_prefix.as_ref());
                 namen_regex_hinzufügen(&mut fehlermeldung, head, tail);
                 if let Either::Right((wert_infix, meta_var)) = flag_oder_wert {
                     fehlermeldung.push_str("[ |");

@@ -159,6 +159,10 @@ These are binding decisions made while writing this plan, so that no open questi
 7. **Derive crate**: its generated code is updated to call the new English-primary API
    directly (not the German mirror) wherever it constructs types, since generated code has no
    reason to prefer the German spelling. Both crates bump to `0.4.0`.
+8. **Documentation language order**: English-primary public items must have English doc comments
+   first. When a German translation is retained, it follows under a `## Deutsch` heading. Apply
+   this rule to every renamed or newly introduced item in all remaining phases; German mirror
+   types also document their English meaning first, followed by their German wording.
 
 ## Architecture and Code Reuse
 
@@ -324,7 +328,7 @@ Depends on: **Phase 1.1** (uses `Compare`/`Normalized`).
 
 **Tasks**:
 
-- [ ] Rename `src/beschreibung.rs` → `src/description.rs`. Rename `Name<'t>`'s fields to
+- [x] Rename `src/beschreibung.rs` → `src/description.rs`. Rename `Name<'t>`'s fields to
   `long_prefix`, `long`, `short_prefix`, `short` (type `Compare<'t>`/`NonEmpty<Compare<'t>>`/
   `Vec<Compare<'t>>`), update all internal matching methods (`parse_flag`, `parse_flag_aux`,
   `parse_merged_short_name`, `parse_flag_merge_short_forms(_aux)`, `parse_frühes_beenden` →
@@ -340,7 +344,7 @@ Depends on: **Phase 1.1** (uses `Compare`/`Normalized`).
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
 
 ---
 
