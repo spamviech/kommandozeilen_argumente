@@ -14,7 +14,7 @@ use crate::{
     beschreibung::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Bool, Show},
     ergebnis::{Ergebnis, Fehler, SingeArgResult, ZwischenErgebnis},
-    sprache::{Language, Sprache},
+    language::{Language, Sprache},
     unicode::Vergleich,
 };
 
@@ -100,7 +100,7 @@ impl<'t> Flag<'t, bool> {
     /// [`neu`](Flag::neu)
     #[inline]
     pub fn new(description: Description<'t, bool>) -> Self {
-        Flag::new_with_language(description, Sprache::ENGLISH)
+        Flag::new_with_language(description, Language::ENGLISH)
     }
 
     /// Create a flag-argument which can be deactivated with the configured prefix.
@@ -109,7 +109,7 @@ impl<'t> Flag<'t, bool> {
     /// [`neu_mit_sprache`](Flag::neu_mit_sprache)
     #[inline]
     pub fn new_with_language(description: Description<'t, bool>, language: Language) -> Self {
-        Flag::neu_mit_sprache(description, language)
+        Flag::neu_mit_sprache(description, language.into())
     }
 }
 

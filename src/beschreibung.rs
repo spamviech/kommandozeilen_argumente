@@ -12,7 +12,7 @@ use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
 use crate::{
-    sprache::{Language, Sprache},
+    language::{Language, Sprache},
     unicode::{Case, Compare, Normalisiert, Vergleich},
 };
 
@@ -738,6 +738,6 @@ impl<'t, T> Beschreibung<'t, T> {
         default: Option<T>,
         language: Language,
     ) -> Beschreibung<'t, T> {
-        Beschreibung::neu_mit_sprache(long, short, help, default, language)
+        Beschreibung::neu_mit_sprache(long, short, help, default, language.into())
     }
 }

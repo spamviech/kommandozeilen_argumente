@@ -23,7 +23,7 @@ use crate::{
     beschreibung::{ArgumentInput, Beschreibung, Description},
     dyn_to_owned::{self, Bool, Show},
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
-    sprache::{Language, Sprache},
+    language::{Language, Sprache},
     unicode::Vergleich,
 };
 
@@ -91,7 +91,7 @@ pub trait ParseArgument: Sized {
         description: Description<'t, Self>,
         language: Language,
     ) -> Argumente<'t, Self, String> {
-        Self::argumente_mit_sprache(description, language)
+        Self::argumente_mit_sprache(description, language.into())
     }
 
     /// Erstelle ein [Argumente] für die übergebene [`Beschreibung`].
@@ -664,7 +664,7 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::parse_vollständig_mit_sprache(args, error_code, language)
+        Self::parse_vollständig_mit_sprache(args, error_code, language.into())
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -808,7 +808,7 @@ pub trait Parse: Sized {
     where
         Self::Fehler: Display,
     {
-        Self::parse_vollständig_mit_sprache_aus_env(error_code, language)
+        Self::parse_vollständig_mit_sprache_aus_env(error_code, language.into())
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.

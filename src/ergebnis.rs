@@ -12,7 +12,7 @@ use nonempty::NonEmpty;
 
 use crate::{
     beschreibung::{AdjustedMergedShortNames, Name},
-    sprache::{Language, Sprache},
+    language::{Language, Sprache},
     unicode::Normalisiert,
 };
 
@@ -476,7 +476,7 @@ impl<E: Display> Fehler<'_, E> {
     /// [`fehlermeldung`](Fehler::fehlermeldung)
     #[inline]
     pub fn error_message(&self) -> String {
-        self.erstelle_fehlermeldung_mit_sprache(Language::ENGLISH)
+        self.erstelle_fehlermeldung_mit_sprache(Language::ENGLISH.into())
     }
 
     /// Zeige den [`Fehler`] in Menschen-lesbarer Form an.
@@ -499,7 +499,7 @@ impl<E: Display> Fehler<'_, E> {
     /// [`erstelle_fehlermeldung_mit_sprache`](Fehler::erstelle_fehlermeldung_mit_sprache)
     #[inline]
     pub fn create_error_message_with_language(&self, language: Language) -> String {
-        self.erstelle_fehlermeldung_mit_sprache(language)
+        self.erstelle_fehlermeldung_mit_sprache(language.into())
     }
 
     /// Zeige den Fehler in Menschen-lesbarer Form an.

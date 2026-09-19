@@ -17,7 +17,7 @@ use crate::{
     ergebnis::{
         Ergebnis, Fehler, KommentierterParseFehler, ParseFehler, SingeArgResult, ZwischenErgebnis,
     },
-    sprache::{Language, Sprache},
+    language::{Language, Sprache},
     unicode::Vergleich,
 };
 
@@ -205,7 +205,7 @@ where
         possible_values: Option<NonEmpty<T>>,
         language: Language,
     ) -> Self {
-        Wert::neu_mit_sprache(description, possible_values, language)
+        Wert::neu_mit_sprache(description, possible_values, language.into())
     }
 }
 
@@ -253,7 +253,7 @@ impl<'t, T: Display + EnumArgument> Value<'t, T, String> {
     /// [`neu_enum_mit_sprache`](Wert::neu_enum_mit_sprache)
     #[inline]
     pub fn new_enum_with_language(description: Description<'t, T>, language: Language) -> Self {
-        Wert::neu_enum_mit_sprache(description, language)
+        Wert::neu_enum_mit_sprache(description, language.into())
     }
 }
 

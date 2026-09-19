@@ -298,7 +298,7 @@ Depends on: **Phase 1.1** (sequenced after, no actual type dependency).
 
 **Tasks**:
 
-- [ ] Rename `src/sprache.rs` → `src/language.rs`. Make `Language` the primary struct with
+- [x] Rename `src/sprache.rs` → `src/language.rs`. Make `Language` the primary struct with
   English field names (`long_prefix`, `short_prefix`, `invert_prefix`, `invert_infix`,
   `value_infix`, `meta_var`, `options`, `default`, `allowed_values`, `missing_flag`,
   `missing_value`, `parse_error`, `invalid_string`, `unused_argument`, `help_description`,
@@ -307,10 +307,14 @@ Depends on: **Phase 1.1** (sequenced after, no actual type dependency).
   content constants `Language::GERMAN` and `Language::ENGLISH`. Add `Sprache` as the German
   mirror struct (current field names, current `Sprache::DEUTSCH`/`Sprache::ENGLISH` constants)
   with bidirectional `From`.
+- [x] Add reciprocal `const fn` conversion helpers, `Sprache::from_language` and
+  `Language::from_sprache`; define `Sprache`'s locale constants through `from_language` so the
+  locale strings are specified only by `Language`, and delegate both `From` impls to these
+  helpers.
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
 
 ---
 

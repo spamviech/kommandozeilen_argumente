@@ -28,7 +28,7 @@ use crate::{
     beschreibung::{ArgumentInput, Beschreibung},
     dyn_to_owned,
     ergebnis::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
-    sprache::{Language, Sprache},
+    language::{Language, Sprache},
     Description,
 };
 
@@ -597,7 +597,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_vollständig_mit_sprache(args, error_code, language)
+        self.parse_vollständig_mit_sprache(args, error_code, language.into())
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -753,7 +753,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_vollständig_mit_sprache_aus_env(error_code, language)
+        self.parse_vollständig_mit_sprache_aus_env(error_code, language.into())
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -1191,7 +1191,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     }
 
     /// Variant of [`mit_version_frühes_beenden`](Self::mit_version_frühes_beenden),
-    /// based on a [`Language`](crate::sprache::Language).
+    /// based on a [`Language`](crate::language::Language).
     ///
     /// ## Deutsches Synonym
     /// [`mit_version_frühes_beenden_mit_sprache`](Self::mit_version_frühes_beenden_mit_sprache)
@@ -1202,7 +1202,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         program_version: &str,
         language: Language,
     ) -> Self {
-        self.mit_version_frühes_beenden_mit_sprache(program_name, program_version, language)
+        self.mit_version_frühes_beenden_mit_sprache(program_name, program_version, language.into())
     }
     /// Add an [`EarlyExit`](crate::argumente::frühes_beenden::EarlyExit`)-Flag, showing the help text for all arguments.
     ///
@@ -1287,7 +1287,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     }
 
     /// Variant of [`with_help_early_exit`](Argumente::with_help_early_exit)
-    /// based on a [`Language`](crate::sprache::Language).
+    /// based on a [`Language`](crate::language::Language).
     ///
     /// ## Deutsches Synonym
     /// [`mit_hilfe_frühes_beenden_mit_sprache`](Argumente::mit_hilfe_frühes_beenden_mit_sprache).
@@ -1305,13 +1305,13 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
             program_name,
             program_beschreibung,
             program_version,
-            language,
+            language.into(),
         )
     }
 
     /// Variant of [`with_help_early_exit`](Argumente::with_help_early_exit)
     /// and [`with_version_early_exit`](Argumente::with_version_early_exit),
-    /// based on a [`Language`](crate::sprache::Language).
+    /// based on a [`Language`](crate::language::Language).
     ///
     /// ## Deutsches Synonym
     /// [`mit_hilfe_und_version_frühes_beenden_mit_sprache`](Argumente::mit_hilfe_und_version_frühes_beenden_mit_sprache).
@@ -1330,7 +1330,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
             program_name,
             program_description,
             program_version,
-            language,
+            language.into(),
         )
     }
 }

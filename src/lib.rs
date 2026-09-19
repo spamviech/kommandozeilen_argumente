@@ -31,8 +31,8 @@ pub mod argumente;
 pub mod beschreibung;
 pub mod dyn_to_owned;
 pub mod ergebnis;
+pub mod language;
 pub mod parse;
-pub mod sprache;
 pub mod unicode;
 
 #[doc(inline)]
@@ -46,7 +46,7 @@ pub use self::{
     },
     beschreibung::{ArgumentInput, Beschreibung, Description},
     ergebnis::{Ergebnis, Error, Fehler, ParseError, ParseFehler, Result},
+    language::{Language, Sprache},
     parse::{Parse, ParseArgument},
-    sprache::{Language, Sprache},
     unicode::{Case, Compare, Normalisiert, Normalized, Vergleich},
 };
