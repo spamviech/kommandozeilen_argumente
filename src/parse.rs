@@ -125,11 +125,11 @@ impl ParseArgument for bool {
         _meta_var: &'t str,
     ) -> Argumente<'t, Self, String> {
         Argumente::from(Flag {
-            beschreibung,
-            invertiere_präfix: invertiere_präfix.into(),
-            invertiere_infix: invertiere_infix.into(),
-            anzeige: Cow::Borrowed(&<bool as ToString>::to_string),
-            konvertiere: Cow::Borrowed(&identity),
+            description: beschreibung.into(),
+            invert_prefix: invertiere_präfix.into().into(),
+            invert_infix: invertiere_infix.into().into(),
+            display: Cow::Borrowed(&<bool as ToString>::to_string),
+            convert: Cow::Borrowed(&identity),
         })
     }
 
@@ -307,20 +307,20 @@ impl<T: 'static + ParseArgument + Clone + Debug + Display> ParseArgument for Opt
         #[allow(clippy::shadow_unrelated)]
         match argumente {
             Argumente::EinzelArgument(EinzelArgument::Flag(Flag {
-                beschreibung: _,
-                invertiere_präfix,
-                invertiere_infix,
-                konvertiere,
-                anzeige,
+                description: _,
+                invert_prefix,
+                invert_infix,
+                convert,
+                display,
             })) => {
-                let boxed_konvertiere: Box<dyn Bool<'t, Option<T>>> =
-                    Box::new(move |bool| Some(konvertiere(bool)));
+                let boxed_convert: Box<dyn Bool<'t, Option<T>>> =
+                    Box::new(move |value| Some(convert(value)));
                 Argumente::EinzelArgument(EinzelArgument::Flag(Flag {
-                    beschreibung,
-                    invertiere_präfix,
-                    invertiere_infix,
-                    konvertiere: Cow::Owned(boxed_konvertiere),
-                    anzeige: Cow::Owned(erstelle_boxed_option_anzeige(anzeige)),
+                    description: beschreibung.into(),
+                    invert_prefix,
+                    invert_infix,
+                    convert: Cow::Owned(boxed_convert),
+                    display: Cow::Owned(erstelle_boxed_option_anzeige(display)),
                 }))
             },
             Argumente::EinzelArgument(EinzelArgument::FrühesBeenden {

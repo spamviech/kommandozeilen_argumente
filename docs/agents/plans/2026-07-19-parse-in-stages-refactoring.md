@@ -401,7 +401,7 @@ Depends on: **Phase 1.1, 1.2, 1.3, 1.5**.
 
 **Tasks**:
 
-- [-] Rename `src/argumente/flag.rs` → `src/arguments/flag.rs`. Rename `Flag<'t,T>`'s fields to
+- [x] Rename `src/argumente/flag.rs` → `src/arguments/flag.rs`. Rename `Flag<'t,T>`'s fields to
   `description: Description<'t,T>`, `invert_prefix: Compare<'t>`, `invert_infix: Compare<'t>`,
   `convert: Cow<'t, dyn Bool<'t,T>>`, `display: Cow<'t, dyn Show<'t,T>>`. Rename methods `neu`/
   `neu_mit_sprache` → keep as the sole constructors renamed to `new`/`new_with_language` (no
@@ -411,10 +411,13 @@ Depends on: **Phase 1.1, 1.2, 1.3, 1.5**.
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
-- [ ] `cargo build --workspace --all-features` is now **expected to fail** on the derive crate
-  (`Flag::neu_mit_sprache` no longer exists) — confirm the failure is exactly this and nothing
-  else, i.e. no unrelated main-crate breakage
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo build --workspace --all-features` succeeds. The proc-macro crate's generated API
+  references are `quote!` tokens, so this command does not type-check them against the root crate.
+- [x] `cargo test --test derive --all-features --no-run` is the earliest existing target that
+  expands the derive macro and therefore type-checks its generated code. Confirm that it fails on
+  the expected removed `Flag::neu_mit_sprache` API (alongside already-known, later-sub-phase
+  failures from stale test call sites and the missing zero-argument `Kombiniere` implementation).
 
 ---
 

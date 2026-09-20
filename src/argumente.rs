@@ -33,6 +33,7 @@ use crate::{
 };
 
 pub mod einzelargument;
+#[path = "arguments/flag.rs"]
 pub mod flag;
 #[path = "argumente/frühes_beenden.rs"]
 pub mod frühes_beenden;

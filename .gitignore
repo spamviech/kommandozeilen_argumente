@@ -9,3 +9,6 @@
 # VSCode settings
 /.vscode/
 /kommandozeilen_argumente_derive/.vscode/
+# claude setting, might contain api key
+/.claude/settings.local.json
+/.claude/settings.json

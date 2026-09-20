@@ -109,17 +109,17 @@ fn main() {
         sprache,
     );
     let benötigt = Flag {
-        beschreibung: Beschreibung::neu_mit_sprache(
+        description: Beschreibung::neu_mit_sprache(
             "benötigt",
             "b",
             Some("Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren."),
             None,
             sprache,
-        ),
-        invertiere_präfix: Vergleich::from("no"),
-        invertiere_infix: Vergleich::from(sprache.invertiere_infix),
-        konvertiere: Cow::Borrowed(&identity),
-        anzeige: Cow::Borrowed(&ToString::to_string),
+        ).into(),
+        invert_prefix: Vergleich::from("no").into(),
+        invert_infix: Vergleich::from(sprache.invertiere_infix).into(),
+        convert: Cow::Borrowed(&identity),
+        display: Cow::Borrowed(&ToString::to_string),
     };
     let wert = String::argumente_mit_sprache(
         Beschreibung::neu_mit_sprache(

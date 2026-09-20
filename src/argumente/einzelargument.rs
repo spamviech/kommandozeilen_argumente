@@ -169,7 +169,7 @@ impl<T, Fehler> EinzelArgument<'_, T, Fehler> {
     #[inline]
     pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe {
         match self {
-            EinzelArgument::Flag(flag) => flag.erzeuge_hilfe_text(meta_standard),
+            EinzelArgument::Flag(flag) => flag.create_help_text(meta_standard).into(),
             EinzelArgument::FrühesBeenden { frühes_beenden, wert: _, anzeige: _ } => {
                 frühes_beenden.erzeuge_hilfe_text()
             },
@@ -187,7 +187,7 @@ impl<T, Fehler> EinzelArgument<'_, T, Fehler> {
     #[inline]
     pub fn als_string_wert(&self) -> EinzelArgument<'_, String, String> {
         match self {
-            EinzelArgument::Flag(flag) => EinzelArgument::Flag(flag.als_string_flag()),
+            EinzelArgument::Flag(flag) => EinzelArgument::Flag(flag.as_string_flag()),
             EinzelArgument::FrühesBeenden { frühes_beenden, wert, anzeige } => {
                 EinzelArgument::FrühesBeenden {
                     frühes_beenden: frühes_beenden.clone(),
