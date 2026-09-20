@@ -13,8 +13,8 @@ use crate::{
     argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
     description::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Bool, Show},
-    ergebnis::{Ergebnis, Fehler, SingeArgResult, ZwischenErgebnis},
     language::{Language, Sprache},
+    outcome::{Ergebnis, Fehler, SingeArgResult, ZwischenErgebnis},
     unicode::Vergleich,
 };
 

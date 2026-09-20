@@ -16,7 +16,7 @@ use crate::{
         Argumente,
     },
     description::{ArgumentInput, ArgumentInputRef},
-    ergebnis::{Ergebnis, ZwischenErgebnis},
+    outcome::{Ergebnis, ZwischenErgebnis},
 };
 
 /// Kombiniere mehrere Argumente mit der übergebenen Funktion.

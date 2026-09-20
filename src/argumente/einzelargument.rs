@@ -15,7 +15,7 @@ use crate::{
     },
     description::ArgumentInput,
     dyn_to_owned::Show,
-    ergebnis::{Ergebnis, SingeArgResult, ZwischenErgebnis},
+    outcome::{Ergebnis, SingeArgResult, ZwischenErgebnis},
 };
 
 /// Konfiguration eines einzelnen Kommandozeilen-Arguments.

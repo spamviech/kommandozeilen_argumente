@@ -354,7 +354,7 @@ Depends on: **Phase 1.3** (uses `Name`/`Normalized`).
 
 **Tasks**:
 
-- [ ] Rename `src/ergebnis.rs` → `src/outcome.rs`. Make `Result<'t,T,E>` (`Value`/`EarlyExit`/
+- [x] Rename `src/ergebnis.rs` → `src/outcome.rs`. Make `Result<'t,T,E>` (`Value`/`EarlyExit`/
   `Error` variants), `IntermediateResult<'t,T,E,A>` (`Value`/`EarlyExit`/`Error`/`Incomplete`),
   `Error<'t,E>` (`MissingFlag{name,invert_prefix,invert_infix}`/
   `MissingValue{name,value_infix,meta_var}`/`ParseError(AnnotatedParseError<'t,E>)`),
@@ -370,7 +370,7 @@ Depends on: **Phase 1.3** (uses `Name`/`Normalized`).
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
 
 ---
 

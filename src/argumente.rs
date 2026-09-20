@@ -27,8 +27,8 @@ use crate::{
     },
     description::{ArgumentInput, Beschreibung},
     dyn_to_owned,
-    ergebnis::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
     language::{Language, Sprache},
+    outcome::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
     Description,
 };
 
@@ -404,7 +404,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
         Self: 't,
         F: 't,
     {
-        self.parse_aus_env_mit_frühen_beenden()
+        let (result, remaining) = self.parse_aus_env_mit_frühen_beenden();
+        (result.map_err(|errors| errors.map(Into::into)), remaining)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -453,7 +454,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
         Self: 't,
         F: 't,
     {
-        self.parse_mit_frühen_beenden(args)
+        let (result, remaining) = self.parse_mit_frühen_beenden(args);
+        (result.map_err(|errors| errors.map(Into::into)), remaining)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.

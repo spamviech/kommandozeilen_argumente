@@ -14,10 +14,10 @@ use crate::{
     argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
     description::{AdjustedMergedShortNames, ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Parse, Show},
-    ergebnis::{
+    language::{Language, Sprache},
+    outcome::{
         Ergebnis, Fehler, KommentierterParseFehler, ParseFehler, SingeArgResult, ZwischenErgebnis,
     },
-    language::{Language, Sprache},
     unicode::Vergleich,
 };
 

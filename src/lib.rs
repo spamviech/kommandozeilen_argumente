@@ -30,8 +30,8 @@ macro_rules! crate_version {
 pub mod argumente;
 pub mod description;
 pub mod dyn_to_owned;
-pub mod ergebnis;
 pub mod language;
+pub mod outcome;
 pub mod parse;
 pub mod unicode;
 
@@ -45,8 +45,8 @@ pub use self::{
         Argumente, Arguments,
     },
     description::{ArgumentInput, Beschreibung, Description},
-    ergebnis::{Ergebnis, Error, Fehler, ParseError, ParseFehler, Result},
     language::{Language, Sprache},
+    outcome::{Ergebnis, Error, Fehler, ParseError, ParseFehler, Result},
     parse::{Parse, ParseArgument},
     unicode::{Case, Compare, Normalisiert, Normalized, Vergleich},
 };

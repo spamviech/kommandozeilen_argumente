@@ -11,7 +11,7 @@ use void::Void;
 use crate::{
     argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
     description::{ArgumentInput, Beschreibung, Description, Name},
-    ergebnis::{Ergebnis, SingeArgResult, ZwischenErgebnis},
+    outcome::{Ergebnis, SingeArgResult, ZwischenErgebnis},
 };
 
 /// Es handelt sich um ein Flag-Argument, das zu frühem beenden führt.

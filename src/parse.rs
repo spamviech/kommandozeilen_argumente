@@ -22,8 +22,8 @@ use crate::{
     },
     description::{ArgumentInput, Beschreibung, Description},
     dyn_to_owned::{self, Bool, Show},
-    ergebnis::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
     language::{Language, Sprache},
+    outcome::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
     unicode::Vergleich,
 };
 
@@ -517,7 +517,8 @@ pub trait Parse: Sized {
         Self: 't,
         Self::Fehler: 't,
     {
-        Self::parse_aus_env_mit_frühen_beenden()
+        let (result, remaining) = Self::parse_aus_env_mit_frühen_beenden();
+        (result.map_err(|errors| errors.map(Into::into)), remaining)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -554,7 +555,8 @@ pub trait Parse: Sized {
         Self: 't,
         Self::Fehler: 't,
     {
-        Self::parse_mit_frühen_beenden(args)
+        let (result, remaining) = Self::parse_mit_frühen_beenden(args);
+        (result.map_err(|errors| errors.map(Into::into)), remaining)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
