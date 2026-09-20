@@ -205,7 +205,7 @@ fn erstelle_hilfe_methode(
         let programm_beschreibung = programm_beschreibung.or(standard_beschreibung);
         quote!(
             #item.mit_hilfe_frühes_beenden(
-                &::#crate_name::argumente::hilfe::Standard,
+                &::#crate_name::argumente::help::Standard,
                 #beschreibung,
                 #programm_name,
                 #programm_beschreibung,

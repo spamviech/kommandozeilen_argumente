@@ -9,7 +9,7 @@ use nonempty::NonEmpty;
 use void::Void;
 
 use crate::{
-    argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
+    argumente::{help::Hilfe, ParseMergedShortFormsResult},
     description::{ArgumentInput, Beschreibung, Description, Name},
     outcome::{Ergebnis, SingeArgResult, ZwischenErgebnis},
 };

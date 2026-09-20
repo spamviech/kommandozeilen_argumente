@@ -14,7 +14,7 @@ use std::{
 use nonempty::{nonempty, NonEmpty};
 
 use kommandozeilen_argumente::{
-    argumente::{flag::Flag, hilfe::Standard, wert::Wert},
+    argumente::{flag::Flag, help::Standard, wert::Wert},
     crate_name, crate_version, kombiniere, Beschreibung, EnumArgument, ParseArgument, ParseFehler,
     Sprache, Vergleich,
 };

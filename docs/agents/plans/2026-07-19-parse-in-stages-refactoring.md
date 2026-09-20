@@ -380,8 +380,8 @@ Depends on: **Phase 1.4** (sequenced after, no direct type dependency).
 
 **Tasks**:
 
-- [ ] Delete `src/argumente/parser.rs` (dead `Parser` newtype, no call sites).
-- [ ] Rename `src/argumente/hilfe.rs` → `src/arguments/help.rs`. Make `Help{syntax,help}` and
+- [x] Delete `src/argumente/parser.rs` (dead `Parser` newtype, no call sites).
+- [x] Rename `src/argumente/hilfe.rs` → `src/arguments/help.rs`. Make `Help{syntax,help}` and
   `Alternatives{Single(Help), Alternatives(Box<NonEmpty<Alternatives>>), Empty}` the primary
   types; add `Hilfe{syntax,hilfe}`/`Alternativen{EinzelArgument(Hilfe), Alternativen(...), Leer}`
   mirrors with bidirectional `From`. Rename `ErzeugeHilfeText` trait to `CreateHelpText` (plain
@@ -391,7 +391,7 @@ Depends on: **Phase 1.4** (sequenced after, no direct type dependency).
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
 
 ---
 
@@ -401,7 +401,7 @@ Depends on: **Phase 1.1, 1.2, 1.3, 1.5**.
 
 **Tasks**:
 
-- [ ] Rename `src/argumente/flag.rs` → `src/arguments/flag.rs`. Rename `Flag<'t,T>`'s fields to
+- [-] Rename `src/argumente/flag.rs` → `src/arguments/flag.rs`. Rename `Flag<'t,T>`'s fields to
   `description: Description<'t,T>`, `invert_prefix: Compare<'t>`, `invert_infix: Compare<'t>`,
   `convert: Cow<'t, dyn Bool<'t,T>>`, `display: Cow<'t, dyn Show<'t,T>>`. Rename methods `neu`/
   `neu_mit_sprache` → keep as the sole constructors renamed to `new`/`new_with_language` (no

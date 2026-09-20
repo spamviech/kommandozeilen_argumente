@@ -21,7 +21,7 @@ use crate::{
         einzelargument::EinzelArgument,
         flag::Flag,
         frühes_beenden::FrühesBeenden,
-        hilfe::{ErzeugeHilfeText, Hilfe},
+        help::{CreateHelpText, Hilfe},
         kombiniere::Kombiniere,
         wert::Wert,
     },
@@ -36,9 +36,9 @@ pub mod einzelargument;
 pub mod flag;
 #[path = "argumente/frühes_beenden.rs"]
 pub mod frühes_beenden;
-pub mod hilfe;
+#[path = "arguments/help.rs"]
+pub mod help;
 pub mod kombiniere;
-pub mod parser;
 pub mod wert;
 
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
@@ -906,15 +906,15 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
     #[allow(clippy::missing_panics_doc)]
     pub fn erzeuge_hilfe_text(
         &self,
-        variante: &dyn ErzeugeHilfeText,
+        variante: &dyn CreateHelpText,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> NonEmpty<hilfe::Alternativen> {
+    ) -> NonEmpty<help::Alternativen> {
         match self {
             Argumente::EinzelArgument(arg) => {
-                nonempty![hilfe::Alternativen::EinzelArgument({
+                nonempty![help::Alternativen::EinzelArgument({
                     let string_arg = arg.als_string_wert();
-                    variante.erzeuge_hilfe_text(string_arg, meta_standard, meta_erlaubte_werte)
+                    variante.create_help_text(string_arg, meta_standard, meta_erlaubte_werte)
                 })]
             },
             Argumente::Kombiniere(kombiniere) => {
@@ -923,7 +923,7 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
             Argumente::Alternativen(alternativen) => {
                 // TODO use alternativen.as_ref().flat_map(...), coming in nonempty > 0.10.0
                 NonEmpty::collect(alternativen.iter().map(|arg| {
-                    hilfe::Alternativen::Alternativen(Box::new(arg.erzeuge_hilfe_text(
+                    help::Alternativen::Alternativen(Box::new(arg.erzeuge_hilfe_text(
                         variante,
                         meta_standard,
                         meta_erlaubte_werte,
@@ -992,7 +992,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     #[allow(clippy::too_many_arguments)]
     pub fn mit_hilfe_frühes_beenden(
         self,
-        variante: &dyn ErzeugeHilfeText,
+        variante: &dyn CreateHelpText,
         eigene_beschreibung: Beschreibung<'t, Void>,
         programm_name: &str,
         programm_beschreibung: Option<&str>,
@@ -1009,7 +1009,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
         let dummy = Cow::Borrowed("");
         let mut frühes_beenden =
             FrühesBeenden { beschreibung: eigene_beschreibung, nachricht: dummy };
-        hilfen.push(hilfe::Alternativen::EinzelArgument(frühes_beenden.erzeuge_hilfe_text()));
+        hilfen.push(help::Alternativen::EinzelArgument(frühes_beenden.erzeuge_hilfe_text()));
         let hilfen = hilfen;
         let max_syntax_breite = max_syntax_breite(&hilfen, meta_alternative_präfix);
         let current_exe = env::current_exe().ok();
@@ -1057,7 +1057,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     #[inline]
     pub fn mit_hilfe_frühes_beenden_mit_sprache(
         self,
-        variante: &dyn ErzeugeHilfeText,
+        variante: &dyn CreateHelpText,
         programm_name: &str,
         programm_beschreibung: Option<&str>,
         programm_version: Option<&str>,
@@ -1099,7 +1099,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     #[allow(clippy::too_many_arguments)]
     pub fn mit_hilfe_und_version_frühes_beenden(
         self,
-        variante: &dyn ErzeugeHilfeText,
+        variante: &dyn CreateHelpText,
         version_beschreibung: Beschreibung<'t, Void>,
         hilfe_beschreibung: Beschreibung<'t, Void>,
         programm_name: &str,
@@ -1138,7 +1138,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     #[allow(clippy::too_many_arguments)]
     pub fn mit_hilfe_und_version_frühes_beenden_mit_sprache(
         self,
-        variante: &dyn ErzeugeHilfeText,
+        variante: &dyn CreateHelpText,
         programm_name: &str,
         programm_beschreibung: Option<&str>,
         programm_version: &str,
@@ -1217,7 +1217,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     #[allow(clippy::too_many_arguments)]
     pub fn with_help_early_exit(
         self,
-        variant: &dyn ErzeugeHilfeText,
+        variant: &dyn CreateHelpText,
         arg_description: Beschreibung<'t, Void>,
         program_name: &str,
         program_description: Option<&str>,
@@ -1257,7 +1257,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     #[allow(clippy::too_many_arguments)]
     pub fn with_help_and_version_early_exit(
         self,
-        variant: &dyn ErzeugeHilfeText,
+        variant: &dyn CreateHelpText,
         version_description: Description<'t, Void>,
         help_description: Description<'t, Void>,
         program_name: &str,
@@ -1296,7 +1296,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     #[inline]
     pub fn with_help_early_exit_with_language(
         self,
-        variant: &dyn ErzeugeHilfeText,
+        variant: &dyn CreateHelpText,
         program_name: &str,
         program_beschreibung: Option<&str>,
         program_version: Option<&str>,
@@ -1321,7 +1321,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     #[allow(clippy::too_many_arguments)]
     pub fn with_help_and_version_early_exit_with_language(
         self,
-        variant: &dyn ErzeugeHilfeText,
+        variant: &dyn CreateHelpText,
         program_name: &str,
         program_description: Option<&str>,
         program_version: &str,
@@ -1343,18 +1343,18 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
 ///
 /// ## Panics
 /// Programmierfehler, wenn `NonEmpty::iter().map(...)` kein Element hat.
-fn max_syntax_breite(hilfen: &NonEmpty<hilfe::Alternativen>, alternative_präfix: &str) -> usize {
+fn max_syntax_breite(hilfen: &NonEmpty<help::Alternativen>, alternative_präfix: &str) -> usize {
     hilfen
         .iter()
         .filter_map(|arg| match arg {
-            hilfe::Alternativen::EinzelArgument(arg) => Some(arg.syntax.len()),
-            hilfe::Alternativen::Alternativen(alternativen) => {
+            help::Alternativen::EinzelArgument(arg) => Some(arg.syntax.len()),
+            help::Alternativen::Alternativen(alternativen) => {
                 #[allow(clippy::arithmetic_side_effects)]
                 let breite =
                     alternative_präfix.len() + max_syntax_breite(alternativen, alternative_präfix);
                 Some(breite)
             },
-            hilfe::Alternativen::Leer => None,
+            help::Alternativen::Leer => None,
         })
         .max()
         .expect("NonEmpty")
@@ -1372,12 +1372,12 @@ fn schreibe_argument_oder_alternativen(
     aktueller_präfix: Cow<'_, str>,
     max_syntax_breite: usize,
     syntax_padding: char,
-    eintrag: &hilfe::Alternativen,
+    eintrag: &help::Alternativen,
     alternative_präfix: &str,
     alternative_trennzeichen: char,
 ) {
     match eintrag {
-        hilfe::Alternativen::EinzelArgument(arg) => {
+        help::Alternativen::EinzelArgument(arg) => {
             let Hilfe { syntax, hilfe } = arg;
             string.push_str(&aktueller_präfix);
             string.push_str(syntax);
@@ -1391,7 +1391,7 @@ fn schreibe_argument_oder_alternativen(
             }
             string.push('\n');
         },
-        hilfe::Alternativen::Alternativen(alternativen) => {
+        help::Alternativen::Alternativen(alternativen) => {
             #[allow(clippy::arithmetic_side_effects)]
             let trennzeile_breite = max_syntax_breite - aktueller_präfix.len();
             let mut buffer: [u8; 4] = [0; 4];
@@ -1420,6 +1420,6 @@ fn schreibe_argument_oder_alternativen(
                 );
             }
         },
-        hilfe::Alternativen::Leer => {},
+        help::Alternativen::Leer => {},
     }
 }

@@ -12,7 +12,7 @@ use paste::paste;
 
 use crate::{
     argumente::{
-        hilfe::{self, ErzeugeHilfeText},
+        help::{self, CreateHelpText},
         Argumente,
     },
     description::{ArgumentInput, ArgumentInputRef},
@@ -69,11 +69,11 @@ pub trait Kombiniere<'t, T, Fehler> {
     #[inline]
     fn erzeuge_hilfe_text(
         &self,
-        _variante: &dyn ErzeugeHilfeText,
+        _variante: &dyn CreateHelpText,
         _meta_standard: &str,
         _meta_erlaubte_werte: &str,
-    ) -> NonEmpty<hilfe::Alternativen> {
-        nonempty![hilfe::Alternativen::Leer]
+    ) -> NonEmpty<help::Alternativen> {
+        nonempty![help::Alternativen::Leer]
     }
 
     #[inline]
@@ -209,10 +209,10 @@ macro_rules! impl_kombiniere_tuple {
                 #[inline]
                 fn erzeuge_hilfe_text(
                     &self,
-                    variante: &dyn ErzeugeHilfeText,
+                    variante: &dyn CreateHelpText,
                     meta_standard: &str,
                     meta_erlaubte_werte: &str,
-                ) -> NonEmpty<hilfe::Alternativen> {
+                ) -> NonEmpty<help::Alternativen> {
                     let (_f, $([<arg_ $suffix:snake:lower>]),+) = self;
                     let mut hilfe_texte = Vec::new();
                     $(
@@ -279,10 +279,10 @@ macro_rules! impl_kombiniere_tuple {
                 #[inline]
                 fn erzeuge_hilfe_text(
                     &self,
-                    variante: &dyn ErzeugeHilfeText,
+                    variante: &dyn CreateHelpText,
                     meta_standard: &str,
                     meta_erlaubte_werte: &str,
-                ) -> NonEmpty<hilfe::Alternativen> {
+                ) -> NonEmpty<help::Alternativen> {
                     todo!()
                 }
 

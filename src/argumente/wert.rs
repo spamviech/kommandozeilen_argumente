@@ -11,7 +11,7 @@ use either::Either;
 use nonempty::NonEmpty;
 
 use crate::{
-    argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
+    argumente::{help::Hilfe, ParseMergedShortFormsResult},
     description::{AdjustedMergedShortNames, ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Parse, Show},
     language::{Language, Sprache},

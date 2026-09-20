@@ -10,7 +10,7 @@ use void::Void;
 
 use crate::{
     argumente::{
-        flag::Flag, frühes_beenden::FrühesBeenden, hilfe::Hilfe, wert::Wert,
+        flag::Flag, frühes_beenden::FrühesBeenden, help::Hilfe, wert::Wert,
         ParseMergedShortFormsResult,
     },
     description::ArgumentInput,

@@ -15,7 +15,7 @@ use crate::{
     argumente::{
         einzelargument::EinzelArgument,
         flag::Flag,
-        hilfe::{self, ErzeugeHilfeText},
+        help::{self, CreateHelpText},
         kombiniere::Kombiniere,
         wert::{EnumArgument, Wert},
         Argumente,
@@ -225,10 +225,10 @@ impl<'t, T, Fehler, F: FnOnce(Ergebnis<'t, T, Fehler>) -> Ergebnis<'t, T, Fehler
     #[inline]
     fn erzeuge_hilfe_text(
         &self,
-        variante: &dyn ErzeugeHilfeText,
+        variante: &dyn CreateHelpText,
         meta_standard: &str,
         meta_erlaubte_werte: &str,
-    ) -> NonEmpty<hilfe::Alternativen> {
+    ) -> NonEmpty<help::Alternativen> {
         self.argumente.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
     }
 }

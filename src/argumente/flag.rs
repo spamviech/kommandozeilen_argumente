@@ -10,7 +10,7 @@ use std::{
 use nonempty::NonEmpty;
 
 use crate::{
-    argumente::{hilfe::Hilfe, ParseMergedShortFormsResult},
+    argumente::{help::Hilfe, ParseMergedShortFormsResult},
     description::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Bool, Show},
     language::{Language, Sprache},
