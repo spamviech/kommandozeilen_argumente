@@ -17,7 +17,7 @@ use crate::{
         flag::Flag,
         help::{self, CreateHelpText},
         kombiniere::Kombiniere,
-        wert::{EnumArgument, Wert},
+        value::{EnumArgument, Wert},
         Argumente,
     },
     description::{ArgumentInput, Beschreibung, Description},

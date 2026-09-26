@@ -14,7 +14,7 @@ use std::{
 use nonempty::{nonempty, NonEmpty};
 
 use kommandozeilen_argumente::{
-    argumente::{flag::Flag, help::Standard, wert::Wert},
+    argumente::{flag::Flag, help::Standard, value::Wert},
     crate_name, crate_version, kombiniere, Beschreibung, EnumArgument, ParseArgument, ParseFehler,
     Sprache, Vergleich,
 };
@@ -115,7 +115,8 @@ fn main() {
             Some("Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren."),
             None,
             sprache,
-        ).into(),
+        )
+        .into(),
         invert_prefix: Vergleich::from("no").into(),
         invert_infix: Vergleich::from(sprache.invertiere_infix).into(),
         convert: Cow::Borrowed(&identity),

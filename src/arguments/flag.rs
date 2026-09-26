@@ -89,7 +89,6 @@ impl<'t> Flag<'t, bool> {
     ) -> Self {
         Self::new_with_language(beschreibung.into(), sprache.into())
     }
-
 }
 
 impl<T> Flag<'_, T> {

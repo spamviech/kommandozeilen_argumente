@@ -427,17 +427,26 @@ Depends on: **Phase 1.1, 1.2, 1.3, 1.4, 1.5**.
 
 **Tasks**:
 
-- [ ] Rename `src/argumente/wert.rs` → `src/arguments/value.rs`. Make `Value<'t,T,Error>` the
+- [x] Rename `src/argumente/wert.rs` → `src/arguments/value.rs`. Make `Value<'t,T,Error>` the
   primary struct (fields `description`, `value_infix`, `meta_var`, `possible_values`, `parse`,
   `display`, `display_error`) with constructors `new`/`new_with_language`/`new_enum`/
   `new_enum_with_language`, `create_help_text`, `as_string_value`, `parse_merged_short_forms`.
   Add `Wert<'t,T,Fehler>` mirror (current fields/methods) with bidirectional `From`. Update
   `EnumArgument` trait's doc references only (already dual-named `varianten`/`variants`, no
   structural change needed).
+- [x] Remove duplicate value-help rendering: factor the common rendering into a private helper
+  used by `Value::create_help_text` and `Wert::erzeuge_hilfe_text`, converting the resulting
+  `Help` to `Hilfe` in the German mirror method. Do not convert the borrowed `Wert` directly to
+  `Value`: doing so would require cloning its non-`Clone` value and callback fields.
+- [x] Remove the remaining `Value`/`Wert` mirror-method duplication. `Wert::als_string_wert`
+  and `Value::as_string_value` use one private generic borrowed-field helper, avoiding a direct
+  `Wert` → `Value` conversion that would require cloning values or callback trait objects.
+  Both `parse_merged_short_forms` methods now use one shared helper; replace its common `todo!()`
+  body with the staged-parser implementation in the later parsing phases.
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
 
 ---
 
@@ -451,6 +460,10 @@ Depends on: **Phase 1.3, 1.5**.
   `EarlyExit<'t>` the primary struct (fields `description: Description<'t,Void>`,
   `message: Cow<'t,str>`) with `new`, `create_help_text`, `parse_merged_short_forms`. Add
   `FrühesBeenden<'t>` mirror (fields `beschreibung`, `nachricht`) with bidirectional `From`.
+- [ ] Implement `FrühesBeenden`'s constructors and `erzeuge_hilfe_text` as thin wrappers around
+  `EarlyExit::{new,create_help_text}` wherever ownership permits, converting `Help` to `Hilfe`.
+  If the final API retains a borrowed receiver that prevents conversion without cloning, extract
+  one private shared rendering helper instead; do not duplicate the rendering body.
 
 **Automated Verification**:
 
@@ -473,6 +486,10 @@ Depends on: **Phase 1.6, 1.7, 1.8**.
   the German mirror (`Flag`/`FrühesBeenden{frühes_beenden,wert,anzeige}`/`Wert`, current method
   names) with bidirectional `From` (recursing through `EarlyExit`↔`FrühesBeenden`,
   `Value`↔`Wert`; `Flag` is shared unchanged since it has no mirror).
+- [ ] Make each German `EinzelArgument` mirror method delegate to its `SingleArgument`
+  counterpart and convert its result back. For methods taking `&self`, use a private shared
+  dispatch helper when converting the complete enum would require cloning values or callbacks;
+  do not maintain independent German match/rendering logic.
 
 **Automated Verification**:
 
@@ -551,6 +568,10 @@ Depends on: **Phase 1.9, 1.10**.
   renamed `Arguments`/`Result`-style types instead of `Argumente`/`ZwischenErgebnis` where the
   impl is for the primary (English) side, keeping the German-mirror-typed impl block referencing
   `Argumente`/`ZwischenErgebnis` unchanged.
+- [ ] Audit all `Argumente` mirror methods, including help and early-exit convenience methods:
+  each must convert into `Arguments`, call the English-primary method, and convert the result
+  back. Where a borrowed method cannot perform that conversion without imposing `Clone` bounds,
+  share a private helper with the English implementation rather than duplicating logic.
 
 **Automated Verification**:
 

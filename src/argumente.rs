@@ -23,7 +23,7 @@ use crate::{
         frühes_beenden::FrühesBeenden,
         help::{CreateHelpText, Hilfe},
         kombiniere::Kombiniere,
-        wert::Wert,
+        value::{Value, Wert},
     },
     description::{ArgumentInput, Beschreibung},
     dyn_to_owned,
@@ -40,10 +40,11 @@ pub mod frühes_beenden;
 #[path = "arguments/help.rs"]
 pub mod help;
 pub mod kombiniere;
-pub mod wert;
+#[path = "arguments/value.rs"]
+pub mod value;
 
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
-pub use self::wert::EnumArgument;
+pub use self::value::EnumArgument;
 
 // TODO Name/Version für Hilfetext angeben, als alternative für macros (derive-Feature)
 // TODO Unterbefehle/subcommands
@@ -162,6 +163,13 @@ impl<'t, T, Fehler> From<Wert<'t, T, Fehler>> for Argumente<'t, T, Fehler> {
     #[inline]
     fn from(wert: Wert<'t, T, Fehler>) -> Self {
         Argumente::EinzelArgument(EinzelArgument::Wert(wert))
+    }
+}
+
+impl<'t, T, Error> From<Value<'t, T, Error>> for Argumente<'t, T, Error> {
+    #[inline]
+    fn from(value: Value<'t, T, Error>) -> Self {
+        Self::from(Wert::from(value))
     }
 }
 

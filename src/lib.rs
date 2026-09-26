@@ -41,7 +41,7 @@ pub use self::{
     argumente::{
         flag::Flag,
         frühes_beenden::{EarlyExit, FrühesBeenden},
-        wert::{EnumArgument, Value, Wert},
+        value::{EnumArgument, Value, Wert},
         Argumente, Arguments,
     },
     description::{ArgumentInput, Beschreibung, Description},

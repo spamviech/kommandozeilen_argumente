@@ -14,7 +14,9 @@ use std::{
 use nonempty::nonempty;
 
 use kommandozeilen_argumente::{
-    Compare, Description, EnumArgument, Language, NonEmpty, ParseArgument,  ParseFehler, argumente::{flag::Flag, help::Default, wert::Value}, combine, crate_name, crate_version,
+    argumente::{flag::Flag, help::Default, value::Value},
+    combine, crate_name, crate_version, Compare, Description, EnumArgument, Language, NonEmpty,
+    ParseArgument, ParseFehler,
 };
 
 /// An example enum, to show the use of [`EnumArgument`].
@@ -151,7 +153,7 @@ fn main() {
         .with_help_and_version_early_exit_with_language(
             &Default,
             crate_name!(),
-            Some("Programm-Description."),
+            Some("Program-Description."),
             crate_version!(),
             language,
         );
