@@ -456,18 +456,18 @@ Depends on: **Phase 1.3, 1.5**.
 
 **Tasks**:
 
-- [ ] Rename `src/argumente/frühes_beenden.rs` → `src/arguments/early_exit.rs`. Make
+- [x] Rename `src/argumente/frühes_beenden.rs` → `src/arguments/early_exit.rs`. Make
   `EarlyExit<'t>` the primary struct (fields `description: Description<'t,Void>`,
   `message: Cow<'t,str>`) with `new`, `create_help_text`, `parse_merged_short_forms`. Add
   `FrühesBeenden<'t>` mirror (fields `beschreibung`, `nachricht`) with bidirectional `From`.
-- [ ] Implement `FrühesBeenden`'s constructors and `erzeuge_hilfe_text` as thin wrappers around
+- [x] Implement `FrühesBeenden`'s constructors and `erzeuge_hilfe_text` as thin wrappers around
   `EarlyExit::{new,create_help_text}` wherever ownership permits, converting `Help` to `Hilfe`.
   If the final API retains a borrowed receiver that prevents conversion without cloning, extract
   one private shared rendering helper instead; do not duplicate the rendering body.
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
 
 ---
 

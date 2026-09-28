@@ -39,8 +39,8 @@ pub mod unicode;
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use self::{
     argumente::{
+        early_exit::{EarlyExit, FrühesBeenden},
         flag::Flag,
-        frühes_beenden::{EarlyExit, FrühesBeenden},
         value::{EnumArgument, Value, Wert},
         Argumente, Arguments,
     },

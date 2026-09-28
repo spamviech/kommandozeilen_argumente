@@ -18,9 +18,9 @@ use void::Void;
 
 use crate::{
     argumente::{
+        early_exit::FrühesBeenden,
         einzelargument::EinzelArgument,
         flag::Flag,
-        frühes_beenden::FrühesBeenden,
         help::{CreateHelpText, Hilfe},
         kombiniere::Kombiniere,
         value::{Value, Wert},
@@ -32,11 +32,11 @@ use crate::{
     Description,
 };
 
+#[path = "arguments/early_exit.rs"]
+pub mod early_exit;
 pub mod einzelargument;
 #[path = "arguments/flag.rs"]
 pub mod flag;
-#[path = "argumente/frühes_beenden.rs"]
-pub mod frühes_beenden;
 #[path = "arguments/help.rs"]
 pub mod help;
 pub mod kombiniere;
@@ -1186,7 +1186,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
 }
 
 impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
-    /// Add an [`EarlyExit`](crate::argumente::frühes_beenden::EarlyExit`)-flag, showing the program version.
+    /// Add an [`EarlyExit`](crate::argumente::early_exit::EarlyExit`)-flag, showing the program version.
     ///
     /// ## Deutsches Synonym
     /// [`mit_version_frühes_beenden`](Self::mit_version_frühes_beenden)
@@ -1215,7 +1215,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     ) -> Self {
         self.mit_version_frühes_beenden_mit_sprache(program_name, program_version, language.into())
     }
-    /// Add an [`EarlyExit`](crate::argumente::frühes_beenden::EarlyExit`)-Flag, showing the help text for all arguments.
+    /// Add an [`EarlyExit`](crate::argumente::early_exit::EarlyExit`)-Flag, showing the help text for all arguments.
     ///
     /// ### Panics
     /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
@@ -1254,7 +1254,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
             meta_alternative_separator,
         )
     }
-    /// Add [`EarlyExit`](crate::argumente::frühes_beenden::EarlyExit`)-Flags, showing the program version,
+    /// Add [`EarlyExit`](crate::argumente::early_exit::EarlyExit`)-Flags, showing the program version,
     /// or the help text for all arguments.
     ///
     /// ### Panics
