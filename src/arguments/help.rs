@@ -2,7 +2,7 @@
 
 use nonempty::NonEmpty;
 
-use crate::argumente::einzelargument::EinzelArgument;
+use crate::argumente::single_argument::EinzelArgument;
 
 /// Text representation of an argument in help output.
 ///

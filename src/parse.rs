@@ -13,10 +13,10 @@ use nonempty::NonEmpty;
 
 use crate::{
     argumente::{
-        einzelargument::EinzelArgument,
         flag::Flag,
         help::{self, CreateHelpText},
         kombiniere::Kombiniere,
+        single_argument::EinzelArgument,
         value::{EnumArgument, Wert},
         Argumente,
     },

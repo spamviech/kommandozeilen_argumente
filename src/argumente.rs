@@ -19,10 +19,10 @@ use void::Void;
 use crate::{
     argumente::{
         early_exit::FrühesBeenden,
-        einzelargument::EinzelArgument,
         flag::Flag,
         help::{CreateHelpText, Hilfe},
         kombiniere::Kombiniere,
+        single_argument::EinzelArgument,
         value::{Value, Wert},
     },
     description::{ArgumentInput, Beschreibung},
@@ -34,12 +34,13 @@ use crate::{
 
 #[path = "arguments/early_exit.rs"]
 pub mod early_exit;
-pub mod einzelargument;
 #[path = "arguments/flag.rs"]
 pub mod flag;
 #[path = "arguments/help.rs"]
 pub mod help;
 pub mod kombiniere;
+#[path = "arguments/single_argument.rs"]
+pub mod single_argument;
 #[path = "arguments/value.rs"]
 pub mod value;
 

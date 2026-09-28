@@ -17,7 +17,7 @@ use std::{
 };
 
 use kommandozeilen_argumente::{
-    argumente::{einzelargument::EinzelArgument, flag::Flag, help::Standard},
+    argumente::{flag::Flag, help::Standard, single_argument::EinzelArgument},
     outcome::ZwischenErgebnis,
     Argumente, Beschreibung, Sprache,
 };

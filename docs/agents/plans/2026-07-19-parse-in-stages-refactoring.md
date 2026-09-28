@@ -477,7 +477,7 @@ Depends on: **Phase 1.6, 1.7, 1.8**.
 
 **Tasks**:
 
-- [ ] Rename `src/argumente/einzelargument.rs` → `src/arguments/single_argument.rs`. Introduce
+- [x] Rename `src/argumente/einzelargument.rs` → `src/arguments/single_argument.rs`. Introduce
   `SingleArgument<'t,T,Error>` as the new primary enum: `Flag(Flag<'t,T>)`,
   `EarlyExit{early_exit: EarlyExit<'t>, value: T, display: Cow<'t, dyn Show<'t,T>>}`,
   `Value(Value<'t,T,Error>)`, with constructors `flag`/`early_exit_with_value`/`early_exit`/
@@ -486,14 +486,14 @@ Depends on: **Phase 1.6, 1.7, 1.8**.
   the German mirror (`Flag`/`FrühesBeenden{frühes_beenden,wert,anzeige}`/`Wert`, current method
   names) with bidirectional `From` (recursing through `EarlyExit`↔`FrühesBeenden`,
   `Value`↔`Wert`; `Flag` is shared unchanged since it has no mirror).
-- [ ] Make each German `EinzelArgument` mirror method delegate to its `SingleArgument`
+- [x] Make each German `EinzelArgument` mirror method delegate to its `SingleArgument`
   counterpart and convert its result back. For methods taking `&self`, use a private shared
   dispatch helper when converting the complete enum would require cloning values or callbacks;
   do not maintain independent German match/rendering logic.
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
 
 ---
 
