@@ -537,41 +537,52 @@ Depends on: **Phase 1.9, 1.10**.
 
 **Tasks**:
 
-- [ ] Rename `src/argumente.rs` → `src/arguments.rs`. Introduce `Arguments<'t,T,Error>` as the
-  new primary enum: `Single(SingleArgument<'t,T,Error>)`,
-  `Combined(Box<dyn Combine<'t,T,Error>>)`, `Alternatives(Box<NonEmpty<Self>>)`. Turn `Argumente`
-  into the German mirror (`EinzelArgument(EinzelArgument<'t,T,Fehler>)`,
-  `Kombiniere(Box<dyn Combine<'t,T,Fehler>>)` — reusing the single English `Combine` trait per
-  Global Design Decision 2 — `Alternativen(Box<NonEmpty<Self>>)`) with bidirectional `From`
-  (recursing through `SingleArgument`↔`EinzelArgument`, mapping `NonEmpty<Self>` element-wise).
-  Move all constructor methods (`single_argument`/`combine`/`alternatives`/`alternatives_boxed`)
-  onto `Arguments`; give `Argumente` the mirrored equivalents (`einzel_argument`/`kombiniere`/
-  `alternativen`/`alternativen_boxed`) as one-line `Arguments`-conversion wrappers. Rename
-  `ParsedEarlyExit`/`ParsedShortFlag`/`ParsedValueName`/`ParsedValue`/
-  `ParseMergedShortFormsResult` fields to English if any are German (verify against current
-  `/// TODO`-only definitions; keep them English-only, no mirror, per Architecture section).
-  Rename the huge `parse_*`/`with_*`/`convert_error` method-pair family
-  (`parse_aus_env`/`parse_from_env`, `parse_mit_frühen_beenden`/`parse_with_early_exit`,
+- [x] Rename `src/argumente.rs` → `src/arguments.rs`.
+- [x] Introduce `Arguments<'t,T,Error>` as the new primary enum with
+  `Single(SingleArgument<'t,T,Error>)`, `Combined(Box<dyn Combine<'t,T,Error>>)`, and
+  `Alternatives(Box<NonEmpty<Self>>)` variants.
+- [x] Retain `Argumente` as a separate German mirror enum with `EinzelArgument`, `Kombiniere`
+  (using the shared English `Combine` trait), and `Alternativen` variants; add bidirectional
+  `From` impls, including recursive `SingleArgument`↔`EinzelArgument` and element-wise
+  `NonEmpty<Self>` conversion.
+- [x] Move the English constructors (`single_argument`, `combine`, `alternatives`, and
+  `alternatives_boxed`) onto `Arguments`.
+- [-] Convert `Argumente`'s mirrored constructors (`einzel_argument`, `kombiniere`,
+  `alternativen`, and `alternativen_boxed`) into one-line `Arguments` conversion wrappers.
+  They still construct German variants directly.
+- [x] Keep `ParsedEarlyExit`, `ParsedShortFlag`, `ParsedValueName`, `ParsedValue`, and
+  `ParseMergedShortFormsResult` English-only; update `ParseMergedShortFormsResult::definition`
+  to refer to `Arguments`.
+- [-] Move the full `parse_*`/`with_*`/`convert_error` method-pair family onto `Arguments` and
+  replace the `Argumente` methods with conversion wrappers:
+  `parse_aus_env`/`parse_from_env`, `parse_mit_frühen_beenden`/`parse_with_early_exit`,
   `parse_vollständig`/`parse_complete`, `parse_vollständig_mit_sprache`/
-  `parse_complete_with_language`, `parse_mit_fehlermeldung`/`parse_with_error_message`,
+  `parse_complete_with_language`, `parse_mit_fehlermeldung`/`parse_with_error_message`, their
   `*_aus_env` variants, `konvertiere_fehler`/`convert_error`, `fehler_from`/`error_from`,
   `fehler_from_void`/`error_from_void`, `mit_version_frühes_beenden`/`with_version_early_exit`,
-  `mit_hilfe_frühes_beenden`/`with_help_early_exit`,
-  `mit_hilfe_und_version_frühes_beenden`/`with_help_and_version_early_exit`) so every method
-  lives primarily on `Arguments` (full body) with a one-line delegating equivalent on `Argumente`
-  that converts to `Arguments`, calls through, and converts the result back. Rename the private
-  helpers `max_syntax_breite`/`schreibe_argument_oder_alternativen` to
-  `max_syntax_width`/`write_argument_or_alternatives`. Rename the private (non-`pub`) helper
-  traits `KonvertiereFehler`/`AnzeigeFehler` to `ConvertError`/`DisplayError` (plain rename, no
-  mirror, per Global Design Decision 5) and update their `clone_trait_object!` invocations.
-- [ ] Update `src/arguments/combine.rs`'s tuple impls (from Phase 1.10) to reference the now-
+  `mit_hilfe_frühes_beenden`/`with_help_early_exit`, and
+  `mit_hilfe_und_version_frühes_beenden`/`with_help_and_version_early_exit`. A few English
+  methods currently cross the conversion boundary in the wrong direction; the German methods
+  still own the real implementations.
+- [x] Add an English-primary `Arguments::parse_merged_short_forms` dispatcher. Its `Combined`
+  arm remains the planned `todo!()` until Phase 2.
+- [-] Move the complete help-text implementation to `Arguments::create_help_text` and turn
+  `Argumente::erzeuge_hilfe_text` into a conversion wrapper. An English dispatcher exists, but
+  the German method still owns independent rendering logic.
+- [ ] Rename the private helpers `max_syntax_breite` and
+  `schreibe_argument_oder_alternativen` to `max_syntax_width` and
+  `write_argument_or_alternatives`.
+- [ ] Rename the private helper traits `KonvertiereFehler` and `AnzeigeFehler` to `ConvertError`
+  and `DisplayError`, including their `clone_trait_object!` invocations.
+- [-] Update `src/arguments/combine.rs`'s tuple impls (from Phase 1.10) to reference the now-
   renamed `Arguments`/`Result`-style types instead of `Argumente`/`ZwischenErgebnis` where the
   impl is for the primary (English) side, keeping the German-mirror-typed impl block referencing
-  `Argumente`/`ZwischenErgebnis` unchanged.
-- [ ] Audit all `Argumente` mirror methods, including help and early-exit convenience methods:
+  `Argumente`/`ZwischenErgebnis` unchanged. No primary English tuple impl block exists yet.
+- [-] Audit all `Argumente` mirror methods, including help and early-exit convenience methods:
   each must convert into `Arguments`, call the English-primary method, and convert the result
   back. Where a borrowed method cannot perform that conversion without imposing `Clone` bounds,
-  share a private helper with the English implementation rather than duplicating logic.
+  share a private helper with the English implementation rather than duplicating logic. This is
+  partially complete only for the English-to-German convenience-method boundary.
 
 **Automated Verification**:
 

@@ -17,12 +17,12 @@ use nonempty::{nonempty, NonEmpty};
 use void::Void;
 
 use crate::{
-    argumente::{
+    arguments::{
         combine::Combine,
         early_exit::FrühesBeenden,
         flag::Flag,
         help::{CreateHelpText, Hilfe},
-        single_argument::EinzelArgument,
+        single_argument::{EinzelArgument, SingleArgument},
         value::{Value, Wert},
     },
     description::{ArgumentInput, Beschreibung},
@@ -32,17 +32,11 @@ use crate::{
     Description,
 };
 
-#[path = "arguments/combine.rs"]
 pub mod combine;
-#[path = "arguments/early_exit.rs"]
 pub mod early_exit;
-#[path = "arguments/flag.rs"]
 pub mod flag;
-#[path = "arguments/help.rs"]
 pub mod help;
-#[path = "arguments/single_argument.rs"]
 pub mod single_argument;
-#[path = "arguments/value.rs"]
 pub mod value;
 
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
@@ -105,11 +99,107 @@ impl<T: Debug, Fehler: Debug> Debug for Argumente<'_, T, Fehler> {
     }
 }
 
-/// Configuration of command line arguments.
+/// Configuration of command-line arguments.
 ///
-/// ## Deutsches Synonym
-/// [`Argumente`]
-pub type Arguments<'t, T, Fehler> = Argumente<'t, T, Fehler>;
+/// ## Deutsch
+/// Konfiguration der Kommandozeilen-Argumente.
+#[allow(clippy::large_enum_variant, clippy::module_name_repetitions)]
+#[must_use]
+pub enum Arguments<'t, T, Error> {
+    /// A single argument.
+    Single(SingleArgument<'t, T, Error>),
+    /// A combination of multiple arguments.
+    Combined(Box<dyn 't + Combine<'t, T, Error>>),
+    /// Alternative command-line arguments.
+    Alternatives(Box<NonEmpty<Self>>),
+}
+
+impl<T: Debug, Error: Debug> Debug for Arguments<'_, T, Error> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Single(argument) => formatter.debug_tuple("Single").field(argument).finish(),
+            Self::Combined(combine) => {
+                formatter.debug_tuple("Combined").field(&KombiniereDebug(&**combine)).finish()
+            },
+            Self::Alternatives(alternatives) => {
+                formatter.debug_tuple("Alternatives").field(alternatives).finish()
+            },
+        }
+    }
+}
+
+impl<'t, T, Error> From<Arguments<'t, T, Error>> for Argumente<'t, T, Error> {
+    fn from(arguments: Arguments<'t, T, Error>) -> Self {
+        match arguments {
+            Arguments::Single(argument) => Self::EinzelArgument(argument.into()),
+            Arguments::Combined(combine) => Self::Kombiniere(combine),
+            Arguments::Alternatives(alternatives) => {
+                Self::Alternativen(Box::new(alternatives.map(Into::into)))
+            },
+        }
+    }
+}
+
+impl<'t, T, Fehler> From<Argumente<'t, T, Fehler>> for Arguments<'t, T, Fehler> {
+    fn from(argumente: Argumente<'t, T, Fehler>) -> Self {
+        match argumente {
+            Argumente::EinzelArgument(argument) => Self::Single(argument.into()),
+            Argumente::Kombiniere(combine) => Self::Combined(combine),
+            Argumente::Alternativen(alternatives) => {
+                Self::Alternatives(Box::new(alternatives.map(Into::into)))
+            },
+        }
+    }
+}
+
+impl<'t, T, Error> From<SingleArgument<'t, T, Error>> for Arguments<'t, T, Error> {
+    fn from(argument: SingleArgument<'t, T, Error>) -> Self {
+        Self::Single(argument)
+    }
+}
+
+impl<'t, T, Error> From<Flag<'t, T>> for Arguments<'t, T, Error> {
+    fn from(flag: Flag<'t, T>) -> Self {
+        Self::Single(flag.into())
+    }
+}
+
+impl<'t, T, Error> From<Value<'t, T, Error>> for Arguments<'t, T, Error> {
+    fn from(value: Value<'t, T, Error>) -> Self {
+        Self::Single(value.into())
+    }
+}
+
+impl<T, Error> From<NonEmpty<Self>> for Arguments<'_, T, Error> {
+    fn from(alternatives: NonEmpty<Self>) -> Self {
+        Self::Alternatives(Box::new(alternatives))
+    }
+}
+
+impl<T, Error> From<Box<NonEmpty<Self>>> for Arguments<'_, T, Error> {
+    fn from(alternatives: Box<NonEmpty<Self>>) -> Self {
+        Self::Alternatives(alternatives)
+    }
+}
+
+impl<'t, T, Error> Arguments<'t, T, Error> {
+    /// Creates a single-argument variant with suitable type parameters.
+    pub fn single_argument(argument: SingleArgument<'t, T, Error>) -> Self {
+        Self::Single(argument)
+    }
+    /// Creates a combined-arguments variant with suitable type parameters.
+    pub fn combine(combine: impl 't + Combine<'t, T, Error>) -> Self {
+        Self::Combined(Box::new(combine))
+    }
+    /// Creates an alternatives variant with suitable type parameters.
+    pub fn alternatives(alternatives: NonEmpty<Self>) -> Self {
+        Self::Alternatives(Box::new(alternatives))
+    }
+    /// Creates a boxed alternatives variant with suitable type parameters.
+    pub fn alternatives_boxed(alternatives: Box<NonEmpty<Self>>) -> Self {
+        Self::Alternatives(alternatives)
+    }
+}
 
 impl<'t, T, Fehler> From<EinzelArgument<'t, T, Fehler>> for Argumente<'t, T, Fehler> {
     #[inline]
@@ -293,7 +383,7 @@ pub struct ParsedValue<'s> {
 #[derive(Debug, Clone)]
 pub struct ParseMergedShortFormsResult<'s, T, F> {
     /// Argument definition used to produce this parse result.
-    pub definition: &'s Argumente<'s, T, F>,
+    pub definition: &'s Arguments<'s, T, F>,
     /// A vector of early\_exit arguments, containing name, message & original input.
     pub early_exits: Vec<ParsedEarlyExit<'s>>,
     /// A vector of flag-arguments with their name (all are true) & the original input.
@@ -302,6 +392,33 @@ pub struct ParseMergedShortFormsResult<'s, T, F> {
     pub values: HashMap<ParsedValueName<'s>, ParsedValue<'s>>,
     /// Remaining arguments with the parsed merged short names and associated value-strings removed.
     pub remaining: Vec<Option<OsString>>,
+}
+
+impl<T, F> Arguments<'_, T, F>
+where
+    T: Clone,
+    F: Clone,
+{
+    /// Parses merged short-form arguments.
+    #[inline]
+    pub fn parse_merged_short_forms(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> NonEmpty<ParseMergedShortFormsResult<'_, T, F>> {
+        match self {
+            Self::Single(argument) => NonEmpty::singleton(argument.parse_merged_short_forms(args)),
+            Self::Combined(_combine) => todo!(),
+            Self::Alternatives(alternatives) => {
+                let args = args.collect_vec();
+                NonEmpty::collect(
+                    alternatives.iter().flat_map(|argument| {
+                        argument.parse_merged_short_forms(args.iter().cloned())
+                    }),
+                )
+                .expect("Iterator of NonEmpty<NonEmpty<_>>.")
+            },
+        }
+    }
 }
 
 impl<T, F> Argumente<'_, T, F>
@@ -876,7 +993,7 @@ impl<'t, T, Fehler> Arguments<'t, T, Fehler> {
         mapper: impl 't + Fn(Fehler) -> NewError + Clone,
         display_new_error: impl 't + Fn(&NewError) -> String + Clone,
     ) -> Arguments<'t, T, NewError> {
-        self.konvertiere_fehler(mapper, display_new_error)
+        Argumente::from(self).konvertiere_fehler(mapper, display_new_error).into()
     }
 
     /// [`convert_error`](Self::convert_error) with [`From::from`].
@@ -888,7 +1005,7 @@ impl<'t, T, Fehler> Arguments<'t, T, Fehler> {
         self,
         display_new_error: impl 't + Fn(&NewError) -> String + Clone,
     ) -> Argumente<'t, T, NewError> {
-        self.fehler_from(display_new_error)
+        Argumente::from(self).fehler_from(display_new_error).into()
     }
 }
 
@@ -902,7 +1019,43 @@ impl<'t, T> Arguments<'t, T, Void> {
         self,
         display_new_error: impl 't + Fn(&NewError) -> String + Clone,
     ) -> Arguments<'t, T, NewError> {
-        self.fehler_from_void(display_new_error)
+        Argumente::from(self).fehler_from_void(display_new_error).into()
+    }
+}
+
+impl<T, Error> Arguments<'_, T, Error> {
+    /// Creates syntax and help text for this argument.
+    #[inline]
+    pub fn create_help_text(
+        &self,
+        variant: &dyn CreateHelpText,
+        meta_default: &str,
+        meta_possible_values: &str,
+    ) -> NonEmpty<help::Alternatives> {
+        match self {
+            Self::Single(argument) => nonempty![help::Alternatives::Single(
+                variant
+                    .create_help_text(
+                        argument.as_string_value().into(),
+                        meta_default,
+                        meta_possible_values
+                    )
+                    .into()
+            )],
+            Self::Combined(combine) => combine
+                .create_help_text(variant, meta_default, meta_possible_values)
+                .map(Into::into),
+            Self::Alternatives(alternatives) => {
+                NonEmpty::collect(alternatives.iter().map(|argument| {
+                    help::Alternatives::Alternatives(Box::new(argument.create_help_text(
+                        variant,
+                        meta_default,
+                        meta_possible_values,
+                    )))
+                }))
+                .expect("NonEmpty::map(...) has at least one argument!")
+            },
+        }
     }
 }
 
@@ -1200,7 +1353,9 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         program_name: &str,
         program_version: &str,
     ) -> Self {
-        self.mit_version_frühes_beenden(arg_description, program_name, program_version)
+        Argumente::from(self)
+            .mit_version_frühes_beenden(arg_description.into(), program_name, program_version)
+            .into()
     }
 
     /// Variant of [`mit_version_frühes_beenden`](Self::mit_version_frühes_beenden),
@@ -1215,7 +1370,9 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         program_version: &str,
         language: Language,
     ) -> Self {
-        self.mit_version_frühes_beenden_mit_sprache(program_name, program_version, language.into())
+        Argumente::from(self)
+            .mit_version_frühes_beenden_mit_sprache(program_name, program_version, language.into())
+            .into()
     }
     /// Add an [`EarlyExit`](crate::argumente::early_exit::EarlyExit`)-Flag, showing the help text for all arguments.
     ///
@@ -1241,20 +1398,22 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         meta_alternative_prefix: &str,
         meta_alternative_separator: char,
     ) -> Self {
-        self.mit_hilfe_frühes_beenden(
-            variant,
-            arg_description,
-            program_name,
-            program_description,
-            program_version,
-            meta_standard,
-            meta_possible_values,
-            meta_options,
-            meta_syntax_prefix,
-            meta_syntax_padding,
-            meta_alternative_prefix,
-            meta_alternative_separator,
-        )
+        Argumente::from(self)
+            .mit_hilfe_frühes_beenden(
+                variant,
+                arg_description.into(),
+                program_name,
+                program_description,
+                program_version,
+                meta_standard,
+                meta_possible_values,
+                meta_options,
+                meta_syntax_prefix,
+                meta_syntax_padding,
+                meta_alternative_prefix,
+                meta_alternative_separator,
+            )
+            .into()
     }
     /// Add [`EarlyExit`](crate::argumente::early_exit::EarlyExit`)-Flags, showing the program version,
     /// or the help text for all arguments.
@@ -1282,21 +1441,23 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         meta_alternative_prefix: &str,
         meta_alternative_separator: char,
     ) -> Self {
-        self.mit_hilfe_und_version_frühes_beenden(
-            variant,
-            version_description.into(),
-            help_description.into(),
-            program_name,
-            program_description,
-            program_version,
-            meta_standard,
-            meta_possible_values,
-            meta_options,
-            meta_syntax_prefix,
-            meta_syntax_padding,
-            meta_alternative_prefix,
-            meta_alternative_separator,
-        )
+        Argumente::from(self)
+            .mit_hilfe_und_version_frühes_beenden(
+                variant,
+                version_description.into(),
+                help_description.into(),
+                program_name,
+                program_description,
+                program_version,
+                meta_standard,
+                meta_possible_values,
+                meta_options,
+                meta_syntax_prefix,
+                meta_syntax_padding,
+                meta_alternative_prefix,
+                meta_alternative_separator,
+            )
+            .into()
     }
 
     /// Variant of [`with_help_early_exit`](Argumente::with_help_early_exit)
@@ -1313,13 +1474,15 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         program_version: Option<&str>,
         language: Language,
     ) -> Self {
-        self.mit_hilfe_frühes_beenden_mit_sprache(
-            variant,
-            program_name,
-            program_beschreibung,
-            program_version,
-            language.into(),
-        )
+        Argumente::from(self)
+            .mit_hilfe_frühes_beenden_mit_sprache(
+                variant,
+                program_name,
+                program_beschreibung,
+                program_version,
+                language.into(),
+            )
+            .into()
     }
 
     /// Variant of [`with_help_early_exit`](Argumente::with_help_early_exit)
@@ -1338,13 +1501,15 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         program_version: &str,
         language: Language,
     ) -> Self {
-        self.mit_hilfe_und_version_frühes_beenden_mit_sprache(
-            variant,
-            program_name,
-            program_description,
-            program_version,
-            language.into(),
-        )
+        Argumente::from(self)
+            .mit_hilfe_und_version_frühes_beenden_mit_sprache(
+                variant,
+                program_name,
+                program_description,
+                program_version,
+                language.into(),
+            )
+            .into()
     }
 }
 
