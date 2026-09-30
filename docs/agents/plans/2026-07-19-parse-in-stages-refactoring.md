@@ -505,17 +505,17 @@ above).
 
 **Tasks**:
 
-- [ ] Rename `src/argumente/kombiniere.rs` → `src/arguments/combine.rs`. Rename `Kombiniere`
-  trait to `Combine` (methods `create_help_text`/`debug_fmt`); delete the `kombiniere!` macro
-  entirely, keep only `combine!` (now the sole macro, not delegating to a deleted macro — inline
-  its former body). Rename `impl_kombiniere_tuple!` to `impl_combine_tuple!`; **delete** the
-  commented-out old single-pass `parse`/`parse_merged_short_forms` sketch bodies (both tuple
+- [x] Rename `src/argumente/kombiniere.rs` → `src/arguments/combine.rs`. Rename `Kombiniere`
+  trait to `Combine` (methods `create_help_text`/`debug_fmt`). Keep `combine!` as the canonical
+  macro with the former `kombiniere!` body, and retain `kombiniere!` as a compatibility wrapper
+  delegating to `combine!`. Rename `impl_kombiniere_tuple!` to `impl_combine_tuple!`; **delete**
+  the commented-out old single-pass `parse`/`parse_merged_short_forms` sketch bodies (both tuple
   impls) instead of carrying them forward — this is a clean-implementation decision, the new
   staged logic is written fresh in Phases 3-7. Update the live `create_help_text`/`debug_fmt`
   bodies' field/type names. These impls still reference the not-yet-renamed `Argumente<...>` and
   `ZwischenErgebnis<...>` types verbatim at this point (both still exist, unchanged, until Phase
   1.11 renames `Argumente`).
-- [ ] Fix the pre-existing (rename-unrelated) unit-struct `Combine` bug: `#[derive(Parse)]` on a
+- [x] Fix the pre-existing (rename-unrelated) unit-struct `Combine` bug: `#[derive(Parse)]` on a
   zero-field struct generates `Argumente::kombiniere((closure,))` — a bare 1-tuple that no
   `impl_kombiniere_tuple!`-generated impl satisfies, since all generated impls start at 2-element
   tuples `(F, Argumente<A>)`. Add a 0-argument base case to `impl_combine_tuple!`/an explicit
@@ -527,7 +527,7 @@ above).
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
 
 ---
 

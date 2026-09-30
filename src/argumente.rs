@@ -18,27 +18,28 @@ use void::Void;
 
 use crate::{
     argumente::{
+        combine::Combine,
         early_exit::FrühesBeenden,
         flag::Flag,
         help::{CreateHelpText, Hilfe},
-        kombiniere::Kombiniere,
         single_argument::EinzelArgument,
         value::{Value, Wert},
     },
     description::{ArgumentInput, Beschreibung},
     dyn_to_owned,
     language::{Language, Sprache},
-    outcome::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
+    outcome::{Ergebnis, Error, Fehler},
     Description,
 };
 
+#[path = "arguments/combine.rs"]
+pub mod combine;
 #[path = "arguments/early_exit.rs"]
 pub mod early_exit;
 #[path = "arguments/flag.rs"]
 pub mod flag;
 #[path = "arguments/help.rs"]
 pub mod help;
-pub mod kombiniere;
 #[path = "arguments/single_argument.rs"]
 pub mod single_argument;
 #[path = "arguments/value.rs"]
@@ -64,11 +65,11 @@ pub enum Argumente<'t, T, Fehler> {
     /// ## English
     /// A single argument.
     EinzelArgument(EinzelArgument<'t, T, Fehler>),
-    /// Die Kombination mehrerer Argumente, kodiert über den [`Kombiniere`]-trait.
+    /// Die Kombination mehrerer Argumente, kodiert über den [`Combine`]-Trait.
     ///
     /// ## English
-    /// The combination of multiple arguments, encoded via the [`Kombiniere`]-trait.
-    Kombiniere(Box<dyn 't + Kombiniere<'t, T, Fehler>>),
+    /// The combination of multiple arguments, encoded via the [`Combine`]-trait.
+    Kombiniere(Box<dyn 't + Combine<'t, T, Fehler>>),
     /// Alternative Kommandozeilen-Argumente. Beim parsen wird das erste [`Ergebnis`] verwendet,
     /// dass kein [`Ergebnis::Fehler`] ist.
     ///
@@ -78,8 +79,8 @@ pub enum Argumente<'t, T, Fehler> {
     Alternativen(Box<NonEmpty<Self>>),
 }
 
-/// Helper umd [`Kombiniere::debug_fmt`] mit [`fmt::Formatter::debug_tuple`] zu verwenden.
-struct KombiniereDebug<'s, 't, T, Fehler>(&'s dyn Kombiniere<'t, T, Fehler>);
+/// Helper um [`Combine::debug_fmt`] mit [`fmt::Formatter::debug_tuple`] zu verwenden.
+struct KombiniereDebug<'s, 't, T, Fehler>(&'s dyn Combine<'t, T, Fehler>);
 
 impl<T, Fehler> Debug for KombiniereDebug<'_, '_, T, Fehler> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -205,7 +206,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// ## English synonym
     /// [`combine`](Self::combine)
     #[inline]
-    pub fn kombiniere(kombiniere: impl 't + Kombiniere<'t, T, Fehler>) -> Self {
+    pub fn kombiniere(kombiniere: impl 't + Combine<'t, T, Fehler>) -> Self {
         Argumente::Kombiniere(Box::new(kombiniere))
     }
 
@@ -214,7 +215,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// ## Deutsches Synonym
     /// [`kombiniere`](Self::combine)
     #[inline]
-    pub fn combine(combine: impl 't + Kombiniere<'t, T, Fehler>) -> Self {
+    pub fn combine(combine: impl 't + Combine<'t, T, Fehler>) -> Self {
         Self::kombiniere(combine)
     }
 
@@ -928,7 +929,7 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
                 })]
             },
             Argumente::Kombiniere(kombiniere) => {
-                kombiniere.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
+                kombiniere.create_help_text(variante, meta_standard, meta_erlaubte_werte)
             },
             Argumente::Alternativen(alternativen) => {
                 // TODO use alternativen.as_ref().flat_map(...), coming in nonempty > 0.10.0

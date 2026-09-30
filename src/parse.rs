@@ -13,9 +13,9 @@ use nonempty::NonEmpty;
 
 use crate::{
     argumente::{
+        combine::Combine,
         flag::Flag,
         help::{self, CreateHelpText},
-        kombiniere::Kombiniere,
         single_argument::EinzelArgument,
         value::{EnumArgument, Wert},
         Argumente,
@@ -23,7 +23,7 @@ use crate::{
     description::{ArgumentInput, Beschreibung, Description},
     dyn_to_owned::{self, Bool, Show},
     language::{Language, Sprache},
-    outcome::{Ergebnis, Error, Fehler, ParseFehler, ZwischenErgebnis},
+    outcome::{Ergebnis, Error, Fehler, ParseFehler},
     unicode::Vergleich,
 };
 
@@ -220,10 +220,10 @@ struct OptionHelper<'t, F, T, Fehler> {
 }
 
 impl<'t, T, Fehler, F: FnOnce(Ergebnis<'t, T, Fehler>) -> Ergebnis<'t, T, Fehler>>
-    Kombiniere<'t, T, Fehler> for OptionHelper<'t, F, T, Fehler>
+    Combine<'t, T, Fehler> for OptionHelper<'t, F, T, Fehler>
 {
     #[inline]
-    fn erzeuge_hilfe_text(
+    fn create_help_text(
         &self,
         variante: &dyn CreateHelpText,
         meta_standard: &str,
