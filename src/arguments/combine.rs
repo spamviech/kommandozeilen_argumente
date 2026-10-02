@@ -1,4 +1,4 @@
-//! Combine multiple [`Argumente`](crate::argumente::Argumente) into a new one based on a function.
+//! Combine multiple [`Arguments`](crate::arguments::Arguments) into a new one based on a function.
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -6,11 +6,11 @@ use nonempty::{nonempty, NonEmpty};
 use paste::paste;
 
 use crate::{
-    argumente::{
+    arguments::{
         help::{self, CreateHelpText},
-        Argumente,
+        Argumente, Arguments,
     },
-    outcome::ZwischenErgebnis,
+    outcome::{IntermediateResult, ZwischenErgebnis},
 };
 
 /// Combine multiple arguments with the given function.
@@ -19,15 +19,15 @@ macro_rules! combine {
     ($function: expr, $a: expr, $b: expr, $c: expr, $d: expr, $e: expr, $f: expr, $g: expr $(, $tail: ident)+ $(,)?) => {
         #[allow(clippy::shadow_unrelated, clippy::shadow_same, clippy::shadow_reuse)]
         {
-            let combine = $crate::argumente::Argumente::combine((
+            let combine = $crate::arguments::Arguments::combine((
                 |a, b, c, d, e, f, g| (a, b, c, d, e, f, g),
-                $crate::argumente::Argumente::from($a),
-                $crate::argumente::Argumente::from($b),
-                $crate::argumente::Argumente::from($c),
-                $crate::argumente::Argumente::from($d),
-                $crate::argumente::Argumente::from($e),
-                $crate::argumente::Argumente::from($f),
-                $crate::argumente::Argumente::from($g),
+                $crate::arguments::Arguments::from($a),
+                $crate::arguments::Arguments::from($b),
+                $crate::arguments::Arguments::from($c),
+                $crate::arguments::Arguments::from($d),
+                $crate::arguments::Arguments::from($e),
+                $crate::arguments::Arguments::from($f),
+                $crate::arguments::Arguments::from($g),
             ));
             let uncurry_function = move |(a, b, c, d, e, f, g) $(, $tail)+| {
                 $function(a, b, c, d, e, f, g $(, $tail)+)
@@ -36,11 +36,11 @@ macro_rules! combine {
         }
     };
     ($function: expr $(,)?) => {
-        $crate::argumente::Argumente::combine(($function,))
+        $crate::arguments::Arguments::combine(($function,))
     };
     ($function: expr, $($tail: expr),+ $(,)?) => {
-        $crate::argumente::Argumente::combine((
-            $function, $($crate::argumente::Argumente::from($tail)),+
+        $crate::arguments::Arguments::combine((
+            $function, $($crate::arguments::Arguments::from($tail)),+
         ))
     };
 }
@@ -81,6 +81,82 @@ pub trait Combine<'t, T, Fehler> {
 macro_rules! impl_combine_tuple {
     ($($suffix: ident),+ $(,)?) => {
         paste! {
+            impl <
+                't, $([<'t $suffix:snake:lower>],)+ F, T, Error,
+                $([<T $suffix:camel>],)+
+            >
+                Combine<'t, T, Error> for (
+                    F,
+                    $(Arguments<
+                        [<'t $suffix:snake:lower>],
+                        [<T $suffix:camel>],
+                        Error,
+                    >),+
+                )
+            where
+                F: 't + Fn($([<T $suffix:camel>]),+) -> T,
+                Error: Debug,
+                $(
+                    [<'t $suffix:snake:lower>]: 't,
+                    [<T $suffix:camel>]: Debug,
+                )+
+            {
+                #[inline]
+                fn create_help_text(
+                    &self,
+                    variant: &dyn CreateHelpText,
+                    meta_default: &str,
+                    meta_possible_values: &str,
+                ) -> NonEmpty<help::Alternativen> {
+                    let (_function, $([<arg_ $suffix:snake:lower>]),+) = self;
+                    let mut helps = Vec::new();
+                    $(
+                        helps.extend(
+                            [<arg_ $suffix:lower>]
+                                .create_help_text(variant, meta_default, meta_possible_values)
+                                .map(Into::into)
+                        );
+                    )+
+                    NonEmpty::from_vec(helps).expect("At least one suffix as a macro argument!")
+                }
+
+                #[inline]
+                fn debug_fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+                    let (_function, $([<arg_ $suffix:snake:lower>]),+) = self;
+                    write!(formatter, "(<closure>")?;
+                    $(
+                        write!(formatter, "{:?}", [<arg_ $suffix:snake:lower>])?;
+                    )+
+                    write!(formatter, ")")
+                }
+            }
+
+            impl <
+                't, $([<'t $suffix:snake:lower>],)+ F, T, Error,
+                $([<T $suffix:camel>],)+
+            >
+                Combine<'t, T, Error> for (
+                    F,
+                    $(IntermediateResult<
+                        [<'t $suffix:snake:lower>],
+                        [<T $suffix:camel>],
+                        Error,
+                        Arguments<
+                            [<'t $suffix:snake:lower>],
+                            [<T $suffix:camel>],
+                            Error,
+                        >
+                    >),+
+                )
+            where
+                F: 't + Fn($([<T $suffix:camel>]),+) -> T,
+                Error: Debug,
+                $(
+                    [<'t $suffix:snake:lower>]: 't,
+                    [<T $suffix:camel>]: Debug,
+                )+
+            {}
+
             impl <
                 't, $([<'t $suffix:snake:lower>],)+ F, T, Fehler,
                 $([<T $suffix:camel>],)+

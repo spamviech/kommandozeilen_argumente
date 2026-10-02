@@ -170,6 +170,18 @@ impl<'t, T, Error> From<Value<'t, T, Error>> for Arguments<'t, T, Error> {
     }
 }
 
+impl<'t, T, Fehler> From<EinzelArgument<'t, T, Fehler>> for Arguments<'t, T, Fehler> {
+    fn from(argument: EinzelArgument<'t, T, Fehler>) -> Self {
+        Self::Single(argument.into())
+    }
+}
+
+impl<'t, T, Fehler> From<Wert<'t, T, Fehler>> for Arguments<'t, T, Fehler> {
+    fn from(value: Wert<'t, T, Fehler>) -> Self {
+        Self::Single(Value::from(value).into())
+    }
+}
+
 impl<T, Error> From<NonEmpty<Self>> for Arguments<'_, T, Error> {
     fn from(alternatives: NonEmpty<Self>) -> Self {
         Self::Alternatives(Box::new(alternatives))
@@ -461,6 +473,64 @@ where
     }
 }
 
+impl<'t, T, F> Arguments<'t, T, F> {
+    /// Parses the supplied arguments and produces the corresponding value.
+    #[inline]
+    pub fn parse(
+        self,
+        args: impl Iterator<Item = OsString>,
+    ) -> (crate::outcome::Result<'t, T, F>, Vec<ArgumentInput>) {
+        todo!("parse({:?})", args.collect::<Vec<_>>());
+    }
+
+    /// Parses arguments from the environment.
+    #[inline]
+    pub fn parse_from_env(self) -> (crate::outcome::Result<'t, T, F>, Vec<ArgumentInput>)
+    where
+        Self: 't,
+        F: 't,
+    {
+        self.parse(env::args_os().skip(1))
+    }
+
+    /// Parses arguments and exits successfully after writing an early-exit message.
+    #[inline]
+    pub fn parse_with_early_exit(
+        self,
+        args: impl Iterator<Item = OsString>,
+    ) -> (Result<T, NonEmpty<Error<'t, F>>>, Vec<ArgumentInput>)
+    where
+        Self: 't,
+        F: 't,
+    {
+        let (result, remaining) = self.parse(args);
+        let result = match result {
+            crate::outcome::Result::Value(value) => Ok(value),
+            crate::outcome::Result::EarlyExit(messages) => {
+                #[allow(clippy::print_stdout)]
+                for message in messages {
+                    println!("{message}");
+                }
+                process::exit(0);
+            },
+            crate::outcome::Result::Error(errors) => Err(errors),
+        };
+        (result, remaining)
+    }
+
+    /// Parses environment arguments and exits successfully after writing an early-exit message.
+    #[inline]
+    pub fn parse_from_env_with_early_exit(
+        self,
+    ) -> (Result<T, NonEmpty<Error<'t, F>>>, Vec<ArgumentInput>)
+    where
+        Self: 't,
+        F: 't,
+    {
+        self.parse_with_early_exit(env::args_os().skip(1))
+    }
+}
+
 impl<'t, T, F> Argumente<'t, T, F> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
@@ -471,7 +541,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
         self,
         args: impl Iterator<Item = OsString>,
     ) -> (Ergebnis<'t, T, F>, Vec<ArgumentInput>) {
-        todo!("parse({:?})", args.collect::<Vec<_>>());
+        let (result, remaining) = Arguments::from(self).parse(args);
+        (result.into(), remaining)
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -484,7 +555,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
         Self: 't,
         F: 't,
     {
-        self.parse(env::args_os().skip(1))
+        let (result, remaining) = Arguments::from(self).parse_from_env();
+        (result.into(), remaining)
     }
 
     /// Parse [`args_os`](std::env::args_os) and try to create the requested type.
@@ -552,19 +624,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
         Self: 't,
         F: 't,
     {
-        let (ergebnis, nicht_verwendet) = self.parse(args);
-        let result = match ergebnis {
-            Ergebnis::Wert(wert) => Ok(wert),
-            Ergebnis::FrühesBeenden(nachrichten) => {
-                #[allow(clippy::print_stdout)]
-                for nachricht in nachrichten {
-                    println!("{nachricht}");
-                }
-                process::exit(0);
-            },
-            Ergebnis::Fehler(fehler) => Err(fehler),
-        };
-        (result, nicht_verwendet)
+        let (result, remaining) = Arguments::from(self).parse_with_early_exit(args);
+        (result.map_err(|errors| errors.map(Into::into)), remaining)
     }
 
     /// Parse the given command line arguments to create the requested type.
@@ -938,6 +999,38 @@ trait DisplayError<Error>: Fn(&Error) -> String + DynClone {}
 impl<Error, F: Fn(&Error) -> String + DynClone> DisplayError<Error> for F {}
 clone_trait_object!(<Error> DisplayError<Error>);
 
+impl<'t, T, Error> Arguments<'t, T, Error> {
+    /// Converts errors with the supplied functions.
+    #[inline]
+    pub fn convert_error<NewError>(
+        self,
+        mapper: impl 't + Fn(Error) -> NewError + Clone,
+        display_new_error: impl 't + Fn(&NewError) -> String + Clone,
+    ) -> Arguments<'t, T, NewError> {
+        todo!()
+    }
+
+    /// Converts errors using [`From::from`].
+    #[inline]
+    pub fn error_from<NewError: From<Error>>(
+        self,
+        display_new_error: impl 't + Fn(&NewError) -> String + Clone,
+    ) -> Arguments<'t, T, NewError> {
+        self.convert_error(NewError::from, display_new_error)
+    }
+}
+
+impl<'t, T> Arguments<'t, T, Void> {
+    /// Converts the infallible error type using [`void::unreachable`].
+    #[inline]
+    pub fn error_from_void<NewError>(
+        self,
+        display_new_error: impl 't + Fn(&NewError) -> String + Clone,
+    ) -> Arguments<'t, T, NewError> {
+        self.convert_error(|value| void::unreachable(value), display_new_error)
+    }
+}
+
 impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Konvertiere den Fehler mit der spezifizierten Funktion.
     ///
@@ -949,7 +1042,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
         mapper: impl 't + Fn(Fehler) -> NeuerFehler + Clone,
         anzeige_neuer_fehler: impl 't + Fn(&NeuerFehler) -> String + Clone,
     ) -> Argumente<'t, T, NeuerFehler> {
-        todo!()
+        Arguments::from(self).convert_error(mapper, anzeige_neuer_fehler).into()
     }
 
     /// [`konvertiere_fehler`](Self::konvertiere_fehler) mit [`From::from`].
@@ -976,47 +1069,6 @@ impl<'t, T> Argumente<'t, T, Void> {
         anzeige_neuer_fehler: impl 't + Fn(&NeuerFehler) -> String + Clone,
     ) -> Argumente<'t, T, NeuerFehler> {
         self.konvertiere_fehler(|void| void::unreachable(void), anzeige_neuer_fehler)
-    }
-}
-
-impl<'t, T, Fehler> Arguments<'t, T, Fehler> {
-    /// Convert the error with with given function.
-    ///
-    /// ## Deutsches Synonym
-    /// [`konvertiere_fehler`](Self::konvertiere_fehler)
-    #[inline]
-    pub fn convert_error<NewError>(
-        self,
-        mapper: impl 't + Fn(Fehler) -> NewError + Clone,
-        display_new_error: impl 't + Fn(&NewError) -> String + Clone,
-    ) -> Arguments<'t, T, NewError> {
-        Argumente::from(self).konvertiere_fehler(mapper, display_new_error).into()
-    }
-
-    /// [`convert_error`](Self::convert_error) with [`From::from`].
-    ///
-    /// ## Deutsches Synonym
-    /// [`fehler_from`](Self::fehler_from)
-    #[inline]
-    pub fn error_from<NewError: From<Fehler>>(
-        self,
-        display_new_error: impl 't + Fn(&NewError) -> String + Clone,
-    ) -> Argumente<'t, T, NewError> {
-        Argumente::from(self).fehler_from(display_new_error).into()
-    }
-}
-
-impl<'t, T> Arguments<'t, T, Void> {
-    /// [`convert_error`](Self::convert_error) with [`void::unreachable`].
-    ///
-    /// ## Deutsches Synonym
-    /// [`fehler_from_void`](Self::fehler_from_void)
-    #[inline]
-    pub fn error_from_void<NewError>(
-        self,
-        display_new_error: impl 't + Fn(&NewError) -> String + Clone,
-    ) -> Arguments<'t, T, NewError> {
-        Argumente::from(self).fehler_from_void(display_new_error).into()
     }
 }
 

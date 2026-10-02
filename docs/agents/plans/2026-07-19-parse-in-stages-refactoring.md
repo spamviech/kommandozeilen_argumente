@@ -573,7 +573,7 @@ Depends on: **Phase 1.9, 1.10**.
   `write_argument_or_alternatives`.
 - [x] Rename the private helper traits `KonvertiereFehler` and `AnzeigeFehler` to `ConvertError`
   and `DisplayError`, including their `clone_trait_object!` invocations.
-- [-] Update `src/arguments/combine.rs`'s tuple impls (from Phase 1.10) to reference the now-
+- [x] Update `src/arguments/combine.rs`'s tuple impls (from Phase 1.10) to reference the now-
   renamed `Arguments`/`Result`-style types instead of `Argumente`/`ZwischenErgebnis` where the
   impl is for the primary (English) side, keeping the German-mirror-typed impl block referencing
   `Argumente`/`ZwischenErgebnis` unchanged. No primary English tuple impl block exists yet.
