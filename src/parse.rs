@@ -1,4 +1,4 @@
-//! Trait für Typen, die aus Kommandozeilen-Argumenten geparst werden können.
+//! Traits for types that can be parsed from command-line arguments.
 
 use std::{
     borrow::Cow,
@@ -17,52 +17,75 @@ use crate::{
         combine::Combine,
         flag::Flag,
         help::{self, CreateHelpText},
-        single_argument::EinzelArgument,
-        value::{EnumArgument, Wert},
+        single_argument::SingleArgument,
+        value::{EnumArgument, Value},
+        Arguments,
     },
     description::{ArgumentInput, Beschreibung, Description},
     dyn_to_owned::{self, Bool, Show},
     language::{Language, Sprache},
-    outcome::{Ergebnis, Error, Fehler, ParseFehler},
-    unicode::Vergleich,
+    outcome::{Ergebnis, Error, Fehler, ParseError, Result},
+    unicode::Compare,
 };
 
 #[cfg(any(feature = "derive", all(doc, not(doctest))))]
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::Parse;
 
-/// Trait für Typen, die direkt mit dem (derive-Macro)[`derive@Parse`]
-/// für das [`Parse`]-Trait verwendet werden können.
+/// Trait for types directly usable with the [derive macro](derive@Parse) for [`Parse`].
 ///
-/// ## English
-/// Trait for types directly usable with the [derive macro](derive@Parse] for the [`Parse`] trait.
+/// ## Deutsch
+/// Trait für Typen, die direkt mit dem [derive-Makro](derive@Parse) für [`Parse`] verwendet
+/// werden können.
 #[allow(clippy::module_name_repetitions)]
 pub trait ParseArgument: Sized {
-    /// Erstelle ein [`Argumente`] mit den konfigurierten Eigenschaften.
+    /// Creates [`Arguments`] with the configured properties.
     ///
-    /// `invertiere_präfix` ist für Flag-Argumente gedacht,
-    /// `meta_var` für Wert-Argumente.
+    /// `invert_prefix` is intended as the prefix to invert flag arguments, and `meta_var` is the
+    /// metavariable used in help text for value arguments.
     ///
-    /// ## English
-    /// Create and [`Arguments`] with the configured properties.
+    /// ## Deutsch
+    /// Erstellt [`Arguments`] mit den konfigurierten Eigenschaften.
     ///
-    /// `invertiere_präfix` is intended as the prefix to invert flag arguments,
-    /// `meta_var` is intended as the meta-variable used in the help text for value arguments.
-    fn argumente<'t>(
-        beschreibung: Beschreibung<'t, Self>,
-        invertiere_präfix: impl Into<Vergleich<'t>>,
-        invertiere_infix: impl Into<Vergleich<'t>>,
-        wert_infix: impl Into<Vergleich<'t>>,
+    /// `invert_prefix` ist für Flag-Argumente gedacht, `meta_var` ist die Meta-Variable für
+    /// Wert-Argumente im Hilfetext.
+    fn arguments<'t>(
+        description: Description<'t, Self>,
+        invert_prefix: impl Into<Compare<'t>>,
+        invert_infix: impl Into<Compare<'t>>,
+        value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
-    ) -> Argumente<'t, Self, String>;
+    ) -> Arguments<'t, Self, String>;
 
-    /// Sollen Argumente dieses Typs normalerweise einen Standard-Wert haben?
+    /// Returns the default value for an omitted argument, if it has one.
     ///
-    /// ## English
-    /// Should arguments of this type have a default value if left unspecified?
-    fn standard() -> Option<Self>;
+    /// ## Deutsch
+    /// Gibt den Standardwert für ein nicht angegebenes Argument zurück, falls vorhanden.
+    fn default() -> Option<Self>;
 
-    /// Erstelle ein [Argumente] für die übergebene [`Beschreibung`].
+    /// Creates an argument configuration with localized defaults.
+    ///
+    /// ## Deutsches Synonym
+    /// [`argumente_mit_sprache`](ParseArgument::argumente_mit_sprache)
+    #[inline]
+    #[allow(clippy::needless_lifetimes)]
+    fn arguments_with_language<'t>(
+        description: Description<'t, Self>,
+        language: Language,
+    ) -> Arguments<'t, Self, String> {
+        Self::arguments(
+            description,
+            language.invert_prefix,
+            language.invert_infix,
+            language.value_infix,
+            language.meta_var,
+        )
+    }
+
+    /// Creates a German mirror argument configuration with localized defaults.
+    ///
+    /// ## Deutsch
+    /// Erstellt eine deutsche Spiegel-Konfiguration mit lokalisierten Standardwerten.
     ///
     /// ## English synonym
     /// [`arguments_with_language`](ParseArgument::arguments_with_language)
@@ -72,29 +95,23 @@ pub trait ParseArgument: Sized {
         beschreibung: Beschreibung<'t, Self>,
         sprache: Sprache,
     ) -> Argumente<'t, Self, String> {
-        Self::argumente(
-            beschreibung,
-            sprache.invertiere_präfix,
-            sprache.invertiere_infix,
-            sprache.wert_infix,
-            sprache.meta_var,
-        )
+        Self::arguments_with_language(beschreibung.into(), sprache.into()).into()
     }
 
-    /// Create an [Arguments] for the given [`Description`].
+    /// Creates an argument configuration with English defaults.
     ///
-    /// ## Deutsches Synonym
-    /// [`argumente_mit_sprache`](ParseArgument::argumente_mit_sprache)
+    /// ## Deutsche Version
+    /// [`neu`](ParseArgument::neu)
     #[inline]
     #[allow(clippy::needless_lifetimes)]
-    fn arguments_with_language<'t>(
-        description: Description<'t, Self>,
-        language: Language,
-    ) -> Argumente<'t, Self, String> {
-        Self::argumente_mit_sprache(description.into(), language.into())
+    fn new<'t>(description: Description<'t, Self>) -> Arguments<'t, Self, String> {
+        Self::arguments_with_language(description, Language::ENGLISH)
     }
 
-    /// Erstelle ein [Argumente] für die übergebene [`Beschreibung`].
+    /// Creates a German mirror argument configuration with German defaults.
+    ///
+    /// ## Deutsch
+    /// Erstellt eine deutsche Spiegel-Konfiguration mit deutschen Standardwerten.
     ///
     /// ## English version
     /// [`new`](ParseArgument::new)
@@ -103,107 +120,100 @@ pub trait ParseArgument: Sized {
     fn neu<'t>(beschreibung: Beschreibung<'t, Self>) -> Argumente<'t, Self, String> {
         Self::argumente_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
-
-    /// Create an [Argumente] for the [`Beschreibung`].
-    ///
-    /// ## Deutsche Version
-    /// [`neu`](ParseArgument::neu)
-    #[inline]
-    #[allow(clippy::needless_lifetimes)]
-    fn new<'t>(beschreibung: Beschreibung<'t, Self>) -> Argumente<'t, Self, String> {
-        Self::argumente_mit_sprache(beschreibung, Sprache::ENGLISH)
-    }
 }
 
 impl ParseArgument for bool {
     #[inline]
-    fn argumente<'t>(
-        beschreibung: Beschreibung<'t, Self>,
-        invertiere_präfix: impl Into<Vergleich<'t>>,
-        invertiere_infix: impl Into<Vergleich<'t>>,
-        _wert_infix: impl Into<Vergleich<'t>>,
+    fn arguments<'t>(
+        description: Description<'t, Self>,
+        invert_prefix: impl Into<Compare<'t>>,
+        invert_infix: impl Into<Compare<'t>>,
+        _value_infix: impl Into<Compare<'t>>,
         _meta_var: &'t str,
-    ) -> Argumente<'t, Self, String> {
-        Argumente::from(Flag {
-            description: beschreibung.into(),
-            invert_prefix: invertiere_präfix.into().into(),
-            invert_infix: invertiere_infix.into().into(),
+    ) -> Arguments<'t, Self, String> {
+        Arguments::from(Flag {
+            description: description.into(),
+            invert_prefix: invert_prefix.into().into(),
+            invert_infix: invert_infix.into().into(),
             display: Cow::Borrowed(&<bool as ToString>::to_string),
             convert: Cow::Borrowed(&identity),
         })
     }
 
     #[inline]
-    fn standard() -> Option<Self> {
+    fn default() -> Option<Self> {
         Some(false)
     }
 }
 
 impl ParseArgument for String {
     #[inline]
-    fn argumente<'t>(
-        beschreibung: Beschreibung<'t, Self>,
-        _invertiere_präfix: impl Into<Vergleich<'t>>,
-        _invertiere_infix: impl Into<Vergleich<'t>>,
-        wert_infix: impl Into<Vergleich<'t>>,
+    fn arguments<'t>(
+        description: Description<'t, Self>,
+        _invert_prefix: impl Into<Compare<'t>>,
+        _invert_infix: impl Into<Compare<'t>>,
+        value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
-    ) -> Argumente<'t, Self, String> {
-        Argumente::from(Wert {
-            beschreibung,
-            wert_infix: wert_infix.into(),
+    ) -> Arguments<'t, Self, String> {
+        Arguments::from(Value {
+            description,
+            value_infix: value_infix.into(),
             meta_var,
-            mögliche_werte: None,
+            possible_values: None,
             parse: Cow::Borrowed(&|os_str: &OsStr| {
                 if let Some(string) = os_str.to_str() {
                     Ok(String::from(string))
                 } else {
-                    Err(ParseFehler::InvaliderString(OsString::from(os_str)))
+                    Err(ParseError::InvalidString(OsString::from(os_str)).into())
                 }
             }),
-            anzeige: Cow::Borrowed(&<String as Clone>::clone),
-            anzeige_fehler: Cow::Borrowed(&<String as Clone>::clone),
+            display: Cow::Borrowed(&<String as Clone>::clone),
+            display_error: Cow::Borrowed(&<String as Clone>::clone),
         })
     }
 
     #[inline]
-    fn standard() -> Option<Self> {
+    fn default() -> Option<Self> {
         None
     }
 }
 
-/// Implementiere [`ParseArgument`] für primitive Zahlentypen.
+/// Implements [`ParseArgument`] for primitive numeric types.
+///
+/// ## Deutsch
+/// Implementiert [`ParseArgument`] für primitive Zahlentypen.
 macro_rules! impl_parse_argument {
     ($($type:ty),*$(,)?) => {$(
         impl ParseArgument for $type {
             #[inline]
-            fn argumente<'t>(
-                beschreibung: Beschreibung<'t,Self>,
-                _invertiere_präfix: impl Into<Vergleich<'t>>,
-                _invertiere_infix: impl Into<Vergleich<'t>>,
-                wert_infix: impl Into<Vergleich<'t>>,
+            fn arguments<'t>(
+                description: Description<'t,Self>,
+                _invert_prefix: impl Into<Compare<'t>>,
+                _invert_infix: impl Into<Compare<'t>>,
+                value_infix: impl Into<Compare<'t>>,
                 meta_var: &'t str,
-            ) -> Argumente<'t, Self, String> {
-                Argumente::from(Wert {
-                    beschreibung,
-                    wert_infix: wert_infix.into(),
+            ) -> Arguments<'t, Self, String> {
+                Arguments::from(Value {
+                    description,
+                    value_infix: value_infix.into(),
                     meta_var,
-                    mögliche_werte: None,
+                    possible_values: None,
                     parse: Cow::Borrowed(&|os_str: &OsStr| {
                         if let Some(string) = os_str.to_str() {
                             string.parse().map_err(
-                                |err: <$type as FromStr>::Err| ParseFehler::ParseFehler(err.to_string())
+                                |err: <$type as FromStr>::Err| ParseError::ParseError(err.to_string()).into()
                             )
                         } else {
-                            Err(ParseFehler::InvaliderString(os_str.to_owned()))
+                            Err(ParseError::InvalidString(os_str.to_owned()).into())
                         }
                     }),
-                    anzeige: Cow::Borrowed(&<$type as ToString>::to_string),
-                    anzeige_fehler: Cow::Borrowed(&<String as Clone>::clone),
+                    display: Cow::Borrowed(&<$type as ToString>::to_string),
+                    display_error: Cow::Borrowed(&<String as Clone>::clone),
                 })
             }
 
             #[inline]
-            fn standard() -> Option<Self> {
+            fn default() -> Option<Self> {
                 None
             }
         }
@@ -211,76 +221,76 @@ macro_rules! impl_parse_argument {
 }
 impl_parse_argument! {i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize, f32, f64}
 
-/// Hilfs-Typ für die [`ParseArgument`]-Implementierung von [`Option<T>`].
-struct OptionHelper<'t, F, T, Fehler> {
-    /// Finales anpassen des Ergebnis beim parser einer [`Option<T>`].
-    ergebnis_anpassen: F,
-    /// Argument-Definition für parsen einer [`Option<T>`].
-    argumente: Argumente<'t, T, Fehler>,
+/// Helper type for the [`ParseArgument`] implementation of [`Option<T>`].
+struct OptionArguments<'t, F, T, E> {
+    /// Adjusts the result of parsing an [`Option<T>`].
+    adjust_result: F,
+    /// Argument definition used to parse an [`Option<T>`].
+    arguments: Arguments<'t, T, E>,
 }
 
-impl<'t, T, Fehler, F: FnOnce(Ergebnis<'t, T, Fehler>) -> Ergebnis<'t, T, Fehler>>
-    Combine<'t, T, Fehler> for OptionHelper<'t, F, T, Fehler>
+impl<'t, T, E, F: FnOnce(Result<'t, T, E>) -> Result<'t, T, E>> Combine<'t, T, E>
+    for OptionArguments<'t, F, T, E>
 {
     #[inline]
     fn create_help_text(
         &self,
-        variante: &dyn CreateHelpText,
-        meta_standard: &str,
-        meta_erlaubte_werte: &str,
+        variant: &dyn CreateHelpText,
+        meta_default: &str,
+        meta_allowed_values: &str,
     ) -> NonEmpty<help::Alternativen> {
-        self.argumente.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
+        self.arguments.create_help_text(variant, meta_default, meta_allowed_values).map(Into::into)
     }
 }
 
-/// Erstelle die [`Show`]-closure für [`Option<T>`] als trait-Objekt.
-fn erstelle_boxed_option_anzeige<'t, T>(
-    anzeige: Cow<'t, dyn Show<'t, T>>,
+/// Creates the [`Show`] closure for [`Option<T>`] as a trait object.
+fn create_boxed_option_display<'t, T>(
+    display: Cow<'t, dyn Show<'t, T>>,
 ) -> Box<dyn 't + Show<'t, Option<T>>> {
     Box::new(move |opt: &Option<T>| {
         #[allow(clippy::min_ident_chars)]
         if let Some(t) = opt {
-            anzeige(t)
+            display(t)
         } else {
             String::from("None")
         }
     })
 }
 
-/// Erstelle die closure für das finale anpassen des [`Ergebnis`] bei einer [`Option<T>`].
-fn erstelle_ergebnis_anpassen<'t, T: Clone>(
-    standard: Option<T>,
-) -> impl FnOnce(Ergebnis<'t, T, String>) -> Ergebnis<'t, T, String> {
-    |ergebnis| match (ergebnis, standard) {
-        (Ergebnis::Fehler(fehler_liste), Some(standard)) => {
-            let mut finales_ergebnis = Some(Ergebnis::Wert(standard.clone()));
-            for fehler in &fehler_liste {
-                if let Fehler::ParseFehler(_parse_fehler) = fehler {
-                    finales_ergebnis = None;
+/// Creates the closure that adjusts the final [`Result`] for an [`Option<T>`].
+fn create_result_adjuster<'t, T: Clone>(
+    default: Option<T>,
+) -> impl FnOnce(Result<'t, T, String>) -> Result<'t, T, String> {
+    |result| match (result, default) {
+        (Result::Error(errors), Some(default)) => {
+            let mut final_result = Some(Result::Value(default.clone()));
+            for error in &errors {
+                if let Error::ParseError(_parse_error) = error {
+                    final_result = None;
                     break;
                 }
             }
-            if let Some(finales_ergebnis) = finales_ergebnis {
-                finales_ergebnis
+            if let Some(final_result) = final_result {
+                final_result
             } else {
-                Ergebnis::Fehler(fehler_liste)
+                Result::Error(errors)
             }
         },
-        (ergebnis, _) => ergebnis,
+        (result, _) => result,
     }
 }
 
-/// Erstelle die [`Beschreibung`] für den Aufruf von [`ParseArgument::argumente`] bei einer [`Option<T>`].
-fn erstelle_beschreibung<'t, T>(beschreibung: &Beschreibung<'t, Option<T>>) -> Beschreibung<'t, T> {
-    let name_long_prefix = beschreibung.name.long_prefix.clone();
-    let name_lang = beschreibung.name.long.clone();
-    let name_short_prefix = beschreibung.name.short_prefix.clone();
-    let name_kurz = beschreibung.name.short.clone();
-    Beschreibung::neu(
+/// Creates the [`Description`] used to invoke [`ParseArgument::arguments`] for an [`Option<T>`].
+fn create_description<'t, T>(description: &Description<'t, Option<T>>) -> Description<'t, T> {
+    let name_long_prefix = description.name.long_prefix.clone();
+    let long = description.name.long.clone();
+    let name_short_prefix = description.name.short_prefix.clone();
+    let short = description.name.short.clone();
+    Description::new(
         name_long_prefix,
-        name_lang.clone(),
+        long.clone(),
         name_short_prefix,
-        name_kurz.clone(),
+        short.clone(),
         None::<&str>,
         None,
     )
@@ -288,25 +298,25 @@ fn erstelle_beschreibung<'t, T>(beschreibung: &Beschreibung<'t, Option<T>>) -> B
 
 impl<T: 'static + ParseArgument + Clone + Debug + Display> ParseArgument for Option<T> {
     #[inline]
-    fn argumente<'t>(
-        beschreibung: Beschreibung<'t, Self>,
-        invertiere_präfix: impl Into<Vergleich<'t>>,
-        invertiere_infix: impl Into<Vergleich<'t>>,
-        wert_infix: impl Into<Vergleich<'t>>,
+    fn arguments<'t>(
+        description: Description<'t, Self>,
+        invert_prefix: impl Into<Compare<'t>>,
+        invert_infix: impl Into<Compare<'t>>,
+        value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
-    ) -> Argumente<'t, Self, String> {
-        let wert_infix_vergleich = wert_infix.into();
-        let argumente = <T as ParseArgument>::argumente(
-            erstelle_beschreibung(&beschreibung),
-            invertiere_präfix,
-            invertiere_infix,
-            wert_infix_vergleich,
+    ) -> Arguments<'t, Self, String> {
+        let value_infix_compare = value_infix.into();
+        let arguments = <T as ParseArgument>::arguments(
+            create_description(&description),
+            invert_prefix,
+            invert_infix,
+            value_infix_compare,
             meta_var,
         );
-        let ergebnis_anpassen = erstelle_ergebnis_anpassen(beschreibung.standard.clone());
+        let adjust_result = create_result_adjuster(description.default.clone());
         #[allow(clippy::shadow_unrelated)]
-        match argumente {
-            Argumente::EinzelArgument(EinzelArgument::Flag(Flag {
+        match arguments {
+            Arguments::Single(SingleArgument::Flag(Flag {
                 description: _,
                 invert_prefix,
                 invert_infix,
@@ -315,87 +325,83 @@ impl<T: 'static + ParseArgument + Clone + Debug + Display> ParseArgument for Opt
             })) => {
                 let boxed_convert: Box<dyn Bool<'t, Option<T>>> =
                     Box::new(move |value| Some(convert(value)));
-                Argumente::EinzelArgument(EinzelArgument::Flag(Flag {
-                    description: beschreibung.into(),
+                Arguments::Single(SingleArgument::Flag(Flag {
+                    description: description.into(),
                     invert_prefix,
                     invert_infix,
                     convert: Cow::Owned(boxed_convert),
-                    display: Cow::Owned(erstelle_boxed_option_anzeige(display)),
+                    display: Cow::Owned(create_boxed_option_display(display)),
                 }))
             },
-            Argumente::EinzelArgument(EinzelArgument::FrühesBeenden {
-                frühes_beenden,
-                wert,
-                anzeige,
-            }) => {
-                // standard ist garantiert [`None`], daher kann [`Beschreibung`] übernommen werden.
-                Argumente::EinzelArgument(EinzelArgument::FrühesBeenden {
-                    frühes_beenden,
-                    wert: Some(wert),
-                    anzeige: Cow::Owned(erstelle_boxed_option_anzeige(anzeige)),
+            Arguments::Single(SingleArgument::EarlyExit { early_exit, value, display }) => {
+                // `default` is guaranteed to be [`None`], so `description` can be moved.
+                Arguments::Single(SingleArgument::EarlyExit {
+                    early_exit,
+                    value: Some(value),
+                    display: Cow::Owned(create_boxed_option_display(display)),
                 })
             },
-            Argumente::EinzelArgument(EinzelArgument::Wert(Wert {
-                beschreibung: _,
-                wert_infix,
+            Arguments::Single(SingleArgument::Value(Value {
+                description: _,
+                value_infix,
                 meta_var,
-                mögliche_werte,
+                possible_values,
                 parse,
-                anzeige,
-                anzeige_fehler,
+                display,
+                display_error,
             })) => {
                 let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, Option<T>, String>> =
                     Box::new(move |os_str: &OsStr| match parse(os_str) {
-                        Ok(wert) => Ok(Some(wert)),
-                        Err(_fehler) if os_str == "None" => Ok(None),
-                        Err(fehler) => Err(fehler),
+                        Ok(value) => Ok(Some(value)),
+                        Err(_error) if os_str == "None" => Ok(None),
+                        Err(error) => Err(error),
                     });
-                let mögliche_werte = mögliche_werte.map(|nonempty| {
+                let possible_values = possible_values.map(|nonempty| {
                     let mut nonempty = nonempty.map(Some);
                     nonempty.push(None);
                     nonempty
                 });
-                let wert = Argumente::from(Wert {
-                    beschreibung,
-                    wert_infix,
+                let value = Arguments::from(Value {
+                    description,
+                    value_infix,
                     meta_var,
-                    mögliche_werte,
+                    possible_values,
                     parse: Cow::Owned(boxed_parse),
-                    anzeige: Cow::Owned(erstelle_boxed_option_anzeige(anzeige)),
-                    anzeige_fehler,
+                    display: Cow::Owned(create_boxed_option_display(display)),
+                    display_error,
                 });
-                Argumente::kombiniere(OptionHelper { ergebnis_anpassen, argumente: wert })
+                Arguments::combine(OptionArguments { adjust_result, arguments: value })
             },
-            Argumente::Kombiniere(kombiniere) => Argumente::kombiniere(OptionHelper {
-                ergebnis_anpassen,
-                argumente: Argumente::kombiniere((Some, Argumente::Kombiniere(kombiniere))),
+            Arguments::Combined(combine) => Arguments::combine(OptionArguments {
+                adjust_result,
+                arguments: Arguments::combine((Some, Arguments::Combined(combine))),
             }),
-            Argumente::Alternativen(alternativen) => Argumente::kombiniere(OptionHelper {
-                ergebnis_anpassen,
-                argumente: Argumente::kombiniere((Some, Argumente::Alternativen(alternativen))),
+            Arguments::Alternatives(alternatives) => Arguments::combine(OptionArguments {
+                adjust_result,
+                arguments: Arguments::combine((Some, Arguments::Alternatives(alternatives))),
             }),
         }
     }
 
     #[inline]
-    fn standard() -> Option<Self> {
+    fn default() -> Option<Self> {
         Some(None)
     }
 }
 
 impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
     #[inline]
-    fn argumente<'t>(
-        beschreibung: Beschreibung<'t, Self>,
-        _invertiere_präfix: impl Into<Vergleich<'t>>,
-        _invertiere_infix: impl Into<Vergleich<'t>>,
-        wert_infix: impl Into<Vergleich<'t>>,
+    fn arguments<'t>(
+        description: Description<'t, Self>,
+        _invert_prefix: impl Into<Compare<'t>>,
+        _invert_infix: impl Into<Compare<'t>>,
+        value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
-    ) -> Argumente<'t, Self, String> {
+    ) -> Arguments<'t, Self, String> {
         let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, T, String>> =
             Box::new(move |os_str: &OsStr| {
                 let Some(string) = os_str.to_str() else {
-                    return Err(ParseFehler::InvaliderString(OsString::from(os_str)));
+                    return Err(ParseError::InvalidString(OsString::from(os_str)).into());
                 };
                 <T as EnumArgument>::varianten()
                     .into_iter()
@@ -404,72 +410,59 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
                         #[allow(clippy::min_ident_chars)]
                         |t| t.to_string() == string,
                     )
-                    .ok_or_else(|| ParseFehler::ParseFehler(String::from(string)))
+                    .ok_or_else(|| ParseError::ParseError(String::from(string)).into())
             });
-        Argumente::from(Wert {
-            beschreibung,
-            wert_infix: wert_infix.into(),
+        Arguments::from(Value {
+            description,
+            value_infix: value_infix.into(),
             meta_var,
-            mögliche_werte: <T as EnumArgument>::varianten(),
+            possible_values: <T as EnumArgument>::varianten(),
             parse: Cow::Owned(boxed_parse),
-            anzeige: Cow::Borrowed(&<T as ToString>::to_string),
-            anzeige_fehler: Cow::Borrowed(&<String as Clone>::clone),
+            display: Cow::Borrowed(&<T as ToString>::to_string),
+            display_error: Cow::Borrowed(&<String as Clone>::clone),
         })
     }
 
     #[inline]
-    fn standard() -> Option<Self> {
+    fn default() -> Option<Self> {
         None
     }
 }
 
-/// Erlaube parsen aus Kommandozeilen-Argumenten ausgehend einer Standard-Konfiguration.
+/// Allows parsing from command-line arguments based on a default configuration.
 ///
-/// Mit aktiviertem `derive`-Feature kann diese [`automatisch erzeugt werden`](derive@Parse).
+/// With the `derive` feature, an implementation can be [generated automatically](derive@Parse).
 ///
-/// ## English
-/// Allow parsing from command line arguments, based on a default configuration.
+/// ## Deutsch
+/// Erlaubt das Parsen von Kommandozeilen-Argumenten anhand einer Standardkonfiguration.
 ///
-/// With active `derive`-feature, the implementation can be [`automatically created`](derive@Parse).
+/// Mit dem `derive`-Feature kann eine Implementierung [automatisch erzeugt werden](derive@Parse).
 pub trait Parse: Sized {
-    /// Möglicher Parse-Fehler, die automatisch erzeugte Implementierung verwendet [`String`].
-    ///
-    /// ## English
     /// Possible parse error, the automatically created implementation uses [`String`].
-    type Fehler;
+    /// 
+    /// ## Deutsch
+    /// Möglicher Parse-Fehler, die automatisch erzeugte Implementierung verwendet [`String`].
+    type Error;
 
-    /// Erzeuge eine Beschreibung, wie Kommandozeilen-Argumente geparst werden sollen.
-    ///
-    /// ## English
     /// Create a description, how command line arguments should be parsed.
-    fn kommandozeilen_argumente<'t>() -> Argumente<'t, Self, Self::Fehler>;
+    /// 
+    /// ## Deutsch
+    /// Erzeuge eine Beschreibung, wie Kommandozeilen-Argumente geparst werden sollen.
+    fn arguments<'t>() -> Arguments<'t, Self, Self::Error>;
 
-    /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
-    ///
-    /// ## English
     /// Parse the given command line arguments to create the requested type.
+    ///
+    /// ## Deutsch
+    /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
     #[inline]
     fn parse<'t>(
         args: impl Iterator<Item = OsString>,
-    ) -> (Ergebnis<'t, Self, Self::Fehler>, Vec<ArgumentInput>)
+    ) -> (Result<'t, Self, Self::Error>, Vec<ArgumentInput>)
     where
         Self: 't,
-        Self::Fehler: 't,
+        Self::Error: 't,
     {
-        Self::kommandozeilen_argumente().parse(args)
-    }
-
-    /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
-    ///
-    /// ## English synonym
-    /// [`parse_from_env`](Parse::parse_from_env)
-    #[inline]
-    fn parse_aus_env<'t>() -> (Ergebnis<'t, Self, Self::Fehler>, Vec<ArgumentInput>)
-    where
-        Self: 't,
-        Self::Fehler: 't,
-    {
-        Self::kommandozeilen_argumente().parse_aus_env()
+        Self::arguments().parse(args)
     }
 
     /// Parse [`args_os`](std::env::args_os) and try to create the requested type.
@@ -477,48 +470,43 @@ pub trait Parse: Sized {
     /// ## Deutsches Synonym
     /// [`parse_aus_env`](Parse::parse_aus_env)
     #[inline]
-    fn parse_from_env<'t>() -> (Ergebnis<'t, Self, Self::Fehler>, Vec<ArgumentInput>)
+    fn parse_from_env<'t>() -> (Result<'t, Self, Self::Error>, Vec<ArgumentInput>)
     where
         Self: 't,
-        Self::Fehler: 't,
+        Self::Error: 't,
     {
-        Self::parse_aus_env()
+        Self::arguments().parse_from_env()
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
-    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
-    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
-    /// [`exit`](std::process::exit) mit exit code `0` beendet.
     ///
     /// ## English synonym
-    /// [`parse_from_env_with_early_exit`](Parse::parse_from_env_with_early_exit)
-    #[inline]
-    #[allow(clippy::type_complexity)]
-    fn parse_aus_env_mit_frühen_beenden<'t>(
-    ) -> (Result<Self, NonEmpty<Fehler<'t, Self::Fehler>>>, Vec<ArgumentInput>)
+    /// [`parse_from_env`](Parse::parse_from_env)    #[inline]
+    fn parse_aus_env<'t>() -> (Ergebnis<'t, Self, Self::Error>, Vec<ArgumentInput>)
     where
         Self: 't,
-        Self::Fehler: 't,
+        Self::Error: 't,
     {
-        Self::kommandozeilen_argumente().parse_aus_env_mit_frühen_beenden()
+        let (result, remaining) = Self::parse_from_env();
+        (result.into(), remaining)
     }
 
-    /// Parse [`args_os`](std::env::args_os) to create the requested type.
+    /// Parse the given command line arguments to create the requested type.
     /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
     /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_aus_env_mit_frühen_beenden`](Argumente::parse_aus_env_mit_frühen_beenden)
+    /// [`parse_mit_frühen_beenden`](Parse::parse_mit_frühen_beenden)
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn parse_from_env_with_early_exit<'t>(
-    ) -> (Result<Self, NonEmpty<Error<'t, Self::Fehler>>>, Vec<ArgumentInput>)
+    fn parse_with_early_exit<'t>(
+        args: impl Iterator<Item = OsString>,
+    ) -> (std::result::Result<Self, NonEmpty<Error<'t, Self::Error>>>, Vec<ArgumentInput>)
     where
         Self: 't,
-        Self::Fehler: 't,
+        Self::Error: 't,
     {
-        let (result, remaining) = Self::parse_aus_env_mit_frühen_beenden();
-        (result.map_err(|errors| errors.map(Into::into)), remaining)
+        Self::arguments().parse_with_early_exit(args)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -532,31 +520,82 @@ pub trait Parse: Sized {
     #[allow(clippy::type_complexity)]
     fn parse_mit_frühen_beenden<'t>(
         args: impl Iterator<Item = OsString>,
-    ) -> (Result<Self, NonEmpty<Fehler<'t, Self::Fehler>>>, Vec<ArgumentInput>)
+    ) -> (std::result::Result<Self, NonEmpty<Fehler<'t, Self::Error>>>, Vec<ArgumentInput>)
     where
         Self: 't,
-        Self::Fehler: 't,
+        Self::Error: 't,
     {
-        Self::kommandozeilen_argumente().parse_mit_frühen_beenden(args)
+        let (result, remaining) = Self::parse_with_early_exit(args);
+        (result.map_err(|errors| errors.map(Into::into)), remaining)
+    }
+
+    /// Parse [`args_os`](std::env::args_os) to create the requested type.
+    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
+    /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
+    ///
+    /// ## Deutsches Synonym
+    /// [`parse_aus_env_mit_frühen_beenden`](Argumente::parse_aus_env_mit_frühen_beenden)
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn parse_from_env_with_early_exit<'t>(
+    ) -> (std::result::Result<Self, NonEmpty<Error<'t, Self::Error>>>, Vec<ArgumentInput>)
+    where
+        Self: 't,
+        Self::Error: 't,
+    {
+        Self::arguments().parse_from_env_with_early_exit()
+    }
+
+    /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
+    /// Sofern ein frühes beenden gewünscht wird (z.B. `--version`) werden die
+    /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
+    /// [`exit`](std::process::exit) mit exit code `0` beendet.
+    ///
+    /// ## English synonym
+    /// [`parse_from_env_with_early_exit`](Parse::parse_from_env_with_early_exit)
+    #[inline]
+    #[allow(clippy::type_complexity)]
+    fn parse_aus_env_mit_frühen_beenden<'t>(
+    ) -> (std::result::Result<Self, NonEmpty<Fehler<'t, Self::Error>>>, Vec<ArgumentInput>)
+    where
+        Self: 't,
+        Self::Error: 't,
+    {
+        let (result, remaining) = Self::parse_from_env_with_early_exit();
+        (result.map_err(|errors| errors.map(Into::into)), remaining)
     }
 
     /// Parse the given command line arguments to create the requested type.
     /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
     /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
+    /// In case of an error, or if there are leftover arguments, the error message is written to
+    /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_mit_frühen_beenden`](Parse::parse_mit_frühen_beenden)
+    /// [`parse_vollständig`](Parse::parse_vollständig)
     #[inline]
-    #[allow(clippy::type_complexity)]
-    fn parse_with_early_exit<'t>(
+    #[must_use]
+    fn parse_complete(
         args: impl Iterator<Item = OsString>,
-    ) -> (Result<Self, NonEmpty<Error<'t, Self::Fehler>>>, Vec<ArgumentInput>)
+        error_code: NonZeroI32,
+        missing_flag: &str,
+        missing_value: &str,
+        parse_error: &str,
+        invalid_string: &str,
+        unused_arg: &str,
+    ) -> Self
     where
-        Self: 't,
-        Self::Fehler: 't,
+        Self::Error: Display,
     {
-        let (result, remaining) = Self::parse_mit_frühen_beenden(args);
-        (result.map_err(|errors| errors.map(Into::into)), remaining)
+        Self::arguments().parse_complete(
+            args,
+            error_code,
+            missing_flag,
+            missing_value,
+            parse_error,
+            invalid_string,
+            unused_arg,
+        )
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -580,9 +619,9 @@ pub trait Parse: Sized {
         arg_nicht_verwendet: &str,
     ) -> Self
     where
-        Self::Fehler: Display,
+        Self::Error: Display,
     {
-        Self::kommandozeilen_argumente().parse_vollständig(
+        Self::parse_complete(
             args,
             fehler_code,
             fehlende_flag,
@@ -600,30 +639,18 @@ pub trait Parse: Sized {
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_vollständig`](Parse::parse_vollständig)
+    /// [`parse_vollständig_mit_sprache`](Parse::parse_vollständig_mit_sprache)
     #[inline]
     #[must_use]
-    fn parse_complete(
+    fn parse_complete_with_language(
         args: impl Iterator<Item = OsString>,
         error_code: NonZeroI32,
-        missing_flag: &str,
-        missing_value: &str,
-        parse_error: &str,
-        invalid_string: &str,
-        unused_arg: &str,
+        language: Language,
     ) -> Self
     where
-        Self::Fehler: Display,
+        Self::Error: Display,
     {
-        Self::parse_vollständig(
-            args,
-            error_code,
-            missing_flag,
-            missing_value,
-            parse_error,
-            invalid_string,
-            unused_arg,
-        )
+        Self::arguments().parse_complete_with_language(args, error_code, language)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -643,30 +670,31 @@ pub trait Parse: Sized {
         sprache: Sprache,
     ) -> Self
     where
-        Self::Fehler: Display,
+        Self::Error: Display,
     {
-        Self::kommandozeilen_argumente().parse_vollständig_mit_sprache(args, fehler_code, sprache)
+        Self::parse_complete_with_language(args, fehler_code, sprache.into())
     }
 
-    /// Parse the given command line arguments to create the requested type.
+    /// Parse command line arguments to create the requested type.
     /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
     /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
     ///
-    /// ## Deutsches Synonym
-    /// [`parse_vollständig_mit_sprache`](Parse::parse_vollständig_mit_sprache)
+    /// [`parse_complete_with_language`](Parse::parse_complete_with_language) with [`Language::ENGLISH`].
+    ///
+    /// ## Deutsche version
+    /// [`parse_mit_fehlermeldung`](Parse::parse_mit_fehlermeldung)
     #[inline]
     #[must_use]
-    fn parse_complete_with_language(
+    fn parse_with_error_message(
         args: impl Iterator<Item = OsString>,
         error_code: NonZeroI32,
-        language: Language,
     ) -> Self
     where
-        Self::Fehler: Display,
+        Self::Error: Display,
     {
-        Self::parse_vollständig_mit_sprache(args, error_code, language.into())
+        Self::arguments().parse_with_error_message(args, error_code)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -687,31 +715,40 @@ pub trait Parse: Sized {
         fehler_code: NonZeroI32,
     ) -> Self
     where
-        Self::Fehler: Display,
+        Self::Error: Display,
     {
-        Self::kommandozeilen_argumente().parse_mit_fehlermeldung(args, fehler_code)
+        Self::parse_vollständig_mit_sprache(args, fehler_code, Sprache::DEUTSCH)
     }
 
-    /// Parse command line arguments to create the requested type.
+    /// Parse [`args_os`](std::env::args_os) to create the requested type.
     /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
     /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
     ///
-    /// [`parse_complete_with_language`](Parse::parse_complete_with_language) with [`Language::ENGLISH`].
-    ///
-    /// ## Deutsche version
-    /// [`parse_mit_fehlermeldung`](Parse::parse_mit_fehlermeldung)
+    /// ## Deutsches Synonym
+    /// [`parse_vollständig_aus_env`](Parse::parse_vollständig_aus_env)
     #[inline]
     #[must_use]
-    fn parse_with_error_message(
-        args: impl Iterator<Item = OsString>,
+    fn parse_complete_from_env(
         error_code: NonZeroI32,
+        missing_flag: &str,
+        missing_value: &str,
+        parse_error: &str,
+        invalid_string: &str,
+        unused_arg: &str,
     ) -> Self
     where
-        Self::Fehler: Display,
+        Self::Error: Display,
     {
-        Self::kommandozeilen_argumente().parse_with_error_message(args, error_code)
+        Self::arguments().parse_complete_from_env(
+            error_code,
+            missing_flag,
+            missing_value,
+            parse_error,
+            invalid_string,
+            unused_arg,
+        )
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -734,9 +771,9 @@ pub trait Parse: Sized {
         arg_nicht_verwendet: &str,
     ) -> Self
     where
-        Self::Fehler: Display,
+        Self::Error: Display,
     {
-        Self::kommandozeilen_argumente().parse_vollständig_aus_env(
+        Self::parse_complete_from_env(
             fehler_code,
             fehlende_flag,
             fehlender_wert,
@@ -753,28 +790,14 @@ pub trait Parse: Sized {
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_vollständig_aus_env`](Parse::parse_vollständig_aus_env)
+    /// [`parse_vollständig_mit_sprache_aus_env`](Parse::parse_vollständig_mit_sprache_aus_env)
     #[inline]
     #[must_use]
-    fn parse_complete_from_env(
-        error_code: NonZeroI32,
-        missing_flag: &str,
-        missing_value: &str,
-        parse_error: &str,
-        invalid_string: &str,
-        unused_arg: &str,
-    ) -> Self
+    fn parse_complete_with_language_from_env(error_code: NonZeroI32, language: Language) -> Self
     where
-        Self::Fehler: Display,
+        Self::Error: Display,
     {
-        Self::parse_vollständig_aus_env(
-            error_code,
-            missing_flag,
-            missing_value,
-            parse_error,
-            invalid_string,
-            unused_arg,
-        )
+        Self::arguments().parse_complete_with_language_from_env(error_code, language)
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -790,10 +813,9 @@ pub trait Parse: Sized {
     #[must_use]
     fn parse_vollständig_mit_sprache_aus_env(fehler_code: NonZeroI32, sprache: Sprache) -> Self
     where
-        Self::Fehler: Display,
+        Self::Error: Display,
     {
-        Self::kommandozeilen_argumente()
-            .parse_vollständig_mit_sprache_aus_env(fehler_code, sprache)
+        Self::parse_complete_with_language_from_env(fehler_code, sprache.into())
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -802,15 +824,18 @@ pub trait Parse: Sized {
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
     ///
-    /// ## Deutsches Synonym
-    /// [`parse_vollständig_mit_sprache_aus_env`](Parse::parse_vollständig_mit_sprache_aus_env)
+    /// [`parse_complete_with_language_from_env`](Parse::parse_complete_with_language_from_env)
+    /// with [`Language::ENGLISH`].
+    ///
+    /// ## Deutsche Version
+    /// [`parse_mit_fehlermeldung_aus_env`](Parse::parse_mit_fehlermeldung_aus_env)
     #[inline]
     #[must_use]
-    fn parse_complete_with_language_from_env(error_code: NonZeroI32, language: Language) -> Self
+    fn parse_with_error_message_from_env(error_code: NonZeroI32) -> Self
     where
-        Self::Fehler: Display,
+        Self::Error: Display,
     {
-        Self::parse_vollständig_mit_sprache_aus_env(error_code, language.into())
+        Self::arguments().parse_with_error_message_from_env(error_code)
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -829,28 +854,8 @@ pub trait Parse: Sized {
     #[must_use]
     fn parse_mit_fehlermeldung_aus_env(fehler_code: NonZeroI32) -> Self
     where
-        Self::Fehler: Display,
+        Self::Error: Display,
     {
-        Self::kommandozeilen_argumente().parse_mit_fehlermeldung_aus_env(fehler_code)
-    }
-
-    /// Parse [`args_os`](std::env::args_os) to create the requested type.
-    /// If an early exit is desired (e.g. `--version`), the corresponding messages are written to
-    /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
-    /// In case of an error, or if there are leftover arguments, the error message is written to
-    /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
-    ///
-    /// [`parse_complete_with_language_from_env`](Parse::parse_complete_with_language_from_env)
-    /// with [`Language::ENGLISH`].
-    ///
-    /// ## Deutsche Version
-    /// [`parse_mit_fehlermeldung_aus_env`](Parse::parse_mit_fehlermeldung_aus_env)
-    #[inline]
-    #[must_use]
-    fn parse_with_error_message_from_env(error_code: NonZeroI32) -> Self
-    where
-        Self::Fehler: Display,
-    {
-        Self::kommandozeilen_argumente().parse_with_error_message_from_env(error_code)
+        Self::parse_vollständig_mit_sprache_aus_env(fehler_code, Sprache::DEUTSCH)
     }
 }

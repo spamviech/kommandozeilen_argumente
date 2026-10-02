@@ -595,7 +595,7 @@ Depends on: **Phase 1.11**.
 
 **Tasks**:
 
-- [ ] Update `src/parse.rs`: change every reference to the old German-primary types
+- [x] Update `src/parse.rs`: change every reference to the old German-primary types
   (`Argumente`, `Wert`, `Beschreibung`, `EinzelArgument`, `Ergebnis`, ...) to the new English
   types (`Arguments`, `Value`, `Description`, `SingleArgument`, `Result`, ...); rename the `Parse`
   trait's associated type `Fehler` to `Error` and its method `kommandozeilen_argumente` to
@@ -606,7 +606,7 @@ Depends on: **Phase 1.11**.
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
 
 ---
 
