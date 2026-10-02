@@ -286,7 +286,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Create a [`Argumente::EinzelArgument`]-variant with sensible type parameters.
     #[inline]
     pub fn einzel_argument(einzel_argument: EinzelArgument<'t, T, Fehler>) -> Self {
-        Argumente::EinzelArgument(einzel_argument)
+        Arguments::single_argument(einzel_argument.into()).into()
     }
 }
 
@@ -297,7 +297,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// [`combine`](Self::combine)
     #[inline]
     pub fn kombiniere(kombiniere: impl 't + Combine<'t, T, Fehler>) -> Self {
-        Argumente::Kombiniere(Box::new(kombiniere))
+        Arguments::combine(kombiniere).into()
     }
 
     /// Create a [`Argumente::Kombiniere`]-variant with sensible type parameters.
@@ -315,7 +315,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// [`alternatives`](Self::alternatives)
     #[inline]
     pub fn alternativen(alternativen: NonEmpty<Self>) -> Self {
-        Argumente::Alternativen(Box::new(alternativen))
+        Arguments::alternatives(alternativen.map(Into::into)).into()
     }
 
     /// Create a [`Argumente::Alternativen`]-variant with sensible type parameters.
@@ -333,7 +333,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// [`alternatives_boxed`](Self::alternatives_boxed)
     #[inline]
     pub fn alternativen_boxed(alternativen: Box<NonEmpty<Self>>) -> Self {
-        Argumente::Alternativen(alternativen)
+        Arguments::alternatives_boxed(Box::new((*alternativen).map(Into::into))).into()
     }
 
     /// Create a [`Argumente::Alternativen`]-variant with sensible type parameters.
@@ -928,18 +928,15 @@ impl<'t, T, F> Argumente<'t, T, F> {
     }
 }
 
-/// Hilfs-Trait zum [Clone]-baren Konvertieren eines Fehlers.
-trait KonvertiereFehler<Fehler, NeuerFehler>: Fn(Fehler) -> NeuerFehler + DynClone {}
-impl<Fehler, NeuerFehler, F: Fn(Fehler) -> NeuerFehler + DynClone>
-    KonvertiereFehler<Fehler, NeuerFehler> for F
-{
-}
-clone_trait_object!(<Fehler, NeuerFehler> KonvertiereFehler<Fehler, NeuerFehler>);
+/// Helper trait for cloneable error conversion functions.
+trait ConvertError<Error, NewError>: Fn(Error) -> NewError + DynClone {}
+impl<Error, NewError, F: Fn(Error) -> NewError + DynClone> ConvertError<Error, NewError> for F {}
+clone_trait_object!(<Error, NewError> ConvertError<Error, NewError>);
 
-/// Hilfs-Trait zur [Clone]-baren Anzeige eines Fehlers.
-trait AnzeigeFehler<Fehler>: Fn(&Fehler) -> String + DynClone {}
-impl<Fehler, F: Fn(&Fehler) -> String + DynClone> AnzeigeFehler<Fehler> for F {}
-clone_trait_object!(<Fehler> AnzeigeFehler<Fehler>);
+/// Helper trait for cloneable error display functions.
+trait DisplayError<Error>: Fn(&Error) -> String + DynClone {}
+impl<Error, F: Fn(&Error) -> String + DynClone> DisplayError<Error> for F {}
+clone_trait_object!(<Error> DisplayError<Error>);
 
 impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Konvertiere den Fehler mit der spezifizierten Funktion.
@@ -1175,7 +1172,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
             FrühesBeenden { beschreibung: eigene_beschreibung, nachricht: dummy };
         hilfen.push(help::Alternativen::EinzelArgument(frühes_beenden.erzeuge_hilfe_text()));
         let hilfen = hilfen;
-        let max_syntax_breite = max_syntax_breite(&hilfen, meta_alternative_präfix);
+        let max_syntax_width = max_syntax_width(&hilfen, meta_alternative_präfix);
         let current_exe = env::current_exe().ok();
         let exe_name = current_exe
             .as_deref()
@@ -1194,12 +1191,12 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
             "{name}{programm_beschreibung}\n\n{exe_name} [{meta_optionen}]\n\n{meta_optionen}:\n"
         );
         for hilfe in hilfen {
-            schreibe_argument_oder_alternativen(
+            write_argument_or_alternatives(
                 &mut hilfe_text,
                 Cow::Borrowed(meta_syntax_präfix),
                 #[allow(clippy::arithmetic_side_effects)]
                 {
-                    meta_syntax_präfix.len() + max_syntax_breite + 1
+                    meta_syntax_präfix.len() + max_syntax_width + 1
                 },
                 meta_syntax_padding,
                 &hilfe,
@@ -1513,22 +1510,19 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     }
 }
 
-/// Berechne die maximale Breite für die Syntax eines Argumentes.
+/// Calculates the maximum width of an argument syntax.
 ///
-/// Hilfsfunktion für [`Argumente::mit_hilfe_frühes_beenden`]
-///
-/// ## Panics
-/// Programmierfehler, wenn `NonEmpty::iter().map(...)` kein Element hat.
-fn max_syntax_breite(hilfen: &NonEmpty<help::Alternativen>, alternative_präfix: &str) -> usize {
-    hilfen
+/// Helper for `Arguments::with_help_early_exit`.
+fn max_syntax_width(helps: &NonEmpty<help::Alternativen>, alternative_prefix: &str) -> usize {
+    helps
         .iter()
-        .filter_map(|arg| match arg {
-            help::Alternativen::EinzelArgument(arg) => Some(arg.syntax.len()),
-            help::Alternativen::Alternativen(alternativen) => {
+        .filter_map(|argument| match argument {
+            help::Alternativen::EinzelArgument(argument) => Some(argument.syntax.len()),
+            help::Alternativen::Alternativen(alternatives) => {
                 #[allow(clippy::arithmetic_side_effects)]
-                let breite =
-                    alternative_präfix.len() + max_syntax_breite(alternativen, alternative_präfix);
-                Some(breite)
+                let width =
+                    alternative_prefix.len() + max_syntax_width(alternatives, alternative_prefix);
+                Some(width)
             },
             help::Alternativen::Leer => None,
         })
@@ -1536,63 +1530,60 @@ fn max_syntax_breite(hilfen: &NonEmpty<help::Alternativen>, alternative_präfix:
         .expect("NonEmpty")
 }
 
-/// Schreibe den Hilfetext für den aktuellen Eintrag oder alle Alternativen.
+/// Writes help text for an entry or all of its alternatives.
 ///
-/// Hilfsfunktion für [`Argumente::mit_hilfe_frühes_beenden`]
-///
-/// ## Panics
-/// If `max_syntax_breite < aktueller_präfix.len() + syntax.len()` for any entry.
-/// If `max_syntax_breite < aktueller_präfix.len()` for any entry.
-fn schreibe_argument_oder_alternativen(
-    string: &mut String,
-    aktueller_präfix: Cow<'_, str>,
-    max_syntax_breite: usize,
+/// # Panics
+/// Panics if `max_syntax_width` is too small for an entry's prefix and syntax.
+fn write_argument_or_alternatives(
+    output: &mut String,
+    current_prefix: Cow<'_, str>,
+    max_syntax_width: usize,
     syntax_padding: char,
-    eintrag: &help::Alternativen,
-    alternative_präfix: &str,
-    alternative_trennzeichen: char,
+    entry: &help::Alternativen,
+    alternative_prefix: &str,
+    alternative_separator: char,
 ) {
-    match eintrag {
-        help::Alternativen::EinzelArgument(arg) => {
-            let Hilfe { syntax, hilfe } = arg;
-            string.push_str(&aktueller_präfix);
-            string.push_str(syntax);
+    match entry {
+        help::Alternativen::EinzelArgument(argument) => {
+            let Hilfe { syntax, hilfe: help } = argument;
+            output.push_str(&current_prefix);
+            output.push_str(syntax);
             #[allow(clippy::arithmetic_side_effects)]
-            let padding = max_syntax_breite - aktueller_präfix.len() - syntax.len();
+            let padding = max_syntax_width - current_prefix.len() - syntax.len();
             let mut buffer: [u8; 4] = [0; 4];
             let padding_string = syntax_padding.encode_utf8(&mut buffer).repeat(padding);
-            string.push_str(&padding_string);
-            if let Some(hilfe) = hilfe {
-                string.push_str(hilfe);
+            output.push_str(&padding_string);
+            if let Some(help) = help {
+                output.push_str(help);
             }
-            string.push('\n');
+            output.push('\n');
         },
-        help::Alternativen::Alternativen(alternativen) => {
+        help::Alternativen::Alternativen(alternatives) => {
             #[allow(clippy::arithmetic_side_effects)]
-            let trennzeile_breite = max_syntax_breite - aktueller_präfix.len();
+            let separator_width = max_syntax_width - current_prefix.len();
             let mut buffer: [u8; 4] = [0; 4];
-            let trennzeile = format!(
-                "{aktueller_präfix}{}",
-                alternative_trennzeichen.encode_utf8(&mut buffer).repeat(trennzeile_breite)
+            let separator = format!(
+                "{current_prefix}{}",
+                alternative_separator.encode_utf8(&mut buffer).repeat(separator_width)
             );
-            let mut neuer_präfix = aktueller_präfix.into_owned();
-            neuer_präfix.push_str(alternative_präfix);
+            let mut next_prefix = current_prefix.into_owned();
+            next_prefix.push_str(alternative_prefix);
             let mut first = true;
-            for alternative in alternativen.iter() {
+            for alternative in alternatives.iter() {
                 if first {
                     first = false;
                 } else {
-                    string.push_str(&trennzeile);
-                    string.push('\n');
+                    output.push_str(&separator);
+                    output.push('\n');
                 }
-                schreibe_argument_oder_alternativen(
-                    string,
-                    Cow::Borrowed(&neuer_präfix),
-                    max_syntax_breite,
+                write_argument_or_alternatives(
+                    output,
+                    Cow::Borrowed(&next_prefix),
+                    max_syntax_width,
                     syntax_padding,
                     alternative,
-                    alternative_präfix,
-                    alternative_trennzeichen,
+                    alternative_prefix,
+                    alternative_separator,
                 );
             }
         },

@@ -547,9 +547,8 @@ Depends on: **Phase 1.9, 1.10**.
   `NonEmpty<Self>` conversion.
 - [x] Move the English constructors (`single_argument`, `combine`, `alternatives`, and
   `alternatives_boxed`) onto `Arguments`.
-- [-] Convert `Argumente`'s mirrored constructors (`einzel_argument`, `kombiniere`,
+- [x] Convert `Argumente`'s mirrored constructors (`einzel_argument`, `kombiniere`,
   `alternativen`, and `alternativen_boxed`) into one-line `Arguments` conversion wrappers.
-  They still construct German variants directly.
 - [x] Keep `ParsedEarlyExit`, `ParsedShortFlag`, `ParsedValueName`, `ParsedValue`, and
   `ParseMergedShortFormsResult` English-only; update `ParseMergedShortFormsResult::definition`
   to refer to `Arguments`.
@@ -569,10 +568,10 @@ Depends on: **Phase 1.9, 1.10**.
 - [-] Move the complete help-text implementation to `Arguments::create_help_text` and turn
   `Argumente::erzeuge_hilfe_text` into a conversion wrapper. An English dispatcher exists, but
   the German method still owns independent rendering logic.
-- [ ] Rename the private helpers `max_syntax_breite` and
+- [x] Rename the private helpers `max_syntax_breite` and
   `schreibe_argument_oder_alternativen` to `max_syntax_width` and
   `write_argument_or_alternatives`.
-- [ ] Rename the private helper traits `KonvertiereFehler` and `AnzeigeFehler` to `ConvertError`
+- [x] Rename the private helper traits `KonvertiereFehler` and `AnzeigeFehler` to `ConvertError`
   and `DisplayError`, including their `clone_trait_object!` invocations.
 - [-] Update `src/arguments/combine.rs`'s tuple impls (from Phase 1.10) to reference the now-
   renamed `Arguments`/`Result`-style types instead of `Argumente`/`ZwischenErgebnis` where the
