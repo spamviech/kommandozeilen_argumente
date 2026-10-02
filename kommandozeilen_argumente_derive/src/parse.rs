@@ -7,13 +7,13 @@ use std::{
 
 use litrs::StringLit;
 use proc_macro2::{Ident, TokenStream, TokenTree};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use unicode_segmentation::UnicodeSegmentation;
-use venial::{parse_item, Fields, Item, NamedField, Struct, TypeExpr};
+use venial::{Fields, Item, NamedField, Struct, TypeExpr, parse_item};
 
 use crate::utility::{
-    crate_name, genau_eines, path_is_ident, split_klammer_argumente, Argument, ArgumentWert, Case,
-    SplitArgumenteFehler,
+    Argument, ArgumentWert, Case, SplitArgumenteFehler, crate_name, genau_eines, path_is_ident,
+    split_klammer_argumente,
 };
 
 /// Sprache für ein Argument die Gesamt-Struktur. Beeinflusst Standard-Werte für weitere Einstellungen.
@@ -166,11 +166,11 @@ fn erstelle_version_methode(
 }
 
 /// Erstelle eine Funktion um eine `--hilfe`-Flag zu einem `item` hinzuzufügen.
-fn erstelle_hilfe_methode(
+fn erstelle_hilfe_methode<'t>(
     sprache: &Sprache,
     namen: Option<(LangPräfix, TokenStream, KurzPräfix, TokenStream)>,
     programm_einstellungen: ProgrammEinstellungen<ProgrammBeschreibung>,
-) -> impl FnOnce(TokenStream, &ProgrammName, &ProgrammVersion, &ProgrammBeschreibung) -> TokenStream
+) -> impl 't + FnOnce(TokenStream, &ProgrammName, &ProgrammVersion, &ProgrammBeschreibung) -> TokenStream
 {
     let crate_name = crate_name();
     let sprache_ts = sprache.token_stream();
@@ -535,11 +535,9 @@ impl KurzNamen {
         match self.namen {
             KurzNamenEnum::Keiner => (Vec::new(), self.case),
             KurzNamenEnum::Auto => (
-                vec![lang_name
-                    .graphemes(true)
-                    .next()
-                    .expect("Langname ohne Graphemes!")
-                    .to_owned()],
+                vec![
+                    lang_name.graphemes(true).next().expect("Langname ohne Graphemes!").to_owned(),
+                ],
                 self.case.or(lang_namen_case),
             ),
             KurzNamenEnum::Namen(namen) => (namen, self.case),
@@ -726,7 +724,7 @@ fn parse_wert_arg(
                     return Err(Box::new(|arg_name| NichtUnterstützt {
                         arg_name,
                         argument: Argument { name, wert },
-                    }))
+                    }));
                 },
             },
             ArgumentWert::Liste(liste) => match name.as_str() {
@@ -755,7 +753,7 @@ fn parse_wert_arg(
                     return Err(Box::new(|arg_name| NichtUnterstützt {
                         arg_name,
                         argument: Argument { name, wert: ArgumentWert::Liste(liste) },
-                    }))
+                    }));
                 },
             },
             ArgumentWert::Stream(ts) => match name.as_str() {
@@ -853,7 +851,7 @@ fn parse_wert_arg(
                     return Err(Box::new(|arg_name| NichtUnterstützt {
                         arg_name,
                         argument: Argument { name, wert: ArgumentWert::Stream(ts) },
-                    }))
+                    }));
                 },
             },
             ArgumentWert::Unterargument(sub_args) => {
@@ -1068,7 +1066,7 @@ fn parse_wert_arg(
                                         return Err(Box::new(|arg_name| NichtUnterstützt {
                                             arg_name,
                                             argument: error_argument!(),
-                                        }))
+                                        }));
                                     },
                                 }
                             } else {
@@ -1089,7 +1087,7 @@ fn parse_wert_arg(
                                 name,
                                 wert: ArgumentWert::Unterargument(sub_args),
                             },
-                        }))
+                        }));
                     },
                 }
             },
