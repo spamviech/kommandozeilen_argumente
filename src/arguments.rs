@@ -529,6 +529,144 @@ impl<'t, T, F> Arguments<'t, T, F> {
     {
         self.parse_with_early_exit(env::args_os().skip(1))
     }
+
+    /// Parses arguments completely, reporting an error and exiting on failure.
+    #[inline]
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
+    pub fn parse_complete(
+        self,
+        args: impl Iterator<Item = OsString>,
+        error_code: NonZeroI32,
+        missing_flag: &str,
+        missing_value: &str,
+        parse_error: &str,
+        invalid_string: &str,
+        unused_arg: &str,
+    ) -> T
+    where
+        F: Display,
+    {
+        let (result, remaining) = self.parse(args);
+        #[allow(clippy::print_stderr)]
+        if !remaining.is_empty() {
+            eprintln!("{unused_arg}");
+            process::exit(error_code.get());
+        }
+        match result {
+            crate::outcome::Result::Value(value) => value,
+            crate::outcome::Result::EarlyExit(messages) => {
+                #[allow(clippy::print_stdout)]
+                for message in messages {
+                    println!("{message}");
+                }
+                process::exit(0);
+            },
+            crate::outcome::Result::Error(errors) => {
+                #[allow(clippy::print_stderr)]
+                for error in errors {
+                    eprintln!(
+                        "{}",
+                        error.create_error_message(
+                            missing_flag,
+                            missing_value,
+                            parse_error,
+                            invalid_string,
+                        )
+                    );
+                }
+                process::exit(error_code.get());
+            },
+        }
+    }
+
+    /// Parses arguments completely using localized messages.
+    #[inline]
+    #[must_use]
+    pub fn parse_complete_with_language(
+        self,
+        args: impl Iterator<Item = OsString>,
+        error_code: NonZeroI32,
+        language: Language,
+    ) -> T
+    where
+        F: Display,
+    {
+        self.parse_complete(
+            args,
+            error_code,
+            language.missing_flag,
+            language.missing_value,
+            language.parse_error,
+            language.invalid_string,
+            language.unused_argument,
+        )
+    }
+
+    /// Parses arguments completely using English messages.
+    #[inline]
+    #[must_use]
+    pub fn parse_with_error_message(
+        self,
+        args: impl Iterator<Item = OsString>,
+        error_code: NonZeroI32,
+    ) -> T
+    where
+        F: Display,
+    {
+        self.parse_complete_with_language(args, error_code, Language::ENGLISH)
+    }
+
+    /// Parses environment arguments completely.
+    #[inline]
+    #[must_use]
+    #[allow(clippy::too_many_arguments)]
+    pub fn parse_complete_from_env(
+        self,
+        error_code: NonZeroI32,
+        missing_flag: &str,
+        missing_value: &str,
+        parse_error: &str,
+        invalid_string: &str,
+        unused_arg: &str,
+    ) -> T
+    where
+        F: Display,
+    {
+        self.parse_complete(
+            env::args_os().skip(1),
+            error_code,
+            missing_flag,
+            missing_value,
+            parse_error,
+            invalid_string,
+            unused_arg,
+        )
+    }
+
+    /// Parses environment arguments completely using localized messages.
+    #[inline]
+    #[must_use]
+    pub fn parse_complete_with_language_from_env(
+        self,
+        error_code: NonZeroI32,
+        language: Language,
+    ) -> T
+    where
+        F: Display,
+    {
+        self.parse_complete_with_language(env::args_os().skip(1), error_code, language)
+    }
+
+    /// Parses environment arguments completely using English messages.
+    #[inline]
+    #[must_use]
+    pub fn parse_with_error_message_from_env(self, error_code: NonZeroI32) -> T
+    where
+        F: Display,
+    {
+        self.parse_complete_with_language_from_env(error_code, Language::ENGLISH)
+    }
 }
 
 impl<'t, T, F> Argumente<'t, T, F> {
@@ -569,7 +707,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
         Self: 't,
         F: 't,
     {
-        self.parse_aus_env()
+        let (result, remaining) = Arguments::from(self).parse_from_env();
+        (result.into(), remaining)
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -587,7 +726,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
         Self: 't,
         F: 't,
     {
-        self.parse_mit_frühen_beenden(env::args_os().skip(1))
+        let (result, remaining) = Arguments::from(self).parse_from_env_with_early_exit();
+        (result.map_err(|errors| errors.map(Into::into)), remaining)
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -604,7 +744,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
         Self: 't,
         F: 't,
     {
-        let (result, remaining) = self.parse_aus_env_mit_frühen_beenden();
+        let (result, remaining) = Arguments::from(self).parse_from_env_with_early_exit();
         (result.map_err(|errors| errors.map(Into::into)), remaining)
     }
 
@@ -643,7 +783,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
         Self: 't,
         F: 't,
     {
-        let (result, remaining) = self.parse_mit_frühen_beenden(args);
+        let (result, remaining) = Arguments::from(self).parse_with_early_exit(args);
         (result.map_err(|errors| errors.map(Into::into)), remaining)
     }
 
@@ -672,35 +812,15 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        let (ergebnis, nicht_verwendet) = self.parse(args);
-        #[allow(clippy::print_stderr)]
-        if !nicht_verwendet.is_empty() {
-            eprintln!("{argument_nicht_verwendet}");
-            process::exit(fehler_code.get());
-        }
-        match ergebnis {
-            Ergebnis::Wert(wert) => wert,
-            Ergebnis::FrühesBeenden(nachrichten) => {
-                #[allow(clippy::print_stdout)]
-                for nachricht in nachrichten {
-                    println!("{nachricht}");
-                }
-                process::exit(0);
-            },
-            Ergebnis::Fehler(fehler_liste) => {
-                #[allow(clippy::print_stderr)]
-                for fehler in fehler_liste {
-                    let fehlermeldung = fehler.erstelle_fehlermeldung(
-                        fehlende_flag,
-                        fehlender_wert,
-                        parse_fehler,
-                        invalider_string,
-                    );
-                    eprintln!("{fehlermeldung}");
-                }
-                process::exit(fehler_code.get());
-            },
-        }
+        Arguments::from(self).parse_complete(
+            args,
+            fehler_code,
+            fehlende_flag,
+            fehlender_wert,
+            parse_fehler,
+            invalider_string,
+            argument_nicht_verwendet,
+        )
     }
 
     /// Parse the given command line arguments to create the requested type.
@@ -727,7 +847,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_vollständig(
+        Arguments::from(self).parse_complete(
             args,
             error_code,
             missing_flag,
@@ -788,7 +908,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_vollständig_mit_sprache(args, error_code, language.into())
+        Arguments::from(self).parse_complete_with_language(args, error_code, language)
     }
 
     /// Parse die übergebenen Kommandozeilen-Argumente und versuche den gewünschten Typ zu erzeugen.
@@ -812,7 +932,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_vollständig_mit_sprache(args, fehler_code, Sprache::DEUTSCH)
+        Arguments::from(self).parse_complete_with_language(args, fehler_code, Language::GERMAN)
     }
 
     /// Parse command line arguments to create the requested type.
@@ -835,7 +955,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_complete_with_language(args, error_code, Language::ENGLISH)
+        Arguments::from(self).parse_with_error_message(args, error_code)
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -861,8 +981,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_vollständig(
-            env::args_os().skip(1),
+        Arguments::from(self).parse_complete_from_env(
             fehler_code,
             fehlende_flag,
             fehlender_wert,
@@ -894,7 +1013,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_vollständig_aus_env(
+        Arguments::from(self).parse_complete_from_env(
             error_code,
             missing_flag,
             missing_value,
@@ -923,7 +1042,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_vollständig_mit_sprache(env::args_os().skip(1), fehler_code, sprache)
+        Arguments::from(self).parse_complete_with_language_from_env(fehler_code, sprache.into())
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -944,7 +1063,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_vollständig_mit_sprache_aus_env(error_code, language.into())
+        Arguments::from(self).parse_complete_with_language_from_env(error_code, language)
     }
 
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
@@ -965,7 +1084,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_vollständig_mit_sprache_aus_env(fehler_code, Sprache::DEUTSCH)
+        Arguments::from(self).parse_complete_with_language_from_env(fehler_code, Language::GERMAN)
     }
 
     /// Parse [`args_os`](std::env::args_os) to create the requested type.
@@ -985,7 +1104,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     where
         F: Display,
     {
-        self.parse_complete_with_language_from_env(error_code, Language::ENGLISH)
+        Arguments::from(self).parse_with_error_message_from_env(error_code)
     }
 }
 
@@ -1121,13 +1240,13 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
         meta_erlaubte_werte: &str,
     ) -> NonEmpty<help::Alternativen> {
         match self {
-            Self::EinzelArgument(argument) => nonempty![help::Alternativen::EinzelArgument(
-                variante.create_help_text(
+            Self::EinzelArgument(argument) => {
+                nonempty![help::Alternativen::EinzelArgument(variante.create_help_text(
                     argument.als_string_wert(),
                     meta_standard,
                     meta_erlaubte_werte,
-                )
-            )],
+                ))]
+            },
             Self::Kombiniere(kombiniere) => {
                 kombiniere.create_help_text(variante, meta_standard, meta_erlaubte_werte)
             },
@@ -1159,14 +1278,9 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
         programm_name: &str,
         programm_version: &str,
     ) -> Self {
-        let name_und_version = format!("{programm_name} {programm_version}");
-        let frühes_beenden = FrühesBeenden {
-            beschreibung: eigene_beschreibung,
-            nachricht: Cow::Owned(name_und_version),
-        };
-        let kombiniere =
-            (|wert: T, ()| wert, self, Argumente::from(EinzelArgument::from(frühes_beenden)));
-        Argumente::kombiniere(kombiniere)
+        Arguments::from(self)
+            .with_version_early_exit(eigene_beschreibung.into(), programm_name, programm_version)
+            .into()
     }
 
     /// Variante von [`mit_version_frühes_beenden`](Self::mit_version_frühes_beenden),
@@ -1181,14 +1295,9 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
         programm_version: &str,
         sprache: Sprache,
     ) -> Self {
-        let eigene_beschreibung = Beschreibung::neu_mit_sprache(
-            sprache.version_lang,
-            sprache.version_kurz,
-            Some(sprache.version_beschreibung),
-            None,
-            sprache,
-        );
-        self.mit_version_frühes_beenden(eigene_beschreibung, programm_name, programm_version)
+        Arguments::from(self)
+            .with_version_early_exit_with_language(programm_name, programm_version, sprache.into())
+            .into()
     }
 
     /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch der Hilfe-Text für alle Argumente anzeigt wird.
@@ -1216,49 +1325,22 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
         meta_alternative_präfix: &str,
         meta_alternative_trennzeichen: char,
     ) -> Self {
-        let mut hilfen = self.erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte);
-        let dummy = Cow::Borrowed("");
-        let mut frühes_beenden =
-            FrühesBeenden { beschreibung: eigene_beschreibung, nachricht: dummy };
-        hilfen.push(help::Alternativen::EinzelArgument(frühes_beenden.erzeuge_hilfe_text()));
-        let hilfen = hilfen;
-        let english_hilfen = hilfen.clone().map(Into::into);
-        let max_syntax_width = max_syntax_width(&english_hilfen, meta_alternative_präfix);
-        let current_exe = env::current_exe().ok();
-        let exe_name = current_exe
-            .as_deref()
-            .and_then(Path::file_name)
-            .and_then(OsStr::to_str)
-            .unwrap_or(programm_name);
-        let mut name = String::from(programm_name);
-        if let Some(version) = programm_version {
-            name.push(' ');
-            name.push_str(version);
-        }
-        let programm_beschreibung = programm_beschreibung
-            .map(|beschreibung| format!("\n{beschreibung}"))
-            .unwrap_or_default();
-        let mut hilfe_text = format!(
-            "{name}{programm_beschreibung}\n\n{exe_name} [{meta_optionen}]\n\n{meta_optionen}:\n"
-        );
-        for hilfe in hilfen {
-            write_argument_or_alternatives(
-                &mut hilfe_text,
-                Cow::Borrowed(meta_syntax_präfix),
-                #[allow(clippy::arithmetic_side_effects)]
-                {
-                    meta_syntax_präfix.len() + max_syntax_width + 1
-                },
+        Arguments::from(self)
+            .with_help_early_exit(
+                variante,
+                eigene_beschreibung.into(),
+                programm_name,
+                programm_beschreibung,
+                programm_version,
+                meta_standard,
+                meta_erlaubte_werte,
+                meta_optionen,
+                meta_syntax_präfix,
                 meta_syntax_padding,
-                &help::Alternatives::from(hilfe.clone()),
                 meta_alternative_präfix,
                 meta_alternative_trennzeichen,
-            );
-        }
-        frühes_beenden.nachricht = Cow::Owned(hilfe_text);
-        let kombiniere =
-            (|wert: T, ()| wert, self, Argumente::from(EinzelArgument::from(frühes_beenden)));
-        Argumente::kombiniere(kombiniere)
+            )
+            .into()
     }
 
     /// Variante von [`mit_hilfe_frühes_beenden`](Self::mit_hilfe_frühes_beenden),
@@ -1275,27 +1357,15 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
         programm_version: Option<&str>,
         sprache: Sprache,
     ) -> Self {
-        let eigene_beschreibung = Beschreibung::neu_mit_sprache(
-            sprache.hilfe_lang,
-            sprache.hilfe_kurz,
-            Some(sprache.hilfe_beschreibung),
-            None,
-            sprache,
-        );
-        self.mit_hilfe_frühes_beenden(
-            variante,
-            eigene_beschreibung,
-            programm_name,
-            programm_beschreibung,
-            programm_version,
-            sprache.standard,
-            sprache.erlaubte_werte,
-            sprache.optionen,
-            sprache.syntax_präfix,
-            sprache.syntax_padding,
-            sprache.alternative_präfix,
-            sprache.alternative_trennzeichen,
-        )
+        Arguments::from(self)
+            .with_help_early_exit_with_language(
+                variante,
+                programm_name,
+                programm_beschreibung,
+                programm_version,
+                sprache.into(),
+            )
+            .into()
     }
 
     /// Füge [`FrühesBeenden`]-Flags hinzu, wodurch die Programm-Version,
@@ -1325,13 +1395,14 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
         meta_alternative_präfix: &str,
         meta_alternative_trennzeichen: char,
     ) -> Self {
-        self.mit_version_frühes_beenden(version_beschreibung, programm_name, programm_version)
-            .mit_hilfe_frühes_beenden(
+        Arguments::from(self)
+            .with_help_and_version_early_exit(
                 variante,
-                hilfe_beschreibung,
+                version_beschreibung.into(),
+                hilfe_beschreibung.into(),
                 programm_name,
                 programm_beschreibung,
-                Some(programm_version),
+                programm_version,
                 meta_standard,
                 meta_erlaubte_werte,
                 meta_optionen,
@@ -1340,6 +1411,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
                 meta_alternative_präfix,
                 meta_alternative_trennzeichen,
             )
+            .into()
     }
 
     /// Variante von [`mit_hilfe_und_version_frühes_beenden`](Argumente::mit_hilfe_und_version_frühes_beenden).
@@ -1356,35 +1428,15 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
         programm_version: &str,
         sprache: Sprache,
     ) -> Self {
-        let version_beschreibung = Beschreibung::neu_mit_sprache(
-            sprache.version_lang,
-            sprache.version_kurz,
-            Some(sprache.version_beschreibung),
-            None,
-            sprache,
-        );
-        let hilfe_beschreibung = Beschreibung::neu_mit_sprache(
-            sprache.hilfe_lang,
-            sprache.hilfe_kurz,
-            Some(sprache.hilfe_beschreibung),
-            None,
-            sprache,
-        );
-        self.mit_hilfe_und_version_frühes_beenden(
-            variante,
-            version_beschreibung,
-            hilfe_beschreibung,
-            programm_name,
-            programm_beschreibung,
-            programm_version,
-            sprache.standard,
-            sprache.erlaubte_werte,
-            sprache.optionen,
-            sprache.syntax_präfix,
-            sprache.syntax_padding,
-            sprache.alternative_präfix,
-            sprache.alternative_trennzeichen,
-        )
+        Arguments::from(self)
+            .with_help_and_version_early_exit_with_language(
+                variante,
+                programm_name,
+                programm_beschreibung,
+                programm_version,
+                sprache.into(),
+            )
+            .into()
     }
 }
 

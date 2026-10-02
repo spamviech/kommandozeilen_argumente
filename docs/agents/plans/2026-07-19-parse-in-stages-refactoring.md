@@ -552,7 +552,7 @@ Depends on: **Phase 1.9, 1.10**.
 - [x] Keep `ParsedEarlyExit`, `ParsedShortFlag`, `ParsedValueName`, `ParsedValue`, and
   `ParseMergedShortFormsResult` English-only; update `ParseMergedShortFormsResult::definition`
   to refer to `Arguments`.
-- [-] Move the full `parse_*`/`with_*`/`convert_error` method-pair family onto `Arguments` and
+- [x] Move the full `parse_*`/`with_*`/`convert_error` method-pair family onto `Arguments` and
   replace the `Argumente` methods with conversion wrappers:
   `parse_aus_env`/`parse_from_env`, `parse_mit_frühen_beenden`/`parse_with_early_exit`,
   `parse_vollständig`/`parse_complete`, `parse_vollständig_mit_sprache`/
@@ -577,7 +577,7 @@ Depends on: **Phase 1.9, 1.10**.
   renamed `Arguments`/`Result`-style types instead of `Argumente`/`ZwischenErgebnis` where the
   impl is for the primary (English) side, keeping the German-mirror-typed impl block referencing
   `Argumente`/`ZwischenErgebnis` unchanged. No primary English tuple impl block exists yet.
-- [-] Audit all `Argumente` mirror methods, including help and early-exit convenience methods:
+- [x] Audit all `Argumente` mirror methods, including help and early-exit convenience methods:
   each must convert into `Arguments`, call the English-primary method, and convert the result
   back. Where a borrowed method cannot perform that conversion without imposing `Clone` bounds,
   share a private helper with the English implementation rather than duplicating logic. This is
@@ -585,7 +585,7 @@ Depends on: **Phase 1.9, 1.10**.
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
 
 ---
 

@@ -53,7 +53,7 @@ macro_rules! combine {
 #[macro_export]
 macro_rules! kombiniere {
     ($($tokens:tt)*) => {
-        $crate::combine!($($tokens)*)
+        $crate::argumente::Argumente::from($crate::combine!($($tokens)*))
     };
 }
 
