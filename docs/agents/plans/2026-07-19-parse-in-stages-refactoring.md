@@ -640,7 +640,7 @@ This is the sub-phase that restores `cargo build --workspace` to green.
 
 **Tasks**:
 
-- [ ] Update `kommandozeilen_argumente_derive/src/parse.rs` generated-code call sites (per the
+- [x] Update `kommandozeilen_argumente_derive/src/parse.rs` generated-code call sites (per the
   completed API-surface audit) to construct `Description`/`Value`/`Flag`/`SingleArgument`/
   `Arguments`/`Compare`/`Normalized`/`Language` instead of the German types, including the
   `Language::GERMAN`/`Language::ENGLISH`-field-access call sites (was `Sprache::DEUTSCH`/
@@ -655,13 +655,15 @@ This is the sub-phase that restores `cargo build --workspace` to green.
   `impl ::#crate_name::Parse for #name { type Error = String; fn arguments<'t>() -> ... }`, and
   the `FeldArgument::Parse` code-generation arm's `quote!(::#crate_name::Parse::kommandozeilen_argumente())`
   (line ~115) to `quote!(::#crate_name::Parse::arguments())`.
-- [ ] Update `kommandozeilen_argumente_derive/src/enum_argument.rs` (lines referencing
+- [x] Update `kommandozeilen_argumente_derive/src/enum_argument.rs` (lines referencing
   `Normalisiert::neu(...).eq_mit_case(...)`) to `Normalized::new(...).eq_with_case(...)`.
-- [ ] Update `kommandozeilen_argumente_derive/src/utility.rs` call sites analogous to the above.
+- [x] Update `kommandozeilen_argumente_derive/src/utility.rs` call sites analogous to the above.
 
 **Automated Verification**:
 
-- [ ] `cargo build --workspace --all-features` succeeds
+- [x] `cargo build --workspace --all-features` succeeds
+- [x] `cargo +nightly doc -p kommandozeilen_argumente_derive --all-features --no-deps` succeeds
+  with no broken intra-doc links
 
 ---
 
