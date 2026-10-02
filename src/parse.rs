@@ -481,7 +481,8 @@ pub trait Parse: Sized {
     /// Parse [`args_os`](std::env::args_os) und versuche den gewünschten Typ zu erzeugen.
     ///
     /// ## English synonym
-    /// [`parse_from_env`](Parse::parse_from_env)    #[inline]
+    /// [`parse_from_env`](Parse::parse_from_env)
+    #[inline]
     fn parse_aus_env<'t>() -> (Ergebnis<'t, Self, Self::Error>, Vec<ArgumentInput>)
     where
         Self: 't,

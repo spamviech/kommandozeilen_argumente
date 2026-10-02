@@ -746,7 +746,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Konvertiere den Fehler mit der spezifizierten Funktion.
     ///
     /// ## English synonym
-    /// [`convert_error`](Self::convert_error)
+    /// [`Arguments::convert_error`]
     #[inline]
     pub fn konvertiere_fehler<NeuerFehler>(
         self,
@@ -759,7 +759,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// [`konvertiere_fehler`](Self::konvertiere_fehler) mit [`From::from`].
     ///
     /// ## English synonym
-    /// [`error_from`](Self::error_from)
+    /// [`Arguments::error_from`]
     #[inline]
     pub fn fehler_from<NeuerFehler: From<Fehler>>(
         self,
@@ -773,7 +773,7 @@ impl<'t, T> Argumente<'t, T, Void> {
     /// [`konvertiere_fehler`](Self::konvertiere_fehler) mit [`void::unreachable`].
     ///
     /// ## English synonym
-    /// [`error_from_void`](Self::error_from_void)
+    /// [`Arguments::error_from_void`]
     #[inline]
     pub fn fehler_from_void<NeuerFehler>(
         self,
@@ -822,7 +822,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch die Programm-Version anzeigt wird.
     ///
     /// ## English synonym
-    /// [`with_version_early_exit`](Self::with_version_early_exit)
+    /// [`Arguments::with_version_early_exit`]
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn mit_version_frühes_beenden(
@@ -840,7 +840,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     /// basierend auf einer [`Sprache`].
     ///
     /// ## English synonym
-    /// [`with_version_early_exit_with_language`](Self::with_version_early_exit_with_language)
+    /// [`Arguments::with_version_early_exit_with_language`]
     #[inline]
     pub fn mit_version_frühes_beenden_mit_sprache(
         self,
@@ -860,7 +860,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     /// länger als [`usize::MAX`] ist.
     ///
     /// ## English synonym
-    /// [`with_help_early_exit`](Self::with_help_early_exit)
+    /// [`Arguments::with_help_early_exit`]
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn mit_hilfe_frühes_beenden(
@@ -900,7 +900,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     /// basierend auf einer [`Sprache`].
     ///
     /// ## English synonym
-    /// [`with_help_early_exit_with_language`](Self::with_help_early_exit_with_language)
+    /// [`Arguments::with_help_early_exit_with_language`]
     #[inline]
     pub fn mit_hilfe_frühes_beenden_mit_sprache(
         self,
@@ -929,7 +929,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     /// länger als [`usize::MAX`] ist.
     ///
     /// ## English synonym
-    /// [`with_help_and_version_early_exit`](Self::with_help_and_version_early_exit)
+    /// [`Arguments::with_help_and_version_early_exit`]
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn mit_hilfe_und_version_frühes_beenden(
@@ -970,7 +970,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     /// Variante von [`mit_hilfe_und_version_frühes_beenden`](Argumente::mit_hilfe_und_version_frühes_beenden).
     ///
     /// ## English synonym
-    /// [`with_help_and_version_early_exit_with_language`](Self::with_help_and_version_early_exit_with_language)
+    /// [`Arguments::with_help_and_version_early_exit_with_language`]
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn mit_hilfe_und_version_frühes_beenden_mit_sprache(

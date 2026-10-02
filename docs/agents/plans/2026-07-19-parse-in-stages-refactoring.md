@@ -616,7 +616,7 @@ Depends on: **Phase 1.1 through 1.12** (touches the full re-export surface).
 
 **Tasks**:
 
-- [ ] Update `src/lib.rs`'s module declarations and re-export list for all renamed
+- [x] Update `src/lib.rs`'s module declarations and re-export list for all renamed
   modules/types (`arguments`, `arguments::flag::Flag`, `arguments::early_exit::{EarlyExit,
   FrühesBeenden}`, `arguments::value::{EnumArgument, Value, Wert}`, `arguments::{Arguments,
   Argumente}`, `description::{ArgumentInput, Description, Beschreibung}`,
@@ -626,8 +626,8 @@ Depends on: **Phase 1.1 through 1.12** (touches the full re-export surface).
 
 **Automated Verification**:
 
-- [ ] `cargo build -p kommandozeilen_argumente --all-features` succeeds
-- [ ] `cargo doc -p kommandozeilen_argumente --all-features --no-deps` succeeds with no broken
+- [x] `cargo build -p kommandozeilen_argumente --all-features` succeeds
+- [x] `cargo +nightly doc -p kommandozeilen_argumente --all-features --no-deps` succeeds with no broken
   intra-doc links
 
 ---

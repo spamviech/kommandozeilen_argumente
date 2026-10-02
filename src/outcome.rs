@@ -340,47 +340,69 @@ impl<E: Display> Error<'_, E> {
 #[derive(Debug)]
 #[must_use]
 pub enum ZwischenErgebnis<'t, T, E, A> {
+    /// Ein erfolgreich geparster Wert.
     Wert(T),
+    /// Ein frühes Beenden mit anzuzeigenden Nachrichten.
     FrühesBeenden(NonEmpty<Cow<'t, str>>),
+    /// Parse-Fehler.
     Fehler(NonEmpty<KommentierterParseFehler<'t, E>>),
+    /// Es ist noch kein eindeutiges Endergebnis verfügbar.
     Incomplete(A),
 }
 /// Deutsches Spiegelbild von [`Result`].
 #[derive(Debug)]
 #[must_use]
 pub enum Ergebnis<'t, T, E> {
+    /// Ein erfolgreich geparster Wert.
     Wert(T),
+    /// Ein frühes Beenden mit anzuzeigenden Nachrichten.
     FrühesBeenden(NonEmpty<Cow<'t, str>>),
+    /// Parse-Fehler.
     Fehler(NonEmpty<Fehler<'t, E>>),
 }
 /// Deutsches Spiegelbild von [`Error`].
 #[derive(Debug, Clone)]
 pub enum Fehler<'t, E> {
+    /// Eine benötigte Flag fehlte.
     FehlendeFlag {
+        /// Alle Namen der Flag.
         name: Name<'t>,
+        /// Präfix für eine invertierte Flag.
         invertiere_präfix: Normalized<'t>,
+        /// Infix nach dem invertierenden Präfix.
         invertiere_infix: Normalized<'t>,
     },
+    /// Ein benötigtes Wert-Argument fehlte.
     FehlenderWert {
+        /// Alle Namen des Wert-Arguments.
         name: Name<'t>,
+        /// Infix zwischen Name und Wert.
         wert_infix: Normalized<'t>,
+        /// Die Wert-Metavariable.
         meta_var: &'t str,
     },
+    /// Ein Wert konnte nicht geparst werden.
     ParseFehler(KommentierterParseFehler<'t, E>),
 }
 /// Deutsches Spiegelbild von [`AnnotatedParseError`].
 #[derive(Debug, Clone)]
 #[must_use]
 pub struct KommentierterParseFehler<'t, E> {
+    /// Alle Namen des Wert-Arguments.
     pub name: Name<'t>,
+    /// Infix zwischen Name und Wert.
     pub wert_infix: Normalized<'t>,
+    /// Die Wert-Metavariable.
     pub meta_var: &'t str,
+    /// Der zugrundeliegende Parse-Fehler.
     pub fehler: ParseFehler<E>,
 }
 /// Deutsches Spiegelbild von [`ParseError`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParseFehler<E> {
+    /// Der String ist kein valides UTF-8.
     InvaliderString(OsString),
+    /// Das Parsen des UTF-8-Strings schlug fehl.
     ParseFehler(E),
 }
 
@@ -492,12 +514,15 @@ impl<E> From<ParseFehler<E>> for ParseError<E> {
 }
 
 impl<'t, T, E, A> ZwischenErgebnis<'t, T, E, A> {
+    /// Konvertiert einen erfolgreich geparsten Wert.
     pub fn konvertiere<S>(self, mapper: impl FnOnce(T) -> S) -> ZwischenErgebnis<'t, S, E, A> {
         IntermediateResult::from(self).convert(mapper).into()
     }
+    /// Konvertiert die enthaltenen Fehler.
     pub fn konvertiere_fehler<F>(self, mapper: impl Fn(E) -> F) -> ZwischenErgebnis<'t, T, F, A> {
         IntermediateResult::from(self).convert_error(mapper).into()
     }
+    /// Konvertiert einen unvollständigen Wert.
     pub fn konvertiere_incomplete<B>(
         self,
         mapper: impl FnOnce(A) -> B,
@@ -506,32 +531,39 @@ impl<'t, T, E, A> ZwischenErgebnis<'t, T, E, A> {
     }
 }
 impl<'t, T, E> Ergebnis<'t, T, E> {
+    /// Konvertiert einen erfolgreich geparsten Wert.
     pub fn konvertiere<S>(self, mapper: impl FnOnce(T) -> S) -> Ergebnis<'t, S, E> {
         Result::from(self).convert(mapper).into()
     }
+    /// Konvertiert die enthaltenen Fehler.
     pub fn konvertiere_fehler<F>(self, mapper: impl Fn(E) -> F) -> Ergebnis<'t, T, F> {
         Result::from(self).convert_error(mapper).into()
     }
 }
 impl<'t, E> Fehler<'t, E> {
+    /// Konvertiert den enthaltenen Fehler.
     pub fn konvertiere<F>(self, mapper: impl FnOnce(E) -> F) -> Fehler<'t, F> {
         Error::from(self).convert(mapper).into()
     }
 }
 impl<'t, E> KommentierterParseFehler<'t, E> {
+    /// Konvertiert den enthaltenen Fehler.
     pub fn konvertiere<F>(self, mapper: impl FnOnce(E) -> F) -> KommentierterParseFehler<'t, F> {
         AnnotatedParseError::from(self).convert(mapper).into()
     }
 }
 impl<E> ParseFehler<E> {
+    /// Konvertiert den enthaltenen Fehler.
     pub fn konvertiere<F>(self, mapper: impl FnOnce(E) -> F) -> ParseFehler<F> {
         ParseError::from(self).convert(mapper).into()
     }
 }
 impl<E: Display> Fehler<'_, E> {
+    /// Erstellt eine menschenlesbare Fehlermeldung mit deutschen Standardwerten.
     pub fn fehlermeldung(&self) -> String {
         self.erstelle_fehlermeldung_mit_sprache(Sprache::DEUTSCH)
     }
+    /// Erstellt eine menschenlesbare Fehlermeldung mit `sprache`.
     pub fn erstelle_fehlermeldung_mit_sprache(&self, sprache: Sprache) -> String {
         self.erstelle_fehlermeldung(
             sprache.fehlende_flag,
@@ -540,6 +572,7 @@ impl<E: Display> Fehler<'_, E> {
             sprache.invalider_string,
         )
     }
+    /// Erstellt eine menschenlesbare Fehlermeldung.
     pub fn erstelle_fehlermeldung(
         &self,
         fehlende_flag: &str,

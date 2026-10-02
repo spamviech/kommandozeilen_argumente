@@ -35,7 +35,6 @@ pub mod single_argument;
 pub mod value;
 
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
-pub use self::value::EnumArgument;
 
 // TODO Name/Version für Hilfetext angeben, als alternative für macros (derive-Feature)
 // TODO Unterbefehle/subcommands
@@ -52,8 +51,8 @@ impl<T, Error> Debug for CombineDebug<'_, '_, T, Error> {
 
 /// Configuration of command-line arguments.
 ///
-/// ## Deutsch
-/// Konfiguration der Kommandozeilen-Argumente.
+/// ## Deutsches Synonym
+/// [`Argumente`](argumente::Argumente)
 #[allow(clippy::large_enum_variant, clippy::module_name_repetitions)]
 #[must_use]
 pub enum Arguments<'t, T, Error> {
@@ -505,13 +504,13 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
             program_version,
         )
     }
-    /// Add an [`EarlyExit`](crate::argumente::early_exit::EarlyExit`)-Flag, showing the help text for all arguments.
+    /// Add an [`EarlyExit`](early_exit::EarlyExit)-flag showing the help text for all arguments.
     ///
     /// ### Panics
     /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
     ///
     /// ## Deutsches Synonym
-    /// [`mit_hilfe_frühes_beenden`](Self::mit_hilfe_frühes_beenden)
+    /// [`mit_hilfe_frühes_beenden`](argumente::Argumente::mit_hilfe_frühes_beenden)
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn with_help_early_exit(
@@ -573,7 +572,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
     ///
     /// ## Deutsches Synonym
-    /// [`mit_hilfe_und_version_frühes_beenden`](Self::mit_hilfe_und_version_frühes_beenden)
+    /// [`mit_hilfe_und_version_frühes_beenden`](argumente::Argumente::mit_hilfe_und_version_frühes_beenden)
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn with_help_and_version_early_exit(
@@ -610,10 +609,10 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     }
 
     /// Variant of [`with_help_early_exit`](Self::with_help_early_exit)
-    /// based on a [`Language`](crate::language::Language).
+    /// based on a [`Language`].
     ///
     /// ## Deutsches Synonym
-    /// [`mit_hilfe_frühes_beenden_mit_sprache`](Argumente::mit_hilfe_frühes_beenden_mit_sprache).
+    /// [`mit_hilfe_frühes_beenden_mit_sprache`](argumente::Argumente::mit_hilfe_frühes_beenden_mit_sprache).
     #[inline]
     pub fn with_help_early_exit_with_language(
         self,
@@ -646,11 +645,11 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     }
 
     /// Variant of [`with_help_early_exit`](Self::with_help_early_exit)
-    /// and [`with_version_early_exit`](Argumente::with_version_early_exit),
-    /// based on a [`Language`](crate::language::Language).
+    /// and [`with_version_early_exit`](Self::with_version_early_exit),
+    /// based on a [`Language`].
     ///
     /// ## Deutsches Synonym
-    /// [`mit_hilfe_und_version_frühes_beenden_mit_sprache`](Argumente::mit_hilfe_und_version_frühes_beenden_mit_sprache).
+    /// [`mit_hilfe_und_version_frühes_beenden_mit_sprache`](argumente::Argumente::mit_hilfe_und_version_frühes_beenden_mit_sprache).
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn with_help_and_version_early_exit_with_language(

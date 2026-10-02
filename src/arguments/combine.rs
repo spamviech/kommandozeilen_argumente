@@ -1,4 +1,4 @@
-//! Combine multiple [`Arguments`](crate::arguments::Arguments) into a new one based on a function.
+//! Combine multiple [`Arguments`] into a new one based on a function.
 
 use std::fmt::{self, Debug, Formatter};
 
