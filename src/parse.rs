@@ -12,13 +12,13 @@ use std::{
 use nonempty::NonEmpty;
 
 use crate::{
-    argumente::{
+    arguments::{
+        argumente::Argumente,
         combine::Combine,
         flag::Flag,
         help::{self, CreateHelpText},
         single_argument::EinzelArgument,
         value::{EnumArgument, Wert},
-        Argumente,
     },
     description::{ArgumentInput, Beschreibung, Description},
     dyn_to_owned::{self, Bool, Show},

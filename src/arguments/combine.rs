@@ -7,8 +7,9 @@ use paste::paste;
 
 use crate::{
     arguments::{
+        argumente::Argumente,
         help::{self, CreateHelpText},
-        Argumente, Arguments,
+        Arguments,
     },
     outcome::{IntermediateResult, ZwischenErgebnis},
 };
@@ -53,7 +54,7 @@ macro_rules! combine {
 #[macro_export]
 macro_rules! kombiniere {
     ($($tokens:tt)*) => {
-        $crate::argumente::Argumente::from($crate::combine!($($tokens)*))
+        $crate::arguments::argumente::Argumente::from($crate::combine!($($tokens)*))
     };
 }
 

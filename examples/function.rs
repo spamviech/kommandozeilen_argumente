@@ -14,7 +14,7 @@ use std::{
 use nonempty::nonempty;
 
 use kommandozeilen_argumente::{
-    argumente::{flag::Flag, help::Default, value::Value},
+    arguments::{flag::Flag, help::Default, value::Value},
     combine, crate_name, crate_version, Compare, Description, EnumArgument, Language, NonEmpty,
     ParseArgument, ParseFehler,
 };

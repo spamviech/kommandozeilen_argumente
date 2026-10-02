@@ -9,7 +9,7 @@ use std::{
 use void::Void;
 
 use crate::{
-    argumente::{
+    arguments::{
         early_exit::{EarlyExit, FrühesBeenden},
         flag::Flag,
         help::{Help, Hilfe},

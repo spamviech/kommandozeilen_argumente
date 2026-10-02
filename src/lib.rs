@@ -28,8 +28,6 @@ macro_rules! crate_version {
 }
 
 pub mod arguments;
-#[doc(hidden)]
-pub use arguments as argumente;
 pub mod description;
 pub mod dyn_to_owned;
 pub mod language;
@@ -41,10 +39,11 @@ pub mod unicode;
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use self::{
     arguments::{
+        argumente::Argumente,
         early_exit::{EarlyExit, FrühesBeenden},
         flag::Flag,
         value::{EnumArgument, Value, Wert},
-        Argumente, Arguments,
+        Arguments,
     },
     description::{ArgumentInput, Beschreibung, Description},
     language::{Language, Sprache},

@@ -6,7 +6,7 @@ use nonempty::NonEmpty;
 use void::Void;
 
 use crate::{
-    argumente::{
+    arguments::{
         help::{Help, Hilfe},
         ParseMergedShortFormsResult,
     },
