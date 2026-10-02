@@ -565,7 +565,7 @@ Depends on: **Phase 1.9, 1.10**.
   still own the real implementations.
 - [x] Add an English-primary `Arguments::parse_merged_short_forms` dispatcher. Its `Combined`
   arm remains the planned `todo!()` until Phase 2.
-- [-] Move the complete help-text implementation to `Arguments::create_help_text` and turn
+- [x] Move the complete help-text implementation to `Arguments::create_help_text` and turn
   `Argumente::erzeuge_hilfe_text` into a conversion wrapper. An English dispatcher exists, but
   the German method still owns independent rendering logic.
 - [x] Rename the private helpers `max_syntax_breite` and

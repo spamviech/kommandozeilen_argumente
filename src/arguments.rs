@@ -21,7 +21,7 @@ use crate::{
         combine::Combine,
         early_exit::FrühesBeenden,
         flag::Flag,
-        help::{CreateHelpText, Hilfe},
+        help::CreateHelpText,
         single_argument::{EinzelArgument, SingleArgument},
         value::{Value, Wert},
     },
@@ -1087,7 +1087,7 @@ impl<T, Error> Arguments<'_, T, Error> {
                     .create_help_text(
                         argument.as_string_value().into(),
                         meta_default,
-                        meta_possible_values
+                        meta_possible_values,
                     )
                     .into()
             )],
@@ -1095,6 +1095,7 @@ impl<T, Error> Arguments<'_, T, Error> {
                 .create_help_text(variant, meta_default, meta_possible_values)
                 .map(Into::into),
             Self::Alternatives(alternatives) => {
+                // TODO use alternatives.as_ref().flat_map(...), coming in nonempty > 0.10.0
                 NonEmpty::collect(alternatives.iter().map(|argument| {
                     help::Alternatives::Alternatives(Box::new(argument.create_help_text(
                         variant,
@@ -1109,13 +1110,9 @@ impl<T, Error> Arguments<'_, T, Error> {
 }
 
 impl<T, Fehler> Argumente<'_, T, Fehler> {
-    /// Erzeuge die Anzeige für die Syntax des Arguments und den zugehörigen Hilfetext.
-    ///
-    /// ## English
-    /// Create the Message for the syntax of the arguments and the corresponding help text.
+    /// Erzeugt die Syntax und den zugehörigen Hilfetext dieses Arguments.
     #[inline]
     #[must_use]
-    // panic when a programming error occurs
     #[allow(clippy::missing_panics_doc)]
     pub fn erzeuge_hilfe_text(
         &self,
@@ -1124,25 +1121,26 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
         meta_erlaubte_werte: &str,
     ) -> NonEmpty<help::Alternativen> {
         match self {
-            Argumente::EinzelArgument(arg) => {
-                nonempty![help::Alternativen::EinzelArgument({
-                    let string_arg = arg.als_string_wert();
-                    variante.create_help_text(string_arg, meta_standard, meta_erlaubte_werte)
-                })]
-            },
-            Argumente::Kombiniere(kombiniere) => {
+            Self::EinzelArgument(argument) => nonempty![help::Alternativen::EinzelArgument(
+                variante.create_help_text(
+                    argument.als_string_wert(),
+                    meta_standard,
+                    meta_erlaubte_werte,
+                )
+            )],
+            Self::Kombiniere(kombiniere) => {
                 kombiniere.create_help_text(variante, meta_standard, meta_erlaubte_werte)
             },
-            Argumente::Alternativen(alternativen) => {
+            Self::Alternativen(alternativen) => {
                 // TODO use alternativen.as_ref().flat_map(...), coming in nonempty > 0.10.0
-                NonEmpty::collect(alternativen.iter().map(|arg| {
-                    help::Alternativen::Alternativen(Box::new(arg.erzeuge_hilfe_text(
+                NonEmpty::collect(alternativen.iter().map(|argument| {
+                    help::Alternativen::Alternativen(Box::new(argument.erzeuge_hilfe_text(
                         variante,
                         meta_standard,
                         meta_erlaubte_werte,
                     )))
                 }))
-                .expect("NonEmpty::map(...) hat mindestens ein Argument!")
+                .expect("NonEmpty::map(...) has at least one argument!")
             },
         }
     }
@@ -1224,7 +1222,8 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
             FrühesBeenden { beschreibung: eigene_beschreibung, nachricht: dummy };
         hilfen.push(help::Alternativen::EinzelArgument(frühes_beenden.erzeuge_hilfe_text()));
         let hilfen = hilfen;
-        let max_syntax_width = max_syntax_width(&hilfen, meta_alternative_präfix);
+        let english_hilfen = hilfen.clone().map(Into::into);
+        let max_syntax_width = max_syntax_width(&english_hilfen, meta_alternative_präfix);
         let current_exe = env::current_exe().ok();
         let exe_name = current_exe
             .as_deref()
@@ -1251,7 +1250,7 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
                     meta_syntax_präfix.len() + max_syntax_width + 1
                 },
                 meta_syntax_padding,
-                &hilfe,
+                &help::Alternatives::from(hilfe.clone()),
                 meta_alternative_präfix,
                 meta_alternative_trennzeichen,
             );
@@ -1390,28 +1389,23 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
 }
 
 impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
-    /// Add an [`EarlyExit`](crate::argumente::early_exit::EarlyExit`)-flag, showing the program version.
-    ///
-    /// ## Deutsches Synonym
-    /// [`mit_version_frühes_beenden`](Self::mit_version_frühes_beenden)
+    /// Adds an [`EarlyExit`](early_exit::EarlyExit)-flag that shows the program version.
     #[inline]
-    #[allow(clippy::too_many_arguments)]
     pub fn with_version_early_exit(
         self,
-        arg_description: Beschreibung<'t, Void>,
+        arg_description: Description<'t, Void>,
         program_name: &str,
         program_version: &str,
     ) -> Self {
-        Argumente::from(self)
-            .mit_version_frühes_beenden(arg_description.into(), program_name, program_version)
-            .into()
+        let message = format!("{program_name} {program_version}");
+        let early_exit =
+            early_exit::EarlyExit { description: arg_description, message: Cow::Owned(message) };
+        let early_exit_argument: Arguments<'t, (), Error> =
+            Arguments::from(SingleArgument::from(early_exit));
+        Self::combine((|value: T, ()| value, self, early_exit_argument))
     }
 
-    /// Variant of [`mit_version_frühes_beenden`](Self::mit_version_frühes_beenden),
-    /// based on a [`Language`](crate::language::Language).
-    ///
-    /// ## Deutsches Synonym
-    /// [`mit_version_frühes_beenden_mit_sprache`](Self::mit_version_frühes_beenden_mit_sprache)
+    /// Adds a version early-exit flag using the supplied language.
     #[inline]
     pub fn with_version_early_exit_with_language(
         self,
@@ -1419,9 +1413,17 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         program_version: &str,
         language: Language,
     ) -> Self {
-        Argumente::from(self)
-            .mit_version_frühes_beenden_mit_sprache(program_name, program_version, language.into())
-            .into()
+        self.with_version_early_exit(
+            Description::new_with_language(
+                language.version_long,
+                language.version_short,
+                Some(language.version_description),
+                None,
+                language,
+            ),
+            program_name,
+            program_version,
+        )
     }
     /// Add an [`EarlyExit`](crate::argumente::early_exit::EarlyExit`)-Flag, showing the help text for all arguments.
     ///
@@ -1435,7 +1437,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     pub fn with_help_early_exit(
         self,
         variant: &dyn CreateHelpText,
-        arg_description: Beschreibung<'t, Void>,
+        arg_description: Description<'t, Void>,
         program_name: &str,
         program_description: Option<&str>,
         program_version: Option<&str>,
@@ -1447,24 +1449,44 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         meta_alternative_prefix: &str,
         meta_alternative_separator: char,
     ) -> Self {
-        Argumente::from(self)
-            .mit_hilfe_frühes_beenden(
-                variant,
-                arg_description.into(),
-                program_name,
-                program_description,
-                program_version,
-                meta_standard,
-                meta_possible_values,
-                meta_options,
-                meta_syntax_prefix,
+        let mut helps = self.create_help_text(variant, meta_standard, meta_possible_values);
+        let mut early_exit =
+            early_exit::EarlyExit { description: arg_description, message: Cow::Borrowed("") };
+        helps.push(help::Alternatives::Single(early_exit.create_help_text()));
+        let max_syntax_width = max_syntax_width(&helps, meta_alternative_prefix);
+        let current_exe = env::current_exe().ok();
+        let exe_name = current_exe
+            .as_deref()
+            .and_then(Path::file_name)
+            .and_then(OsStr::to_str)
+            .unwrap_or(program_name);
+        let mut name = String::from(program_name);
+        if let Some(version) = program_version {
+            name.push(' ');
+            name.push_str(version);
+        }
+        let program_description =
+            program_description.map(|description| format!("\n{description}")).unwrap_or_default();
+        let mut help_text = format!(
+            "{name}{program_description}\n\n{exe_name} [{meta_options}]\n\n{meta_options}:\n"
+        );
+        for help in helps {
+            write_argument_or_alternatives(
+                &mut help_text,
+                Cow::Borrowed(meta_syntax_prefix),
+                meta_syntax_prefix.len() + max_syntax_width + 1,
                 meta_syntax_padding,
+                &help,
                 meta_alternative_prefix,
                 meta_alternative_separator,
-            )
-            .into()
+            );
+        }
+        early_exit.message = Cow::Owned(help_text);
+        let early_exit_argument: Arguments<'t, (), Error> =
+            Arguments::from(SingleArgument::from(early_exit));
+        Self::combine((|value: T, ()| value, self, early_exit_argument))
     }
-    /// Add [`EarlyExit`](crate::argumente::early_exit::EarlyExit`)-Flags, showing the program version,
+    /// Add [`EarlyExit`](crate::arguments::early_exit::EarlyExit)-flags, showing the program version,
     /// or the help text for all arguments.
     ///
     /// ### Panics
@@ -1490,14 +1512,13 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         meta_alternative_prefix: &str,
         meta_alternative_separator: char,
     ) -> Self {
-        Argumente::from(self)
-            .mit_hilfe_und_version_frühes_beenden(
+        self.with_version_early_exit(version_description, program_name, program_version)
+            .with_help_early_exit(
                 variant,
-                version_description.into(),
-                help_description.into(),
+                help_description,
                 program_name,
                 program_description,
-                program_version,
+                Some(program_version),
                 meta_standard,
                 meta_possible_values,
                 meta_options,
@@ -1506,10 +1527,9 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
                 meta_alternative_prefix,
                 meta_alternative_separator,
             )
-            .into()
     }
 
-    /// Variant of [`with_help_early_exit`](Argumente::with_help_early_exit)
+    /// Variant of [`with_help_early_exit`](Self::with_help_early_exit)
     /// based on a [`Language`](crate::language::Language).
     ///
     /// ## Deutsches Synonym
@@ -1523,18 +1543,29 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         program_version: Option<&str>,
         language: Language,
     ) -> Self {
-        Argumente::from(self)
-            .mit_hilfe_frühes_beenden_mit_sprache(
-                variant,
-                program_name,
-                program_beschreibung,
-                program_version,
-                language.into(),
-            )
-            .into()
+        self.with_help_early_exit(
+            variant,
+            Description::new_with_language(
+                language.help_long,
+                language.help_short,
+                Some(language.help_description),
+                None,
+                language,
+            ),
+            program_name,
+            program_beschreibung,
+            program_version,
+            language.default,
+            language.allowed_values,
+            language.options,
+            language.syntax_prefix,
+            language.syntax_padding,
+            language.alternative_prefix,
+            language.alternative_separator,
+        )
     }
 
-    /// Variant of [`with_help_early_exit`](Argumente::with_help_early_exit)
+    /// Variant of [`with_help_early_exit`](Self::with_help_early_exit)
     /// and [`with_version_early_exit`](Argumente::with_version_early_exit),
     /// based on a [`Language`](crate::language::Language).
     ///
@@ -1550,33 +1581,51 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         program_version: &str,
         language: Language,
     ) -> Self {
-        Argumente::from(self)
-            .mit_hilfe_und_version_frühes_beenden_mit_sprache(
-                variant,
-                program_name,
-                program_description,
-                program_version,
-                language.into(),
-            )
-            .into()
+        self.with_help_and_version_early_exit(
+            variant,
+            Description::new_with_language(
+                language.version_long,
+                language.version_short,
+                Some(language.version_description),
+                None,
+                language,
+            ),
+            Description::new_with_language(
+                language.help_long,
+                language.help_short,
+                Some(language.help_description),
+                None,
+                language,
+            ),
+            program_name,
+            program_description,
+            program_version,
+            language.default,
+            language.allowed_values,
+            language.options,
+            language.syntax_prefix,
+            language.syntax_padding,
+            language.alternative_prefix,
+            language.alternative_separator,
+        )
     }
 }
 
 /// Calculates the maximum width of an argument syntax.
 ///
 /// Helper for `Arguments::with_help_early_exit`.
-fn max_syntax_width(helps: &NonEmpty<help::Alternativen>, alternative_prefix: &str) -> usize {
+fn max_syntax_width(helps: &NonEmpty<help::Alternatives>, alternative_prefix: &str) -> usize {
     helps
         .iter()
         .filter_map(|argument| match argument {
-            help::Alternativen::EinzelArgument(argument) => Some(argument.syntax.len()),
-            help::Alternativen::Alternativen(alternatives) => {
+            help::Alternatives::Single(argument) => Some(argument.syntax.len()),
+            help::Alternatives::Alternatives(alternatives) => {
                 #[allow(clippy::arithmetic_side_effects)]
                 let width =
                     alternative_prefix.len() + max_syntax_width(alternatives, alternative_prefix);
                 Some(width)
             },
-            help::Alternativen::Leer => None,
+            help::Alternatives::Empty => None,
         })
         .max()
         .expect("NonEmpty")
@@ -1591,13 +1640,13 @@ fn write_argument_or_alternatives(
     current_prefix: Cow<'_, str>,
     max_syntax_width: usize,
     syntax_padding: char,
-    entry: &help::Alternativen,
+    entry: &help::Alternatives,
     alternative_prefix: &str,
     alternative_separator: char,
 ) {
     match entry {
-        help::Alternativen::EinzelArgument(argument) => {
-            let Hilfe { syntax, hilfe: help } = argument;
+        help::Alternatives::Single(argument) => {
+            let help::Help { syntax, help } = argument;
             output.push_str(&current_prefix);
             output.push_str(syntax);
             #[allow(clippy::arithmetic_side_effects)]
@@ -1610,7 +1659,7 @@ fn write_argument_or_alternatives(
             }
             output.push('\n');
         },
-        help::Alternativen::Alternativen(alternatives) => {
+        help::Alternatives::Alternatives(alternatives) => {
             #[allow(clippy::arithmetic_side_effects)]
             let separator_width = max_syntax_width - current_prefix.len();
             let mut buffer: [u8; 4] = [0; 4];
@@ -1639,6 +1688,6 @@ fn write_argument_or_alternatives(
                 );
             }
         },
-        help::Alternativen::Leer => {},
+        help::Alternatives::Empty => {},
     }
 }
