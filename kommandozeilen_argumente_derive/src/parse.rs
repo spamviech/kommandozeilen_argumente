@@ -148,11 +148,8 @@ fn create_version_method(
                 None,
             )
         );
-        let ProgramSettings {
-            name: program_name,
-            version: program_version,
-            beschreibung: (),
-        } = program_settings;
+        let ProgramSettings { name: program_name, version: program_version, beschreibung: () } =
+            program_settings;
         let program_name = program_name.or(default_name);
         let program_version_display = ProgramVersionDisplay {
             program_version: program_version.or_default(default_version),
@@ -249,34 +246,31 @@ pub(crate) enum ParseValueError {
 
 impl Display for ParseValueError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        use ArgumentValue::{NoValue, List, Stream, SubArgument};
+        use ArgumentValue::{List, NoValue, Stream, SubArgument};
         use ParseValueError::{NoLongName, Unsupported};
         match self {
-            Unsupported { arg_name, argument: Argument { name, wert: NoValue } } => {
+            Unsupported { arg_name, argument: Argument { name, value: NoValue } } => {
                 write!(formatter, "Unsupported argument")?;
                 if let Some(arg_name) = arg_name {
                     write!(formatter, " for {arg_name}")?;
                 }
                 write!(formatter, ": {name}")
             },
-            Unsupported {
-                arg_name,
-                argument: Argument { name, wert: wert @ SubArgument(_) },
-            } => {
+            Unsupported { arg_name, argument: Argument { name, value: wert @ SubArgument(_) } } => {
                 write!(formatter, "Unsupported sub-argument of {name}")?;
                 if let Some(arg_name) = arg_name {
                     write!(formatter, " for {arg_name}")?;
                 }
                 write!(formatter, ": {wert}")
             },
-            Unsupported { arg_name, argument: Argument { name, wert: wert @ List(_) } } => {
+            Unsupported { arg_name, argument: Argument { name, value: wert @ List(_) } } => {
                 write!(formatter, "Unsupported list argument {name}")?;
                 if let Some(arg_name) = arg_name {
                     write!(formatter, " for {arg_name}")?;
                 }
                 write!(formatter, ": {wert}")
             },
-            Unsupported { arg_name, argument: Argument { name, wert: wert @ Stream(_) } } => {
+            Unsupported { arg_name, argument: Argument { name, value: wert @ Stream(_) } } => {
                 write!(formatter, "Unsupported named argument {name}")?;
                 if let Some(arg_name) = arg_name {
                     write!(formatter, " for {arg_name}")?;
@@ -346,14 +340,12 @@ enum ProgramVersion {
 }
 
 impl ProgramVersion {
-    /// Returns self if it contains [`ProgramVersion::Specified`], or [`ProgramVersion::CrateMacro`],
-    /// otherwise returns the `alternative`.
+    /// Returns self if it contains [`ProgramVersion::Specified`], or
+    /// [`ProgramVersion::CrateMacro`], otherwise returns the `alternative`.
     fn or_default(self, default: &Self) -> Self {
         match self {
             ProgramVersion::Specified(_) | ProgramVersion::CrateMacro => self,
-            ProgramVersion::HelpWithoutSubArgument | ProgramVersion::Unspecified => {
-                default.clone()
-            },
+            ProgramVersion::HelpWithoutSubArgument | ProgramVersion::Unspecified => default.clone(),
         }
     }
 }
@@ -455,7 +447,8 @@ create_newtype! {
     Standard: TokenStream,
 }
 
-/// Create newtypes for string-like values wrapped in a [`Compare`] in the generated [`TokenStream`].
+/// Create newtypes for string-like values wrapped in a [`Compare`] in the generated
+/// [`TokenStream`].
 macro_rules! compare_types {
     ($($name: ident ($sprache_ident: ident)),* $(,)?) => {
         $(
@@ -569,7 +562,8 @@ impl ShortNames {
     }
 }
 
-/// Return a string literal directly, or otherwise convert the [`TokenStream`] with [`ToString::to_string`].
+/// Return a string literal directly, or otherwise convert the [`TokenStream`] with
+/// [`ToString::to_string`].
 fn literal_or_to_string(token_stream: &TokenStream) -> String {
     if let Some(string_lit) = exactly_one(token_stream.clone().into_iter())
         .ok()
@@ -624,37 +618,34 @@ fn parse_value_argument(
     }
     /// Helper macro for the argument-setting macros below.
     macro_rules! set_argument_field {
-        ($mut_var: expr, $feld:ident, $wert: expr, $sub_arg: expr) => {
+        ($mut_var:expr, $feld:ident, $wert:expr, $sub_arg:expr) => {
             if let Some(var) = $mut_var.as_mut() {
                 var.$feld = $wert;
             } else {
-                return Err(Box::new(|arg_name| Unsupported {
-                    arg_name,
-                    argument: $sub_arg,
-                }));
+                return Err(Box::new(|arg_name| Unsupported { arg_name, argument: $sub_arg }));
             }
         };
     }
     /// Set [`LongNames`] or [`ShortNames`] for an argument.
     macro_rules! set_argument_names {
-        ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
+        ($mut_var:expr, $wert:expr, $sub_arg:expr) => {
             set_argument_field!($mut_var, namen, $wert, $sub_arg)
         };
     }
     /// Set a [`String`] value for an argument.
     macro_rules! set_argument_string {
-        ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
+        ($mut_var:expr, $wert:expr, $sub_arg:expr) => {
             set_argument_field!($mut_var, string, Some($wert), $sub_arg)
         };
     }
     /// Set the [`Case`] value for an argument.
     macro_rules! set_argument_case {
-        ($mut_var: expr, $wert: expr, $sub_arg: expr) => {
+        ($mut_var:expr, $wert:expr, $sub_arg:expr) => {
             set_argument_field!($mut_var, case, Some($wert), $sub_arg)
         };
     }
-    for Argument { name, wert } in args {
-        match wert {
+    for Argument { name, value } in args {
+        match value {
             ArgumentValue::NoValue => match name.as_str() {
                 "name" => set_argument!(
                     programm_einstellungen.as_mut().map(
@@ -662,7 +653,7 @@ fn parse_value_argument(
                         |program_description| { &mut program_description.name }
                     ),
                     ProgramName(None),
-                    Argument { name, wert }
+                    Argument { name, value }
                 ),
                 "version" => set_argument!(
                     <
@@ -686,7 +677,7 @@ fn parse_value_argument(
                             )))),
                         ],
                     >,
-                    Argument { name, wert }
+                    Argument { name, value }
                 ),
                 "hilfe" => set_argument!(
                     erstelle_hilfe,
@@ -699,7 +690,7 @@ fn parse_value_argument(
                             beschreibung: ProgramDescription(None)
                         }
                     )))),
-                    Argument { name, wert }
+                    Argument { name, value }
                 ),
                 "help" => set_argument!(
                     erstelle_hilfe,
@@ -712,24 +703,28 @@ fn parse_value_argument(
                             beschreibung: ProgramDescription(None)
                         }
                     )))),
-                    Argument { name, wert }
+                    Argument { name, value }
                 ),
                 "kurz" | "short" => {
-                    set_argument_names!(short_names, ShortNamesKind::Auto, Argument { name, wert });
+                    set_argument_names!(
+                        short_names,
+                        ShortNamesKind::Auto,
+                        Argument { name, value }
+                    );
                 },
                 "glätten" | "flatten" => {
-                    set_argument!(field_argument, FieldArgument::Parse, Argument { name, wert });
+                    set_argument!(field_argument, FieldArgument::Parse, Argument { name, value });
                 },
                 "FromStr" => {
-                    set_argument!(field_argument, FieldArgument::FromStr, Argument { name, wert });
+                    set_argument!(field_argument, FieldArgument::FromStr, Argument { name, value });
                 },
                 "benötigt" | "required" => {
-                    set_argument!(standard, Standard(quote!(None)), Argument { name, wert });
+                    set_argument!(standard, Standard(quote!(None)), Argument { name, value });
                 },
                 _ => {
                     return Err(Box::new(|arg_name| Unsupported {
                         arg_name,
-                        argument: Argument { name, wert },
+                        argument: Argument { name, value },
                     }));
                 },
             },
@@ -744,7 +739,7 @@ fn parse_value_argument(
                     set_argument_names!(
                         long_names,
                         Some((head, tail)),
-                        Argument { name, wert: ArgumentValue::List(liste) }
+                        Argument { name, value: ArgumentValue::List(liste) }
                     );
                 },
                 "kurz" | "short" => {
@@ -752,29 +747,31 @@ fn parse_value_argument(
                     set_argument_names!(
                         short_names,
                         ShortNamesKind::Names(namen_iter.collect()),
-                        Argument { name, wert: ArgumentValue::List(liste) }
+                        Argument { name, value: ArgumentValue::List(liste) }
                     );
                 },
                 _ => {
                     return Err(Box::new(|arg_name| Unsupported {
                         arg_name,
-                        argument: Argument { name, wert: ArgumentValue::List(liste) },
+                        argument: Argument { name, value: ArgumentValue::List(liste) },
                     }));
                 },
             },
             ArgumentValue::Stream(ts) => match name.as_str() {
-                "sprache" | "language" => set_argument!(
-                    language,
-                    Some(Language::parse(ts)),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
-                ),
+                "sprache" | "language" => {
+                    set_argument!(
+                        language,
+                        Some(Language::parse(ts)),
+                        Argument { name, value: ArgumentValue::Stream(ts) }
+                    )
+                },
                 "name" => set_argument!(
                     programm_einstellungen.as_mut().map(
                         #[allow(clippy::shadow_unrelated)]
                         |program_description| { &mut program_description.name }
                     ),
                     ProgramName(Some(literal_or_to_string(&ts))),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
+                    Argument { name, value: ArgumentValue::Stream(ts) }
                 ),
                 "version" => set_argument!(
                     programm_einstellungen.as_mut().map(
@@ -782,7 +779,7 @@ fn parse_value_argument(
                         |program_description| { &mut program_description.version }
                     ),
                     ProgramVersion::Specified(literal_or_to_string(&ts)),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
+                    Argument { name, value: ArgumentValue::Stream(ts) }
                 ),
                 "beschreibung" | "description" => set_argument!(
                     programm_einstellungen.as_mut().and_then(
@@ -790,61 +787,69 @@ fn parse_value_argument(
                         |program_description| { program_description.beschreibung.as_mut() }
                     ),
                     ProgramDescription(Some(literal_or_to_string(&ts))),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
+                    Argument { name, value: ArgumentValue::Stream(ts) }
                 ),
-                "lang_präfix" | "long_prefix" => set_argument_string!(
-                    long_prefix,
-                    literal_or_to_string(&ts),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
-                ),
-                "kurz_präfix" | "short_prefix" => set_argument_string!(
-                    short_prefix,
-                    literal_or_to_string(&ts),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
-                ),
+                "lang_präfix" | "long_prefix" => {
+                    set_argument_string!(
+                        long_prefix,
+                        literal_or_to_string(&ts),
+                        Argument { name, value: ArgumentValue::Stream(ts) }
+                    )
+                },
+                "kurz_präfix" | "short_prefix" => {
+                    set_argument_string!(
+                        short_prefix,
+                        literal_or_to_string(&ts),
+                        Argument { name, value: ArgumentValue::Stream(ts) }
+                    )
+                },
                 "invertiere_präfix" | "invert_prefix" => set_argument_string!(
                     invertiere_präfix,
                     literal_or_to_string(&ts),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
+                    Argument { name, value: ArgumentValue::Stream(ts) }
                 ),
                 "invertiere_infix" | "invert_infix" => set_argument_string!(
                     invertiere_infix,
                     literal_or_to_string(&ts),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
+                    Argument { name, value: ArgumentValue::Stream(ts) }
                 ),
-                "wert_infix" | "value_infix" => set_argument_string!(
-                    wert_infix,
-                    literal_or_to_string(&ts),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
-                ),
+                "wert_infix" | "value_infix" => {
+                    set_argument_string!(
+                        wert_infix,
+                        literal_or_to_string(&ts),
+                        Argument { name, value: ArgumentValue::Stream(ts) }
+                    )
+                },
                 "meta_var" => set_argument!(
                     meta_var,
                     Some(MetaVar(literal_or_to_string(&ts))),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
+                    Argument { name, value: ArgumentValue::Stream(ts) }
                 ),
-                "standard" | "default" => set_argument!(
-                    standard,
-                    Standard(quote!(Some(#ts))),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
-                ),
+                "standard" | "default" => {
+                    set_argument!(
+                        standard,
+                        Standard(quote!(Some(#ts))),
+                        Argument { name, value: ArgumentValue::Stream(ts) }
+                    )
+                },
                 "lang" | "long" => set_argument_names!(
                     long_names,
                     Some((literal_or_to_string(&ts), Vec::new())),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
+                    Argument { name, value: ArgumentValue::Stream(ts) }
                 ),
                 "kurz" | "short" => set_argument_names!(
                     short_names,
                     ShortNamesKind::Names(vec![literal_or_to_string(&ts)]),
-                    Argument { name, wert: ArgumentValue::Stream(ts) }
+                    Argument { name, value: ArgumentValue::Stream(ts) }
                 ),
                 "case" => {
                     let Some(case) = Case::parse(&ts) else {
                         return Err(Box::new(|arg_name| Unsupported {
                             arg_name,
-                            argument: Argument { name, wert: ArgumentValue::Stream(ts) },
+                            argument: Argument { name, value: ArgumentValue::Stream(ts) },
                         }));
                     };
-                    let argument = Argument { name, wert: ArgumentValue::Stream(ts) };
+                    let argument = Argument { name, value: ArgumentValue::Stream(ts) };
                     set_argument_case!(long_prefix, case, argument);
                     set_argument_case!(long_names, case, argument);
                     set_argument_case!(short_prefix, case, argument);
@@ -856,7 +861,7 @@ fn parse_value_argument(
                 _ => {
                     return Err(Box::new(|arg_name| Unsupported {
                         arg_name,
-                        argument: Argument { name, wert: ArgumentValue::Stream(ts) },
+                        argument: Argument { name, value: ArgumentValue::Stream(ts) },
                     }));
                 },
             },
@@ -893,7 +898,7 @@ fn parse_value_argument(
                                     arg_name,
                                     argument: Argument {
                                         name,
-                                        wert: ArgumentValue::SubArgument(vec![argument])
+                                        value: ArgumentValue::SubArgument(vec![argument])
                                     }
                                 },
                                 fehler => fehler,
@@ -936,9 +941,10 @@ fn parse_value_argument(
                         let sub_program_description = ProgramSettings {
                             name: sub_programm_einstellungen.name,
                             version: sub_programm_einstellungen.version,
-                            beschreibung: sub_programm_einstellungen
-                                .beschreibung
-                                .expect("Some-Wert für Programm-Description wird bei rekursiven Aufruf nie None!"),
+                            beschreibung: sub_programm_einstellungen.beschreibung.expect(
+                                "Some-Wert für Programm-Description wird bei rekursiven Aufruf \
+                                 nie None!",
+                            ),
                         };
                         let default_language = if name == "hilfe" { Deutsch } else { English };
                         **erstelle_hilfe = CreateHelp(Some(Box::new(create_help_method(
@@ -963,12 +969,11 @@ fn parse_value_argument(
                             version: sub_programm_einstellungen.version,
                             beschreibung: (),
                         };
-                        **erstelle_version =
-                            CreateVersion(Some(Box::new(create_version_method(
-                                sub_language,
-                                Some(präfix_und_namen),
-                                sub_program_description,
-                            ))));
+                        **erstelle_version = CreateVersion(Some(Box::new(create_version_method(
+                            sub_language,
+                            Some(präfix_und_namen),
+                            sub_program_description,
+                        ))));
                     },
                     ("programm" | "program", _, _, Some(standard_programm_einstellungen)) => {
                         let mut sub_programm_einstellungen = ProgramSettings {
@@ -1001,7 +1006,7 @@ fn parse_value_argument(
                                     arg_name,
                                     argument: Argument {
                                         name,
-                                        wert: ArgumentValue::SubArgument(vec![argument]),
+                                        value: ArgumentValue::SubArgument(vec![argument]),
                                     },
                                 },
                                 fehler @ NoLongName { .. } => fehler,
@@ -1010,14 +1015,15 @@ fn parse_value_argument(
                         **standard_programm_einstellungen = ProgramSettings {
                             name: sub_programm_einstellungen.name,
                             version: sub_programm_einstellungen.version,
-                            beschreibung: sub_programm_einstellungen
-                                .beschreibung
-                                .expect("Some-Wert für Programm-Description wird bei rekursivem Aufruf nie None!"),
+                            beschreibung: sub_programm_einstellungen.beschreibung.expect(
+                                "Some-Wert für Programm-Description wird bei rekursivem Aufruf \
+                                 nie None!",
+                            ),
                         };
                     },
                     ("case", _, _, _) => {
                         for sub_arg in sub_args {
-                            if let Argument { name: sub_name, wert: ArgumentValue::Stream(ts) } =
+                            if let Argument { name: sub_name, value: ArgumentValue::Stream(ts) } =
                                 sub_arg
                             {
                                 /// Value for an unsupported sub-argument.
@@ -1025,9 +1031,9 @@ fn parse_value_argument(
                                     () => {
                                         Argument {
                                             name,
-                                            wert: ArgumentValue::SubArgument(vec![Argument {
+                                            value: ArgumentValue::SubArgument(vec![Argument {
                                                 name: sub_name,
-                                                wert: ArgumentValue::Stream(ts),
+                                                value: ArgumentValue::Stream(ts),
                                             }]),
                                         }
                                     };
@@ -1080,7 +1086,7 @@ fn parse_value_argument(
                                     arg_name,
                                     argument: Argument {
                                         name,
-                                        wert: ArgumentValue::SubArgument(vec![sub_arg]),
+                                        value: ArgumentValue::SubArgument(vec![sub_arg]),
                                     },
                                 }));
                             }
@@ -1091,7 +1097,7 @@ fn parse_value_argument(
                             arg_name,
                             argument: Argument {
                                 name,
-                                wert: ArgumentValue::SubArgument(sub_args),
+                                value: ArgumentValue::SubArgument(sub_args),
                             },
                         }));
                     },
@@ -1115,7 +1121,7 @@ pub(crate) enum UnsupportedType {
 
 impl Display for UnsupportedType {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        use UnsupportedType::{Enum, Unknown, Union};
+        use UnsupportedType::{Enum, Union, Unknown};
         formatter.write_str(match self {
             Enum => "enum",
             Union => "union",
@@ -1143,7 +1149,7 @@ pub(crate) enum Error {
     /// Type with generics as macro input.
     Generics {
         /// Number of generic parameters.
-        anzahl: usize,
+        count: usize,
         /// `where` clause of the type.
         where_clause: bool,
     },
@@ -1156,7 +1162,7 @@ pub(crate) enum Error {
 impl Display for Error {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         use Error::{
-            UnnamedFields, Generics, NotStruct, EmptyFieldName, ParseValue, SplitArguments, Venial,
+            EmptyFieldName, Generics, NotStruct, ParseValue, SplitArguments, UnnamedFields, Venial,
         };
         match self {
             Venial(error) => write!(formatter, "{error}"),
@@ -1165,8 +1171,12 @@ impl Display for Error {
             NotStruct { typ, input } => {
                 write!(formatter, "Only structs are supported, but received {typ}: {input}")
             },
-            Generics { anzahl, where_clause } => {
-                write!(formatter, "Only structs without generics are supported, but received {anzahl} parameter(s)")?;
+            Generics { count, where_clause } => {
+                write!(
+                    formatter,
+                    "Only structs without generics are supported, but received {count} \
+                     parameter(s)"
+                )?;
                 if *where_clause {
                     write!(formatter, " and a where clause")?;
                 }
@@ -1209,7 +1219,7 @@ macro_rules! unwrap_or_return {
 /// Implementation of the derive macro for the [`Parse`] trait.
 #[allow(clippy::too_many_lines)]
 pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
-    use Error::{UnnamedFields, Generics, NotStruct, EmptyFieldName};
+    use Error::{EmptyFieldName, Generics, NotStruct, UnnamedFields};
     let item = parse_item(input.clone())?;
     // Item als #[non_exhaustive] markiert
     #[allow(clippy::wildcard_enum_match_arm)]
@@ -1222,7 +1232,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
     let param_count = generic_params.map_or(0, |param_list| param_list.params.len());
     let has_where_clause = where_clause.is_some();
     if (param_count > 0) || has_where_clause {
-        return Err(Generics { anzahl: param_count, where_clause: has_where_clause });
+        return Err(Generics { count: param_count, where_clause: has_where_clause });
     }
     let mut args = Vec::new();
     for attr in attributes {
@@ -1236,44 +1246,45 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
     // CARGO_PKG_VERSION — The full version of your package.
     // CARGO_PKG_AUTHORS — Colon separated list of authors from the manifest of your package.
     // CARGO_PKG_DESCRIPTION — The description from the manifest of your package.
-    // CARGO_BIN_NAME — The name of the binary that is currently being compiled (if it is a binary). This name does not include any file extension, such as .exe
-    let mut erstelle_version = CreateVersion(None);
-    let mut erstelle_hilfe = CreateHelp(None);
-    let mut sprache = None;
-    let mut standard_programm_einstellungen = ProgramSettings {
+    // CARGO_BIN_NAME — The name of the binary that is currently being compiled (if it is a binary).
+    // This name does not include any file extension, such as .exe
+    let mut create_version = CreateVersion(None);
+    let mut create_help = CreateHelp(None);
+    let mut language = None;
+    let mut default_program_setttings = ProgramSettings {
         name: ProgramName(None),
         version: ProgramVersion::Unspecified,
         beschreibung: ProgramDescription(None),
     };
     let mut long_prefix = LongPrefix::default();
     let mut short_prefix = ShortPrefix::default();
-    let mut invertiere_präfix = InvertPrefix::default();
-    let mut invertiere_infix = InvertInfix::default();
-    let mut wert_infix = ValueInfix::default();
+    let mut invert_prefix = InvertPrefix::default();
+    let mut invert_infix = InvertInfix::default();
+    let mut value_infix = ValueInfix::default();
     let mut meta_var = None;
     let crate_ident = crate_ident();
     unwrap_or_return!(
         parse_value_argument(
             args,
-            Some(&mut sprache),
-            Some(&mut standard_programm_einstellungen),
-            Some(&mut erstelle_hilfe),
-            Some(&mut erstelle_version),
+            Some(&mut language),
+            Some(&mut default_program_setttings),
+            Some(&mut create_help),
+            Some(&mut create_version),
             None,
             Some(&mut long_prefix),
             None,
             Some(&mut short_prefix),
             None,
-            Some(&mut invertiere_präfix),
-            Some(&mut invertiere_infix),
-            Some(&mut wert_infix),
+            Some(&mut invert_prefix),
+            Some(&mut invert_infix),
+            Some(&mut value_infix),
             Some(&mut meta_var),
             None,
             None,
         ),
         None
     );
-    let language = sprache.unwrap_or(English);
+    let language = language.unwrap_or(English);
     let meta_var = if let Some(meta_var) = meta_var {
         quote!(#meta_var)
     } else {
@@ -1299,9 +1310,9 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
         let mut kurz = quote!(None::<&str>);
         let mut feld_long_prefix = long_prefix.clone();
         let mut feld_short_prefix = short_prefix.clone();
-        let mut field_invert_prefix = invertiere_präfix.clone();
-        let mut field_invert_infix = invertiere_infix.clone();
-        let mut field_value_infix = wert_infix.clone();
+        let mut field_invert_prefix = invert_prefix.clone();
+        let mut field_invert_infix = invert_infix.clone();
+        let mut field_value_infix = value_infix.clone();
         let mut field_meta_var = None;
         let mut standard =
             Standard(quote!(<#field_type as ::#crate_ident::ParseArgument>::default()));
@@ -1319,7 +1330,11 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
                 }
             } else if path_is_ident(&attr, "kommandozeilen_argumente") {
                 let mut field_args = Vec::new();
-                split_parenthesized_arguments(vec![field_ident.to_string()], &mut field_args, attr.value)?;
+                split_parenthesized_arguments(
+                    vec![field_ident.to_string()],
+                    &mut field_args,
+                    attr.value,
+                )?;
                 let mut long_names = LongNames::default();
                 let mut short_names = ShortNames::default();
                 unwrap_or_return!(
@@ -1377,11 +1392,8 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
             }
             help_string.push_str(&part_string);
         }
-        let hilfe = if help_string.is_empty() {
-            quote!(None::<&str>)
-        } else {
-            quote!(Some(#help_string))
-        };
+        let hilfe =
+            if help_string.is_empty() { quote!(None::<&str>) } else { quote!(Some(#help_string)) };
         let create_description = quote!(
             let description = ::#crate_ident::Description::new(
                 #feld_long_prefix,
@@ -1409,22 +1421,22 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
         )*
         ::#crate_ident::combine!(|#(#idents),*| Self {#(#idents),*}, #(#idents),*)
     );
-    let with_version = if let CreateVersion(Some(version_hinzufügen)) = erstelle_version {
+    let with_version = if let CreateVersion(Some(version_hinzufügen)) = create_version {
         version_hinzufügen(
             combined,
             language,
-            &standard_programm_einstellungen.name,
-            &standard_programm_einstellungen.version,
+            &default_program_setttings.name,
+            &default_program_setttings.version,
         )
     } else {
         combined
     };
-    let with_help = if let CreateHelp(Some(hilfe_hinzufügen)) = erstelle_hilfe {
+    let with_help = if let CreateHelp(Some(hilfe_hinzufügen)) = create_help {
         hilfe_hinzufügen(
             with_version,
-            &standard_programm_einstellungen.name,
-            &standard_programm_einstellungen.version,
-            &standard_programm_einstellungen.beschreibung,
+            &default_program_setttings.name,
+            &default_program_setttings.version,
+            &default_program_setttings.beschreibung,
         )
     } else {
         with_version
