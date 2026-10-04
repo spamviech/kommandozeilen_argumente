@@ -12,7 +12,7 @@ status: draft
 ## Overview
 
 This branch (`parse-in-stages`) is mid-way through replacing the crate's single-pass
-argument parser with an explicit 6-stage pipeline (`doc/parsing.md`). Before implementing
+argument parser with an explicit 6-stage pipeline (`docs/parsing.md`). Before implementing
 the pipeline, the crate's entire public API is inverted from German-primary/English-secondary
 to **English-primary/German-secondary**: every public data-carrying type that currently has a
 German name (with an English synonym implemented as a thin wrapper or type alias) is rewritten
@@ -41,7 +41,7 @@ implemented stage by stage on top of the renamed API.
   "Name" is identical in both languages), but their **fields** are German-named
   (`beschreibung`, `invertiere_präfix`, `invertiere_infix`, `konvertiere`, `anzeige` /
   `lang_präfix`, `lang`, `kurz_präfix`, `kurz`).
-- The staged-parsing pipeline (`doc/parsing.md`) is largely unimplemented: `Argumente::parse`
+- The staged-parsing pipeline (`docs/parsing.md`) is largely unimplemented: `Argumente::parse`
   is `todo!()` (predates this branch), `Flag`/`Wert`/`FrühesBeenden::parse_merged_short_forms`
   are `todo!()`, the `Kombiniere` tuple impls' actual parsing logic is commented out (only
   `erzeuge_hilfe_text`/`debug_fmt` are live), and `Argumente::parse_merged_short_forms`'s
@@ -94,7 +94,7 @@ implemented stage by stage on top of the renamed API.
 - Both crates are at version `0.4.0`; `kommandozeilen_argumente_derive`'s generated code
   references only the new English-primary names/fields.
 - `tests/derive.rs` and `tests/hilfe.rs` compile and pass against the renamed API.
-- The 6-stage parsing pipeline (per `doc/parsing.md`) is fully implemented on top of the
+- The 6-stage parsing pipeline (per `docs/parsing.md`) is fully implemented on top of the
   renamed types: `Arguments::parse` (English-primary entry point) works end-to-end for flags,
   early-exit flags, value arguments, combined (tuple/derive) arguments, and alternatives.
 
@@ -104,7 +104,7 @@ implemented stage by stage on top of the renamed API.
   writes inside `#[kommandozeilen_argumente(...)]`) — only the Rust code the derive macro
   *generates*, which calls into the main crate's API.
 - Not implementing `Arguments::convert_error`/`Argumente::konvertiere_fehler` beyond what's
-  needed to compile — it stays a documented stub if `doc/parsing.md` doesn't require it for the
+  needed to compile — it stays a documented stub if `docs/parsing.md` doesn't require it for the
   6 stages (verified during Phase 7).
 - Not adding new user-facing features beyond what's needed to land the rename and the staged
   parser; no new CLI syntax, no new configuration options.
@@ -751,7 +751,7 @@ yet implementing any single argument's actual matching logic.
 
 - [ ] Document and finalize the fields of `ParsedEarlyExit`, `ParsedShortFlag`, `ParsedValueName`,
   `ParsedValue`, `ParseMergedShortFormsResult` in `src/arguments.rs` (replace `/// TODO` with
-  real doc comments), matching `doc/parsing.md`'s stage-1 output description (definition
+  real doc comments), matching `docs/parsing.md`'s stage-1 output description (definition
   reference, collected early-exits, collected flags, value-name → raw-value map, remaining
   not-yet-consumed input).
 - [ ] Implement `Arguments::parse_merged_short_forms`'s `Combined` arm (previously the
@@ -767,7 +767,7 @@ yet implementing any single argument's actual matching logic.
 **Automated Verification**:
 
 - [ ] `cargo build --workspace --all-features` succeeds
-- [ ] `cargo doc --workspace --all-features --no-deps` succeeds with no broken intra-doc links
+- [ ] `cargo +nightly doc --workspace --all-features --no-deps` succeeds with no broken intra-doc links
   for the newly-documented structs
 
 ---
@@ -785,7 +785,7 @@ matching in `description.rs`.
 
 - [ ] Implement `Flag::parse_merged_short_forms` (`src/arguments/flag.rs`) using
   `self.description.name.parse_flag_merge_short_forms`/`parse_flag`, producing a
-  `ParseMergedShortFormsResult` with a single matched flag or none, per `doc/parsing.md`'s rules
+  `ParseMergedShortFormsResult` with a single matched flag or none, per `docs/parsing.md`'s rules
   (single-grapheme short names only, must share short prefix).
 - [ ] Implement `EarlyExit::parse_merged_short_forms` (`src/arguments/early_exit.rs`) similarly,
   using `parse_early_exit_merge_short_forms`.
@@ -850,7 +850,7 @@ Depends on: **Phase 4**.
 Depends on: **Phase 5**.
 
 Converts the raw `OsString` values collected by stages 1-3 into typed values, per
-`doc/parsing.md`'s design of sharing heterogeneous value types in one map via `Box<dyn Any>` +
+`docs/parsing.md`'s design of sharing heterogeneous value types in one map via `Box<dyn Any>` +
 `TypeId`.
 
 **Tasks**:
@@ -859,7 +859,7 @@ Converts the raw `OsString` values collected by stages 1-3 into typed values, pe
   `Value<'t,T,Error>`'s `parse` closure), produces `Result<Box<dyn Any>, AnnotatedParseError>`,
   keyed by `TypeId::of::<T>()` for later downscasting.
 - [ ] Extend `ParseMergedShortFormsResult`/its stage-2/3 equivalents to carry the typed-value map
-  instead of (or alongside) the raw-string map, per `doc/parsing.md`.
+  instead of (or alongside) the raw-string map, per `docs/parsing.md`.
 
 **Automated Verification**:
 
@@ -889,7 +889,7 @@ end-to-end.
 - [ ] Implement `Arguments::Alternatives` selection logic: try each alternative in order, keep
   the first that produces `Result::Value`, else combine errors from all failed alternatives.
 - [ ] Implement `Arguments::parse` (`src/arguments.rs`), composing stages 1-6 in the order
-  specified by `doc/parsing.md`.
+  specified by `docs/parsing.md`.
 - [ ] Verify all existing `parse_*`/`with_*`/`convert_error` method families on `Arguments`
   (and their `Argumente` mirror equivalents) now function end-to-end since they all bottom out
   in `Arguments::parse`.
@@ -954,7 +954,7 @@ this refactor started, plus whatever new warnings the rename/staged-parsing work
 - [ ] `cargo build --workspace --all-features` succeeds with zero warnings
 - [ ] `cargo test --workspace --all-features` passes
 - [ ] `cargo clippy --workspace --all-features -- -D warnings` passes
-- [ ] `cargo doc --workspace --all-features --no-deps` succeeds with no broken links
+- [ ] `cargo +nightly doc --workspace --all-features --no-deps` succeeds with no broken links
 - [ ] `grep -rn 'kombiniere!\|Kombiniere\|ErzeugeHilfeText\|dyn_to_owned::Anzeige\|parse_rekursiv' src/ tests/ kommandozeilen_argumente_derive/src/` returns no results
 
 ---
@@ -963,7 +963,7 @@ this refactor started, plus whatever new warnings the rename/staged-parsing work
 
 - `docs/agents/research/2026-07-19-parse-in-stages-refactoring-context.md` — original research
   report (6-stage design summary, implementation status, bilingual-API convention)
-- `doc/parsing.md` — design of the 6-stage pipeline
+- `docs/parsing.md` — design of the 6-stage pipeline
 - `src/argumente.rs`, `src/argumente/{einzelargument,flag,wert,frühes_beenden,kombiniere,hilfe}.rs`,
   `src/beschreibung.rs`, `src/ergebnis.rs`, `src/sprache.rs`, `src/unicode.rs`,
   `src/dyn_to_owned.rs`, `src/lib.rs`, `src/parse.rs` — pre-rename source read in full while
