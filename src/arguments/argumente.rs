@@ -263,7 +263,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     }
 }
 
-impl<T, F> Argumente<'_, T, F>
+impl<'t, T, F> Argumente<'t, T, F>
 where
     T: Clone,
     F: Clone,
@@ -286,7 +286,7 @@ where
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> NonEmpty<ParseMergedShortFormsResult<'_, T, F>> {
+    ) -> NonEmpty<ParseMergedShortFormsResult<'_, 't, T, F>> {
         use Argumente::{Alternativen, EinzelArgument, Kombiniere};
         match self {
             EinzelArgument(einzelargument) => {

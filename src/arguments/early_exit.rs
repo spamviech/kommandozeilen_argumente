@@ -100,25 +100,25 @@ fn create_help_text(name: &Name<'_>, help: Option<&str>, default: Option<Void>) 
     Help { syntax, help: help.map(String::from) }
 }
 
-impl EarlyExit<'_> {
+impl<'t> EarlyExit<'t> {
     /// Parses merged short-form arguments.
     #[inline]
-    pub fn parse_merged_short_forms<T, F>(
+    pub fn parse_merged_short_forms<'definition, T, F>(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'_, T, F> {
+    ) -> ParseMergedShortFormsResult<'definition, 't, T, F> {
         let _ = (self, args);
         todo!()
     }
 }
 
-impl FrühesBeenden<'_> {
+impl<'t> FrühesBeenden<'t> {
     /// Parst zusammengefasste kurze Argumentformen.
     #[inline]
-    pub fn parse_merged_short_forms<T, F>(
+    pub fn parse_merged_short_forms<'definition, T, F>(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'_, T, F> {
+    ) -> ParseMergedShortFormsResult<'definition, 't, T, F> {
         let _ = (self, args);
         todo!()
     }

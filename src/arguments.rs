@@ -173,21 +173,24 @@ pub struct ParsedValue<'s> {
 /// their recognized arguments into these collections and consume additional entries from
 /// [`Self::remaining`].
 #[derive(Debug, Clone)]
-pub struct ParseMergedShortFormsResult<'s, T, F> {
+pub struct ParseMergedShortFormsResult<'definition, 'argument, T, F> {
     /// Argument definition that produced this result.
-    pub definition: &'s Arguments<'s, T, F>,
+    ///
+    /// Leaf argument parsers leave this as [`None`]; [`Arguments::parse_merged_short_forms`]
+    /// attaches the enclosing definition before exposing the result.
+    pub definition: Option<&'definition Arguments<'argument, T, F>>,
     /// A vector of early\_exit arguments, containing name, message & original input.
-    pub early_exits: Vec<ParsedEarlyExit<'s>>,
+    pub early_exits: Vec<ParsedEarlyExit<'definition>>,
     /// A vector of flag-arguments with their name (all are true) & the original input.
-    pub flags: Vec<ParsedShortFlag<'s>>,
+    pub flags: Vec<ParsedShortFlag<'definition>>,
     /// A map of value-arguments with name -> (value-string, original input).
-    pub values: HashMap<ParsedValueName<'s>, ParsedValue<'s>>,
+    pub values: HashMap<ParsedValueName<'definition>, ParsedValue<'definition>>,
     /// Remaining arguments with the parsed merged short names and associated value-strings
     /// removed.
-    pub remaining: Vec<Option<OsString>>,
+    pub remaining: Vec<ArgumentInput>,
 }
 
-impl<T, F> Arguments<'_, T, F>
+impl<'t, T, F> Arguments<'t, T, F>
 where
     T: Clone,
     F: Clone,
@@ -197,9 +200,13 @@ where
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> NonEmpty<ParseMergedShortFormsResult<'_, T, F>> {
+    ) -> NonEmpty<ParseMergedShortFormsResult<'_, 't, T, F>> {
         match self {
-            Self::Single(argument) => NonEmpty::singleton(argument.parse_merged_short_forms(args)),
+            Self::Single(argument) => {
+                let mut result = argument.parse_merged_short_forms(args);
+                result.definition = Some(self);
+                NonEmpty::singleton(result)
+            },
             Self::Combined(combine) => combine.parse_merged_short_forms(Box::new(args)),
             Self::Alternatives(alternatives) => {
                 let args = args.collect_vec();

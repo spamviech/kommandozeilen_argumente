@@ -310,7 +310,7 @@ where
 
 fn parse_value_merged_short_forms<'a, T, E>(
     args: impl Iterator<Item = OsString>,
-) -> ParseMergedShortFormsResult<'a, T, E> {
+) -> ParseMergedShortFormsResult<'a, 'a, T, E> {
     let _ = args;
     todo!()
 }
@@ -402,7 +402,7 @@ impl<'t, T, E> Value<'t, T, E> {
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'_, T, E> {
+    ) -> ParseMergedShortFormsResult<'_, 't, T, E> {
         let _ = self;
         parse_value_merged_short_forms(args)
     }
@@ -413,7 +413,7 @@ impl<'t, T, E> Wert<'t, T, E> {
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'_, T, E> {
+    ) -> ParseMergedShortFormsResult<'_, 't, T, E> {
         let _ = self;
         parse_value_merged_short_forms(args)
     }

@@ -73,7 +73,7 @@ call site here too — this crate has no independent logic of its own beyond att
 
 ### Active refactor: staged parsing
 
-`doc/parsing.md` describes a planned 6-stage parsing pipeline (parse merged short names → parse
+`docs/parsing.md` describes a planned 6-stage parsing pipeline (parse merged short names → parse
 non-merged short names → parse long names → parse `OsString` values via `Box<dyn Any>` →
 pick alternative → accumulate results into the result struct), replacing a single-pass parser.
 Several core methods are currently `todo!()` pending this work (e.g. `Argumente::parse`,

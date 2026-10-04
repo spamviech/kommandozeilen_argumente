@@ -95,41 +95,51 @@ pub enum MergedShortNameSuffix {
     Unchanged,
 }
 
+/// A short name recognized in a merged-short-name block.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ParsedMergedShortName<T> {
+    /// The recognized single-grapheme short name.
+    pub name: Box<str>,
+    /// The value produced for the recognized name.
+    pub value: T,
+    /// The unconsumed portion of the merged-short-name block.
+    pub remaining: Option<ArgumentInput>,
+}
+
 impl Name<'_> {
     /// Helper for [`parse_flag_aux`](Name::parse_flag_aux).
     fn parse_merged_short_name<E>(
         prefix: Normalized<'_>,
         short: &[Compare<'_>],
-        name_gefunden: impl FnOnce() -> E,
+        value_found: impl FnOnce() -> E,
         graphemes: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Option<(E, Option<ArgumentInput>)> {
-        let (erster_match, andere, suffix) = graphemes.into_iter().fold(
+    ) -> Option<ParsedMergedShortName<E>> {
+        let (first_match, others, suffix) = graphemes.into_iter().fold(
             (None, Vec::new(), MergedShortNameSuffix::Unchanged),
-            |(mut erster_match, mut andere, _suffix), grapheme| {
+            |(mut first_match, mut others, _suffix), grapheme| {
                 let suffix;
-                if erster_match.is_some() || !contains_str(short, grapheme.as_ref()) {
+                if first_match.is_some() || !contains_str(short, grapheme.as_ref()) {
                     suffix = MergedShortNameSuffix::Unchanged;
-                    andere.push(Box::from(grapheme.as_ref()));
+                    others.push(Box::from(grapheme.as_ref()));
                 } else {
                     suffix = MergedShortNameSuffix::Removed;
-                    erster_match = Some(grapheme);
+                    first_match = Some(Box::from(grapheme.as_ref()));
                 }
-                (erster_match, andere, suffix)
+                (first_match, others, suffix)
             },
         );
 
-        if erster_match.is_some() {
-            let wert = name_gefunden();
-            let angepasstes_argument = NonEmpty::from_vec(andere).map(|remaining| {
+        first_match.map(|name| {
+            let value = value_found();
+            let adjusted_argument = NonEmpty::from_vec(others).map(|remaining| {
                 ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
                     prefix: prefix.into_owned(),
                     graphemes: remaining,
                     suffix,
                 })
             });
-            return Some((wert, angepasstes_argument));
-        }
-        None
+            ParsedMergedShortName { name, value, remaining: adjusted_argument }
+        })
     }
 
     /// Helper for [`parse_flag`](Name::parse_flag) and its variants.
@@ -173,9 +183,9 @@ impl Name<'_> {
     /// Returns [`Some`] when a name was found and [`None`] otherwise.
     fn parse_flag_merge_short_forms_aux<E>(
         &self,
-        name_gefunden: impl FnOnce() -> E,
+        value_found: impl FnOnce() -> E,
         arg: &ArgumentInput,
-    ) -> Option<(E, Option<ArgumentInput>)> {
+    ) -> Option<ParsedMergedShortName<E>> {
         let Name { long_prefix: _, long: _, short_prefix, short } = self;
         if short.is_empty() {
             return None;
@@ -195,7 +205,7 @@ impl Name<'_> {
                         return Name::parse_merged_short_name(
                             prefix,
                             short,
-                            name_gefunden,
+                            value_found,
                             graphemes,
                         );
                     }
@@ -209,7 +219,7 @@ impl Name<'_> {
                 return Name::parse_merged_short_name(
                     prefix.clone(),
                     short,
-                    name_gefunden,
+                    value_found,
                     graphemes,
                 );
             },
@@ -252,7 +262,7 @@ impl Name<'_> {
     pub(crate) fn parse_flag_merge_short_forms(
         &self,
         arg: &ArgumentInput,
-    ) -> Option<(bool, Option<ArgumentInput>)> {
+    ) -> Option<ParsedMergedShortName<bool>> {
         self.parse_flag_merge_short_forms_aux(|| true, arg)
     }
 
@@ -273,9 +283,8 @@ impl Name<'_> {
     pub(crate) fn parse_early_exit_merge_short_forms(
         &self,
         arg: &ArgumentInput,
-    ) -> Option<Option<ArgumentInput>> {
+    ) -> Option<ParsedMergedShortName<()>> {
         self.parse_flag_merge_short_forms_aux(|| (), arg)
-            .map(|((), angepasstes_arg)| angepasstes_arg)
     }
 
     /// Parses the name as a value.
@@ -360,7 +369,7 @@ impl Name<'_> {
     pub(crate) fn parse_with_value_merge_short_forms(
         &self,
         arg: &ArgumentInput,
-    ) -> Option<Option<ArgumentInput>> {
+    ) -> Option<ParsedMergedShortName<()>> {
         let Name { long_prefix: _, long: _, short_prefix, short } = self;
         if short.is_empty() {
             return None;
@@ -388,7 +397,11 @@ impl Name<'_> {
                                             },
                                         )
                                     });
-                                return Some(remainder);
+                                return Some(ParsedMergedShortName {
+                                    name: Box::from(*last),
+                                    value: (),
+                                    remaining: remainder,
+                                });
                             }
                         }
                     }
@@ -409,7 +422,11 @@ impl Name<'_> {
                             suffix: MergedShortNameSuffix::Removed,
                         })
                     });
-                    return Some(remainder);
+                    return Some(ParsedMergedShortName {
+                        name: graphemes.last().clone(),
+                        value: (),
+                        remaining: remainder,
+                    });
                 }
             },
             ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {

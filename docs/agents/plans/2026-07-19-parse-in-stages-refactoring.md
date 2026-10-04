@@ -783,7 +783,7 @@ matching in `description.rs`.
 
 **Tasks**:
 
-- [ ] Implement `Flag::parse_merged_short_forms` (`src/arguments/flag.rs`) using
+- [-] Implement `Flag::parse_merged_short_forms` (`src/arguments/flag.rs`) using
   `self.description.name.parse_flag_merge_short_forms`/`parse_flag`, producing a
   `ParseMergedShortFormsResult` with a single matched flag or none, per `docs/parsing.md`'s rules
   (single-grapheme short names only, must share short prefix).

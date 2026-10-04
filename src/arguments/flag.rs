@@ -10,8 +10,8 @@ use std::{
 use nonempty::NonEmpty;
 
 use crate::{
-    arguments::{ParseMergedShortFormsResult, help::Help},
-    description::{Description, Name},
+    arguments::{ParseMergedShortFormsResult, ParsedShortFlag, help::Help},
+    description::{ArgumentInput, Description, Name},
     dyn_to_owned::{Bool, Show},
     language::Language,
     unicode::Compare,
@@ -143,7 +143,7 @@ impl<T> Flag<'_, T> {
     }
 }
 
-impl<T> Flag<'_, T> {
+impl<'t, T> Flag<'t, T> {
     /// Parses merged short-form arguments.
     ///
     /// Rules to allow merging of short names:
@@ -153,13 +153,31 @@ impl<T> Flag<'_, T> {
     /// - At most one value argument per block; it must be last.
     /// - Merging of short names must be enabled for this argument.
     #[inline]
-    pub fn parse_merged_short_forms<F>(
+    pub fn parse_merged_short_forms<'definition, F>(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'_, T, F> {
-        let Self { description: _, invert_prefix: _, invert_infix: _, convert: _, display: _ } =
-            self;
-        let _ = args;
-        todo!();
+    ) -> ParseMergedShortFormsResult<'definition, 't, T, F> {
+        let Self { description, invert_prefix: _, invert_infix: _, convert: _, display: _ } = self;
+        let mut flags = Vec::new();
+        let remaining = args
+            .map(|argument| {
+                let input = Cow::Owned(argument.to_string_lossy().into_owned());
+                let argument = ArgumentInput::Unchanged(argument);
+                if let Some(parsed) = description.name.parse_flag_merge_short_forms(&argument) {
+                    flags.push(ParsedShortFlag { name: Cow::Owned(parsed.name.into()), input });
+                    parsed.remaining
+                } else {
+                    Some(argument)
+                }
+            })
+            .flatten()
+            .collect();
+        ParseMergedShortFormsResult {
+            definition: None,
+            early_exits: Vec::new(),
+            flags,
+            values: Default::default(),
+            remaining,
+        }
     }
 }

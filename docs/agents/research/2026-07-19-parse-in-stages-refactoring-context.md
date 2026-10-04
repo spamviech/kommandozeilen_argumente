@@ -22,7 +22,7 @@ would need in order to plan or implement it.
 This repository (`kommandozeilen_argumente`, a German/English-bilingual Rust CLI-argument-parsing
 library) is on branch `parse-in-stages`, mid-way through a large architectural rewrite of its
 argument-parsing algorithm. The design for the new algorithm is written down in
-`doc/parsing.md`. The rewrite replaces a single-pass parser (which itself was never finished — the
+`docs/parsing.md`. The rewrite replaces a single-pass parser (which itself was never finished — the
 core `Argumente::parse` entry point has been `todo!()` since before this branch existed) with an
 explicit multi-stage pipeline:
 
@@ -66,7 +66,7 @@ src/
 ├── dyn_to_owned.rs               — macro-generated `ToOwned` for `dyn Fn` trait objects (Bool/Parse/Anzeige)
 └── sprache.rs                   — language ("Sprache"/"Language") string tables (not read in full;
                                     only referenced)
-doc/
+docs/
 └── parsing.md                   — the design document for the new staged-parsing algorithm
 tests/
 ├── derive.rs                    — integration tests via the `#[derive(Parse)]` macro (6 #[test] fns)
@@ -78,7 +78,7 @@ kommandozeilen_argumente_derive/ — proc-macro crate implementing `#[derive(Par
 
 ## Detailed Findings
 
-### The design document (`doc/parsing.md`)
+### The design document (`docs/parsing.md`)
 
 Describes six stages (see Summary). Key structural decisions baked into the design:
 
@@ -145,7 +145,7 @@ for one of the stages, not yet wired up.
 
 ### Supporting types already built for the new pipeline
 
-`src/argumente.rs:250-294` defines the per-stage result shapes described in `doc/parsing.md`:
+`src/argumente.rs:250-294` defines the per-stage result shapes described in `docs/parsing.md`:
 `ParsedEarlyExit`, `ParsedShortFlag`, `ParsedValueName`, `ParsedValue`, and
 `ParseMergedShortFormsResult<'s, T, F>` (definition reference, early_exits vec, flags vec, values
 map, remaining `Vec<Option<OsString>>`). All fields are currently documented only with `/// TODO`.
@@ -214,7 +214,7 @@ cross-crate-compatibility concern for it.
 
 ## Code References
 
-- `doc/parsing.md` — full design of the 6-stage pipeline
+- `docs/parsing.md` — full design of the 6-stage pipeline
 - `src/argumente.rs:58` — `Argumente<'t, T, Fehler>` enum definition
 - `src/argumente.rs:250-294` — per-stage result structs (`ParseMergedShortFormsResult` etc.), all `/// TODO`
 - `src/argumente.rs:315-333` — `Argumente::parse_merged_short_forms`, `Kombiniere` arm is `todo!()`
@@ -264,7 +264,7 @@ cross-crate-compatibility concern for it.
 - `kommandozeilen_argumente_derive/` internals were not inspected; whether it assumes anything about
   `Kombiniere`'s currently-commented-out `parse`/`parse_merged_short_forms` methods (as opposed to
   only `erzeuge_hilfe_text`) is unverified.
-- No explicit task list or ordering exists yet beyond `doc/parsing.md`'s six stage descriptions and
+- No explicit task list or ordering exists yet beyond `docs/parsing.md`'s six stage descriptions and
   the four recent commit messages on this branch — the actual implementation plan (which stub to
   fill in first, how `SingeArgResult`/`ZwischenErgebnis`/`ParseMergedShortFormsResult` compose across
   stage boundaries) has not been written down anywhere found in the repo.

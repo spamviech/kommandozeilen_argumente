@@ -87,7 +87,7 @@ pub trait Combine<'t, T, Fehler> {
     fn parse_merged_short_forms(
         &self,
         args: Box<dyn Iterator<Item = OsString> + '_>,
-    ) -> NonEmpty<ParseMergedShortFormsResult<'_, T, Fehler>>
+    ) -> NonEmpty<ParseMergedShortFormsResult<'_, 't, T, Fehler>>
     where
         T: Clone,
         Fehler: Clone,

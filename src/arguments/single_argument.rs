@@ -285,7 +285,7 @@ impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
     fn parse_merged_short_forms(
         self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'a, T, Error> {
+    ) -> ParseMergedShortFormsResult<'a, 't, T, Error> {
         match self {
             Self::English(SingleArgument::Flag(flag))
             | Self::German(EinzelArgument::Flag(flag)) => {
@@ -303,7 +303,7 @@ impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
     }
 }
 
-impl<T, Error> SingleArgument<'_, T, Error> {
+impl<'t, T, Error> SingleArgument<'t, T, Error> {
     /// Creates this argument's syntax and corresponding help text.
     #[inline]
     pub fn create_help_text(&self, meta_default: &str, meta_possible_values: &str) -> Help {
@@ -321,12 +321,12 @@ impl<T, Error> SingleArgument<'_, T, Error> {
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'_, T, Error> {
+    ) -> ParseMergedShortFormsResult<'_, 't, T, Error> {
         SingleArgumentRef::English(self).parse_merged_short_forms(args)
     }
 }
 
-impl<T, Fehler> EinzelArgument<'_, T, Fehler> {
+impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
     /// Erzeugt die Syntax und den zugehörigen Hilfetext dieses Arguments.
     #[inline]
     pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe {
@@ -344,7 +344,7 @@ impl<T, Fehler> EinzelArgument<'_, T, Fehler> {
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'_, T, Fehler> {
+    ) -> ParseMergedShortFormsResult<'_, 't, T, Fehler> {
         SingleArgumentRef::German(self).parse_merged_short_forms(args)
     }
 }
