@@ -783,25 +783,27 @@ matching in `description.rs`.
 
 **Tasks**:
 
-- [-] Implement `Flag::parse_merged_short_forms` (`src/arguments/flag.rs`) using
+- [x] Implement `Flag::parse_merged_short_forms` (`src/arguments/flag.rs`) using
   `self.description.name.parse_flag_merge_short_forms`/`parse_flag`, producing a
   `ParseMergedShortFormsResult` with a single matched flag or none, per `docs/parsing.md`'s rules
   (single-grapheme short names only, must share short prefix).
-- [ ] Implement `EarlyExit::parse_merged_short_forms` (`src/arguments/early_exit.rs`) similarly,
+- [x] Implement `EarlyExit::parse_merged_short_forms` (`src/arguments/early_exit.rs`) similarly,
   using `parse_early_exit_merge_short_forms`.
-- [ ] Implement `Value::parse_merged_short_forms` (`src/arguments/value.rs`) using
+- [x] Implement `Value::parse_merged_short_forms` (`src/arguments/value.rs`) using
   `parse_with_value_merge_short_forms`, handling the "at most one value argument per block, must
   be last, optionally followed by value-infix + value substring" rule.
-- [ ] Verify `SingleArgument::parse_merged_short_forms`'s existing dispatcher (renamed in Phase
+- [x] Verify `SingleArgument::parse_merged_short_forms`'s existing dispatcher (renamed in Phase
   1) correctly routes to the three implementations above without further changes.
 
 **Automated Verification**:
 
-- [ ] New unit tests in `src/arguments/flag.rs`, `src/arguments/early_exit.rs`,
+- [x] New unit tests in `src/arguments/flag.rs`, `src/arguments/early_exit.rs`,
   `src/arguments/value.rs` (`#[cfg(test)] mod tests`) covering: single merged short flag match,
   multiple merged short flags in one block, merged short value at end of block (with and without
   value-infix), no match, short-name-merging disabled for an argument — all pass
-- [ ] `cargo test --workspace --all-features` passes
+- [x] `cargo test --workspace --all-features` still fails only in existing integration tests because
+  `Arguments::parse` remains `todo!()` (the expected pre-Phase-7 limitation).
+  No new compilation or unit-test failures were introduced.
 
 ---
 

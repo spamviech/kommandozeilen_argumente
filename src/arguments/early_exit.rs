@@ -7,10 +7,10 @@ use void::Void;
 
 use crate::{
     arguments::{
-        ParseMergedShortFormsResult,
+        ParseMergedShortFormsResult, ParsedEarlyExit,
         help::{Help, Hilfe},
     },
-    description::{Beschreibung, Description, Name},
+    description::{ArgumentInput, Beschreibung, Description, Name},
 };
 
 /// A flag argument that causes an early exit.
@@ -107,8 +107,57 @@ impl<'t> EarlyExit<'t> {
         &self,
         args: impl Iterator<Item = OsString>,
     ) -> ParseMergedShortFormsResult<'definition, 't, T, F> {
-        let _ = (self, args);
-        todo!()
+        let Self { description, message } = self;
+        let mut early_exits = Vec::new();
+        let remaining = args
+            .map(|argument| {
+                let input = Cow::Owned(argument.to_string_lossy().into_owned());
+                let argument = ArgumentInput::Unchanged(argument);
+                if let Some(parsed) = description.name.parse_early_exit_merge_short_forms(&argument)
+                {
+                    early_exits.push(ParsedEarlyExit {
+                        name: Cow::Owned(parsed.name.into()),
+                        message: message.clone(),
+                        input,
+                    });
+                    parsed.remaining
+                } else {
+                    Some(argument)
+                }
+            })
+            .flatten()
+            .collect();
+        ParseMergedShortFormsResult {
+            definition: None,
+            early_exits,
+            flags: Vec::new(),
+            values: Default::default(),
+            remaining,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+
+    use void::Void;
+
+    use crate::{Description, arguments::early_exit::EarlyExit};
+
+    #[test]
+    fn parses_merged_short_early_exit() {
+        let early_exit = EarlyExit::new(
+            Description::new("--", "help", "-", "h", None, None::<Void>),
+            "help message",
+        );
+        let result =
+            early_exit.parse_merged_short_forms::<(), ()>([OsString::from("-h")].into_iter());
+
+        assert_eq!(result.early_exits.len(), 1);
+        assert_eq!(result.early_exits[0].name, "h");
+        assert_eq!(result.early_exits[0].message, "help message");
+        assert!(result.remaining.is_empty());
     }
 }
 
@@ -119,7 +168,33 @@ impl<'t> FrühesBeenden<'t> {
         &self,
         args: impl Iterator<Item = OsString>,
     ) -> ParseMergedShortFormsResult<'definition, 't, T, F> {
-        let _ = (self, args);
-        todo!()
+        let Self { beschreibung, nachricht } = self;
+        let mut early_exits = Vec::new();
+        let remaining = args
+            .map(|argument| {
+                let input = Cow::Owned(argument.to_string_lossy().into_owned());
+                let argument = ArgumentInput::Unchanged(argument);
+                if let Some(parsed) =
+                    beschreibung.name.parse_early_exit_merge_short_forms(&argument)
+                {
+                    early_exits.push(ParsedEarlyExit {
+                        name: Cow::Owned(parsed.name.into()),
+                        message: nachricht.clone(),
+                        input,
+                    });
+                    parsed.remaining
+                } else {
+                    Some(argument)
+                }
+            })
+            .flatten()
+            .collect();
+        ParseMergedShortFormsResult {
+            definition: None,
+            early_exits,
+            flags: Vec::new(),
+            values: Default::default(),
+            remaining,
+        }
     }
 }

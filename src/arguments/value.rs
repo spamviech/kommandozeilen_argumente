@@ -2,6 +2,7 @@
 
 use std::{
     borrow::Cow,
+    collections::HashMap,
     ffi::{OsStr, OsString},
     fmt::{self, Debug, Display},
     str::FromStr,
@@ -12,10 +13,10 @@ use nonempty::NonEmpty;
 use crate::{
     ParseFehler,
     arguments::{
-        ParseMergedShortFormsResult,
+        ParseMergedShortFormsResult, ParsedValue, ParsedValueName,
         help::{Help, Hilfe},
     },
-    description::{Beschreibung, Description, Name},
+    description::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Parse, Show},
     language::{Language, Sprache},
     outcome::ParseError,
@@ -308,11 +309,42 @@ where
     }
 }
 
-fn parse_value_merged_short_forms<'a, T, E>(
+fn parse_value_merged_short_forms<'definition, 'argument, T, E>(
+    name: &Name<'argument>,
+    value_infix: &Compare<'argument>,
     args: impl Iterator<Item = OsString>,
-) -> ParseMergedShortFormsResult<'a, 'a, T, E> {
-    let _ = args;
-    todo!()
+) -> ParseMergedShortFormsResult<'definition, 'argument, T, E> {
+    let mut values = HashMap::new();
+    let mut args = args.peekable();
+    let mut remaining = Vec::new();
+    while let Some(argument) = args.next() {
+        let input = Cow::Owned(argument.to_string_lossy().into_owned());
+        let argument = ArgumentInput::Unchanged(argument);
+        if let Some(parsed) = name.parse_with_value_merge_short_forms(value_infix, &argument) {
+            let value = parsed.inline_value.map_or_else(
+                || args.next().map(|value| Cow::Owned(value.to_string_lossy().into_owned())),
+                |value| Some(Cow::Owned(value.into())),
+            );
+            if let Some(value) = value {
+                let _ = values.insert(
+                    ParsedValueName { name: Cow::Owned(parsed.name.into()) },
+                    ParsedValue { value, input },
+                );
+            }
+            if let Some(argument) = parsed.remaining {
+                remaining.push(argument);
+            }
+        } else {
+            remaining.push(argument);
+        }
+    }
+    ParseMergedShortFormsResult {
+        definition: None,
+        early_exits: Vec::new(),
+        flags: Vec::new(),
+        values,
+        remaining,
+    }
 }
 /// Creates syntax and help text from the shared parts of a German or English value argument.
 fn create_value_help_text<T>(
@@ -403,10 +435,40 @@ impl<'t, T, E> Value<'t, T, E> {
         &self,
         args: impl Iterator<Item = OsString>,
     ) -> ParseMergedShortFormsResult<'_, 't, T, E> {
-        let _ = self;
-        parse_value_merged_short_forms(args)
+        parse_value_merged_short_forms(&self.description.name, &self.value_infix, args)
     }
 }
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+
+    use crate::{Description, arguments::value::Value};
+
+    #[test]
+    fn parses_merged_short_value_with_and_without_infix() {
+        let value =
+            Value::<String, _>::new(Description::new("--", "output", "-", "o", None, None), None);
+        for input in ["-ovalue", "-o=value"] {
+            let result = value.parse_merged_short_forms([OsString::from(input)].into_iter());
+            assert_eq!(result.values.len(), 1);
+            assert_eq!(result.values.values().next().unwrap().value, "value");
+            assert!(result.remaining.is_empty());
+        }
+    }
+
+    #[test]
+    fn consumes_the_next_argument_for_a_merged_short_value() {
+        let value =
+            Value::<String, _>::new(Description::new("--", "output", "-", "o", None, None), None);
+        let result = value
+            .parse_merged_short_forms([OsString::from("-o"), OsString::from("value")].into_iter());
+
+        assert_eq!(result.values.len(), 1);
+        assert_eq!(result.values.values().next().unwrap().value, "value");
+        assert!(result.remaining.is_empty());
+    }
+}
+
 impl<'t, T, E> Wert<'t, T, E> {
     /// Parst zusammengefasste kurze Argumentformen.
     #[inline]
@@ -414,8 +476,8 @@ impl<'t, T, E> Wert<'t, T, E> {
         &self,
         args: impl Iterator<Item = OsString>,
     ) -> ParseMergedShortFormsResult<'_, 't, T, E> {
-        let _ = self;
-        parse_value_merged_short_forms(args)
+        let value_infix = self.wert_infix.clone().into();
+        parse_value_merged_short_forms(&self.beschreibung.name, &value_infix, args)
     }
 
     /// Erzeugt Syntax und Hilfetext für dieses Argument.

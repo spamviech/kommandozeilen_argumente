@@ -102,6 +102,8 @@ pub(crate) struct ParsedMergedShortName<T> {
     pub name: Box<str>,
     /// The value produced for the recognized name.
     pub value: T,
+    /// An inline value following this short name, with its infix removed.
+    pub inline_value: Option<Box<str>>,
     /// The unconsumed portion of the merged-short-name block.
     pub remaining: Option<ArgumentInput>,
 }
@@ -138,7 +140,7 @@ impl Name<'_> {
                     suffix,
                 })
             });
-            ParsedMergedShortName { name, value, remaining: adjusted_argument }
+            ParsedMergedShortName { name, value, inline_value: None, remaining: adjusted_argument }
         })
     }
 
@@ -368,76 +370,49 @@ impl Name<'_> {
     #[allow(clippy::option_option)]
     pub(crate) fn parse_with_value_merge_short_forms(
         &self,
+        value_infix: &Compare<'_>,
         arg: &ArgumentInput,
     ) -> Option<ParsedMergedShortName<()>> {
         let Name { long_prefix: _, long: _, short_prefix, short } = self;
         if short.is_empty() {
             return None;
         }
-        match arg {
+        let (prefix, graphemes): (Normalized<'static>, Vec<Box<str>>) = match arg {
             ArgumentInput::Unchanged(arg) => {
-                if let Some(string) = arg.to_str() {
-                    let normalized = Normalized::new(string);
-                    if let Some((prefix, kurz_suffix)) = short_prefix.strip_as_prefix_n(&normalized)
-                    {
-                        let graphemes: Vec<&str> = kurz_suffix.as_str().graphemes(true).collect();
-
-                        if let Some((last, graphemes)) = graphemes.split_last() {
-                            if contains_str(short, last) {
-                                let boxed_graphemes = graphemes
-                                    .iter()
-                                    .map(|&grapheme: &&str| -> Box<str> { Box::from(grapheme) });
-                                let remainder =
-                                    NonEmpty::collect(boxed_graphemes).map(|remaining| {
-                                        ArgumentInput::AdjustedMergedShortNames(
-                                            AdjustedMergedShortNames {
-                                                prefix: prefix.into_owned(),
-                                                graphemes: remaining,
-                                                suffix: MergedShortNameSuffix::Removed,
-                                            },
-                                        )
-                                    });
-                                return Some(ParsedMergedShortName {
-                                    name: Box::from(*last),
-                                    value: (),
-                                    remaining: remainder,
-                                });
-                            }
-                        }
-                    }
-                }
+                let string = arg.to_str()?;
+                let normalized = Normalized::new(string);
+                let (prefix, suffix) = short_prefix.strip_as_prefix_n(&normalized)?;
+                (prefix.into_owned(), suffix.as_str().graphemes(true).map(Box::from).collect())
             },
             ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
                 prefix,
                 graphemes,
                 suffix: MergedShortNameSuffix::Unchanged,
-            }) if short_prefix.eq(prefix.as_str()) => {
-                if contains_str(short, graphemes.last()) {
-                    let remainder = graphemes.tail.split_last().map(|(_last, tail)| {
-                        let graphemes =
-                            NonEmpty { head: graphemes.head.clone(), tail: Vec::from(tail) };
-                        ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
-                            prefix: prefix.clone(),
-                            graphemes,
-                            suffix: MergedShortNameSuffix::Removed,
-                        })
-                    });
-                    return Some(ParsedMergedShortName {
-                        name: graphemes.last().clone(),
-                        value: (),
-                        remaining: remainder,
-                    });
-                }
-            },
+            }) if short_prefix.eq(prefix.as_str()) => (prefix.clone(), graphemes.clone().into()),
+            ArgumentInput::AdjustedMergedShortNames { .. } => return None,
+        };
+
+        let (index, name) = graphemes
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, grapheme)| contains_str(short, grapheme))?;
+        let inline_value = graphemes[index + 1..].concat();
+        let inline_value = (!inline_value.is_empty()).then(|| {
+            let normalized = Normalized::new(inline_value);
+            value_infix.strip_as_prefix_n(&normalized).map_or_else(
+                || Box::from(normalized.as_str()),
+                |(_, value)| Box::from(value.as_str()),
+            )
+        });
+        let remaining = NonEmpty::collect(graphemes[..index].iter().cloned()).map(|graphemes| {
             ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
-                prefix: _,
-                graphemes: _,
-                suffix: _,
-            }) => {
-                // only allow the last grapheme
-            },
-        }
-        None
+                prefix: prefix.into_owned(),
+                graphemes,
+                suffix: MergedShortNameSuffix::Removed,
+            })
+        });
+        Some(ParsedMergedShortName { name: name.clone(), value: (), inline_value, remaining })
     }
 
     /// Appends a regular-expression representation of the long names to `string`.

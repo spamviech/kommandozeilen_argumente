@@ -143,6 +143,34 @@ impl<T> Flag<'_, T> {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+
+    use crate::{Description, arguments::flag::Flag};
+
+    #[test]
+    fn parses_a_short_flag_from_a_merged_block() {
+        let flag = Flag::new(Description::new("--", "flag", "-", "f", None, Some(false)));
+        let result = flag.parse_merged_short_forms::<()>(
+            [OsString::from("-faf"), OsString::from("--other")].into_iter(),
+        );
+
+        assert_eq!(result.flags.len(), 1);
+        assert_eq!(result.flags[0].name, "f");
+        assert_eq!(result.remaining.len(), 2);
+    }
+
+    #[test]
+    fn leaves_short_form_disabled_argument_unchanged() {
+        let flag = Flag::new(Description::new("--", "flag", "-", None::<&str>, None, Some(false)));
+        let result = flag.parse_merged_short_forms::<()>([OsString::from("-f")].into_iter());
+
+        assert!(result.flags.is_empty());
+        assert_eq!(result.remaining.len(), 1);
+    }
+}
+
 impl<'t, T> Flag<'t, T> {
     /// Parses merged short-form arguments.
     ///
