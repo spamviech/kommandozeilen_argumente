@@ -640,7 +640,7 @@ This is the sub-phase that restores `cargo build --workspace` to green.
 
 **Tasks**:
 
-- [ ] Update `kommandozeilen_argumente_derive/src/parse.rs` generated-code call sites (per the
+- [x] Update `kommandozeilen_argumente_derive/src/parse.rs` generated-code call sites (per the
   completed API-surface audit) to construct `Description`/`Value`/`Flag`/`SingleArgument`/
   `Arguments`/`Compare`/`Normalized`/`Language` instead of the German types, including the
   `Language::GERMAN`/`Language::ENGLISH`-field-access call sites (was `Sprache::DEUTSCH`/
@@ -655,13 +655,22 @@ This is the sub-phase that restores `cargo build --workspace` to green.
   `impl ::#crate_name::Parse for #name { type Error = String; fn arguments<'t>() -> ... }`, and
   the `FeldArgument::Parse` code-generation arm's `quote!(::#crate_name::Parse::kommandozeilen_argumente())`
   (line ~115) to `quote!(::#crate_name::Parse::arguments())`.
-- [ ] Update `kommandozeilen_argumente_derive/src/enum_argument.rs` (lines referencing
+- [x] Update `kommandozeilen_argumente_derive/src/enum_argument.rs` (lines referencing
   `Normalisiert::neu(...).eq_mit_case(...)`) to `Normalized::new(...).eq_with_case(...)`.
-- [ ] Update `kommandozeilen_argumente_derive/src/utility.rs` call sites analogous to the above.
+- [x] Generate `ParseArgument` associated-function calls with the concrete field type, i.e.
+  `<FieldType as ParseArgument>::arguments(...)` and
+  `<FieldType as ParseArgument>::default()`, rather than treating the `ParseArgument` trait as a
+  type. This fixes the generated `E0782: expected a type, found a trait` regression.
+- [x] Generate `EnumArgument::parse_enum` with `::std::result::Result`, rather than unqualified
+  `Result`, because the root crate re-exports its own three-parameter `Result` enum. Retain the
+  trait-required `ParseFehler<String>` error type in the generated signature and variants.
+- [x] Update `kommandozeilen_argumente_derive/src/utility.rs` call sites analogous to the above.
 
 **Automated Verification**:
 
-- [ ] `cargo build --workspace --all-features` succeeds
+- [x] `cargo build --workspace --all-features` succeeds
+- [x] `cargo +nightly doc -p kommandozeilen_argumente_derive --all-features --no-deps` succeeds
+  with no broken intra-doc links
 
 ---
 
@@ -671,7 +680,7 @@ Depends on: **Phase 1.14**.
 
 **Tasks**:
 
-- [ ] Update `tests/derive.rs` and `tests/hilfe.rs` call sites to the new English-primary names
+- [-] Update `tests/derive.rs` and `tests/hilfe.rs` call sites to the new English-primary names
   (or their still-valid, newly-field-renamed German mirror equivalents, whichever the specific
   test line is exercising). Replace `tests/hilfe.rs`'s stale `.parse_rekursiv(...)` call (a
   method that doesn't exist anywhere in the current codebase) with the current equivalent

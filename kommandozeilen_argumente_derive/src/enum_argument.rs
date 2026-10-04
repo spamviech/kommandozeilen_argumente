@@ -1,4 +1,4 @@
-//! Implementierung für das derive-Macro des EnumArgument-Traits.
+//! Implementation of the derive macro for the `EnumArgument` trait.
 
 use std::fmt::{self, Display, Formatter};
 
@@ -7,124 +7,118 @@ use quote::quote;
 use venial::{parse_item, Attribute, Enum, EnumVariant, Fields, Item};
 
 use crate::utility::{
-    crate_name, path_is_ident, split_klammer_argumente, Argument, ArgumentWert, Case,
-    SplitArgumenteFehler,
+    crate_ident, path_is_ident, split_parenthesized_arguments, Argument, ArgumentValue, Case,
+    SplitArgumentsError,
 };
 
-/// Nicht unterstützter Typ für das derive-Macro: Nur enums sind unterstützt.
+/// Unsupported type for the derive macro: only enums are supported.
 #[derive(Debug)]
-pub(crate) enum TypNichtUnterstützt {
+pub(crate) enum UnsupportedType {
     /// struct
     Struct,
     /// union
     Union,
-    /// Unbekannt
-    Unbekannt,
+    /// Unknown
+    Unknown,
 }
 
-impl Display for TypNichtUnterstützt {
+impl Display for UnsupportedType {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        use TypNichtUnterstützt::{Struct, Unbekannt, Union};
+        use UnsupportedType::{Struct, Unknown, Union};
         formatter.write_str(match self {
             Struct => "struct",
             Union => "union",
-            Unbekannt => "Unbekannt",
+            Unknown => "Unknown",
         })
     }
 }
 
-/// Fehler beim Parsen des enums inklusive Attribute.
-pub(crate) enum Fehler {
+/// Error while parsing an enum and its attributes.
+pub(crate) enum Error {
     /// Error returned when a [`syn`] parser cannot parse the input tokens.
     Venial(venial::Error),
-    /// Der Typ ist kein `enum`.
-    KeinEnum {
-        /// Die geparste Typ-Art.
-        typ: TypNichtUnterstützt,
-        /// Der Macro-Input.
+    /// The type is not an `enum`.
+    NotEnum {
+        /// Parsed kind of type.
+        typ: UnsupportedType,
+        /// Macro input.
         input: TokenStream,
     },
-    /// Typ mit Generics als Macro-Argument.
+    /// Type with generics as macro input.
     Generics {
-        /// Anzahl der Generic-Parameter.
+        /// Number of generic parameters.
         anzahl: usize,
-        /// `where`-Klausel des Typs.
+        /// `where` clause of the type.
         where_clause: bool,
     },
-    /// Eine Variante mit Daten gefunden.
-    DatenVariante {
-        /// Der Feld-Name.
+    /// A variant with data was found.
+    DataVariant {
+        /// Field name.
         variante: Ident,
     },
-    /// Fehler beim teilen der Argumente.
-    SplitArgumente(SplitArgumenteFehler),
-    /// Das Attribut wurde nicht unterstützt.
-    NichtUnterstützt(Argument),
+    /// Error while splitting arguments.
+    SplitArguments(SplitArgumentsError),
+    /// The attribute is unsupported.
+    Unsupported(Argument),
 }
 
-impl Display for Fehler {
+impl Display for Error {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        use ArgumentWert::{KeinWert, Liste, Stream, Unterargument};
-        use Fehler::{
-            DatenVariante, Generics, KeinEnum, NichtUnterstützt, SplitArgumente, Venial
+        use ArgumentValue::{NoValue, List, Stream, SubArgument};
+        use Error::{
+            DataVariant, Generics, NotEnum, Unsupported, SplitArguments, Venial
         };
         match self {
             Venial(error) => write!(formatter, "{error}"),
-            KeinEnum { typ, input } => {
-                write!(formatter, "Nur structs unterstützt, aber {typ} bekommen: {input}")
+            NotEnum { typ, input } => {
+                write!(formatter, "Only enums are supported, but received {typ}: {input}")
             },
             Generics { anzahl, where_clause } => {
-                write!(
-                    formatter,
-                    "Nur Structs ohne Generics unterstützt, aber {anzahl} Parameter "
-                )?;
+                write!(formatter, "Only enums without generics are supported, but received {anzahl} parameter(s)")?;
                 if *where_clause {
-                    write!(formatter, "und eine where-Klausel ")?;
+                    write!(formatter, " and a where clause")?;
                 }
-                write!(formatter, "bekommen.")
+                write!(formatter, ".")
             },
-            DatenVariante { variante } => {
-                write!(
-                    formatter,
-                    "Nur Enums mit Unit-Varianten unterstützt, aber {variante} hält Daten."
-                )
+            DataVariant { variante } => {
+                write!(formatter, "Only unit variants are supported, but {variante} contains data.")
             },
-            SplitArgumente(fehler) => write!(formatter, "{fehler}"),
-            NichtUnterstützt(Argument { name, wert: KeinWert }) => {
-                write!(formatter, "Argument nicht unterstützt: {name}")
+            SplitArguments(error) => write!(formatter, "{error}"),
+            Unsupported(Argument { name, wert: NoValue }) => {
+                write!(formatter, "Unsupported argument: {name}")
             },
-            NichtUnterstützt(Argument { name, wert: wert @ Unterargument(_sub_args) }) => {
-                write!(formatter, "Unterargument von {name} nicht unterstützt: {wert}")
+            Unsupported(Argument { name, wert: wert @ SubArgument(_sub_args) }) => {
+                write!(formatter, "Unsupported sub-argument of {name}: {wert}")
             },
-            NichtUnterstützt(Argument { name, wert: wert @ Liste(_liste) }) => {
-                write!(formatter, "Listen-Argument {name} nicht unterstützt: {wert}")
+            Unsupported(Argument { name, wert: wert @ List(_list) }) => {
+                write!(formatter, "Unsupported list argument {name}: {wert}")
             },
-            NichtUnterstützt(Argument { name, wert: wert @ Stream(_ts) }) => {
-                write!(formatter, "Benanntes Argument {name} nicht unterstützt: {wert}")
+            Unsupported(Argument { name, wert: wert @ Stream(_tokens) }) => {
+                write!(formatter, "Unsupported named argument {name}: {wert}")
             },
         }
     }
 }
 
-impl From<venial::Error> for Fehler {
-    fn from(input: venial::Error) -> Fehler {
-        Fehler::Venial(input)
+impl From<venial::Error> for Error {
+    fn from(input: venial::Error) -> Error {
+        Error::Venial(input)
     }
 }
 
-impl From<SplitArgumenteFehler> for Fehler {
-    fn from(input: SplitArgumenteFehler) -> Fehler {
-        Fehler::SplitArgumente(input)
+impl From<SplitArgumentsError> for Error {
+    fn from(input: SplitArgumentsError) -> Error {
+        Error::SplitArguments(input)
     }
 }
 
-/// Parse Attribute beim enum oder einer Variante.
-fn parse_attributes(feld: Option<&Ident>, attrs: Vec<Attribute>) -> Result<Option<Case>, Fehler> {
+/// Parse attributes on an enum or a variant.
+fn parse_attributes(field: Option<&Ident>, attrs: Vec<Attribute>) -> Result<Option<Case>, Error> {
     let mut args = Vec::new();
     for attr in attrs {
         if path_is_ident(&attr, "kommandozeilen_argumente") {
-            split_klammer_argumente(
-                feld.iter().map(ToString::to_string).collect(),
+            split_parenthesized_arguments(
+                field.iter().map(ToString::to_string).collect(),
                 &mut args,
                 attr.value,
             )?;
@@ -133,31 +127,31 @@ fn parse_attributes(feld: Option<&Ident>, attrs: Vec<Attribute>) -> Result<Optio
     let mut case = None;
     for arg in args {
         match arg {
-            Argument { name, wert: ArgumentWert::Stream(ts) } if name == "case" => {
+            Argument { name, wert: ArgumentValue::Stream(ts) } if name == "case" => {
                 case = Some(Case::parse(&ts).ok_or({
-                    Fehler::NichtUnterstützt(Argument { name, wert: ArgumentWert::Stream(ts) })
+                    Error::Unsupported(Argument { name, wert: ArgumentValue::Stream(ts) })
                 })?);
             },
-            _ => return Err(Fehler::NichtUnterstützt(arg)),
+            _ => return Err(Error::Unsupported(arg)),
         }
     }
     Ok(case)
 }
 
-/// Implementierung für das derive-Macro des [`EnumArgument`]-traits.
-pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fehler> {
-    use Fehler::{DatenVariante, Generics, KeinEnum};
+/// Implementation of the derive macro for the [`EnumArgument`] trait.
+pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Error> {
+    use Error::{DataVariant, Generics, NotEnum};
     let item = parse_item(input.clone())?;
     // Item als #[non_exhaustive] markiert
     #[allow(clippy::wildcard_enum_match_arm)]
     let Enum { variants, name, generic_params, where_clause, attributes, .. } = match item {
         Item::Enum(enum_) => enum_,
-        Item::Struct(_) => return Err(KeinEnum { typ: TypNichtUnterstützt::Struct, input }),
-        Item::Union(_) => return Err(KeinEnum { typ: TypNichtUnterstützt::Union, input }),
-        _ => return Err(KeinEnum { typ: TypNichtUnterstützt::Unbekannt, input }),
+        Item::Struct(_) => return Err(NotEnum { typ: UnsupportedType::Struct, input }),
+        Item::Union(_) => return Err(NotEnum { typ: UnsupportedType::Union, input }),
+        _ => return Err(NotEnum { typ: UnsupportedType::Unknown, input }),
     };
 
-    let crate_name = crate_name();
+    let crate_ident = crate_ident();
     let param_count = generic_params.map_or(0, |param_list| param_list.params.len());
     let has_where_clause = where_clause.is_some();
     if (param_count > 0) || has_where_clause {
@@ -174,36 +168,38 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fe
             cases.push(case.or(standard_case).unwrap_or_default());
             varianten.push(variant_ident);
         } else {
-            return Err(DatenVariante { variante: variant_ident });
+            return Err(DataVariant { variante: variant_ident });
         }
     }
     let varianten_ts = if varianten.is_empty() {
         quote!(None)
     } else {
-        quote!(Some(::#crate_name::nonempty![#(Self::#varianten),*]))
+        quote!(Some(::#crate_ident::nonempty![#(Self::#varianten),*]))
     };
     let varianten_str: Vec<_> = varianten.iter().map(ToString::to_string).collect();
     let instance = quote!(
-        impl #crate_name::EnumArgument for #name {
-            fn varianten() -> Option<::#crate_name::NonEmpty<Self>> {
+        impl #crate_ident::EnumArgument for #name {
+            fn varianten() -> Option<::#crate_ident::NonEmpty<Self>> {
                 #varianten_ts
             }
 
-            fn parse_enum(arg: &::std::ffi::OsStr) -> Result<Self, ::#crate_name::ParseFehler<String>> {
+            fn parse_enum(
+                arg: &::std::ffi::OsStr,
+            ) -> ::std::result::Result<Self, ::#crate_ident::ParseFehler<String>> {
                 if let Some(string) = arg.to_str() {
                     #(
-                        if ::#crate_name::unicode::Normalisiert::neu(#varianten_str).eq_mit_case(string, #cases)
+                        if ::#crate_ident::unicode::Normalized::new(#varianten_str).eq_with_case(string, #cases)
                         {
                             Ok(Self::#varianten)
                         } else
                     )*
                     {
-                        Err(::#crate_name::ParseFehler::ParseFehler(
-                            format!("Unbekannte Variante: {}", string))
-                        )
+                        Err(::#crate_ident::ParseFehler::ParseFehler(
+                            format!("Unbekannte Variante: {}", string)
+                        ))
                     }
                 } else {
-                    Err(::#crate_name::ParseFehler::InvaliderString(::std::ffi::OsString::from(arg)))
+                    Err(::#crate_ident::ParseFehler::InvaliderString(::std::ffi::OsString::from(arg)))
                 }
             }
         }

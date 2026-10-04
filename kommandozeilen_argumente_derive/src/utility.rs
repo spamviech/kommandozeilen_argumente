@@ -1,5 +1,5 @@
-//! Datentypen und Funktionen um Komma-separierte Argumente aus einem [`TokenStream`] zu parsen,
-//! sowie einige allgemeine Utility-Funktionen/Typen.
+//! Types and functions for parsing comma-separated arguments from a [`TokenStream`],
+//! along with general utility functions and types.
 
 use std::{
     fmt::{self, Display, Formatter},
@@ -10,47 +10,47 @@ use proc_macro2::{Delimiter, Ident, Punct, Spacing, TokenStream, TokenTree};
 use quote::{format_ident, quote, ToTokens};
 use venial::{Attribute, AttributeValue, GroupSpan};
 
-/// Ident für den crate-Namen von `kommandozeilen_argumente`.
-pub(crate) fn crate_name() -> Ident {
+/// Identifier for the `kommandozeilen_argumente` crate name.
+pub(crate) fn crate_ident() -> Ident {
     format_ident!("{}", "kommandozeilen_argumente")
 }
 
-/// Es war nicht genau ein Element.
-pub(crate) enum GenauEinesFehler<T, I> {
-    /// Kein Element gegeben.
-    Leer,
-    /// Mehr als ein Element gegeben.
-    MehrAlsEins {
-        /// Das erste Element. Wird vom ersten [`Iterator::next`]-Aufruf auf [`None`] gesetzt.
+/// The iterator did not contain exactly one element.
+pub(crate) enum ExactlyOneError<T, I> {
+    /// No element was provided.
+    Empty,
+    /// More than one element was provided.
+    MoreThanOne {
+        /// First element. The first [`Iterator::next`] call changes it to [`None`].
         erstes: Option<T>,
-        /// Das zweite Element. Wird vom zweiten [`Iterator::next`]-Aufruf auf [`None`] gesetzt.
+        /// Second element. The second [`Iterator::next`] call changes it to [`None`].
         zweites: Option<T>,
-        /// Alle weiteren Elemente.
+        /// All remaining elements.
         rest: I,
     },
 }
 
-impl<T, I: Iterator<Item = T>> Iterator for GenauEinesFehler<T, I> {
+impl<T, I: Iterator<Item = T>> Iterator for ExactlyOneError<T, I> {
     type Item = T;
 
     fn next(&mut self) -> Option<T> {
-        use GenauEinesFehler::{Leer, MehrAlsEins};
+        use ExactlyOneError::{Empty, MoreThanOne};
         match self {
-            Leer => None,
-            MehrAlsEins { erstes, zweites, rest } => {
+            Empty => None,
+            MoreThanOne { erstes, zweites, rest } => {
                 erstes.take().or_else(|| zweites.take()).or_else(|| rest.next())
             },
         }
     }
 }
 
-/// Erwarte einen [`Iterator`] mit genau einem Element.
-pub(crate) fn genau_eines<T, I: Iterator<Item = T>>(
+/// Require an [`Iterator`] to contain exactly one element.
+pub(crate) fn exactly_one<T, I: Iterator<Item = T>>(
     mut iter: I,
-) -> Result<T, GenauEinesFehler<T, I>> {
-    let erstes = iter.next().ok_or(GenauEinesFehler::Leer)?;
+) -> Result<T, ExactlyOneError<T, I>> {
+    let erstes = iter.next().ok_or(ExactlyOneError::Empty)?;
     if let Some(zweites) = iter.next() {
-        Err(GenauEinesFehler::MehrAlsEins {
+        Err(ExactlyOneError::MoreThanOne {
             erstes: Some(erstes),
             zweites: Some(zweites),
             rest: iter,
@@ -60,29 +60,29 @@ pub(crate) fn genau_eines<T, I: Iterator<Item = T>>(
     }
 }
 
-/// Wird das Argument unter Berücksichtigung von Groß-/Kleinschreibung geparst?
+/// Whether an argument is parsed case-sensitively.
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) enum Case {
-    /// Berücksichtige Groß-/Kleinschreibung.
+    /// Match case-sensitively.
     Sensitive,
-    /// Ignoriere Groß-/Kleinschreibung.
+    /// Match case-insensitively.
     #[default]
     Insensitive,
 }
 
 impl ToTokens for Case {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let crate_name = crate_name();
+        let crate_ident = crate_ident();
         let ts = match self {
-            Case::Sensitive => quote!(#crate_name::unicode::Case::Sensitive),
-            Case::Insensitive => quote!(#crate_name::unicode::Case::Insensitive),
+            Case::Sensitive => quote!(#crate_ident::unicode::Case::Sensitive),
+            Case::Insensitive => quote!(#crate_ident::unicode::Case::Insensitive),
         };
         tokens.extend(ts);
     }
 }
 
 impl Case {
-    /// Parse [`Case`] aus einem [`TokenStream`].
+    /// Parse [`Case`] from a [`TokenStream`].
     pub(crate) fn parse(ts: &TokenStream) -> Option<Case> {
         match ts.to_string().as_str() {
             "sensitive" => Some(Case::Sensitive),
@@ -92,35 +92,35 @@ impl Case {
     }
 }
 
-/// Ist der [`Punct`] ein einzelner [`char`] und stimmt mit dem gesuchten überein?
+/// Whether a [`Punct`] is one [`char`] matching the requested character.
 fn punct_is_char(punct: &Punct, char: char) -> bool {
     punct.as_char() == char && punct.spacing() == Spacing::Alone
 }
 
-/// Ist der Pfad des [`Attribute`] ein einzelner [`Ident`] mit passendem `wert`?
+/// Whether an [`Attribute`] path is a single [`Ident`] matching `value`.
 pub(crate) fn path_is_ident(attr: &Attribute, wert: &str) -> bool {
     attr.get_single_path_segment().is_some_and(|ident| ident == wert)
 }
 
-/// Der Wert eines Arguments.
+/// Value of an argument.
 #[derive(Debug, Clone)]
-pub(crate) enum ArgumentWert {
-    /// Kein Wert.
+pub(crate) enum ArgumentValue {
+    /// No value.
     /// wert
-    KeinWert,
-    /// Ein Unterargument, abgegrenzt durch Klammern.
+    NoValue,
+    /// Sub-argument delimited by parentheses.
     /// wert(unterargument)
-    Unterargument(Vec<Argument>),
-    /// Ein Listenargument.
+    SubArgument(Vec<Argument>),
+    /// List argument.
     /// wert: [elem0, elem1]
-    Liste(Vec<TokenStream>),
-    /// Ein allgemeines Argument.
+    List(Vec<TokenStream>),
+    /// General argument.
     /// wert: argument als stream
     Stream(TokenStream),
 }
 
-/// Schreibe eine Element-Listen, abgegrenzt mit `open` und `close`.
-fn write_liste<T: Display>(
+/// Write a list of elements delimited by `open` and `close`.
+fn write_list<T: Display>(
     formatter: &mut Formatter<'_>,
     open: &str,
     list: impl IntoIterator<Item = T>,
@@ -140,91 +140,91 @@ fn write_liste<T: Display>(
     Ok(())
 }
 
-/// Schreiben einen [`ArgumentWert`].
-fn write_argument_wert(
+/// Write an [`ArgumentValue`].
+fn write_argument_value(
     formatter: &mut Formatter<'_>,
     colon: bool,
-    wert: &ArgumentWert,
+    wert: &ArgumentValue,
 ) -> fmt::Result {
-    use ArgumentWert::{KeinWert, Liste, Stream, Unterargument};
+    use ArgumentValue::{NoValue, List, Stream, SubArgument};
     match wert {
-        KeinWert => Ok(()),
-        Unterargument(args) => write_liste(formatter, "(", args, ")"),
-        Liste(tts) => write_liste(formatter, if colon { ": [" } else { "[" }, tts, "]"),
+        NoValue => Ok(()),
+        SubArgument(args) => write_list(formatter, "(", args, ")"),
+        List(tts) => write_list(formatter, if colon { ": [" } else { "[" }, tts, "]"),
         Stream(ts) => write!(formatter, "{}{ts}", if colon { ": " } else { "" }),
     }
 }
 
-impl Display for ArgumentWert {
+impl Display for ArgumentValue {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        write_argument_wert(formatter, false, self)
+        write_argument_value(formatter, false, self)
     }
 }
 
-/// Ein Argument für ein Feld.
+/// Argument for a field.
 #[derive(Debug, Clone)]
 pub(crate) struct Argument {
-    /// Der Name des Arguments.
+    /// Argument name.
     pub(crate) name: String,
-    /// Der Wert des Arguments.
-    pub(crate) wert: ArgumentWert,
+    /// Argument value.
+    pub(crate) wert: ArgumentValue,
 }
 
 impl Display for Argument {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         let Argument { name, wert } = self;
         formatter.write_str(name)?;
-        write_argument_wert(formatter, true, wert)
+        write_argument_value(formatter, true, wert)
     }
 }
 
-/// Fehler beim trennen der Argumente.
+/// Error while splitting arguments.
 #[derive(Debug)]
-pub(crate) enum SplitArgumenteFehler {
-    /// Die Argumente sind nicht in Klammern eingeschlossen.
-    NichtInKlammer {
-        /// Der Pfad des Arguments.
+pub(crate) enum SplitArgumentsError {
+    /// Arguments are not enclosed in parentheses.
+    NotParenthesized {
+        /// Argument path.
         parent: Vec<String>,
-        /// Der angegebene [`TokenStream`].
+        /// Specified [`TokenStream`].
         ts: TokenStream,
     },
-    /// Kein Argument angegeben.
-    LeeresArgument {
-        /// Der Pfad des Arguments.
+    /// No argument was specified.
+    EmptyArgument {
+        /// Argument path.
         parent: Vec<String>,
-        /// Der angegebene [`TokenStream`].
+        /// Specified [`TokenStream`].
         ts: TokenStream,
     },
-    /// Invalider Name für ein Argument.
-    InvaliderArgumentName {
-        /// Der Pfad des Arguments.
+    /// Invalid argument name.
+    InvalidArgumentName {
+        /// Argument path.
         parent: Vec<String>,
-        /// Der [`TokenTree`], wo ein Name erwartet wurde.
+        /// [`TokenTree`] where a name was expected.
         tt: TokenTree,
     },
-    /// Invalider Wert für ein Argument.
-    InvaliderArgumentWert {
-        /// Der Pfad des Arguments.
+    /// Invalid argument value.
+    InvalidArgumentValue {
+        /// Argument path.
         parent: Vec<String>,
-        /// Der Name des Arguments.
+        /// Argument name.
         name: String,
-        /// Wurde der Wert über einen Doppelpunkt abgegrenzt.
+        /// Whether the value was separated with a colon.
         doppelpunkt: bool,
-        /// Der [`TokenStream`] für den Wert.
+        /// [`TokenStream`] for the value.
         wert: TokenStream,
     },
 }
 
-impl Display for SplitArgumenteFehler {
+impl Display for SplitArgumentsError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        /// Schreibe den Pfad des Arguments.
+        /// Write the argument path.
         fn write_parent(
             formatter: &mut Formatter<'_>,
             parent: &[String],
-            präposition: &str,
+            preposition: &str,
         ) -> fmt::Result {
             if !parent.is_empty() {
-                write!(formatter, " {präposition} ")?;
+                write!(formatter, " {preposition} ")?;
                 let mut first = true;
                 for name in parent {
                     if first {
@@ -237,29 +237,29 @@ impl Display for SplitArgumenteFehler {
             }
             Ok(())
         }
-        use SplitArgumenteFehler::{
-            InvaliderArgumentName, InvaliderArgumentWert, LeeresArgument, NichtInKlammer,
+        use SplitArgumentsError::{
+            InvalidArgumentName, InvalidArgumentValue, EmptyArgument, NotParenthesized,
         };
         match self {
-            NichtInKlammer { parent, ts } => {
-                write!(formatter, "Argumente")?;
-                write_parent(formatter, parent, "für")?;
-                write!(formatter, " nicht in Klammern eingeschlossen: {ts}")
+            NotParenthesized { parent, ts } => {
+                write!(formatter, "Arguments")?;
+                write_parent(formatter, parent, "for")?;
+                write!(formatter, " are not enclosed in parentheses: {ts}")
             },
-            LeeresArgument { parent, ts } => {
-                write!(formatter, "Leeres Argument")?;
-                write_parent(formatter, parent, "für")?;
+            EmptyArgument { parent, ts } => {
+                write!(formatter, "Empty argument")?;
+                write_parent(formatter, parent, "for")?;
                 write!(formatter, ": {ts}")
             },
-            InvaliderArgumentName { parent, tt } => {
-                write!(formatter, "Invalider Name für ein Argument")?;
-                write_parent(formatter, parent, "von")?;
+            InvalidArgumentName { parent, tt } => {
+                write!(formatter, "Invalid argument name")?;
+                write_parent(formatter, parent, "for")?;
                 write!(formatter, ": {tt}")
             },
-            InvaliderArgumentWert { parent, name, doppelpunkt, wert } => {
-                write!(formatter, "Invalider Wert für Argument {name}")?;
-                write_parent(formatter, parent, "von")?;
-                write!(formatter, "!\n{name} ")?;
+            InvalidArgumentValue { parent, name, doppelpunkt, wert } => {
+                write!(formatter, "Invalid value for argument {name}")?;
+                write_parent(formatter, parent, "for")?;
+                write!(formatter, ":\n{name} ")?;
                 if *doppelpunkt {
                     write!(formatter, ": ")?;
                 }
@@ -269,8 +269,8 @@ impl Display for SplitArgumenteFehler {
     }
 }
 
-/// Ist der [`TokenTree`] KEIN Komma-Character?
-fn tt_is_not_comma(tt: &TokenTree) -> bool {
+/// Whether a [`TokenTree`] is not a comma character.
+fn token_tree_is_not_comma(tt: &TokenTree) -> bool {
     if let TokenTree::Punct(punct) = tt {
         !punct_is_char(punct, ',')
     } else {
@@ -278,31 +278,31 @@ fn tt_is_not_comma(tt: &TokenTree) -> bool {
     }
 }
 
-/// Argumente getrennt durch Kommas, Unterargumente mit () angegeben, potentiell mit Kommas, z.B. help.
-/// Argumente können Werte haben, getrennt durch `:`.
-/// Wert-Argumente können Listen (angegeben durch `[`, `]`, potentiell mit Kommas) sein.
-/// Argumente werden nicht weiter behandelt.
-fn split_argumente(
+/// Arguments separated by commas; sub-arguments use `()` and may contain commas, e.g. `help`.
+/// Arguments can have values separated by `:`.
+/// Value arguments can be lists delimited by `[` and `]` and may contain commas.
+/// Arguments are not processed further.
+fn split_arguments(
     parent: Vec<String>,
     args: &mut Vec<Argument>,
     tokens: impl IntoIterator<Item = TokenTree>,
-) -> Result<(), SplitArgumenteFehler> {
-    use SplitArgumenteFehler::{InvaliderArgumentName, InvaliderArgumentWert, LeeresArgument};
+) -> Result<(), SplitArgumentsError> {
+    use SplitArgumentsError::{InvalidArgumentName, InvalidArgumentValue, EmptyArgument};
     let mut iter = tokens.into_iter().peekable();
     let iter_mut_ref = iter.by_ref();
     while iter_mut_ref.peek().is_some() {
-        let mut arg_iter = iter_mut_ref.take_while(tt_is_not_comma).peekable();
+        let mut arg_iter = iter_mut_ref.take_while(token_tree_is_not_comma).peekable();
         // Name extrahieren
         let name = match arg_iter.next() {
             Some(TokenTree::Ident(ident)) => ident.to_string(),
-            Some(tt) => return Err(InvaliderArgumentName { parent, tt }),
-            None => return Err(LeeresArgument { parent, ts: iter_mut_ref.collect() }),
+            Some(tt) => return Err(InvalidArgumentName { parent, tt }),
+            None => return Err(EmptyArgument { parent, ts: iter_mut_ref.collect() }),
         };
         // Wert bestimmen
         let wert = match arg_iter.next() {
-            None => ArgumentWert::KeinWert,
+            None => ArgumentValue::NoValue,
             Some(TokenTree::Punct(punct)) if punct_is_char(&punct, ':') => {
-                match genau_eines(arg_iter) {
+                match exactly_one(arg_iter) {
                     Ok(TokenTree::Group(group)) if group.delimiter() == Delimiter::Bracket => {
                         let mut acc = Vec::new();
                         let mut current = TokenStream::new();
@@ -321,10 +321,10 @@ fn split_argumente(
                         if !current.is_empty() {
                             acc.push(current);
                         }
-                        ArgumentWert::Liste(acc)
+                        ArgumentValue::List(acc)
                     },
-                    Ok(tt) => ArgumentWert::Stream(tt.into()),
-                    Err(fehler) => ArgumentWert::Stream(fehler.collect()),
+                    Ok(tt) => ArgumentValue::Stream(tt.into()),
+                    Err(fehler) => ArgumentValue::Stream(fehler.collect()),
                 }
             },
             Some(TokenTree::Group(group))
@@ -333,11 +333,11 @@ fn split_argumente(
                 let mut sub_parent = parent.clone();
                 sub_parent.push(name.clone());
                 let mut sub_args = Vec::new();
-                split_argumente(sub_parent, &mut sub_args, group.stream())?;
-                ArgumentWert::Unterargument(sub_args)
+                split_arguments(sub_parent, &mut sub_args, group.stream())?;
+                ArgumentValue::SubArgument(sub_args)
             },
             Some(erstes) => {
-                return Err(InvaliderArgumentWert {
+                return Err(InvalidArgumentValue {
                     parent,
                     name,
                     doppelpunkt: false,
@@ -351,24 +351,24 @@ fn split_argumente(
     Ok(())
 }
 
-/// Teile Argumente, die in Klammern eingeschlossen sind.
+/// Split arguments enclosed in parentheses.
 ///
-/// Argumente getrennt durch Kommas, Unterargumente mit () angegeben, potentiell mit Kommas, z.B. help.
-/// Argumente können Werte haben, getrennt durch `:`.
-/// Wert-Argumente können Listen (angegeben durch `[`, `]`, potentiell mit Kommas) sein.
-/// Argumente werden nicht weiter behandelt.
-pub(crate) fn split_klammer_argumente(
+/// Arguments separated by commas; sub-arguments use `()` and may contain commas, e.g. `help`.
+/// Arguments can have values separated by `:`.
+/// Value arguments can be lists delimited by `[` and `]` and may contain commas.
+/// Arguments are not processed further.
+pub(crate) fn split_parenthesized_arguments(
     parent: Vec<String>,
     args: &mut Vec<Argument>,
     value: AttributeValue,
-) -> Result<(), SplitArgumenteFehler> {
-    use SplitArgumenteFehler::NichtInKlammer;
+) -> Result<(), SplitArgumentsError> {
+    use SplitArgumentsError::NotParenthesized;
     let AttributeValue::Group(GroupSpan { delimiter: Delimiter::Parenthesis, span: _ }, tokens) =
         value
     else {
-        return Err(NichtInKlammer { parent, ts: quote!(#value) });
+        return Err(NotParenthesized { parent, ts: quote!(#value) });
     };
-    split_argumente(parent, args, tokens)
+    split_arguments(parent, args, tokens)
 }
 
 #[cfg(test)]
@@ -378,7 +378,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_split_argumente() {
+    fn test_split_arguments() {
         let mut args: Vec<Argument> = Vec::new();
         let span = Span::call_site();
         let value = AttributeValue::Group(
@@ -414,7 +414,7 @@ mod test {
         let hello_str = "hello(hi)";
         let world_wert = "[it's, a, big, world!]".replace(' ', "");
         let world_string = format!("world:{world_wert}");
-        split_klammer_argumente(Vec::new(), &mut args, value).expect("Argumente sind wohlgeformt");
+        split_parenthesized_arguments(Vec::new(), &mut args, value).expect("Argumente sind wohlgeformt");
         let args_str: Vec<_> = args.iter().map(|arg| arg.to_string().replace(' ', "")).collect();
         assert_eq!(args_str, vec![hello_str, &world_string]);
     }
