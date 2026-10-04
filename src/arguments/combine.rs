@@ -1,15 +1,18 @@
 //! Combine multiple [`Arguments`] into a new one based on a function.
 
-use std::fmt::{self, Debug, Formatter};
+use std::{
+    ffi::OsString,
+    fmt::{self, Debug, Formatter},
+};
 
-use nonempty::{nonempty, NonEmpty};
+use nonempty::{NonEmpty, nonempty};
 use paste::paste;
 
 use crate::{
     arguments::{
+        Arguments, ParseMergedShortFormsResult,
         argumente::Argumente,
         help::{self, CreateHelpText},
-        Arguments,
     },
     outcome::{IntermediateResult, ZwischenErgebnis},
 };
@@ -75,6 +78,22 @@ pub trait Combine<'t, T, Fehler> {
     #[inline]
     fn debug_fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         write!(formatter, "<closure>")
+    }
+
+    /// Parses merged short-form arguments for this combination.
+    ///
+    /// Tuple implementations provide the staged composition in a later parsing phase.
+    #[inline]
+    fn parse_merged_short_forms(
+        &self,
+        args: Box<dyn Iterator<Item = OsString> + '_>,
+    ) -> NonEmpty<ParseMergedShortFormsResult<'_, T, Fehler>>
+    where
+        T: Clone,
+        Fehler: Clone,
+    {
+        let _ = args;
+        todo!()
     }
 }
 

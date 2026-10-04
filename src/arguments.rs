@@ -12,10 +12,11 @@ use std::{
 };
 
 use itertools::Itertools as _;
-use nonempty::{nonempty, NonEmpty};
+use nonempty::{NonEmpty, nonempty};
 use void::Void;
 
 use crate::{
+    Description,
     arguments::{
         combine::Combine, flag::Flag, help::CreateHelpText, single_argument::SingleArgument,
         value::Value,
@@ -23,7 +24,6 @@ use crate::{
     description::ArgumentInput,
     language::Language,
     outcome::Error,
-    Description,
 };
 
 pub mod argumente;
@@ -35,7 +35,6 @@ pub mod single_argument;
 pub mod value;
 
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
-
 // TODO Name/Version für Hilfetext angeben, als alternative für macros (derive-Feature)
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
@@ -113,57 +112,69 @@ impl<'t, T, Error> Arguments<'t, T, Error> {
     pub fn single_argument(argument: SingleArgument<'t, T, Error>) -> Self {
         Self::Single(argument)
     }
+
     /// Creates a combined-arguments variant with suitable type parameters.
     pub fn combine(combine: impl 't + Combine<'t, T, Error>) -> Self {
         Self::Combined(Box::new(combine))
     }
+
     /// Creates an alternatives variant with suitable type parameters.
     pub fn alternatives(alternatives: NonEmpty<Self>) -> Self {
         Self::Alternatives(Box::new(alternatives))
     }
+
     /// Creates a boxed alternatives variant with suitable type parameters.
     pub fn alternatives_boxed(alternatives: Box<NonEmpty<Self>>) -> Self {
         Self::Alternatives(alternatives)
     }
 }
 
-/// TODO
+/// An early-exit argument recognized while parsing an input argument.
 #[derive(Debug, Clone)]
 pub struct ParsedEarlyExit<'s> {
-    /// TODO
+    /// The matched argument name, without its prefix.
     pub name: Cow<'s, str>,
-    /// TODO
+    /// The message to display for the early exit.
     pub message: Cow<'s, str>,
-    /// TODO
-    pub input: Cow<'s, str>,
-}
-/// TODO
-#[derive(Debug, Clone)]
-pub struct ParsedShortFlag<'s> {
-    /// TODO
-    pub name: Cow<'s, str>,
-    /// TODO
-    pub input: Cow<'s, str>,
-}
-/// TODO
-#[derive(Debug, Clone)]
-pub struct ParsedValueName<'s> {
-    /// TODO
-    pub name: Cow<'s, str>,
-}
-/// TODO
-#[derive(Debug, Clone)]
-pub struct ParsedValue<'s> {
-    /// TODO
-    pub value: Cow<'s, str>,
-    /// TODO
+    /// The original input argument that contained the matched name.
     pub input: Cow<'s, str>,
 }
 
-/// TODO
+/// A short flag recognized while parsing an input argument.
+#[derive(Debug, Clone)]
+pub struct ParsedShortFlag<'s> {
+    /// The matched argument name, without its short-form prefix.
+    pub name: Cow<'s, str>,
+    /// The original input argument that contained the matched name.
+    pub input: Cow<'s, str>,
+}
+
+/// The name of a value argument recognized during parsing.
+///
+/// This is the key for [`ParseMergedShortFormsResult::values`].
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ParsedValueName<'s> {
+    /// The matched argument name, without its prefix.
+    pub name: Cow<'s, str>,
+}
+
+/// The raw value associated with a recognized value argument.
+#[derive(Debug, Clone)]
+pub struct ParsedValue<'s> {
+    /// The unparsed value substring.
+    pub value: Cow<'s, str>,
+    /// The original input argument that supplied the value.
+    pub input: Cow<'s, str>,
+}
+
+/// The stage-one result of parsing merged short-form argument names.
+///
+/// Each result represents one selected [`Arguments`] definition. Later parsing stages merge
+/// their recognized arguments into these collections and consume additional entries from
+/// [`Self::remaining`].
 #[derive(Debug, Clone)]
 pub struct ParseMergedShortFormsResult<'s, T, F> {
-    /// Argument definition used to produce this parse result.
+    /// Argument definition that produced this result.
     pub definition: &'s Arguments<'s, T, F>,
     /// A vector of early\_exit arguments, containing name, message & original input.
     pub early_exits: Vec<ParsedEarlyExit<'s>>,
@@ -171,7 +182,8 @@ pub struct ParseMergedShortFormsResult<'s, T, F> {
     pub flags: Vec<ParsedShortFlag<'s>>,
     /// A map of value-arguments with name -> (value-string, original input).
     pub values: HashMap<ParsedValueName<'s>, ParsedValue<'s>>,
-    /// Remaining arguments with the parsed merged short names and associated value-strings removed.
+    /// Remaining arguments with the parsed merged short names and associated value-strings
+    /// removed.
     pub remaining: Vec<Option<OsString>>,
 }
 
@@ -188,7 +200,7 @@ where
     ) -> NonEmpty<ParseMergedShortFormsResult<'_, T, F>> {
         match self {
             Self::Single(argument) => NonEmpty::singleton(argument.parse_merged_short_forms(args)),
-            Self::Combined(_combine) => todo!(),
+            Self::Combined(combine) => combine.parse_merged_short_forms(Box::new(args)),
             Self::Alternatives(alternatives) => {
                 let args = args.collect_vec();
                 NonEmpty::collect(
@@ -504,10 +516,12 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
             program_version,
         )
     }
+
     /// Add an [`EarlyExit`](early_exit::EarlyExit)-flag showing the help text for all arguments.
     ///
     /// ### Panics
-    /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
+    /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds
+    /// [`usize::MAX`].
     ///
     /// ## Deutsches Synonym
     /// [`mit_hilfe_frühes_beenden`](argumente::Argumente::mit_hilfe_frühes_beenden)
@@ -565,11 +579,13 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
             Arguments::from(SingleArgument::from(early_exit));
         Self::combine((|value: T, ()| value, self, early_exit_argument))
     }
-    /// Add [`EarlyExit`](crate::arguments::early_exit::EarlyExit)-flags, showing the program version,
-    /// or the help text for all arguments.
+
+    /// Add [`EarlyExit`](crate::arguments::early_exit::EarlyExit)-flags, showing the program
+    /// version, or the help text for all arguments.
     ///
     /// ### Panics
-    /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds [`usize::MAX`].
+    /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds
+    /// [`usize::MAX`].
     ///
     /// ## Deutsches Synonym
     /// [`mit_hilfe_und_version_frühes_beenden`](argumente::Argumente::mit_hilfe_und_version_frühes_beenden)

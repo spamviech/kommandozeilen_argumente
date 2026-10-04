@@ -8,28 +8,27 @@ use std::{
 };
 
 use itertools::Itertools as _;
-use nonempty::{nonempty, NonEmpty};
+use nonempty::{NonEmpty, nonempty};
 use void::Void;
 
+pub use crate::arguments::ParseMergedShortFormsResult;
+/// Compatibility re-exports for established German module paths.
+pub use crate::arguments::{combine, early_exit, flag, help, single_argument, value};
 use crate::{
     arguments::{
+        Arguments,
         combine::Combine,
         early_exit::FrühesBeenden,
         flag::Flag,
         help::CreateHelpText,
         single_argument::EinzelArgument,
         value::{Value, Wert},
-        Arguments,
     },
     description::{ArgumentInput, Beschreibung},
     dyn_to_owned,
     language::{Language, Sprache},
     outcome::{Ergebnis, Error, Fehler},
 };
-
-pub use crate::arguments::ParseMergedShortFormsResult;
-/// Compatibility re-exports for established German module paths.
-pub use crate::arguments::{combine, early_exit, flag, help, single_argument, value};
 
 // TODO tests mit Unicode-namen
 
@@ -274,9 +273,10 @@ where
     /// Rules to allow merging of short names:
     ///
     /// - All short names in the same string share the same (short) prefix.
-    /// - Only short names consisting of a single [grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes) participate.
-    /// - At most one value argument per block.
-    ///   It must be the last argument name in the string, optionally followed by \[a value-infix and\] the value sub-string.
+    /// - Only short names consisting of a single [grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes)
+    ///   participate.
+    /// - At most one value argument per block. It must be the last argument name in the string,
+    ///   optionally followed by \[a value-infix and\] the value sub-string.
     /// - Merging of short names must be allowed for this particular argument.
     ///
     /// ## Panics
@@ -426,7 +426,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
+    /// beendet.
     ///
     /// ## English synonym
     /// [`parse_complete`](Self::parse_complete)
@@ -497,7 +498,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
+    /// beendet.
     ///
     /// ## English synonym
     /// [`parse_complete_with_language`](Self::parse_complete_with_language)
@@ -550,9 +552,11 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
+    /// beendet.
     ///
-    /// [`parse_vollständig_mit_sprache`](Self::parse_vollständig_mit_sprache) mit [`Sprache::DEUTSCH`].
+    /// [`parse_vollständig_mit_sprache`](Self::parse_vollständig_mit_sprache) mit
+    /// [`Sprache::DEUTSCH`].
     ///
     /// ## English version
     /// [`parse_with_error_message`](Self::parse_with_error_message)
@@ -575,7 +579,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
     ///
-    /// [`parse_complete_with_language`](Self::parse_complete_with_language) with [`Language::ENGLISH`].
+    /// [`parse_complete_with_language`](Self::parse_complete_with_language) with
+    /// [`Language::ENGLISH`].
     ///
     /// ## Deutsche version
     /// [`parse_mit_fehlermeldung`](Self::parse_mit_fehlermeldung)
@@ -597,7 +602,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
+    /// beendet.
     ///
     /// ## English synonym
     /// [`parse_complete_from_env`](Self::parse_complete_from_env)
@@ -662,7 +668,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
+    /// beendet.
     ///
     /// ## English synonym
     /// [`parse_complete_with_language_from_env`](Self::parse_complete_with_language_from_env)
@@ -705,7 +712,8 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
+    /// beendet.
     ///
     /// [`parse_vollständig_mit_sprache_aus_env`](Self::parse_vollständig_mit_sprache_aus_env)
     /// mit [`Sprache::DEUTSCH`].
@@ -853,7 +861,8 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
             .into()
     }
 
-    /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch der Hilfe-Text für alle Argumente anzeigt wird.
+    /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch der Hilfe-Text für alle Argumente anzeigt
+    /// wird.
     ///
     /// ### Panics
     /// Wenn die Syntax-Beschreibung (inklusive normalem + Alternativen-Präfix) für ein Argument
@@ -967,7 +976,8 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
             .into()
     }
 
-    /// Variante von [`mit_hilfe_und_version_frühes_beenden`](Argumente::mit_hilfe_und_version_frühes_beenden).
+    /// Variante von
+    /// [`mit_hilfe_und_version_frühes_beenden`](Argumente::mit_hilfe_und_version_frühes_beenden).
     ///
     /// ## English synonym
     /// [`Arguments::with_help_and_version_early_exit_with_language`]

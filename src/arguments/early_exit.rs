@@ -7,8 +7,8 @@ use void::Void;
 
 use crate::{
     arguments::{
-        help::{Help, Hilfe},
         ParseMergedShortFormsResult,
+        help::{Help, Hilfe},
     },
     description::{Beschreibung, Description, Name},
 };

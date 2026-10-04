@@ -10,11 +10,11 @@ use void::Void;
 
 use crate::{
     arguments::{
+        ParseMergedShortFormsResult,
         early_exit::{EarlyExit, FrühesBeenden},
         flag::Flag,
         help::{Help, Hilfe},
         value::{Value, Wert},
-        ParseMergedShortFormsResult,
     },
     dyn_to_owned::Show,
 };

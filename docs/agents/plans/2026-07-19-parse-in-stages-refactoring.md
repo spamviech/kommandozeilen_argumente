@@ -749,25 +749,25 @@ yet implementing any single argument's actual matching logic.
 
 **Tasks**:
 
-- [ ] Document and finalize the fields of `ParsedEarlyExit`, `ParsedShortFlag`, `ParsedValueName`,
+- [x] Document and finalize the fields of `ParsedEarlyExit`, `ParsedShortFlag`, `ParsedValueName`,
   `ParsedValue`, `ParseMergedShortFormsResult` in `src/arguments.rs` (replace `/// TODO` with
   real doc comments), matching `docs/parsing.md`'s stage-1 output description (definition
   reference, collected early-exits, collected flags, value-name → raw-value map, remaining
   not-yet-consumed input).
-- [ ] Implement `Arguments::parse_merged_short_forms`'s `Combined` arm (previously the
+- [x] Implement `Arguments::parse_merged_short_forms`'s `Combined` arm (previously the
   `Kombiniere`/`todo!()` arm) by delegating to `Combine::parse_merged_short_forms` once that
   trait method exists (added in this phase as a new trait method on `Combine`, default-bodied
   `todo!()` so the tuple impls compile without requiring per-arity logic yet — actual per-tuple
   logic is written in Phase 7 once stages 1-6 all exist to compose).
-- [ ] Add the `Combine::parse_merged_short_forms` trait method signature (mirroring
+- [x] Add the `Combine::parse_merged_short_forms` trait method signature (mirroring
   `EinzelArgument`/`SingleArgument::parse_merged_short_forms`'s signature) to
   `src/arguments/combine.rs`, with a default `todo!()` body so existing tuple impls keep
   compiling.
 
 **Automated Verification**:
 
-- [ ] `cargo build --workspace --all-features` succeeds
-- [ ] `cargo +nightly doc --workspace --all-features --no-deps` succeeds with no broken intra-doc links
+- [x] `cargo build --workspace --all-features` succeeds
+- [x] `cargo +nightly doc --workspace --all-features --no-deps` succeeds with no broken intra-doc links
   for the newly-documented structs
 
 ---

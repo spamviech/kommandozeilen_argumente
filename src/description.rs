@@ -45,13 +45,13 @@ pub struct Name<'t> {
 
     /// Short name, given after `short_prefix`.
     /// Flag arguments with identical `short_prefix` may be given at once, e.g. "-fgh".
-    /// Short names longer than a [`Grapheme`](unicode_segmentation::UnicodeSegmentation::graphemes)
-    /// are not supported.
+    /// Short names longer than a
+    /// [`Grapheme`](unicode_segmentation::UnicodeSegmentation::graphemes) are not supported.
     ///
     /// ## Deutsch
     /// Kurzer Name, wird nach `short_prefix` angegeben.
-    /// Bei Flag-Argumenten können Kurz-Namen mit identischen `short_prefix` zusammen angegeben werden,
-    /// zum Beispiel "-fgh".
+    /// Bei Flag-Argumenten können Kurz-Namen mit identischen `short_prefix` zusammen angegeben
+    /// werden, zum Beispiel "-fgh".
     /// Kurznamen länger als ein [`Grapheme`](unicode_segmentation::UnicodeSegmentation::graphemes)
     /// werden nicht unterstützt.
     pub short: Vec<Compare<'t>>,
@@ -167,7 +167,8 @@ impl Name<'_> {
         None
     }
 
-    /// Helper for [`parse_flag_merge_short_forms`](Name::parse_flag_merge_short_forms) and its variants.
+    /// Helper for [`parse_flag_merge_short_forms`](Name::parse_flag_merge_short_forms) and its
+    /// variants.
     ///
     /// Returns [`Some`] when a name was found and [`None`] otherwise.
     fn parse_flag_merge_short_forms_aux<E>(
@@ -243,6 +244,7 @@ impl Name<'_> {
         };
         self.parse_flag_aux(|| true, parse_invertiert, arg)
     }
+
     /// Parses the name as a flag.
     ///
     /// Returns [`Some`] when a name was found and [`None`] otherwise.
@@ -618,7 +620,7 @@ pub trait LongNames<'t> {
 }
 
 macro_rules! impl_long_names {
-    ($type: ty) => {
+    ($type:ty) => {
         impl<'t> LongNames<'t> for $type {
             #[inline]
             fn long_names(self) -> NonEmpty<Compare<'t>> {
@@ -679,7 +681,7 @@ pub trait ShortNames<'t> {
     fn short_names(self) -> Vec<Compare<'t>>;
 }
 macro_rules! impl_short_names {
-    ($type: ty) => {
+    ($type:ty) => {
         impl<'t> ShortNames<'t> for $type {
             #[inline]
             fn short_names(self) -> Vec<Compare<'t>> {

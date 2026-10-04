@@ -22,6 +22,7 @@ use crate::{
     unicode::{Compare, Vergleich},
 };
 
+#[rustfmt::skip]
 #[cfg(any(feature = "derive", all(doc, not(doctest))))]
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::EnumArgument;
@@ -182,6 +183,7 @@ where
     pub fn new(description: Description<'t, T>, possible_values: Option<NonEmpty<T>>) -> Self {
         Self::new_with_language(description, possible_values, Language::ENGLISH)
     }
+
     /// Creates a value argument with localized defaults.
     #[inline]
     pub fn new_with_language(
@@ -211,6 +213,7 @@ impl<'t, T: Display + EnumArgument> Value<'t, T, String> {
     pub fn new_enum(description: Description<'t, T>) -> Self {
         Self::new_enum_with_language(description, Language::ENGLISH)
     }
+
     /// Creates a value argument with localized defaults.
     #[inline]
     pub fn new_enum_with_language(description: Description<'t, T>, language: Language) -> Self {
@@ -234,6 +237,7 @@ where
     pub fn neu(beschreibung: Beschreibung<'t, T>, mögliche_werte: Option<NonEmpty<T>>) -> Self {
         Value::new_with_language(beschreibung.into(), mögliche_werte, Language::GERMAN).into()
     }
+
     /// Erzeugt ein Wert-Argument mit lokalisierten Standardwerten.
     #[inline]
     pub fn neu_mit_sprache(
@@ -250,6 +254,7 @@ impl<'t, T: Display + EnumArgument> Wert<'t, T, String> {
     pub fn neu_enum(beschreibung: Beschreibung<'t, T>) -> Self {
         Value::new_enum_with_language(beschreibung.into(), Language::GERMAN).into()
     }
+
     /// Erzeugt ein Wert-Argument mit lokalisierten Standardwerten.
     #[inline]
     pub fn neu_enum_mit_sprache(beschreibung: Beschreibung<'t, T>, sprache: Sprache) -> Self {
@@ -376,6 +381,7 @@ impl<'t, T, E> Value<'t, T, E> {
             meta_allowed_values,
         )
     }
+
     /// Converts this value argument to strings using its display functions.
     pub fn as_string_value(&self) -> Value<'_, String, String> {
         as_string_value(
@@ -390,6 +396,7 @@ impl<'t, T, E> Value<'t, T, E> {
             &self.display_error,
         )
     }
+
     /// Parses merged short-form arguments.
     #[inline]
     pub fn parse_merged_short_forms(
@@ -426,6 +433,7 @@ impl<'t, T, E> Wert<'t, T, E> {
         )
         .into()
     }
+
     /// Konvertiert dieses Wert-Argument mittels seiner Anzeigefunktionen in Strings.
     pub fn als_string_wert(&self) -> Wert<'_, String, String> {
         as_string_value(

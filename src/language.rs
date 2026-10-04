@@ -54,6 +54,61 @@ pub struct Language {
 }
 
 impl Language {
+    /// English strings.
+    pub const ENGLISH: Self = Self {
+        long_prefix: "--",
+        short_prefix: "-",
+        invert_prefix: "no",
+        invert_infix: "-",
+        value_infix: "=",
+        meta_var: "VALUE",
+        options: "OPTIONS",
+        default: "Default",
+        allowed_values: "Possible values",
+        missing_flag: "Missing Flag",
+        missing_value: "Missing Value",
+        parse_error: "Parse Error",
+        invalid_string: "Invalid String",
+        unused_argument: "Unused argument(s)",
+        help_description: "Show this text.",
+        help_long: "help",
+        help_short: "h",
+        version_description: "Show the current version.",
+        version_long: "version",
+        version_short: "v",
+        syntax_prefix: "  ",
+        syntax_padding: ' ',
+        alternative_prefix: "| ",
+        alternative_separator: '-',
+    };
+    /// German strings.
+    pub const GERMAN: Self = Self {
+        long_prefix: "--",
+        short_prefix: "-",
+        invert_prefix: "kein",
+        invert_infix: "-",
+        value_infix: "=",
+        meta_var: "WERT",
+        options: "OPTIONEN",
+        default: "Standard",
+        allowed_values: "Erlaubte Werte",
+        missing_flag: "Fehlende Flag",
+        missing_value: "Fehlender Wert",
+        parse_error: "Parse-Fehler",
+        invalid_string: "Invalider String",
+        unused_argument: "Nicht alle Argumente verwendet",
+        help_description: "Zeige diesen Text an.",
+        help_long: "hilfe",
+        help_short: "h",
+        version_description: "Zeige die aktuelle Version an.",
+        version_long: "version",
+        version_short: "v",
+        syntax_prefix: "  ",
+        syntax_padding: ' ',
+        alternative_prefix: "| ",
+        alternative_separator: '-',
+    };
+
     /// Converts German-named language strings to their English-primary type.
     #[must_use]
     pub const fn from_sprache(sprache: Sprache) -> Self {
@@ -110,62 +165,6 @@ impl Language {
             alternative_separator: alternative_trennzeichen,
         }
     }
-
-    /// German strings.
-    pub const GERMAN: Self = Self {
-        long_prefix: "--",
-        short_prefix: "-",
-        invert_prefix: "kein",
-        invert_infix: "-",
-        value_infix: "=",
-        meta_var: "WERT",
-        options: "OPTIONEN",
-        default: "Standard",
-        allowed_values: "Erlaubte Werte",
-        missing_flag: "Fehlende Flag",
-        missing_value: "Fehlender Wert",
-        parse_error: "Parse-Fehler",
-        invalid_string: "Invalider String",
-        unused_argument: "Nicht alle Argumente verwendet",
-        help_description: "Zeige diesen Text an.",
-        help_long: "hilfe",
-        help_short: "h",
-        version_description: "Zeige die aktuelle Version an.",
-        version_long: "version",
-        version_short: "v",
-        syntax_prefix: "  ",
-        syntax_padding: ' ',
-        alternative_prefix: "| ",
-        alternative_separator: '-',
-    };
-
-    /// English strings.
-    pub const ENGLISH: Self = Self {
-        long_prefix: "--",
-        short_prefix: "-",
-        invert_prefix: "no",
-        invert_infix: "-",
-        value_infix: "=",
-        meta_var: "VALUE",
-        options: "OPTIONS",
-        default: "Default",
-        allowed_values: "Possible values",
-        missing_flag: "Missing Flag",
-        missing_value: "Missing Value",
-        parse_error: "Parse Error",
-        invalid_string: "Invalid String",
-        unused_argument: "Unused argument(s)",
-        help_description: "Show this text.",
-        help_long: "help",
-        help_short: "h",
-        version_description: "Show the current version.",
-        version_long: "version",
-        version_short: "v",
-        syntax_prefix: "  ",
-        syntax_padding: ' ',
-        alternative_prefix: "| ",
-        alternative_separator: '-',
-    };
 }
 
 /// Alle Strings, die zum Erstellen von Hilfe-Text und Fehlermeldung notwendig sind.
@@ -222,6 +221,11 @@ pub struct Sprache {
 }
 
 impl Sprache {
+    /// Deutsche Strings.
+    pub const DEUTSCH: Self = Self::from_language(Language::GERMAN);
+    /// Englische Strings.
+    pub const ENGLISH: Self = Self::from_language(Language::ENGLISH);
+
     /// Konvertiert englisch-primäre Sprach-Strings in ihren deutsch benannten Spiegeltyp.
     #[must_use]
     pub const fn from_language(language: Language) -> Self {
@@ -278,11 +282,6 @@ impl Sprache {
             alternative_trennzeichen: alternative_separator,
         }
     }
-
-    /// Deutsche Strings.
-    pub const DEUTSCH: Self = Self::from_language(Language::GERMAN);
-    /// Englische Strings.
-    pub const ENGLISH: Self = Self::from_language(Language::ENGLISH);
 }
 
 impl From<Language> for Sprache {

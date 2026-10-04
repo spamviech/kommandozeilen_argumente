@@ -3,7 +3,7 @@
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 
 #[doc(no_inline)]
-pub use ::nonempty::{nonempty, NonEmpty};
+pub use ::nonempty::{NonEmpty, nonempty};
 
 #[macro_export]
 /// Crate Name spezifiziert in Cargo.toml.
@@ -39,11 +39,11 @@ pub mod unicode;
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use self::{
     arguments::{
+        Arguments,
         argumente::Argumente,
         early_exit::{EarlyExit, FrühesBeenden},
         flag::Flag,
         value::{EnumArgument, Value, Wert},
-        Arguments,
     },
     description::{ArgumentInput, Beschreibung, Description},
     language::{Language, Sprache},

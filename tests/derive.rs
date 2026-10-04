@@ -17,13 +17,12 @@ use std::{
     iter,
 };
 
-use nonempty::{NonEmpty, nonempty};
-
 use kommandozeilen_argumente::{
     ArgumentInput, Arguments, Compare, Description, EnumArgument, Error, Language, Normalized,
     Parse, ParseArgument, Result,
     description::{AdjustedMergedShortNames, MergedShortNameSuffix},
 };
+use nonempty::{NonEmpty, nonempty};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
 #[kommandozeilen_argumente(case: insensitive)]

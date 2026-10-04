@@ -25,7 +25,8 @@ cargo test --all-features                   # includes tests/derive.rs (requires
 cargo test --all-features --test derive     # just the derive-macro integration test
 cargo test --all-features <test_name>       # single test by name substring
 cargo clippy --all-features --all-targets   # lint (extensive lint config in Cargo.toml)
-cargo fmt                                   # format (see rustfmt.toml — max_width 100, Unix newlines)
+cargo +nightly fmt ; cargo fmt              # apply the project's nightly rustfmt configuration,
+                                            # then run stable rustfmt (see rustfmt.toml — max_width 100, Unix newlines)
 cargo run --example derive_en --features derive   # run an example (also: derive, function, funktion)
 ```
 

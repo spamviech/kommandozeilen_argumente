@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, convert::AsRef};
 
-use unicode_normalization::{is_nfc_quick, IsNormalized, UnicodeNormalization};
+use unicode_normalization::{IsNormalized, UnicodeNormalization, is_nfc_quick};
 use unicode_segmentation::UnicodeSegmentation;
 
 /// A normalized unicode string.
@@ -152,9 +152,9 @@ impl<'t> Normalisiert<'t> {
     /// Normalisiere einen Unicode-String, sofern er nicht bereits normalisiert ist
     /// ([`is_nfc_quick`]) oder bestimmte cjk-Zeichen enthalten sind.
     ///
-    /// Zuerst werden cjk-Zeichen über [`cjk_compat_variants`](UnicodeNormalization::cjk_compat_variants)
-    /// normalisiert, anschließend wird über [`nfc`](UnicodeNormalization::nfc) der String in
-    /// [`Unicode Normalization Form C`](https://docs.rs/unicode-normalization/latest/unicode_normalization/trait.UnicodeNormalization.html#tymethod.nfc)
+    /// Zuerst werden cjk-Zeichen über
+    /// [`cjk_compat_variants`](UnicodeNormalization::cjk_compat_variants) normalisiert,
+    /// anschließend wird über [`nfc`](UnicodeNormalization::nfc) der String in [`Unicode Normalization Form C`](https://docs.rs/unicode-normalization/latest/unicode_normalization/trait.UnicodeNormalization.html#tymethod.nfc)
     /// transformiert.
     ///
     /// ## English synonym
@@ -247,11 +247,7 @@ pub enum Case {
 impl From<bool> for Case {
     #[inline]
     fn from(input: bool) -> Self {
-        if input {
-            Case::Sensitive
-        } else {
-            Case::Insensitive
-        }
+        if input { Case::Sensitive } else { Case::Insensitive }
     }
 }
 
@@ -284,7 +280,7 @@ pub struct Compare<'t> {
 
 /// Erzeuge [`From`]-Implementierung für `$type` und `($type, Case)`.
 macro_rules! impl_compare_from {
-    ($type: ty) => {
+    ($type:ty) => {
         #[allow(single_use_lifetimes)]
         impl<'t> From<$type> for Compare<'t> {
             #[inline]
@@ -413,7 +409,7 @@ pub struct Vergleich<'t> {
 
 /// Erzeuge [`From`]-Implementierung für `$type` und `($type, Case)`.
 macro_rules! impl_vergleich_from {
-    ($type: ty) => {
+    ($type:ty) => {
         #[allow(single_use_lifetimes)]
         impl<'t> From<$type> for Vergleich<'t> {
             #[inline]

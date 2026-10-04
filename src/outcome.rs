@@ -168,6 +168,7 @@ impl<'t, T, E, A> IntermediateResult<'t, T, E, A> {
             Self::Incomplete(value) => IntermediateResult::Incomplete(value),
         }
     }
+
     /// Converts the embedded errors.
     pub fn convert_error<F>(self, mapper: impl Fn(E) -> F) -> IntermediateResult<'t, T, F, A> {
         match self {
@@ -179,6 +180,7 @@ impl<'t, T, E, A> IntermediateResult<'t, T, E, A> {
             Self::Incomplete(value) => IntermediateResult::Incomplete(value),
         }
     }
+
     /// Converts an incomplete value.
     pub fn convert_incomplete<B>(
         self,
@@ -202,6 +204,7 @@ impl<'t, T, E> Result<'t, T, E> {
             Self::Error(errors) => Result::Error(errors),
         }
     }
+
     /// Converts the embedded errors.
     pub fn convert_error<F>(self, mapper: impl Fn(E) -> F) -> Result<'t, T, F> {
         match self {
@@ -263,6 +266,7 @@ impl<E: Display> Error<'_, E> {
     pub fn error_message(&self) -> String {
         self.create_error_message_with_language(Language::ENGLISH)
     }
+
     /// Creates a human-readable error message using `language`.
     pub fn create_error_message_with_language(&self, language: Language) -> String {
         self.create_error_message(
@@ -272,6 +276,7 @@ impl<E: Display> Error<'_, E> {
             language.invalid_string,
         )
     }
+
     /// Creates a human-readable error message.
     pub fn create_error_message(
         &self,
@@ -518,10 +523,12 @@ impl<'t, T, E, A> ZwischenErgebnis<'t, T, E, A> {
     pub fn konvertiere<S>(self, mapper: impl FnOnce(T) -> S) -> ZwischenErgebnis<'t, S, E, A> {
         IntermediateResult::from(self).convert(mapper).into()
     }
+
     /// Konvertiert die enthaltenen Fehler.
     pub fn konvertiere_fehler<F>(self, mapper: impl Fn(E) -> F) -> ZwischenErgebnis<'t, T, F, A> {
         IntermediateResult::from(self).convert_error(mapper).into()
     }
+
     /// Konvertiert einen unvollständigen Wert.
     pub fn konvertiere_incomplete<B>(
         self,
@@ -535,6 +542,7 @@ impl<'t, T, E> Ergebnis<'t, T, E> {
     pub fn konvertiere<S>(self, mapper: impl FnOnce(T) -> S) -> Ergebnis<'t, S, E> {
         Result::from(self).convert(mapper).into()
     }
+
     /// Konvertiert die enthaltenen Fehler.
     pub fn konvertiere_fehler<F>(self, mapper: impl Fn(E) -> F) -> Ergebnis<'t, T, F> {
         Result::from(self).convert_error(mapper).into()
@@ -563,6 +571,7 @@ impl<E: Display> Fehler<'_, E> {
     pub fn fehlermeldung(&self) -> String {
         self.erstelle_fehlermeldung_mit_sprache(Sprache::DEUTSCH)
     }
+
     /// Erstellt eine menschenlesbare Fehlermeldung mit `sprache`.
     pub fn erstelle_fehlermeldung_mit_sprache(&self, sprache: Sprache) -> String {
         self.erstelle_fehlermeldung(
@@ -572,6 +581,7 @@ impl<E: Display> Fehler<'_, E> {
             sprache.invalider_string,
         )
     }
+
     /// Erstellt eine menschenlesbare Fehlermeldung.
     pub fn erstelle_fehlermeldung(
         &self,

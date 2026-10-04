@@ -13,13 +13,13 @@ use nonempty::NonEmpty;
 
 use crate::{
     arguments::{
+        Arguments,
         argumente::Argumente,
         combine::Combine,
         flag::Flag,
         help::{self, CreateHelpText},
         single_argument::SingleArgument,
         value::{EnumArgument, Value},
-        Arguments,
     },
     description::{ArgumentInput, Beschreibung, Description},
     dyn_to_owned::{self, Bool, Show},
@@ -28,6 +28,7 @@ use crate::{
     unicode::Compare,
 };
 
+#[rustfmt::skip]
 #[cfg(any(feature = "derive", all(doc, not(doctest))))]
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::Parse;
@@ -249,11 +250,7 @@ fn create_boxed_option_display<'t, T>(
 ) -> Box<dyn 't + Show<'t, Option<T>>> {
     Box::new(move |opt: &Option<T>| {
         #[allow(clippy::min_ident_chars)]
-        if let Some(t) = opt {
-            display(t)
-        } else {
-            String::from("None")
-        }
+        if let Some(t) = opt { display(t) } else { String::from("None") }
     })
 }
 
@@ -270,11 +267,7 @@ fn create_result_adjuster<'t, T: Clone>(
                     break;
                 }
             }
-            if let Some(final_result) = final_result {
-                final_result
-            } else {
-                Result::Error(errors)
-            }
+            if let Some(final_result) = final_result { final_result } else { Result::Error(errors) }
         },
         (result, _) => result,
     }
@@ -439,13 +432,13 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
 /// Mit dem `derive`-Feature kann eine Implementierung [automatisch erzeugt werden](derive@Parse).
 pub trait Parse: Sized {
     /// Possible parse error, the automatically created implementation uses [`String`].
-    /// 
+    ///
     /// ## Deutsch
     /// Möglicher Parse-Fehler, die automatisch erzeugte Implementierung verwendet [`String`].
     type Error;
 
     /// Create a description, how command line arguments should be parsed.
-    /// 
+    ///
     /// ## Deutsch
     /// Erzeuge eine Beschreibung, wie Kommandozeilen-Argumente geparst werden sollen.
     fn arguments<'t>() -> Arguments<'t, Self, Self::Error>;
@@ -538,8 +531,8 @@ pub trait Parse: Sized {
     /// [`parse_aus_env_mit_frühen_beenden`](Argumente::parse_aus_env_mit_frühen_beenden)
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn parse_from_env_with_early_exit<'t>(
-    ) -> (std::result::Result<Self, NonEmpty<Error<'t, Self::Error>>>, Vec<ArgumentInput>)
+    fn parse_from_env_with_early_exit<'t>()
+    -> (std::result::Result<Self, NonEmpty<Error<'t, Self::Error>>>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Error: 't,
@@ -556,8 +549,8 @@ pub trait Parse: Sized {
     /// [`parse_from_env_with_early_exit`](Parse::parse_from_env_with_early_exit)
     #[inline]
     #[allow(clippy::type_complexity)]
-    fn parse_aus_env_mit_frühen_beenden<'t>(
-    ) -> (std::result::Result<Self, NonEmpty<Fehler<'t, Self::Error>>>, Vec<ArgumentInput>)
+    fn parse_aus_env_mit_frühen_beenden<'t>()
+    -> (std::result::Result<Self, NonEmpty<Fehler<'t, Self::Error>>>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Error: 't,
@@ -604,7 +597,8 @@ pub trait Parse: Sized {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
+    /// beendet.
     ///
     /// ## English synonym
     /// [`parse_complete`](Parse::parse_complete)
@@ -659,7 +653,8 @@ pub trait Parse: Sized {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
+    /// beendet.
     ///
     /// ## English synonym
     /// [`parse_complete_with_language`](Parse::parse_complete_with_language)
@@ -682,7 +677,8 @@ pub trait Parse: Sized {
     /// In case of an error, or if there are leftover arguments, the error message is written to
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
     ///
-    /// [`parse_complete_with_language`](Parse::parse_complete_with_language) with [`Language::ENGLISH`].
+    /// [`parse_complete_with_language`](Parse::parse_complete_with_language) with
+    /// [`Language::ENGLISH`].
     ///
     /// ## Deutsche version
     /// [`parse_mit_fehlermeldung`](Parse::parse_mit_fehlermeldung)
@@ -703,9 +699,11 @@ pub trait Parse: Sized {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
+    /// beendet.
     ///
-    /// [`parse_vollständig_mit_sprache`](Parse::parse_vollständig_mit_sprache) mit [`Sprache::DEUTSCH`].
+    /// [`parse_vollständig_mit_sprache`](Parse::parse_vollständig_mit_sprache) mit
+    /// [`Sprache::DEUTSCH`].
     ///
     /// ## English version
     /// [`parse_with_error_message`](Parse::parse_with_error_message)
@@ -757,7 +755,8 @@ pub trait Parse: Sized {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
+    /// beendet.
     ///
     /// ## English synonym
     /// [`parse_complete_from_env`](Parse::parse_complete_from_env)
@@ -806,7 +805,8 @@ pub trait Parse: Sized {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
+    /// beendet.
     ///
     /// ## English synonym
     /// [`parse_complete_with_language_from_env`](Parse::parse_complete_with_language_from_env)
@@ -844,7 +844,8 @@ pub trait Parse: Sized {
     /// entsprechenden Nachrichten in `stdout` geschrieben und das Program über
     /// [`exit`](std::process::exit) mit exit code `0` beendet.
     /// Tritt ein Fehler auf, oder gibt es nicht-geparste Argumente werden die Fehler in `stderr`
-    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code` beendet.
+    /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
+    /// beendet.
     ///
     /// [`parse_vollständig_mit_sprache_aus_env`](Parse::parse_vollständig_mit_sprache_aus_env)
     /// mit [`Sprache::DEUTSCH`].

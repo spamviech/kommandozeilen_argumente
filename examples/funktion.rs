@@ -11,13 +11,12 @@ use std::{
     num::NonZeroI32,
 };
 
-use nonempty::{nonempty, NonEmpty};
-
 use kommandozeilen_argumente::{
+    Beschreibung, EnumArgument, ParseArgument, ParseError, Sprache, Vergleich,
     arguments::{flag::Flag, help::Standard, value::Wert},
-    crate_name, crate_version, kombiniere, Beschreibung, EnumArgument, ParseArgument, ParseError,
-    Sprache, Vergleich,
+    crate_name, crate_version, kombiniere,
 };
+use nonempty::{NonEmpty, nonempty};
 
 /// Beispiel-enum um den Anwendung von [`EnumArgument`] zu zeigen.
 #[derive(Debug, Clone)]
