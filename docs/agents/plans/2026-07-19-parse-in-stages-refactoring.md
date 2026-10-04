@@ -674,6 +674,42 @@ This is the sub-phase that restores `cargo build --workspace` to green.
 
 ---
 
+### Phase 1.14.5: Correct English-primary parse-error callback types
+
+Depends on: **Phase 1.14**.
+
+The derive-crate update exposed a remaining split in the callback abstraction: `dyn_to_owned::Parse`
+was hard-coded to return the German mirror `ParseFehler`, while the English-primary `Value` API and
+its generated code use `ParseError`.  Resolve that mismatch before updating the integration tests,
+so conversions between the English and German mirrors are explicit and callbacks retain their
+correct error type.
+
+**Tasks**:
+
+- [x] Generalize `dyn_to_owned::Parse<'t, T, Error>` so its `Fn(&OsStr)` bound returns the trait's
+  generic `Error`, rather than hard-coding `ParseFehler<Error>`; rename the macro and its local
+  identifiers/docs to English while preserving the existing `Bool` and `Show` helper traits.
+- [x] Make `Value::parse` return `ParseError<Error>` and `Wert::parse` return
+  `ParseFehler<Fehler>`.  In both `From<Value> for Wert` and `From<Wert> for Value` conversions,
+  wrap the callback in an owned closure that converts its error mirror rather than attempting to
+  reuse a callback with the incompatible trait-object type.
+- [x] Generalize the `ParseError`/`ParseFehler` `From` implementations to convert their payloads,
+  and make the shared borrowed `as_string_value` helper accept any parse error that converts into
+  `ParseError`.  Update the affected `Value`, `Option<T>`, and `EnumArgument` parsing closures to
+  use the English-primary error type.
+- [x] Update derive-generated `EnumArgument::parse_enum` implementations to return
+  `ParseError<String>` and construct its English variants/messages.  Rename the temporary
+  `varianten` identifiers in that generator to `idents` to match the English-primary code.
+- [x] Adjust the `Value` implementation lifetime receivers needed by the callback conversion,
+  including `Wert::als_string_wert`, without changing value parsing behavior.
+
+**Automated Verification**:
+
+- [x] `cargo build --workspace --all-features` succeeds
+- [x] `cargo test --workspace --all-features` compiles without callback/error-type mismatches
+
+---
+
 ### Phase 1.15: Update existing tests
 
 Depends on: **Phase 1.14**.

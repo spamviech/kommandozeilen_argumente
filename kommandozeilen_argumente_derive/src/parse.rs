@@ -100,7 +100,7 @@ impl FieldArgument {
                         parse: ::std::borrow::Cow::Borrowed(&|os_str: &::std::ffi::OsStr| {
                             if let Some(string) = os_str.to_str() {
                                 string.parse::<#field_type>().map_err(
-                                    |fehler| ::#crate_ident::ParseError::ParseError(fehler.to_string())
+                                    |error| ::#crate_ident::ParseError::ParseError(error.to_string())
                                 )
                             } else {
                                 Err(::#crate_ident::ParseError::InvalidString(::std::ffi::OsString::from(os_str)))

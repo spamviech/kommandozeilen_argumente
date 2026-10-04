@@ -10,14 +10,15 @@ use std::{
 use nonempty::NonEmpty;
 
 use crate::{
+    ParseFehler,
     arguments::{
-        help::{Help, Hilfe},
         ParseMergedShortFormsResult,
+        help::{Help, Hilfe},
     },
     description::{Beschreibung, Description, Name},
     dyn_to_owned::{Parse, Show},
     language::{Language, Sprache},
-    outcome::{ParseError, ParseFehler},
+    outcome::ParseError,
     unicode::{Compare, Vergleich},
 };
 
@@ -50,7 +51,7 @@ pub trait EnumArgument: Sized {
     /// # Errors
     ///
     /// Returns a parse error if `arg` cannot be parsed.
-    fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>>;
+    fn parse_enum(arg: &OsStr) -> Result<Self, ParseError<String>>;
 }
 
 /// A value argument.
@@ -65,7 +66,7 @@ pub struct Value<'t, T, Error> {
     /// Values displayed in help text.
     pub possible_values: Option<NonEmpty<T>>,
     /// Parses an operating-system string into a value.
-    pub parse: Cow<'t, dyn Parse<'t, T, Error>>,
+    pub parse: Cow<'t, dyn Parse<'t, T, ParseError<Error>>>,
     /// Displays a value.
     pub display: Cow<'t, dyn Show<'t, T>>,
     /// Displays a parsing error.
@@ -84,7 +85,7 @@ pub struct Wert<'t, T, Fehler> {
     /// Im Hilfetext angezeigte erlaubte Werte.
     pub mögliche_werte: Option<NonEmpty<T>>,
     /// Parst einen Betriebssystem-String in einen Wert.
-    pub parse: Cow<'t, dyn Parse<'t, T, Fehler>>,
+    pub parse: Cow<'t, dyn Parse<'t, T, ParseFehler<Fehler>>>,
     /// Zeigt einen Wert an.
     pub anzeige: Cow<'t, dyn Show<'t, T>>,
     /// Zeigt einen Parse-Fehler an.
@@ -103,12 +104,14 @@ impl<'t, T, E> From<Value<'t, T, E>> for Wert<'t, T, E> {
             display,
             display_error,
         } = value;
+        let parse_boxed: Box<dyn 't + Parse<'t, T, ParseFehler<E>>> =
+            Box::new(move |value: &OsStr| parse(value).map_err(ParseFehler::from));
         Self {
             beschreibung: description.into(),
             wert_infix: value_infix.into(),
             meta_var,
             mögliche_werte: possible_values,
-            parse,
+            parse: Cow::Owned(parse_boxed),
             anzeige: display,
             anzeige_fehler: display_error,
         }
@@ -127,12 +130,14 @@ impl<'t, T, E> From<Wert<'t, T, E>> for Value<'t, T, E> {
             anzeige,
             anzeige_fehler,
         } = value;
+        let parse_boxed: Box<dyn 't + Parse<'t, T, ParseError<E>>> =
+            Box::new(move |value: &OsStr| parse(value).map_err(ParseError::from));
         Self {
             description: beschreibung.into(),
             value_infix: wert_infix.into(),
             meta_var,
             possible_values: mögliche_werte,
-            parse,
+            parse: Cow::Owned(parse_boxed),
             display: anzeige,
             display_error: anzeige_fehler,
         }
@@ -192,8 +197,8 @@ where
             parse: Cow::Borrowed(&|value: &OsStr| {
                 value
                     .to_str()
-                    .ok_or_else(|| ParseFehler::InvaliderString(OsString::from(value)))
-                    .and_then(|string| string.parse().map_err(ParseFehler::ParseFehler))
+                    .ok_or_else(|| ParseError::InvalidString(OsString::from(value)))
+                    .and_then(|string| string.parse().map_err(ParseError::ParseError))
             }),
             display: Cow::Borrowed(&<T as ToString>::to_string),
             display_error: Cow::Borrowed(&<<T as FromStr>::Err as ToString>::to_string),
@@ -265,25 +270,26 @@ fn show_elements<'t, T: 't>(
     }
 }
 
-fn as_string_value<'a, 't, T, E>(
+fn as_string_value<'a, 't, T, E, PE: Into<ParseError<E>>>(
     name: &'a Name<'t>,
     help: Option<&'t str>,
     default: Option<&'a T>,
     value_infix: Compare<'t>,
     meta_var: &'t str,
     possible_values: Option<&'a NonEmpty<T>>,
-    parse: &'a Cow<'t, dyn Parse<'t, T, E>>,
+    parse: &'a Cow<'t, dyn Parse<'t, T, PE>>,
     display: &'a Cow<'t, dyn Show<'t, T>>,
     display_error: &'a Cow<'t, dyn Show<'t, E>>,
 ) -> Value<'a, String, String>
 where
     't: 'a,
 {
-    let parse_boxed: Box<dyn 'a + Parse<'a, String, String>> = Box::new(|value: &OsStr| {
-        parse(value)
-            .map(|value| display(&value))
-            .map_err(|error| error.konvertiere(|error| display_error(&error)))
-    });
+    let parse_boxed: Box<dyn 'a + Parse<'a, String, ParseError<String>>> =
+        Box::new(|value: &OsStr| {
+            parse(value)
+                .map(|value| display(&value))
+                .map_err(|error| error.into().convert(|error| display_error(&error)))
+        });
     Value {
         description: Description { name: name.clone(), help, default: default.map(&**display) },
         value_infix,

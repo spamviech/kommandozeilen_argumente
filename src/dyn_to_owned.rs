@@ -1,26 +1,25 @@
-//! Erstelle eine [`ToOwned`]-Implementierung für ein `dyn Fn` trait-Objekt.
+//! Helpers for implementing [`ToOwned`] on `dyn Fn` trait objects.
 
 use std::ffi::OsStr;
 
-use crate::ParseFehler;
+/// Implements [`ToOwned`] for a `dyn Fn` trait object.
+macro_rules! impl_dyn_to_owned {
+    ($trait:ident <$dyn:lifetime, $($($lifetime:lifetime),+ ,)? $($parameter:ident),* $(,)?>, $($function:tt)*) => {
+        /// Helper trait that permits implementing [`ToOwned`] for a `dyn Fn` trait object.
+        pub trait $trait<$dyn, $($($lifetime),+ ,)? $($parameter),*>:
+            $dyn + $($function)* + ::dyn_clone::DynClone
+        {}
 
-/// Erstelle eine [`ToOwned`]-Implementierung für ein `dyn Fn` trait-Objekt.
-macro_rules! erstelle_dyn_to_owned {
-    ($trait: ident <$dyn: lifetime, $($($lt: lifetime),+ ,)? $($param: ident),* $(,)?>, $($fn: tt)*) => {
-        /// Hilfs-Trait, damit [`ToOwned`] für ein `dyn Fn` trait-Objekt implementiert werden kann.
-        ///
-        /// ## English
-        /// Helper trait to implement [`ToOwned`] for a `dyn Fn` trait object.
-        pub trait $trait<$dyn, $($($lt),+ ,)? $($param),*>: $dyn + $($fn)* + ::dyn_clone::DynClone {}
+        ::dyn_clone::clone_trait_object!(<$($($lifetime),+ ,)? $($parameter),*>$trait<'_, $($($lifetime),+ ,)? $($parameter),*>);
 
-        ::dyn_clone::clone_trait_object!(<$($($lt),+ ,)? $($param),*>$trait<'_, $($($lt),+ ,)? $($param),*>);
+        impl<$dyn, $($($lifetime),+ ,)? $($parameter,)* Function: $dyn + Clone + $($function)*>
+            $trait<$dyn, $($($lifetime),+ ,)? $($parameter),*> for Function
+        {}
 
-        impl<$dyn, $($($lt),+ ,)? $($param,)* F: $dyn + Clone + $($fn)*> $trait<$dyn, $($($lt),+ ,)? $($param),*> for F {}
-
-        impl<$dyn, $($($lt),+ ,)? $($param),*> ToOwned
-            for dyn $dyn + $trait<$dyn, $($($lt),+ ,)? $($param),*>
+        impl<$dyn, $($($lifetime),+ ,)? $($parameter),*> ToOwned
+            for dyn $dyn + $trait<$dyn, $($($lifetime),+ ,)? $($parameter),*>
         {
-            type Owned = Box<dyn $dyn + $trait<$dyn, $($($lt),+ ,)? $($param),*>>;
+            type Owned = Box<dyn $dyn + $trait<$dyn, $($($lifetime),+ ,)? $($parameter),*>>;
 
             #[inline]
             fn to_owned(&self) -> Self::Owned {
@@ -30,6 +29,6 @@ macro_rules! erstelle_dyn_to_owned {
     };
 }
 
-erstelle_dyn_to_owned!(Bool<'t, T>, Fn(bool) -> T);
-erstelle_dyn_to_owned!(Parse<'t, T, Fehler>, Fn(&OsStr) -> Result<T, ParseFehler<Fehler>>);
-erstelle_dyn_to_owned!(Show<'t, T>, Fn(&T) -> String);
+impl_dyn_to_owned!(Bool<'t, T>, Fn(bool) -> T);
+impl_dyn_to_owned!(Parse<'t, T, Error>, Fn(&OsStr) -> Result<T, Error>);
+impl_dyn_to_owned!(Show<'t, T>, Fn(&T) -> String);

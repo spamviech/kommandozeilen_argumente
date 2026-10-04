@@ -350,7 +350,7 @@ impl<T: 'static + ParseArgument + Clone + Debug + Display> ParseArgument for Opt
                 display,
                 display_error,
             })) => {
-                let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, Option<T>, String>> =
+                let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, Option<T>, ParseError<String>>> =
                     Box::new(move |os_str: &OsStr| match parse(os_str) {
                         Ok(value) => Ok(Some(value)),
                         Err(_error) if os_str == "None" => Ok(None),
@@ -398,7 +398,7 @@ impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
         value_infix: impl Into<Compare<'t>>,
         meta_var: &'t str,
     ) -> Arguments<'t, Self, String> {
-        let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, T, String>> =
+        let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, T, ParseError<String>>> =
             Box::new(move |os_str: &OsStr| {
                 let Some(string) = os_str.to_str() else {
                     return Err(ParseError::InvalidString(OsString::from(os_str)).into());

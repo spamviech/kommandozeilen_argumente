@@ -158,7 +158,7 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Er
         return Err(Generics { anzahl: param_count, where_clause: has_where_clause });
     }
     let standard_case = parse_attributes(None, attributes)?;
-    let mut varianten = Vec::new();
+    let mut idents = Vec::new();
     let mut cases = Vec::new();
     for (enum_variant, _punct) in variants.inner {
         let EnumVariant { name: variant_ident, fields, attributes: variant_attrs, .. } =
@@ -166,40 +166,40 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Er
         if let Fields::Unit = fields {
             let case = parse_attributes(Some(&variant_ident), variant_attrs)?;
             cases.push(case.or(standard_case).unwrap_or_default());
-            varianten.push(variant_ident);
+            idents.push(variant_ident);
         } else {
             return Err(DataVariant { variante: variant_ident });
         }
     }
-    let varianten_ts = if varianten.is_empty() {
+    let idents_ts = if idents.is_empty() {
         quote!(None)
     } else {
-        quote!(Some(::#crate_ident::nonempty![#(Self::#varianten),*]))
+        quote!(Some(::#crate_ident::nonempty![#(Self::#idents),*]))
     };
-    let varianten_str: Vec<_> = varianten.iter().map(ToString::to_string).collect();
+    let idents_str: Vec<_> = idents.iter().map(ToString::to_string).collect();
     let instance = quote!(
         impl #crate_ident::EnumArgument for #name {
             fn varianten() -> Option<::#crate_ident::NonEmpty<Self>> {
-                #varianten_ts
+                #idents_ts
             }
 
             fn parse_enum(
                 arg: &::std::ffi::OsStr,
-            ) -> ::std::result::Result<Self, ::#crate_ident::ParseFehler<String>> {
+            ) -> ::std::result::Result<Self, ::#crate_ident::ParseError<String>> {
                 if let Some(string) = arg.to_str() {
                     #(
-                        if ::#crate_ident::unicode::Normalized::new(#varianten_str).eq_with_case(string, #cases)
+                        if ::#crate_ident::unicode::Normalized::new(#idents_str).eq_with_case(string, #cases)
                         {
-                            Ok(Self::#varianten)
+                            Ok(Self::#idents)
                         } else
                     )*
                     {
-                        Err(::#crate_ident::ParseFehler::ParseFehler(
-                            format!("Unbekannte Variante: {}", string)
+                        Err(::#crate_ident::ParseError::ParseError(
+                            format!("Unknown variant: {}", string)
                         ))
                     }
                 } else {
-                    Err(::#crate_ident::ParseFehler::InvaliderString(::std::ffi::OsString::from(arg)))
+                    Err(::#crate_ident::ParseError::InvalidString(::std::ffi::OsString::from(arg)))
                 }
             }
         }

@@ -15,7 +15,7 @@ use nonempty::{nonempty, NonEmpty};
 
 use kommandozeilen_argumente::{
     arguments::{flag::Flag, help::Standard, value::Wert},
-    crate_name, crate_version, kombiniere, Beschreibung, EnumArgument, ParseArgument, ParseFehler,
+    crate_name, crate_version, kombiniere, Beschreibung, EnumArgument, ParseArgument, ParseError,
     Sprache, Vergleich,
 };
 
@@ -36,7 +36,7 @@ impl EnumArgument for Aufzählung {
         Some(nonempty![Eins, Zwei, Drei])
     }
 
-    fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>> {
+    fn parse_enum(arg: &OsStr) -> Result<Self, ParseError<String>> {
         use Aufzählung::{Drei, Eins, Zwei};
         if let Some(string) = arg.to_str() {
             // Vergleich-Strings enthalten nur ASCII-Zeichen,
@@ -46,10 +46,10 @@ impl EnumArgument for Aufzählung {
                 "eins" => Ok(Eins),
                 "zwei" => Ok(Zwei),
                 "drei" => Ok(Drei),
-                _ => Err(ParseFehler::ParseFehler(format!("Unbekannte Variante: {string}"))),
+                _ => Err(ParseError::ParseError(format!("Unbekannte Variante: {string}"))),
             }
         } else {
-            Err(ParseFehler::InvaliderString(OsString::from(arg)))
+            Err(ParseError::InvalidString(OsString::from(arg)))
         }
     }
 }

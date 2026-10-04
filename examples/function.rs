@@ -16,7 +16,7 @@ use nonempty::nonempty;
 use kommandozeilen_argumente::{
     arguments::{flag::Flag, help::Default, value::Value},
     combine, crate_name, crate_version, Compare, Description, EnumArgument, Language, NonEmpty,
-    ParseArgument, ParseFehler,
+    ParseArgument, ParseError,
 };
 
 /// An example enum, to show the use of [`EnumArgument`].
@@ -36,7 +36,7 @@ impl EnumArgument for Enumeration {
         Some(nonempty![One, Two, Three])
     }
 
-    fn parse_enum(arg: &OsStr) -> Result<Self, ParseFehler<String>> {
+    fn parse_enum(arg: &OsStr) -> Result<Self, ParseError<String>> {
         use Enumeration::{One, Three, Two};
         if let Some(string) = arg.to_str() {
             // Target strings only contain ASCII-characters.
@@ -46,10 +46,10 @@ impl EnumArgument for Enumeration {
                 "one" => Ok(One),
                 "two" => Ok(Two),
                 "three" => Ok(Three),
-                _ => Err(ParseFehler::ParseFehler(format!("Unknown variant: {string}"))),
+                _ => Err(ParseError::ParseError(format!("Unknown variant: {string}"))),
             }
         } else {
-            Err(ParseFehler::InvaliderString(OsString::from(arg)))
+            Err(ParseError::InvalidString(OsString::from(arg)))
         }
     }
 }

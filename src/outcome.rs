@@ -496,19 +496,19 @@ impl<'t, E> From<KommentierterParseFehler<'t, E>> for AnnotatedParseError<'t, E>
         }
     }
 }
-impl<E> From<ParseError<E>> for ParseFehler<E> {
+impl<E: Into<F>, F> From<ParseError<E>> for ParseFehler<F> {
     fn from(value: ParseError<E>) -> Self {
         match value {
             ParseError::InvalidString(value) => Self::InvaliderString(value),
-            ParseError::ParseError(value) => Self::ParseFehler(value),
+            ParseError::ParseError(value) => Self::ParseFehler(value.into()),
         }
     }
 }
-impl<E> From<ParseFehler<E>> for ParseError<E> {
-    fn from(value: ParseFehler<E>) -> Self {
+impl<E, F: Into<E>> From<ParseFehler<F>> for ParseError<E> {
+    fn from(value: ParseFehler<F>) -> Self {
         match value {
             ParseFehler::InvaliderString(value) => Self::InvalidString(value),
-            ParseFehler::ParseFehler(value) => Self::ParseError(value),
+            ParseFehler::ParseFehler(value) => Self::ParseError(value.into()),
         }
     }
 }
