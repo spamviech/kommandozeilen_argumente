@@ -716,7 +716,7 @@ Depends on: **Phase 1.14**.
 
 **Tasks**:
 
-- [-] Update `tests/derive.rs` and `tests/hilfe.rs` call sites to the new English-primary names
+- [x] Update `tests/derive.rs` and `tests/hilfe.rs` call sites to the new English-primary names
   (or their still-valid, newly-field-renamed German mirror equivalents, whichever the specific
   test line is exercising). Replace `tests/hilfe.rs`'s stale `.parse_rekursiv(...)` call (a
   method that doesn't exist anywhere in the current codebase) with the current equivalent
@@ -726,16 +726,16 @@ Depends on: **Phase 1.14**.
 
 **Automated Verification**:
 
-- [ ] `cargo build --workspace --all-features` succeeds
-- [ ] `cargo test --workspace --all-features` **compiles** (no `E0599`/`E0277`-style errors); the
+- [x] `cargo build --workspace --all-features` succeeds
+- [x] `cargo test --workspace --all-features` **compiles** (no `E0599`/`E0277`-style errors); the
   existing `tests/derive.rs` and `tests/hilfe.rs` test bodies pass to the extent they don't
   depend on unimplemented parsing behavior (i.e. `todo!()` panics from stages not yet
   implemented in Phases 2-7 are an expected, acceptable failure at this point — recorded as a
   known list of still-panicking tests, not silently ignored)
-- [ ] `cargo clippy --workspace --all-features` passes with no **errors** (warnings are
+- [x] `cargo clippy --workspace --all-features` passes with no **errors** (warnings are
   permitted at this stage; the `-D warnings`-clean bar is Phase 8's responsibility)
-- [ ] `grep -rln 'kommandozeilen_argumente\b' kommandozeilen_argumente_derive/src/` — manually confirm (see Phase 8 for the exhaustive sweep) that none of the matches still call the pre-rename `Parse::kommandozeilen_argumente()`/`Sprache::`/`Vergleich {`/`Normalisiert::` spellings; this is a spot-check, not a pass/fail gate — Phase 8 owns the authoritative zero-leftover check
-- [ ] `grep -rn --exclude=src/arguments.rs 'Argumente::einzel_argument\|EinzelArgument::flag\|Beschreibung::neu\b' src/ tests/ kommandozeilen_argumente_derive/src/` returns no results (these are legitimate only inside `src/arguments.rs`'s `Argumente` mirror-wrapper methods, expected to be zero everywhere else)
+- [x] `grep -rln 'kommandozeilen_argumente\b' kommandozeilen_argumente_derive/src/` — manually confirm (see Phase 8 for the exhaustive sweep) that none of the matches still call the pre-rename `Parse::kommandozeilen_argumente()`/`Sprache::`/`Vergleich {`/`Normalisiert::` spellings; this is a spot-check, not a pass/fail gate — Phase 8 owns the authoritative zero-leftover check
+- [x] `grep -rn --exclude=src/arguments.rs 'Argumente::einzel_argument\|EinzelArgument::flag\|Beschreibung::neu\b' src/ tests/ kommandozeilen_argumente_derive/src/` returns no results (these are legitimate only inside `src/arguments.rs`'s `Argumente` mirror-wrapper methods, expected to be zero everywhere else)
 
 ---
 
