@@ -257,6 +257,23 @@ impl Name<'_> {
         self.parse_flag_aux(|| true, parse_invertiert, arg)
     }
 
+    /// Parses a standalone short name as a flag.
+    ///
+    /// Returns [`Some`] when a short name was found and [`None`] otherwise.
+    #[inline]
+    pub(crate) fn parse_short_flag(
+        &self,
+        invert_prefix: &Compare<'_>,
+        invert_infix: &Compare<'_>,
+        arg: &OsStr,
+    ) -> Option<(Box<str>, bool)> {
+        let string = arg.to_str()?;
+        let normalized = Normalized::new(string);
+        let (_, suffix) = self.short_prefix.strip_as_prefix_n(&normalized)?;
+        let name = self.short.iter().find(|name| (**name).eq(suffix.as_str()))?.as_str().into();
+        self.parse_flag(invert_prefix, invert_infix, arg).map(|value| (name, value))
+    }
+
     /// Parses the name as a flag.
     ///
     /// Returns [`Some`] when a name was found and [`None`] otherwise.
@@ -275,6 +292,16 @@ impl Name<'_> {
     #[allow(clippy::option_option)]
     pub(crate) fn parse_early_exit(&self, arg: &OsStr) -> bool {
         self.parse_flag_aux(|| (), |_, _| None, arg).is_some()
+    }
+
+    /// Parses a standalone short name as a flag that causes an early exit.
+    #[inline]
+    pub(crate) fn parse_short_early_exit(&self, arg: &OsStr) -> Option<Box<str>> {
+        let string = arg.to_str()?;
+        let normalized = Normalized::new(string);
+        let (_, suffix) = self.short_prefix.strip_as_prefix_n(&normalized)?;
+        let name = self.short.iter().find(|name| (**name).eq(suffix.as_str()))?.as_str().into();
+        self.parse_early_exit(arg).then_some(name)
     }
 
     /// Parses the name as a flag that causes an early exit.
@@ -364,6 +391,21 @@ impl Name<'_> {
             }
         }
         None
+    }
+
+    /// Parses a standalone short name as a value.
+    #[allow(clippy::option_option)]
+    pub(crate) fn parse_short_with_value<'t>(
+        &self,
+        value_infix: &Compare<'_>,
+        arg: &'t OsStr,
+    ) -> Option<(Box<str>, Option<Cow<'t, OsStr>>)> {
+        let string = arg.to_str()?;
+        let normalized = Normalized::new(string);
+        let (_, suffix) = self.short_prefix.strip_as_prefix_n(&normalized)?;
+        let short_name = suffix.as_str().graphemes(true).next()?;
+        let name = self.short.iter().find(|name| (**name).eq(short_name))?.as_str().into();
+        self.parse_with_value(value_infix, arg).map(|value| (name, value))
     }
 
     /// Parses the name as a value.

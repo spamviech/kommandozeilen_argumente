@@ -169,9 +169,57 @@ mod tests {
         assert!(result.flags.is_empty());
         assert_eq!(result.remaining.len(), 1);
     }
+
+    #[test]
+    fn parses_a_standalone_short_flag() {
+        let flag = Flag::new(Description::new("--", "flag", "-", "f", None, Some(false)));
+        let result =
+            flag.parse_short_form::<()>([OsString::from("-f"), OsString::from("-ff")].into_iter());
+
+        assert_eq!(result.flags.len(), 1);
+        assert_eq!(result.flags[0].name, "f");
+        assert_eq!(result.remaining.len(), 1);
+    }
+}
+
+fn parse_short_flag_forms<'definition, 'argument, T, F>(
+    description: &Description<'argument, T>,
+    invert_prefix: &Compare<'argument>,
+    invert_infix: &Compare<'argument>,
+    args: impl Iterator<Item = OsString>,
+) -> ParseMergedShortFormsResult<'definition, 'argument, T, F> {
+    let mut flags = Vec::new();
+    let remaining = args
+        .filter_map(|argument| {
+            let input = Cow::Owned(argument.to_string_lossy().into_owned());
+            description.name.parse_short_flag(invert_prefix, invert_infix, &argument).map_or_else(
+                || Some(ArgumentInput::Unchanged(argument)),
+                |(name, _value)| {
+                    flags.push(ParsedShortFlag { name: Cow::Owned(name.into()), input });
+                    None
+                },
+            )
+        })
+        .collect();
+    ParseMergedShortFormsResult {
+        definition: None,
+        early_exits: Vec::new(),
+        flags,
+        values: Default::default(),
+        remaining,
+    }
 }
 
 impl<'t, T> Flag<'t, T> {
+    /// Parses standalone short-form arguments.
+    #[inline]
+    pub fn parse_short_form<'definition, F>(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'definition, 't, T, F> {
+        parse_short_flag_forms(&self.description, &self.invert_prefix, &self.invert_infix, args)
+    }
+
     /// Parses merged short-form arguments.
     ///
     /// Rules to allow merging of short names:

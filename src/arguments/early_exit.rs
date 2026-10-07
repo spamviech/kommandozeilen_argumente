@@ -74,12 +74,7 @@ impl<'t> FrühesBeenden<'t> {
     /// Erzeugt Syntax und Hilfetext für dieses Argument.
     #[inline]
     pub fn erzeuge_hilfe_text(&self) -> Hilfe {
-        create_help_text(
-            &self.beschreibung.name,
-            self.beschreibung.hilfe,
-            self.beschreibung.standard,
-        )
-        .into()
+        EarlyExit::from(self.clone()).create_help_text().into()
     }
 }
 
@@ -101,6 +96,38 @@ fn create_help_text(name: &Name<'_>, help: Option<&str>, default: Option<Void>) 
 }
 
 impl<'t> EarlyExit<'t> {
+    /// Parses standalone short-form arguments.
+    #[inline]
+    pub fn parse_short_form<'definition, T, F>(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'definition, 't, T, F> {
+        let Self { description, message } = self;
+        let mut early_exits = Vec::new();
+        let remaining = args
+            .filter_map(|argument| {
+                let input = Cow::Owned(argument.to_string_lossy().into_owned());
+                if let Some(name) = description.name.parse_short_early_exit(&argument) {
+                    early_exits.push(ParsedEarlyExit {
+                        name: Cow::Owned(name.into()),
+                        message: message.clone(),
+                        input,
+                    });
+                    None
+                } else {
+                    Some(ArgumentInput::Unchanged(argument))
+                }
+            })
+            .collect();
+        ParseMergedShortFormsResult {
+            definition: None,
+            early_exits,
+            flags: Vec::new(),
+            values: Default::default(),
+            remaining,
+        }
+    }
+
     /// Parses merged short-form arguments.
     #[inline]
     pub fn parse_merged_short_forms<'definition, T, F>(
@@ -159,42 +186,37 @@ mod tests {
         assert_eq!(result.early_exits[0].message, "help message");
         assert!(result.remaining.is_empty());
     }
+
+    #[test]
+    fn parses_a_standalone_short_early_exit() {
+        let early_exit = EarlyExit::new(
+            Description::new("--", "help", "-", "h", None, None::<Void>),
+            "help message",
+        );
+        let result = early_exit.parse_short_form::<(), ()>([OsString::from("-h")].into_iter());
+
+        assert_eq!(result.early_exits.len(), 1);
+        assert_eq!(result.early_exits[0].name, "h");
+        assert!(result.remaining.is_empty());
+    }
 }
 
 impl<'t> FrühesBeenden<'t> {
+    /// Parst eigenständige kurze Argumentformen.
+    #[inline]
+    pub fn parse_short_form<'definition, T, F>(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'definition, 't, T, F> {
+        EarlyExit::from(self.clone()).parse_short_form(args)
+    }
+
     /// Parst zusammengefasste kurze Argumentformen.
     #[inline]
     pub fn parse_merged_short_forms<'definition, T, F>(
         &self,
         args: impl Iterator<Item = OsString>,
     ) -> ParseMergedShortFormsResult<'definition, 't, T, F> {
-        let Self { beschreibung, nachricht } = self;
-        let mut early_exits = Vec::new();
-        let remaining = args
-            .map(|argument| {
-                let input = Cow::Owned(argument.to_string_lossy().into_owned());
-                let argument = ArgumentInput::Unchanged(argument);
-                if let Some(parsed) =
-                    beschreibung.name.parse_early_exit_merge_short_forms(&argument)
-                {
-                    early_exits.push(ParsedEarlyExit {
-                        name: Cow::Owned(parsed.name.into()),
-                        message: nachricht.clone(),
-                        input,
-                    });
-                    parsed.remaining
-                } else {
-                    Some(argument)
-                }
-            })
-            .flatten()
-            .collect();
-        ParseMergedShortFormsResult {
-            definition: None,
-            early_exits,
-            flags: Vec::new(),
-            values: Default::default(),
-            remaining,
-        }
+        EarlyExit::from(self.clone()).parse_merged_short_forms(args)
     }
 }

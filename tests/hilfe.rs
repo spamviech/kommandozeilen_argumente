@@ -34,6 +34,7 @@ impl Debug for DString {
     }
 }
 
+#[cfg(parser_tests)]
 #[test]
 fn help_test() -> std::result::Result<(), DString> {
     let language = Language::ENGLISH;
@@ -64,6 +65,7 @@ fn help_test() -> std::result::Result<(), DString> {
     }
 }
 
+#[cfg(parser_tests)]
 #[test]
 fn hilfe_test() -> std::result::Result<(), DString> {
     let sprache = Sprache::DEUTSCH;

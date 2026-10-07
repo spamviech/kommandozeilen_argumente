@@ -309,6 +309,40 @@ where
     }
 }
 
+fn parse_short_value_forms<'definition, 'argument, T, E>(
+    name: &Name<'argument>,
+    value_infix: &Compare<'argument>,
+    args: impl Iterator<Item = OsString>,
+) -> ParseMergedShortFormsResult<'definition, 'argument, T, E> {
+    let mut values = HashMap::new();
+    let mut args = args.peekable();
+    let mut remaining = Vec::new();
+    while let Some(argument) = args.next() {
+        let input = Cow::Owned(argument.to_string_lossy().into_owned());
+        if let Some((name, inline_value)) = name.parse_short_with_value(value_infix, &argument) {
+            if let Some(value) =
+                inline_value.map(|value| Cow::Owned(value.to_string_lossy().into_owned())).or_else(
+                    || args.next().map(|value| Cow::Owned(value.to_string_lossy().into_owned())),
+                )
+            {
+                let _ = values.insert(
+                    ParsedValueName { name: Cow::Owned(name.into()) },
+                    ParsedValue { value, input },
+                );
+            }
+        } else {
+            remaining.push(ArgumentInput::Unchanged(argument));
+        }
+    }
+    ParseMergedShortFormsResult {
+        definition: None,
+        early_exits: Vec::new(),
+        flags: Vec::new(),
+        values,
+        remaining,
+    }
+}
+
 fn parse_value_merged_short_forms<'definition, 'argument, T, E>(
     name: &Name<'argument>,
     value_infix: &Compare<'argument>,
@@ -322,7 +356,7 @@ fn parse_value_merged_short_forms<'definition, 'argument, T, E>(
         let argument = ArgumentInput::Unchanged(argument);
         if let Some(parsed) = name.parse_with_value_merge_short_forms(value_infix, &argument) {
             let value = parsed.inline_value.map_or_else(
-                || args.next().map(|value| Cow::Owned(value.to_string_lossy().into_owned())),
+                || args.next().map(|value| Cow::Owned(value.to_string_lossy().into_owned().into())),
                 |value| Some(Cow::Owned(value.into())),
             );
             if let Some(value) = value {
@@ -429,6 +463,15 @@ impl<'t, T, E> Value<'t, T, E> {
         )
     }
 
+    /// Parses standalone short-form arguments.
+    #[inline]
+    pub fn parse_short_form(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'_, 't, T, E> {
+        parse_short_value_forms(&self.description.name, &self.value_infix, args)
+    }
+
     /// Parses merged short-form arguments.
     #[inline]
     pub fn parse_merged_short_forms(
@@ -457,6 +500,25 @@ mod tests {
     }
 
     #[test]
+    fn parses_standalone_short_values() {
+        let value =
+            Value::<String, _>::new(Description::new("--", "output", "-", "o", None, None), None);
+        for input in ["-ovalue", "-o=value"] {
+            let result = value.parse_short_form([OsString::from(input)].into_iter());
+            assert_eq!(result.values.len(), 1);
+            assert_eq!(result.values.values().next().unwrap().value, "value");
+            assert!(result.remaining.is_empty());
+        }
+        let result =
+            value.parse_short_form([OsString::from("-o"), OsString::from("value")].into_iter());
+        assert_eq!(result.values.values().next().unwrap().value, "value");
+
+        let result = value.parse_short_form([OsString::from("--output")].into_iter());
+        assert!(result.values.is_empty());
+        assert_eq!(result.remaining.len(), 1);
+    }
+
+    #[test]
     fn consumes_the_next_argument_for_a_merged_short_value() {
         let value =
             Value::<String, _>::new(Description::new("--", "output", "-", "o", None, None), None);
@@ -470,6 +532,16 @@ mod tests {
 }
 
 impl<'t, T, E> Wert<'t, T, E> {
+    /// Parst eigenständige kurze Argumentformen.
+    #[inline]
+    pub fn parse_short_form(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'_, 't, T, E> {
+        let value_infix = self.wert_infix.clone().into();
+        parse_short_value_forms(&self.beschreibung.name, &value_infix, args)
+    }
+
     /// Parst zusammengefasste kurze Argumentformen.
     #[inline]
     pub fn parse_merged_short_forms(

@@ -282,6 +282,24 @@ impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
         }
     }
 
+    fn parse_short_form(
+        self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'a, 't, T, Error> {
+        match self {
+            Self::English(SingleArgument::Flag(flag))
+            | Self::German(EinzelArgument::Flag(flag)) => flag.parse_short_form::<Error>(args),
+            Self::English(SingleArgument::EarlyExit { early_exit, .. }) => {
+                early_exit.parse_short_form::<T, Error>(args)
+            },
+            Self::German(EinzelArgument::FrühesBeenden { frühes_beenden, .. }) => {
+                frühes_beenden.parse_short_form::<T, Error>(args)
+            },
+            Self::English(SingleArgument::Value(value)) => value.parse_short_form(args),
+            Self::German(EinzelArgument::Wert(wert)) => wert.parse_short_form(args),
+        }
+    }
+
     fn parse_merged_short_forms(
         self,
         args: impl Iterator<Item = OsString>,
@@ -316,6 +334,15 @@ impl<'t, T, Error> SingleArgument<'t, T, Error> {
         SingleArgumentRef::English(self).as_string_value()
     }
 
+    /// Parses standalone short-form arguments.
+    #[inline]
+    pub fn parse_short_form(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'_, 't, T, Error> {
+        SingleArgumentRef::English(self).parse_short_form(args)
+    }
+
     /// Parses merged short-form arguments.
     #[inline]
     pub fn parse_merged_short_forms(
@@ -337,6 +364,15 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
     #[inline]
     pub fn als_string_wert(&self) -> EinzelArgument<'_, String, String> {
         SingleArgumentRef::German(self).as_string_value().into()
+    }
+
+    /// Parst eigenständige kurze Argumentformen.
+    #[inline]
+    pub fn parse_short_form(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseMergedShortFormsResult<'_, 't, T, Fehler> {
+        SingleArgumentRef::German(self).parse_short_form(args)
     }
 
     /// Parst zusammengefasste kurze Argumentformen.

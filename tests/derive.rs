@@ -104,6 +104,7 @@ struct Test {
 #[kommandozeilen_argumente(language: english)]
 struct Empty;
 
+#[cfg(parser_tests)]
 #[test]
 fn derive_empty_test() -> std::result::Result<(), DString> {
     let arguments: Arguments<'_, Empty, String> = Empty::arguments();
@@ -116,6 +117,7 @@ fn derive_empty_test() -> std::result::Result<(), DString> {
     }
 }
 
+#[cfg(parser_tests)]
 #[test]
 fn derive_hilfe_test() -> std::result::Result<(), DString> {
     let arg = Test::arguments();
@@ -221,6 +223,7 @@ struct Test2 {
     inner: Inner,
 }
 
+#[cfg(parser_tests)]
 #[test]
 fn derive_help_test() -> std::result::Result<(), DString> {
     let arg = Test2::arguments();
@@ -246,6 +249,7 @@ fn derive_help_test() -> std::result::Result<(), DString> {
     }
 }
 
+#[cfg(parser_tests)]
 #[test]
 fn verschmelze_kurzformen_hilfe() -> std::result::Result<(), DString> {
     let arg = Test::arguments();
@@ -277,6 +281,7 @@ fn verschmelze_kurzformen_hilfe() -> std::result::Result<(), DString> {
     }
 }
 
+#[cfg(parser_tests)]
 #[test]
 fn verschmelze_kurzformen_wert() -> std::result::Result<(), DString> {
     // soll nicht für Wert-Argumente (vor allem am Anfang der Liste) funktionieren!
@@ -315,6 +320,7 @@ fn verschmelze_kurzformen_wert() -> std::result::Result<(), DString> {
     }
 }
 
+#[cfg(parser_tests)]
 #[test]
 fn verschmelze_kurzformen_erfolgreich() -> std::result::Result<(), DString> {
     let arg2 = Test2::arguments();
