@@ -10,7 +10,7 @@ use paste::paste;
 
 use crate::{
     arguments::{
-        Arguments, ParseMergedShortFormsResult,
+        Arguments, ParseResult,
         argumente::Argumente,
         help::{self, CreateHelpText},
     },
@@ -87,7 +87,7 @@ pub trait Combine<'t, T, Fehler> {
     fn parse_merged_short_forms(
         &self,
         args: Box<dyn Iterator<Item = OsString> + '_>,
-    ) -> NonEmpty<ParseMergedShortFormsResult<'_, 't, T, Fehler>>
+    ) -> NonEmpty<ParseResult<'_, 't, T, Fehler>>
     where
         T: Clone,
         Fehler: Clone,

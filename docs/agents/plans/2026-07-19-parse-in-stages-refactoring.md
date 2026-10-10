@@ -178,8 +178,8 @@ High-level file tree (post-rename layout):
   - `arguments.rs` (was `argumente.rs`) — `Arguments<'t,T,Error>` (primary: `Single`/`Combined`/
     `Alternatives`), `Argumente<'t,T,Fehler>` (mirror: `EinzelArgument`/`Kombiniere`/
     `Alternativen`), bidirectional `From`, all `parse_*`/`with_*`/`convert_error` method pairs,
-    `ParsedEarlyExit`/`ParsedShortFlag`/`ParsedValueName`/`ParsedValue`/
-    `ParseMergedShortFormsResult` (English-only, newly documented, no German mirror needed since
+    `ParsedEarlyExit`/`ParsedFlag`/`ParsedValueName`/`ParsedValue`/
+    `ParseResult` (English-only, newly documented, no German mirror needed since
     these are internal pipeline-plumbing structs not part of the constructor-facing API — see
     Phase 2 task list for the explicit decision)
   - `arguments/`
@@ -549,8 +549,8 @@ Depends on: **Phase 1.9, 1.10**.
   `alternatives_boxed`) onto `Arguments`.
 - [x] Convert `Argumente`'s mirrored constructors (`einzel_argument`, `kombiniere`,
   `alternativen`, and `alternativen_boxed`) into one-line `Arguments` conversion wrappers.
-- [x] Keep `ParsedEarlyExit`, `ParsedShortFlag`, `ParsedValueName`, `ParsedValue`, and
-  `ParseMergedShortFormsResult` English-only; update `ParseMergedShortFormsResult::definition`
+- [x] Keep `ParsedEarlyExit`, `ParsedFlag`, `ParsedValueName`, `ParsedValue`, and
+  `ParseResult` English-only; update `ParseResult::definition`
   to refer to `Arguments`.
 - [x] Move the full `parse_*`/`with_*`/`convert_error` method-pair family onto `Arguments` and
   replace the `Argumente` methods with conversion wrappers:
@@ -749,8 +749,8 @@ yet implementing any single argument's actual matching logic.
 
 **Tasks**:
 
-- [x] Document and finalize the fields of `ParsedEarlyExit`, `ParsedShortFlag`, `ParsedValueName`,
-  `ParsedValue`, `ParseMergedShortFormsResult` in `src/arguments.rs` (replace `/// TODO` with
+- [x] Document and finalize the fields of `ParsedEarlyExit`, `ParsedFlag`, `ParsedValueName`,
+  `ParsedValue`, `ParseResult` in `src/arguments.rs` (replace `/// TODO` with
   real doc comments), matching `docs/parsing.md`'s stage-1 output description (definition
   reference, collected early-exits, collected flags, value-name → raw-value map, remaining
   not-yet-consumed input).
@@ -785,7 +785,7 @@ matching in `description.rs`.
 
 - [x] Implement `Flag::parse_merged_short_forms` (`src/arguments/flag.rs`) using
   `self.description.name.parse_flag_merge_short_forms`/`parse_flag`, producing a
-  `ParseMergedShortFormsResult` with a single matched flag or none, per `docs/parsing.md`'s rules
+  `ParseResult` with a single matched flag or none, per `docs/parsing.md`'s rules
   (single-grapheme short names only, must share short prefix).
 - [x] Implement `EarlyExit::parse_merged_short_forms` (`src/arguments/early_exit.rs`) similarly,
   using `parse_early_exit_merge_short_forms`.
@@ -837,19 +837,19 @@ Depends on: **Phase 4**.
 
 **Tasks**:
 
-- [-] Implement long-name matching for `Flag`, `EarlyExit`, `Value` (new methods, e.g.
+- [x] Implement long-name matching for `Flag`, `EarlyExit`, `Value` (new methods, e.g.
   `parse_long_form`, using `Name::parse_flag`/`parse_with_value` against the long-name prefix,
   including the invert-prefix/invert-infix flag-negation path and the value-infix
   `--name=value` path).
-- [ ] Wire `SingleArgument::parse_long_form` dispatcher.
+- [x] Wire `SingleArgument::parse_long_form` dispatcher.
 
 **Automated Verification**:
 
-- [ ] New unit tests covering long flag, inverted long flag (`--no-flag`), long flag with
+- [x] New unit tests covering long flag, inverted long flag (`--no-flag`), long flag with
   next-arg value, `--name=value`, `--name value`, non-match — all pass
-- [ ] `cargo test --workspace --all-features` passes; parser-dependent integration tests remain
+- [x] `cargo test --workspace --all-features` passes; parser-dependent integration tests remain
   hidden by the temporary `#[cfg(parser_tests)]` predicate until Phase 7.
-- [ ] `RUSTFLAGS='--cfg parser_tests' cargo test --workspace --all-features --no-run` succeeds,
+- [x] `RUSTFLAGS='--cfg parser_tests' cargo test --workspace --all-features --no-run` succeeds,
   verifying that the temporarily hidden integration tests still compile.
 
 ---
@@ -867,7 +867,7 @@ Converts the raw `OsString` values collected by stages 1-3 into typed values, pe
 - [ ] Add a value-parsing step that, given a `ParsedValue` (raw `OsString` + originating
   `Value<'t,T,Error>`'s `parse` closure), produces `Result<Box<dyn Any>, AnnotatedParseError>`,
   keyed by `TypeId::of::<T>()` for later downscasting.
-- [ ] Extend `ParseMergedShortFormsResult`/its stage-2/3 equivalents to carry the typed-value map
+- [ ] Extend `ParseResult`/its stage-2/3 equivalents to carry the typed-value map
   instead of (or alongside) the raw-string map, per `docs/parsing.md`.
 
 **Automated Verification**:

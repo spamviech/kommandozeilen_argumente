@@ -10,7 +10,7 @@ use std::{
 use nonempty::NonEmpty;
 
 use crate::{
-    arguments::{ParseMergedShortFormsResult, ParsedShortFlag, help::Help},
+    arguments::{ParseResult, ParsedFlag, help::Help},
     description::{ArgumentInput, Description, Name},
     dyn_to_owned::{Bool, Show},
     language::Language,
@@ -180,6 +180,20 @@ mod tests {
         assert_eq!(result.flags[0].name, "f");
         assert_eq!(result.remaining.len(), 1);
     }
+
+    #[test]
+    fn parses_long_flags_and_inversion() {
+        let flag = Flag::new(Description::new("--", "flag", "-", "f", None, Some(false)));
+        let result = flag.parse_long_form::<()>(
+            [OsString::from("--flag"), OsString::from("--no-flag"), OsString::from("-f")]
+                .into_iter(),
+        );
+
+        assert_eq!(result.flags.len(), 2);
+        assert!(result.flags[0].value);
+        assert!(!result.flags[1].value);
+        assert_eq!(result.remaining.len(), 1);
+    }
 }
 
 fn parse_short_flag_forms<'definition, 'argument, T, F>(
@@ -187,21 +201,21 @@ fn parse_short_flag_forms<'definition, 'argument, T, F>(
     invert_prefix: &Compare<'argument>,
     invert_infix: &Compare<'argument>,
     args: impl Iterator<Item = OsString>,
-) -> ParseMergedShortFormsResult<'definition, 'argument, T, F> {
+) -> ParseResult<'definition, 'argument, T, F> {
     let mut flags = Vec::new();
     let remaining = args
         .filter_map(|argument| {
             let input = Cow::Owned(argument.to_string_lossy().into_owned());
             description.name.parse_short_flag(invert_prefix, invert_infix, &argument).map_or_else(
                 || Some(ArgumentInput::Unchanged(argument)),
-                |(name, _value)| {
-                    flags.push(ParsedShortFlag { name: Cow::Owned(name.into()), input });
+                |(name, value)| {
+                    flags.push(ParsedFlag { name: Cow::Owned(name.into()), value, input });
                     None
                 },
             )
         })
         .collect();
-    ParseMergedShortFormsResult {
+    ParseResult {
         definition: None,
         early_exits: Vec::new(),
         flags,
@@ -216,8 +230,43 @@ impl<'t, T> Flag<'t, T> {
     pub fn parse_short_form<'definition, F>(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'definition, 't, T, F> {
+    ) -> ParseResult<'definition, 't, T, F> {
         parse_short_flag_forms(&self.description, &self.invert_prefix, &self.invert_infix, args)
+    }
+
+    /// Parses long-form arguments.
+    #[inline]
+    pub fn parse_long_form<'definition, F>(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParseResult<'definition, 't, T, F> {
+        let mut flags = Vec::new();
+        let remaining = args
+            .filter_map(|argument| {
+                let input = Cow::Owned(argument.to_string_lossy().into_owned());
+                self.description
+                    .name
+                    .parse_long_flag(&self.invert_prefix, &self.invert_infix, &argument)
+                    .map_or_else(
+                        || Some(ArgumentInput::Unchanged(argument)),
+                        |(name, value)| {
+                            flags.push(ParsedFlag {
+                                name: Cow::Owned(name.into()),
+                                value,
+                                input,
+                            });
+                            None
+                        },
+                    )
+            })
+            .collect();
+        ParseResult {
+            definition: None,
+            early_exits: Vec::new(),
+            flags,
+            values: Default::default(),
+            remaining,
+        }
     }
 
     /// Parses merged short-form arguments.
@@ -232,7 +281,7 @@ impl<'t, T> Flag<'t, T> {
     pub fn parse_merged_short_forms<'definition, F>(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseMergedShortFormsResult<'definition, 't, T, F> {
+    ) -> ParseResult<'definition, 't, T, F> {
         let Self { description, invert_prefix: _, invert_infix: _, convert: _, display: _ } = self;
         let mut flags = Vec::new();
         let remaining = args
@@ -240,7 +289,11 @@ impl<'t, T> Flag<'t, T> {
                 let input = Cow::Owned(argument.to_string_lossy().into_owned());
                 let argument = ArgumentInput::Unchanged(argument);
                 if let Some(parsed) = description.name.parse_flag_merge_short_forms(&argument) {
-                    flags.push(ParsedShortFlag { name: Cow::Owned(parsed.name.into()), input });
+                    flags.push(ParsedFlag {
+                        name: Cow::Owned(parsed.name.into()),
+                        value: parsed.value,
+                        input,
+                    });
                     parsed.remaining
                 } else {
                     Some(argument)
@@ -248,7 +301,7 @@ impl<'t, T> Flag<'t, T> {
             })
             .flatten()
             .collect();
-        ParseMergedShortFormsResult {
+        ParseResult {
             definition: None,
             early_exits: Vec::new(),
             flags,

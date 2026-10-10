@@ -11,7 +11,7 @@ use itertools::Itertools as _;
 use nonempty::{NonEmpty, nonempty};
 use void::Void;
 
-pub use crate::arguments::ParseMergedShortFormsResult;
+pub use crate::arguments::ParseResult;
 /// Compatibility re-exports for established German module paths.
 pub use crate::arguments::{combine, early_exit, flag, help, single_argument, value};
 use crate::{
@@ -286,7 +286,7 @@ where
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> NonEmpty<ParseMergedShortFormsResult<'_, 't, T, F>> {
+    ) -> NonEmpty<ParseResult<'_, 't, T, F>> {
         use Argumente::{Alternativen, EinzelArgument, Kombiniere};
         match self {
             EinzelArgument(einzelargument) => {

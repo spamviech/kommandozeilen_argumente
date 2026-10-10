@@ -142,16 +142,18 @@ pub struct ParsedEarlyExit<'s> {
 
 /// A short flag recognized while parsing an input argument.
 #[derive(Debug, Clone)]
-pub struct ParsedShortFlag<'s> {
-    /// The matched argument name, without its short-form prefix.
+pub struct ParsedFlag<'s> {
+    /// The matched argument name, without its prefix.
     pub name: Cow<'s, str>,
+    /// The boolean value parsed from the flag, including long-form inversion.
+    pub value: bool,
     /// The original input argument that contained the matched name.
     pub input: Cow<'s, str>,
 }
 
 /// The name of a value argument recognized during parsing.
 ///
-/// This is the key for [`ParseMergedShortFormsResult::values`].
+/// This is the key for [`ParseResult::values`].
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ParsedValueName<'s> {
     /// The matched argument name, without its prefix.
@@ -167,13 +169,13 @@ pub struct ParsedValue<'s> {
     pub input: Cow<'s, str>,
 }
 
-/// The stage-one result of parsing merged short-form argument names.
+/// Intermediate result shared by each argument-name parsing stage.
 ///
 /// Each result represents one selected [`Arguments`] definition. Later parsing stages merge
 /// their recognized arguments into these collections and consume additional entries from
 /// [`Self::remaining`].
 #[derive(Debug, Clone)]
-pub struct ParseMergedShortFormsResult<'definition, 'argument, T, F> {
+pub struct ParseResult<'definition, 'argument, T, F> {
     /// Argument definition that produced this result.
     ///
     /// Leaf argument parsers leave this as [`None`]; [`Arguments::parse_merged_short_forms`]
@@ -182,7 +184,7 @@ pub struct ParseMergedShortFormsResult<'definition, 'argument, T, F> {
     /// A vector of early\_exit arguments, containing name, message & original input.
     pub early_exits: Vec<ParsedEarlyExit<'definition>>,
     /// A vector of flag-arguments with their name (all are true) & the original input.
-    pub flags: Vec<ParsedShortFlag<'definition>>,
+    pub flags: Vec<ParsedFlag<'definition>>,
     /// A map of value-arguments with name -> (value-string, original input).
     pub values: HashMap<ParsedValueName<'definition>, ParsedValue<'definition>>,
     /// Remaining arguments with the parsed merged short names and associated value-strings
@@ -200,7 +202,7 @@ where
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> NonEmpty<ParseMergedShortFormsResult<'_, 't, T, F>> {
+    ) -> NonEmpty<ParseResult<'_, 't, T, F>> {
         match self {
             Self::Single(argument) => {
                 let mut result = argument.parse_merged_short_forms(args);
