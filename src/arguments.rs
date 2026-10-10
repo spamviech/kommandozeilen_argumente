@@ -2,7 +2,7 @@
 
 use std::{
     borrow::Cow,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     env,
     ffi::{OsStr, OsString},
     fmt::{self, Debug, Display},
@@ -153,7 +153,7 @@ pub struct ParsedFlag<'s> {
 
 /// The name of a value argument recognized during parsing.
 ///
-/// This is the key for [`ParseResult::values`].
+/// This is the key for the parsed-stage `values` maps.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ParsedValueName<'s> {
     /// The matched argument name, without its prefix.
@@ -169,55 +169,177 @@ pub struct ParsedRawValue<'s> {
     pub input: Cow<'s, str>,
 }
 
-/// Intermediate result shared by each argument-name parsing stage.
-///
-/// Each result represents one selected [`Arguments`] definition. Later parsing stages merge
-/// their recognized arguments into these collections and consume additional entries from
-/// [`Self::remaining`].
+/// Output of stage 1, merged short-name recognition.
 #[derive(Debug, Clone)]
-pub struct ParseResult<'definition, 'argument, T, F> {
-    /// Argument definition that produced this result.
-    ///
-    /// Leaf argument parsers leave this as [`None`]; [`Arguments::parse_merged_short_forms`]
-    /// attaches the enclosing definition before exposing the result.
-    pub definition: Option<&'definition Arguments<'argument, T, F>>,
-    /// A vector of early\_exit arguments, containing name, message & original input.
-    pub early_exits: Vec<ParsedEarlyExit<'definition>>,
-    /// A vector of flag-arguments with their name (all are true) & the original input.
-    pub flags: Vec<ParsedFlag<'definition>>,
-    /// A map of value-arguments with name -> (value-string, original input).
+pub struct ParsedMergedShortForms<'argument> {
+    /// Early-exit arguments recognized in this stage.
+    pub early_exits: Vec<ParsedEarlyExit<'argument>>,
+    /// Flags recognized in this stage.
+    pub flags: Vec<ParsedFlag<'argument>>,
+    /// Value names recognized without an eligible raw value.
+    pub missing_values: HashSet<ParsedValueName<'argument>>,
+    /// Raw values recognized in this stage, keyed by their value name.
     pub values: HashMap<ParsedValueName<'argument>, ParsedRawValue<'argument>>,
-    /// Remaining arguments with the parsed merged short names and associated value-strings
-    /// removed.
+    /// Input not consumed by this stage.
     pub remaining: Vec<ArgumentInput>,
 }
 
-impl<'t, T, F> Arguments<'t, T, F>
-where
-    T: Clone,
-    F: Clone,
-{
+/// Output of stage 2, standalone short-name recognition.
+#[derive(Debug, Clone)]
+pub struct ParsedShortForms<'argument> {
+    /// Early-exit arguments recognized in this stage.
+    pub early_exits: Vec<ParsedEarlyExit<'argument>>,
+    /// Flags recognized in this stage.
+    pub flags: Vec<ParsedFlag<'argument>>,
+    /// Value names recognized without an eligible raw value.
+    pub missing_values: HashSet<ParsedValueName<'argument>>,
+    /// Raw values recognized in this stage, keyed by their value name.
+    pub values: HashMap<ParsedValueName<'argument>, ParsedRawValue<'argument>>,
+    /// Input not consumed by this stage.
+    pub remaining: Vec<ArgumentInput>,
+}
+
+/// Output of stage 3, long-name recognition.
+#[derive(Debug, Clone)]
+pub struct ParsedLongForms<'argument> {
+    /// Early-exit arguments recognized in this stage.
+    pub early_exits: Vec<ParsedEarlyExit<'argument>>,
+    /// Flags recognized in this stage.
+    pub flags: Vec<ParsedFlag<'argument>>,
+    /// Value names recognized without an eligible raw value.
+    pub missing_values: HashSet<ParsedValueName<'argument>>,
+    /// Raw values recognized in this stage, keyed by their value name.
+    pub values: HashMap<ParsedValueName<'argument>, ParsedRawValue<'argument>>,
+    /// Input not consumed by this stage.
+    pub remaining: Vec<ArgumentInput>,
+}
+
+/// Recognition state accumulated from the three name-recognition stages.
+#[derive(Debug, Clone)]
+pub struct RecognizedArguments<'argument> {
+    /// All recognized early exits.
+    pub early_exits: Vec<ParsedEarlyExit<'argument>>,
+    /// All recognized flags.
+    pub flags: Vec<ParsedFlag<'argument>>,
+    /// Recognized value names for which no raw value was eligible.
+    pub missing_values: HashSet<ParsedValueName<'argument>>,
+    /// Recognized raw values. Repeated names retain the last value.
+    pub values: HashMap<ParsedValueName<'argument>, ParsedRawValue<'argument>>,
+    /// Input unconsumed after stage 3.
+    pub remaining: Vec<ArgumentInput>,
+}
+
+impl<'argument> ParsedMergedShortForms<'argument> {
+    pub(crate) fn empty() -> Self {
+        Self {
+            early_exits: Vec::new(), flags: Vec::new(), missing_values: HashSet::new(),
+            values: HashMap::new(), remaining: Vec::new(),
+        }
+    }
+
+    pub(crate) fn merge(mut self, mut next: Self) -> Self {
+        self.early_exits.append(&mut next.early_exits);
+        self.flags.append(&mut next.flags);
+        for name in next.missing_values { if !self.values.contains_key(&name) { let _ = self.missing_values.insert(name); } }
+        for (name, value) in next.values { let _ = self.missing_values.remove(&name); let _ = self.values.insert(name, value); }
+        self.remaining = next.remaining;
+        self
+    }
+}
+
+impl<'argument> ParsedShortForms<'argument> {
+    pub(crate) fn empty() -> Self { Self { early_exits: Vec::new(), flags: Vec::new(), missing_values: HashSet::new(), values: HashMap::new(), remaining: Vec::new() } }
+    pub(crate) fn merge(mut self, mut next: Self) -> Self {
+        self.early_exits.append(&mut next.early_exits); self.flags.append(&mut next.flags);
+        for name in next.missing_values { if !self.values.contains_key(&name) { let _ = self.missing_values.insert(name); } }
+        for (name, value) in next.values { let _ = self.missing_values.remove(&name); let _ = self.values.insert(name, value); }
+        self.remaining = next.remaining; self
+    }
+}
+
+impl<'argument> ParsedLongForms<'argument> {
+    pub(crate) fn empty() -> Self { Self { early_exits: Vec::new(), flags: Vec::new(), missing_values: HashSet::new(), values: HashMap::new(), remaining: Vec::new() } }
+    pub(crate) fn merge(mut self, mut next: Self) -> Self {
+        self.early_exits.append(&mut next.early_exits); self.flags.append(&mut next.flags);
+        for name in next.missing_values { if !self.values.contains_key(&name) { let _ = self.missing_values.insert(name); } }
+        for (name, value) in next.values { let _ = self.missing_values.remove(&name); let _ = self.values.insert(name, value); }
+        self.remaining = next.remaining; self
+    }
+}
+
+impl<'t, T, F> Arguments<'t, T, F> {
     /// Parses merged short-form arguments.
     #[inline]
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> NonEmpty<ParseResult<'_, 't, T, F>> {
+    ) -> NonEmpty<ParsedMergedShortForms<'t>> {
+        self.parse_merged_short_inputs(args.map(ArgumentInput::Unchanged))
+    }
+
+    /// Parses merged short-form arguments from staged input.
+    #[inline]
+    pub(crate) fn parse_merged_short_inputs(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> NonEmpty<ParsedMergedShortForms<'t>> {
         match self {
             Self::Single(argument) => {
-                let mut result = argument.parse_merged_short_forms(args);
-                result.definition = Some(self);
+                let args = args.collect_vec();
+                let mut result = argument.parse_merged_short_forms(args.iter().filter_map(|argument| match argument {
+                    ArgumentInput::Unchanged(argument) => Some(argument.clone()),
+                    ArgumentInput::AdjustedMergedShortNames(_) => None,
+                }));
+                result.remaining.extend(args.into_iter().filter(|argument| {
+                    matches!(argument, ArgumentInput::AdjustedMergedShortNames(_))
+                }));
                 NonEmpty::singleton(result)
             },
-            Self::Combined(combine) => combine.parse_merged_short_forms(Box::new(args)),
+            Self::Combined(combine) => combine.parse_merged_short_inputs(Box::new(args)),
             Self::Alternatives(alternatives) => {
                 let args = args.collect_vec();
                 NonEmpty::collect(
                     alternatives.iter().flat_map(|argument| {
-                        argument.parse_merged_short_forms(args.iter().cloned())
+                        argument.parse_merged_short_inputs(args.iter().cloned())
                     }),
                 )
                 .expect("Iterator of NonEmpty<NonEmpty<_>>.")
+            },
+        }
+    }
+
+    /// Parses standalone short-form arguments after merged short forms.
+    #[inline]
+    pub fn parse_short_forms(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> NonEmpty<ParsedShortForms<'t>> {
+        match self {
+            Self::Single(argument) => NonEmpty::singleton(argument.parse_short_form(args)),
+            Self::Combined(combine) => combine.parse_short_forms(Box::new(args)),
+            Self::Alternatives(alternatives) => {
+                let args = args.collect_vec();
+                NonEmpty::collect(alternatives.iter().flat_map(|argument| {
+                    argument.parse_short_forms(args.iter().cloned())
+                })).expect("Iterator of NonEmpty<NonEmpty<_>>.")
+            },
+        }
+    }
+
+    /// Parses long-form arguments after standalone short forms.
+    #[inline]
+    pub fn parse_long_forms(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> NonEmpty<ParsedLongForms<'t>> {
+        match self {
+            Self::Single(argument) => NonEmpty::singleton(argument.parse_long_form(args)),
+            Self::Combined(combine) => combine.parse_long_forms(Box::new(args)),
+            Self::Alternatives(alternatives) => {
+                let args = args.collect_vec();
+                NonEmpty::collect(alternatives.iter().flat_map(|argument| {
+                    argument.parse_long_forms(args.iter().cloned())
+                })).expect("Iterator of NonEmpty<NonEmpty<_>>.")
             },
         }
     }

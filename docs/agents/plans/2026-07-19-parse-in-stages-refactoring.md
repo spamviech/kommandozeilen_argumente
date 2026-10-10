@@ -911,21 +911,35 @@ end-to-end.
 
 **Tasks**:
 
-- [ ] Implement `Combine::parse_merged_short_forms`'s real body in `impl_combine_tuple!`
-  (`src/arguments/combine.rs`) for both the `Arguments`-tuple and `IntermediateResult`-tuple
-  impls: parse each sub-argument, accumulate errors/early-exits/incomplete-state, and only
-  invoke the user function once all sub-results are values (fresh implementation, not the
-  deleted commented-out sketch).
-- [ ] Implement `Arguments::Alternatives` selection logic: for every alternative, clone (or use
-  an immutable view plus a per-candidate consumed-name set for) the complete raw staged state and
-  run typed value parsing and result accumulation before deciding the winner. Keep the first that
-  produces `Result::Value`; conversion errors from a value parser must make that candidate fail
-  and allow the next alternative to run. If all candidates fail, combine all candidate errors.
-- [ ] Implement `Arguments::parse` (`src/arguments.rs`), composing stages 1-6 in the order
-  specified by `docs/parsing.md`.
-- [ ] Verify all existing `parse_*`/`with_*`/`convert_error` method families on `Arguments`
-  (and their `Argumente` mirror equivalents) now function end-to-end since they all bottom out
-  in `Arguments::parse`.
+- [-] Split the overloaded `ParseResult` into stage-specific result/state types in
+  `src/arguments.rs`.  Stage 1 (`ParsedMergedShortForms`), stage 2
+  (`ParsedShortForms`), and stage 3 (`ParsedLongForms`) each represent only that stage's
+  matches and remaining input; add an explicit accumulated recognition state that merges their
+  outputs before typed parsing.  Define separate types for stages 4-6 as their contracts emerge;
+  do not reuse a type merely because its fields happen to coincide. A recognized value name with
+  no eligible raw value is recorded explicitly and must become `Error::MissingValue` during
+  typed accumulation; adjusted merged-short-name remainders are never eligible as a value.
+- [-] Add recursive methods for every name-recognition stage to `Arguments`, `Combine`, and
+  `SingleArgument`: `parse_merged_short_forms`, `parse_short_forms`, and `parse_long_forms`.
+  Stage 1 accepts `Iterator<Item = OsString>` and creates `ArgumentInput::Unchanged` entries;
+  stages 2 and 3 accept `Iterator<Item = ArgumentInput>` so that the adjusted merged-short-name
+  remainder produced by stage 1 is preserved rather than reconstructed or discarded. Only
+  `ArgumentInput::Unchanged(OsString)` may be matched as a standalone short/long name or
+  consumed as a following raw value; `AdjustedMergedShortNames` must pass through unchanged.
+  Tuple implementations must process each child in order, feeding its remaining input to the
+  next child and accumulating only that stage's recognized entries. Leaf methods remain the
+  matching implementation for their corresponding stage.
+- [ ] Implement typed-value parsing and accumulation as separate stage methods on `Arguments`,
+  `Combine`, and `SingleArgument`.  Each alternative receives an independent cloned raw-value
+  map; a `Value` conversion error rejects only that candidate.  Tuple accumulation invokes the
+  user function only after every child produces a value and otherwise combines early exits,
+  errors, and incomplete state.
+- [ ] Implement `Arguments::Alternatives` selection using the complete accumulated recognition
+  state. Keep the first candidate that produces `Result::Value`; if all candidates fail, combine
+  all candidate errors.
+- [ ] Implement `Arguments::parse` (`src/arguments.rs`) as the six explicit stage calls in the
+  order specified by `docs/parsing.md`; verify its `parse_*`/`with_*`/`convert_error` families
+  (and the `Argumente` mirror equivalents) work end-to-end.
 - [ ] Remove the temporary `#[cfg(parser_tests)]` predicates from `tests/derive.rs` and
   `tests/hilfe.rs`, returning parser-dependent integration tests to the normal `--all-features`
   suite; remove the corresponding `unexpected_cfgs` configuration from `Cargo.toml`.

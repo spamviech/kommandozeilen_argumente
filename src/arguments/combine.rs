@@ -10,7 +10,7 @@ use paste::paste;
 
 use crate::{
     arguments::{
-        Arguments, ParseResult,
+        ArgumentInput, Arguments, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms,
         argumente::Argumente,
         help::{self, CreateHelpText},
     },
@@ -87,10 +87,41 @@ pub trait Combine<'t, T, Fehler> {
     fn parse_merged_short_forms(
         &self,
         args: Box<dyn Iterator<Item = OsString> + '_>,
-    ) -> NonEmpty<ParseResult<'_, 't, T, Fehler>>
-    where
-        T: Clone,
-        Fehler: Clone,
+    ) -> NonEmpty<ParsedMergedShortForms<'t>>
+    {
+        let _ = args;
+        todo!()
+    }
+
+    /// Parses merged short-form arguments from staged input.
+    #[inline]
+    fn parse_merged_short_inputs(
+        &self,
+        args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+    ) -> NonEmpty<ParsedMergedShortForms<'t>> {
+        self.parse_merged_short_forms(Box::new(args.filter_map(|argument| match argument {
+            ArgumentInput::Unchanged(argument) => Some(argument),
+            ArgumentInput::AdjustedMergedShortNames(_) => None,
+        })))
+    }
+
+    /// Parses standalone short-form arguments for this combination.
+    #[inline]
+    fn parse_short_forms(
+        &self,
+        args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+    ) -> NonEmpty<ParsedShortForms<'t>>
+    {
+        let _ = args;
+        todo!()
+    }
+
+    /// Parses long-form arguments for this combination.
+    #[inline]
+    fn parse_long_forms(
+        &self,
+        args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+    ) -> NonEmpty<ParsedLongForms<'t>>
     {
         let _ = args;
         todo!()
@@ -138,6 +169,73 @@ macro_rules! impl_combine_tuple {
                         );
                     )+
                     NonEmpty::from_vec(helps).expect("At least one suffix as a macro argument!")
+                }
+
+                #[inline]
+                fn parse_merged_short_forms(
+                    &self,
+                    args: Box<dyn Iterator<Item = OsString> + '_>,
+                ) -> NonEmpty<ParsedMergedShortForms<'t>> {
+                    self.parse_merged_short_inputs(Box::new(args.map(ArgumentInput::Unchanged)))
+                }
+
+                #[inline]
+                fn parse_merged_short_inputs(
+                    &self,
+                    args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+                ) -> NonEmpty<ParsedMergedShortForms<'t>> {
+                    let (_function, $([<arg_ $suffix:snake:lower>]),+) = self;
+                    let mut candidates = vec![ParsedMergedShortForms::empty()];
+                    candidates[0].remaining = args.collect();
+                    $(
+                        candidates = candidates.into_iter().flat_map(|candidate| {
+                            [<arg_ $suffix:snake:lower>]
+                                .parse_merged_short_inputs(candidate.remaining.clone().into_iter())
+                                .into_iter()
+                                .map(move |parsed| candidate.clone().merge(parsed))
+                        }).collect();
+                    )+
+                    NonEmpty::from_vec(candidates).expect("Tuple combinations have at least one candidate.")
+                }
+
+                #[inline]
+                fn parse_short_forms(
+                    &self,
+                    args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+                ) -> NonEmpty<ParsedShortForms<'t>>
+                {
+                    let (_function, $([<arg_ $suffix:snake:lower>]),+) = self;
+                    let mut candidates = vec![ParsedShortForms::empty()];
+                    candidates[0].remaining = args.collect();
+                    $(
+                        candidates = candidates.into_iter().flat_map(|candidate| {
+                            [<arg_ $suffix:snake:lower>]
+                                .parse_short_forms(candidate.remaining.clone().into_iter())
+                                .into_iter()
+                                .map(move |parsed| candidate.clone().merge(parsed))
+                        }).collect();
+                    )+
+                    NonEmpty::from_vec(candidates).expect("Tuple combinations have at least one candidate.")
+                }
+
+                #[inline]
+                fn parse_long_forms(
+                    &self,
+                    args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+                ) -> NonEmpty<ParsedLongForms<'t>>
+                {
+                    let (_function, $([<arg_ $suffix:snake:lower>]),+) = self;
+                    let mut candidates = vec![ParsedLongForms::empty()];
+                    candidates[0].remaining = args.collect();
+                    $(
+                        candidates = candidates.into_iter().flat_map(|candidate| {
+                            [<arg_ $suffix:snake:lower>]
+                                .parse_long_forms(candidate.remaining.clone().into_iter())
+                                .into_iter()
+                                .map(move |parsed| candidate.clone().merge(parsed))
+                        }).collect();
+                    )+
+                    NonEmpty::from_vec(candidates).expect("Tuple combinations have at least one candidate.")
                 }
 
                 #[inline]

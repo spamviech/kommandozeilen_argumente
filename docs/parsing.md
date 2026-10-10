@@ -8,6 +8,15 @@ All stages can encounter parse-errors.
 They will not stop parsing.
 Instead, they are collected and presented as a vector at the end.
 
+The parser preserves syntactic state between name-recognition stages with
+`ArgumentInput`. Stage 1 receives the operating system's `OsString` arguments and turns
+unconsumed inputs into `ArgumentInput::Unchanged`. It can instead leave an
+`ArgumentInput::AdjustedMergedShortNames` remainder after consuming a name from a merged short
+name block. Stages 2 and 3 receive `ArgumentInput`s directly: they only inspect or consume an
+`Unchanged(OsString)`, and carry every `AdjustedMergedShortNames` remainder forward unchanged.
+In particular, an adjusted merged-short-name remainder is never a value string for a preceding
+value argument.
+
 ## Parse merged short name arguments
 
 This has to happen first.
@@ -32,7 +41,9 @@ Results of this stage are a `NonEmpty` (alternatives) of:
 
 ## Parse non-merged short name arguments
 
-Input: Remaining arguments of the previous stage.
+Input: Remaining `ArgumentInput`s of the previous stage. Only
+`ArgumentInput::Unchanged(OsString)` participates in standalone short-name matching or may be
+consumed as the following raw value; `AdjustedMergedShortNames` is preserved unchanged.
 
 Parsed in this stage (only short names):
 
@@ -52,8 +63,9 @@ Parsed arguments are then merged with the previous stage.
 
 ## Parse long name arguments
 
-Input: Remaining arguments of the previous stage.
-
+Input: Remaining `ArgumentInput`s of the previous stage. Only
+`ArgumentInput::Unchanged(OsString)` participates in long-name matching or may be consumed as
+the following raw value; `AdjustedMergedShortNames` is preserved unchanged.
 Parsed in this stage (only long names):
 
 - A flag/early\_exit argument

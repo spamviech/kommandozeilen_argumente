@@ -10,7 +10,7 @@ use void::Void;
 
 use crate::{
     arguments::{
-        ParseResult,
+        ParsedLongForms, ParsedMergedShortForms, ParsedShortForms,
         early_exit::{EarlyExit, FrühesBeenden},
         flag::Flag,
         help::{Help, Hilfe},
@@ -284,16 +284,16 @@ impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
 
     fn parse_short_form(
         self,
-        args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'a, 't, T, Error> {
+        args: impl Iterator<Item = crate::description::ArgumentInput>,
+    ) -> ParsedShortForms<'t> {
         match self {
             Self::English(SingleArgument::Flag(flag))
-            | Self::German(EinzelArgument::Flag(flag)) => flag.parse_short_form::<Error>(args),
+            | Self::German(EinzelArgument::Flag(flag)) => flag.parse_short_form(args),
             Self::English(SingleArgument::EarlyExit { early_exit, .. }) => {
-                early_exit.parse_short_form::<T, Error>(args)
+                early_exit.parse_short_form(args)
             },
             Self::German(EinzelArgument::FrühesBeenden { frühes_beenden, .. }) => {
-                frühes_beenden.parse_short_form::<T, Error>(args)
+                frühes_beenden.parse_short_form(args)
             },
             Self::English(SingleArgument::Value(value)) => value.parse_short_form(args),
             Self::German(EinzelArgument::Wert(wert)) => wert.parse_short_form(args),
@@ -302,16 +302,16 @@ impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
 
     fn parse_long_form(
         self,
-        args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'a, 't, T, Error> {
+        args: impl Iterator<Item = crate::description::ArgumentInput>,
+    ) -> ParsedLongForms<'t> {
         match self {
             Self::English(SingleArgument::Flag(flag))
-            | Self::German(EinzelArgument::Flag(flag)) => flag.parse_long_form::<Error>(args),
+            | Self::German(EinzelArgument::Flag(flag)) => flag.parse_long_form(args),
             Self::English(SingleArgument::EarlyExit { early_exit, .. }) => {
-                early_exit.parse_long_form::<T, Error>(args)
+                early_exit.parse_long_form(args)
             },
             Self::German(EinzelArgument::FrühesBeenden { frühes_beenden, .. }) => {
-                frühes_beenden.parse_long_form::<T, Error>(args)
+                frühes_beenden.parse_long_form(args)
             },
             Self::English(SingleArgument::Value(value)) => value.parse_long_form(args),
             Self::German(EinzelArgument::Wert(wert)) => wert.parse_long_form(args),
@@ -321,17 +321,17 @@ impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
     fn parse_merged_short_forms(
         self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'a, 't, T, Error> {
+    ) -> ParsedMergedShortForms<'t> {
         match self {
             Self::English(SingleArgument::Flag(flag))
             | Self::German(EinzelArgument::Flag(flag)) => {
-                flag.parse_merged_short_forms::<Error>(args)
+                flag.parse_merged_short_forms(args)
             },
             Self::English(SingleArgument::EarlyExit { early_exit, .. }) => {
-                early_exit.parse_merged_short_forms::<T, Error>(args)
+                early_exit.parse_merged_short_forms(args)
             },
             Self::German(EinzelArgument::FrühesBeenden { frühes_beenden, .. }) => {
-                frühes_beenden.parse_merged_short_forms::<T, Error>(args)
+                frühes_beenden.parse_merged_short_forms(args)
             },
             Self::English(SingleArgument::Value(value)) => value.parse_merged_short_forms(args),
             Self::German(EinzelArgument::Wert(wert)) => wert.parse_merged_short_forms(args),
@@ -356,8 +356,8 @@ impl<'t, T, Error> SingleArgument<'t, T, Error> {
     #[inline]
     pub fn parse_short_form(
         &self,
-        args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'_, 't, T, Error> {
+        args: impl Iterator<Item = crate::description::ArgumentInput>,
+    ) -> ParsedShortForms<'t> {
         SingleArgumentRef::English(self).parse_short_form(args)
     }
 
@@ -365,8 +365,8 @@ impl<'t, T, Error> SingleArgument<'t, T, Error> {
     #[inline]
     pub fn parse_long_form(
         &self,
-        args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'_, 't, T, Error> {
+        args: impl Iterator<Item = crate::description::ArgumentInput>,
+    ) -> ParsedLongForms<'t> {
         SingleArgumentRef::English(self).parse_long_form(args)
     }
 
@@ -375,7 +375,7 @@ impl<'t, T, Error> SingleArgument<'t, T, Error> {
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'_, 't, T, Error> {
+    ) -> ParsedMergedShortForms<'t> {
         SingleArgumentRef::English(self).parse_merged_short_forms(args)
     }
 }
@@ -397,8 +397,8 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
     #[inline]
     pub fn parse_short_form(
         &self,
-        args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'_, 't, T, Fehler> {
+        args: impl Iterator<Item = crate::description::ArgumentInput>,
+    ) -> ParsedShortForms<'t> {
         SingleArgumentRef::German(self).parse_short_form(args)
     }
 
@@ -406,8 +406,8 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
     #[inline]
     pub fn parse_long_form(
         &self,
-        args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'_, 't, T, Fehler> {
+        args: impl Iterator<Item = crate::description::ArgumentInput>,
+    ) -> ParsedLongForms<'t> {
         SingleArgumentRef::German(self).parse_long_form(args)
     }
 
@@ -416,7 +416,7 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
     pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'_, 't, T, Fehler> {
+    ) -> ParsedMergedShortForms<'t> {
         SingleArgumentRef::German(self).parse_merged_short_forms(args)
     }
 }

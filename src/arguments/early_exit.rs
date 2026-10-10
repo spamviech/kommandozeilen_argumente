@@ -7,7 +7,7 @@ use void::Void;
 
 use crate::{
     arguments::{
-        ParseResult, ParsedEarlyExit,
+        ParsedEarlyExit, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms,
         help::{Help, Hilfe},
     },
     description::{ArgumentInput, Beschreibung, Description, Name},
@@ -98,31 +98,34 @@ fn create_help_text(name: &Name<'_>, help: Option<&str>, default: Option<Void>) 
 impl<'t> EarlyExit<'t> {
     /// Parses standalone short-form arguments.
     #[inline]
-    pub fn parse_short_form<'definition, T, F>(
+    pub fn parse_short_form(
         &self,
-        args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'definition, 't, T, F> {
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedShortForms<'t> {
         let Self { description, message } = self;
         let mut early_exits = Vec::new();
         let remaining = args
-            .filter_map(|argument| {
-                let input = Cow::Owned(argument.to_string_lossy().into_owned());
-                if let Some(name) = description.name.parse_short_early_exit(&argument) {
-                    early_exits.push(ParsedEarlyExit {
-                        name: Cow::Owned(name.into()),
-                        message: message.clone(),
-                        input,
-                    });
-                    None
-                } else {
-                    Some(ArgumentInput::Unchanged(argument))
-                }
+            .filter_map(|argument| match argument {
+                ArgumentInput::Unchanged(argument) => {
+                    let input = Cow::Owned(argument.to_string_lossy().into_owned());
+                    if let Some(name) = description.name.parse_short_early_exit(&argument) {
+                        early_exits.push(ParsedEarlyExit {
+                            name: Cow::Owned(name.into()),
+                            message: message.clone(),
+                            input,
+                        });
+                        None
+                    } else {
+                        Some(ArgumentInput::Unchanged(argument))
+                    }
+                },
+                adjusted @ ArgumentInput::AdjustedMergedShortNames(_) => Some(adjusted),
             })
             .collect();
-        ParseResult {
-            definition: None,
+        ParsedShortForms {
             early_exits,
             flags: Vec::new(),
+            missing_values: Default::default(),
             values: Default::default(),
             remaining,
         }
@@ -130,32 +133,35 @@ impl<'t> EarlyExit<'t> {
 
     /// Parses long-form arguments.
     #[inline]
-    pub fn parse_long_form<'definition, T, F>(
+    pub fn parse_long_form(
         &self,
-        args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'definition, 't, T, F> {
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedLongForms<'t> {
         let Self { description, message } = self;
         let mut early_exits = Vec::new();
         let remaining = args
-            .filter_map(|argument| {
-                let input = Cow::Owned(argument.to_string_lossy().into_owned());
-                description.name.parse_long_early_exit(&argument).map_or_else(
-                    || Some(ArgumentInput::Unchanged(argument)),
-                    |name| {
-                        early_exits.push(ParsedEarlyExit {
-                            name: Cow::Owned(name.into()),
-                            message: message.clone(),
-                            input,
-                        });
-                        None
-                    },
-                )
+            .filter_map(|argument| match argument {
+                ArgumentInput::Unchanged(argument) => {
+                    let input = Cow::Owned(argument.to_string_lossy().into_owned());
+                    description.name.parse_long_early_exit(&argument).map_or_else(
+                        || Some(ArgumentInput::Unchanged(argument)),
+                        |name| {
+                            early_exits.push(ParsedEarlyExit {
+                                name: Cow::Owned(name.into()),
+                                message: message.clone(),
+                                input,
+                            });
+                            None
+                        },
+                    )
+                },
+                adjusted @ ArgumentInput::AdjustedMergedShortNames(_) => Some(adjusted),
             })
             .collect();
-        ParseResult {
-            definition: None,
+        ParsedLongForms {
             early_exits,
             flags: Vec::new(),
+            missing_values: Default::default(),
             values: Default::default(),
             remaining,
         }
@@ -163,10 +169,10 @@ impl<'t> EarlyExit<'t> {
 
     /// Parses merged short-form arguments.
     #[inline]
-    pub fn parse_merged_short_forms<'definition, T, F>(
+    pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'definition, 't, T, F> {
+    ) -> ParsedMergedShortForms<'t> {
         let Self { description, message } = self;
         let mut early_exits = Vec::new();
         let remaining = args
@@ -187,10 +193,10 @@ impl<'t> EarlyExit<'t> {
             })
             .flatten()
             .collect();
-        ParseResult {
-            definition: None,
+        ParsedMergedShortForms {
             early_exits,
             flags: Vec::new(),
+            missing_values: Default::default(),
             values: Default::default(),
             remaining,
         }
@@ -203,7 +209,7 @@ mod tests {
 
     use void::Void;
 
-    use crate::{Description, arguments::early_exit::EarlyExit};
+    use crate::{ArgumentInput, Description, arguments::early_exit::EarlyExit};
 
     #[test]
     fn parses_merged_short_early_exit() {
@@ -212,7 +218,7 @@ mod tests {
             "help message",
         );
         let result =
-            early_exit.parse_merged_short_forms::<(), ()>([OsString::from("-h")].into_iter());
+            early_exit.parse_merged_short_forms([OsString::from("-h")].into_iter());
 
         assert_eq!(result.early_exits.len(), 1);
         assert_eq!(result.early_exits[0].name, "h");
@@ -226,7 +232,9 @@ mod tests {
             Description::new("--", "help", "-", "h", None, None::<Void>),
             "help message",
         );
-        let result = early_exit.parse_short_form::<(), ()>([OsString::from("-h")].into_iter());
+        let result = early_exit.parse_short_form(
+            [OsString::from("-h")].into_iter().map(ArgumentInput::Unchanged),
+        );
 
         assert_eq!(result.early_exits.len(), 1);
         assert_eq!(result.early_exits[0].name, "h");
@@ -239,7 +247,9 @@ mod tests {
             Description::new("--", "help", "-", "h", None, None::<Void>),
             "help message",
         );
-        let result = early_exit.parse_long_form::<(), ()>([OsString::from("--help")].into_iter());
+        let result = early_exit.parse_long_form(
+            [OsString::from("--help")].into_iter().map(ArgumentInput::Unchanged),
+        );
 
         assert_eq!(result.early_exits.len(), 1);
         assert_eq!(result.early_exits[0].name, "help");
@@ -250,28 +260,28 @@ mod tests {
 impl<'t> FrühesBeenden<'t> {
     /// Parst eigenständige kurze Argumentformen.
     #[inline]
-    pub fn parse_short_form<'definition, T, F>(
+    pub fn parse_short_form(
         &self,
-        args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'definition, 't, T, F> {
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedShortForms<'t> {
         EarlyExit::from(self.clone()).parse_short_form(args)
     }
 
     /// Parst lange Argumentformen.
     #[inline]
-    pub fn parse_long_form<'definition, T, F>(
+    pub fn parse_long_form(
         &self,
-        args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'definition, 't, T, F> {
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedLongForms<'t> {
         EarlyExit::from(self.clone()).parse_long_form(args)
     }
 
     /// Parst zusammengefasste kurze Argumentformen.
     #[inline]
-    pub fn parse_merged_short_forms<'definition, T, F>(
+    pub fn parse_merged_short_forms(
         &self,
         args: impl Iterator<Item = OsString>,
-    ) -> ParseResult<'definition, 't, T, F> {
+    ) -> ParsedMergedShortForms<'t> {
         EarlyExit::from(self.clone()).parse_merged_short_forms(args)
     }
 }
