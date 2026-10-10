@@ -13,13 +13,13 @@ use nonempty::NonEmpty;
 use crate::{
     ParseFehler,
     arguments::{
-        ParseResult, ParsedValue, ParsedValueName,
+        ParseResult, ParsedRawValue, ParsedValueName,
         help::{Help, Hilfe},
     },
     description::{ArgumentInput, Beschreibung, Description, Name},
     dyn_to_owned::{Parse, Show},
     language::{Language, Sprache},
-    outcome::ParseError,
+    outcome::{AnnotatedParseError, ParseError},
     unicode::{Compare, Vergleich},
 };
 
@@ -320,27 +320,17 @@ fn parse_short_value_forms<'definition, 'argument, T, E>(
     while let Some(argument) = args.next() {
         let input = Cow::Owned(argument.to_string_lossy().into_owned());
         if let Some((name, inline_value)) = name.parse_short_with_value(value_infix, &argument) {
-            if let Some(value) =
-                inline_value.map(|value| Cow::Owned(value.to_string_lossy().into_owned())).or_else(
-                    || args.next().map(|value| Cow::Owned(value.to_string_lossy().into_owned())),
-                )
-            {
+            if let Some(value) = inline_value.map(Cow::into_owned).or_else(|| args.next()) {
                 let _ = values.insert(
                     ParsedValueName { name: Cow::Owned(name.into()) },
-                    ParsedValue { value, input },
+                    ParsedRawValue { value, input },
                 );
             }
         } else {
             remaining.push(ArgumentInput::Unchanged(argument));
         }
     }
-    ParseResult {
-        definition: None,
-        early_exits: Vec::new(),
-        flags: Vec::new(),
-        values,
-        remaining,
-    }
+    ParseResult { definition: None, early_exits: Vec::new(), flags: Vec::new(), values, remaining }
 }
 
 fn parse_long_value_forms<'definition, 'argument, T, E>(
@@ -354,27 +344,17 @@ fn parse_long_value_forms<'definition, 'argument, T, E>(
     while let Some(argument) = args.next() {
         let input = Cow::Owned(argument.to_string_lossy().into_owned());
         if let Some((name, inline_value)) = name.parse_long_with_value(value_infix, &argument) {
-            if let Some(value) =
-                inline_value.map(|value| Cow::Owned(value.to_string_lossy().into_owned())).or_else(
-                    || args.next().map(|value| Cow::Owned(value.to_string_lossy().into_owned())),
-                )
-            {
+            if let Some(value) = inline_value.map(Cow::into_owned).or_else(|| args.next()) {
                 let _ = values.insert(
                     ParsedValueName { name: Cow::Owned(name.into()) },
-                    ParsedValue { value, input },
+                    ParsedRawValue { value, input },
                 );
             }
         } else {
             remaining.push(ArgumentInput::Unchanged(argument));
         }
     }
-    ParseResult {
-        definition: None,
-        early_exits: Vec::new(),
-        flags: Vec::new(),
-        values,
-        remaining,
-    }
+    ParseResult { definition: None, early_exits: Vec::new(), flags: Vec::new(), values, remaining }
 }
 
 fn parse_value_merged_short_forms<'definition, 'argument, T, E>(
@@ -389,14 +369,13 @@ fn parse_value_merged_short_forms<'definition, 'argument, T, E>(
         let input = Cow::Owned(argument.to_string_lossy().into_owned());
         let argument = ArgumentInput::Unchanged(argument);
         if let Some(parsed) = name.parse_with_value_merge_short_forms(value_infix, &argument) {
-            let value = parsed.inline_value.map_or_else(
-                || args.next().map(|value| Cow::Owned(value.to_string_lossy().into_owned().into())),
-                |value| Some(Cow::Owned(value.into())),
-            );
+            let value = parsed
+                .inline_value
+                .map_or_else(|| args.next(), |value| Some(OsString::from(value.into_string())));
             if let Some(value) = value {
                 let _ = values.insert(
                     ParsedValueName { name: Cow::Owned(parsed.name.into()) },
-                    ParsedValue { value, input },
+                    ParsedRawValue { value, input },
                 );
             }
             if let Some(argument) = parsed.remaining {
@@ -406,13 +385,7 @@ fn parse_value_merged_short_forms<'definition, 'argument, T, E>(
             remaining.push(argument);
         }
     }
-    ParseResult {
-        definition: None,
-        early_exits: Vec::new(),
-        flags: Vec::new(),
-        values,
-        remaining,
-    }
+    ParseResult { definition: None, early_exits: Vec::new(), flags: Vec::new(), values, remaining }
 }
 /// Creates syntax and help text from the shared parts of a German or English value argument.
 fn create_value_help_text<T>(
@@ -497,6 +470,30 @@ impl<'t, T, E> Value<'t, T, E> {
         )
     }
 
+    /// Removes and parses this argument's matching raw value.
+    ///
+    /// The map is candidate-local during alternative evaluation, so consuming a value here cannot
+    /// prevent another alternative from attempting to parse the same original input.
+    pub fn take_parsed_value(
+        &self,
+        values: &mut HashMap<ParsedValueName<'t>, ParsedRawValue<'t>>,
+    ) -> Result<Option<T>, AnnotatedParseError<'t, E>> {
+        let raw_value =
+            self.description.name.long.iter().chain(self.description.name.short.iter()).find_map(
+                |name| values.remove(&ParsedValueName { name: Cow::Owned(name.as_str().into()) }),
+            );
+        raw_value
+            .map(|raw_value| {
+                (self.parse)(&raw_value.value).map_err(|error| AnnotatedParseError {
+                    name: self.description.name.clone(),
+                    value_infix: self.value_infix.string.clone(),
+                    meta_var: self.meta_var,
+                    error,
+                })
+            })
+            .transpose()
+    }
+
     /// Parses standalone short-form arguments.
     #[inline]
     pub fn parse_short_form(
@@ -526,9 +523,12 @@ impl<'t, T, E> Value<'t, T, E> {
 }
 #[cfg(test)]
 mod tests {
-    use std::ffi::OsString;
+    use std::{
+        borrow::Cow,
+        ffi::{OsStr, OsString},
+    };
 
-    use crate::{Description, arguments::value::Value};
+    use crate::{Description, arguments::value::Value, dyn_to_owned::Parse, outcome::ParseError};
 
     #[test]
     fn parses_merged_short_value_with_and_without_infix() {
@@ -609,6 +609,72 @@ mod tests {
             assert_eq!(result.values.values().next().unwrap().value, "value");
             assert!(result.remaining.is_empty());
         }
+    }
+
+    #[test]
+    fn takes_and_parses_its_raw_value() {
+        let value =
+            Value::<u16, _>::new(Description::new("--", "port", "-", "p", None, None), None);
+        let mut result = value.parse_long_form([OsString::from("--port=8080")].into_iter());
+
+        assert_eq!(value.take_parsed_value(&mut result.values).unwrap(), Some(8080));
+        assert!(result.values.is_empty());
+    }
+
+    #[test]
+    fn annotates_value_conversion_errors() {
+        let value =
+            Value::<u16, _>::new(Description::new("--", "port", "-", "p", None, None), None);
+        let mut result = value.parse_long_form([OsString::from("--port=invalid")].into_iter());
+
+        let error = value.take_parsed_value(&mut result.values).unwrap_err();
+        assert_eq!(error.name.long.head.as_str(), "port");
+        assert!(matches!(error.error, ParseError::ParseError(_)));
+    }
+
+    #[test]
+    fn returns_none_when_its_value_was_not_matched() {
+        let value =
+            Value::<u16, _>::new(Description::new("--", "port", "-", "p", None, None), None);
+        let mut result = value.parse_long_form([OsString::from("--other=8080")].into_iter());
+
+        assert_eq!(value.take_parsed_value(&mut result.values).unwrap(), None);
+    }
+
+    #[test]
+    fn keeps_the_last_duplicate_raw_value() {
+        let value =
+            Value::<u16, _>::new(Description::new("--", "port", "-", "p", None, None), None);
+        let mut result = value.parse_long_form(
+            [OsString::from("--port=8080"), OsString::from("--port=9090")].into_iter(),
+        );
+
+        assert_eq!(value.take_parsed_value(&mut result.values).unwrap(), Some(9090));
+    }
+
+    #[test]
+    fn parses_a_value_borrowing_from_its_definition_lifetime() {
+        #[derive(Debug, PartialEq)]
+        struct Borrowed<'value>(&'value str);
+
+        let borrowed = String::from("definition value");
+        let parse: Box<dyn Parse<'_, Borrowed<'_>, ParseError<()>>> =
+            Box::new(|_: &OsStr| Ok(Borrowed(borrowed.as_str())));
+        let value = Value {
+            description: Description::new("--", "borrowed", "-", "b", None, None),
+            value_infix: "=".into(),
+            meta_var: "BORROWED",
+            possible_values: None,
+            parse: Cow::Owned(parse),
+            display: Cow::Borrowed(&|value: &Borrowed<'_>| value.0.into()),
+            display_error: Cow::Borrowed(&|_: &()| String::new()),
+        };
+        let mut result = value.parse_long_form([OsString::from("--borrowed=input")].into_iter());
+
+        assert_eq!(
+            value.take_parsed_value(&mut result.values).unwrap(),
+            Some(Borrowed("definition value"))
+        );
     }
 }
 

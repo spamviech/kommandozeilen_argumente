@@ -854,29 +854,47 @@ Depends on: **Phase 4**.
 
 ---
 
-## Phase 6: Stage 4 — typed value parsing via `Box<dyn Any>`
+## Phase 6: Stage 4 — typed value parsing through the argument tree
 
 Depends on: **Phase 5**.
 
-Converts the raw `OsString` values collected by stages 1-3 into typed values, per
-`docs/parsing.md`'s design of sharing heterogeneous value types in one map via `Box<dyn Any>` +
-`TypeId`.
+Retains the raw `OsString` value map produced by stages 1-3 and deliberately does **not** use
+`Box<dyn Any>` or `TypeId`. `Any` has a `'static` supertrait, which would unnecessarily exclude
+valid parsed values that borrow from the definition lifetime (`T: 't`). Instead, every typed
+`Value<'t, T, Error>` consumes and parses its own raw entry during typed result accumulation.
+The concrete `T` is therefore preserved by the `SingleArgument`/`Combine` tree and never needs
+runtime downcasting.
+
+This revises the original `Box<dyn Any>` plan. Any implementation already added for that approach
+must be removed as part of this phase, including `T: 'static` bounds that leaked into unrelated
+construction, help-text, or matching APIs.
 
 **Tasks**:
 
-- [ ] Add a value-parsing step that, given a `ParsedValue` (raw `OsString` + originating
-  `Value<'t,T,Error>`'s `parse` closure), produces `Result<Box<dyn Any>, AnnotatedParseError>`,
-  keyed by `TypeId::of::<T>()` for later downscasting.
-- [ ] Extend `ParseResult`/its stage-2/3 equivalents to carry the typed-value map
-  instead of (or alongside) the raw-string map, per `docs/parsing.md`.
+- [x] Replace the current raw-value representation with a simple `ParsedRawValue` containing the
+  original `OsString` and original input. Keep `ParseResult::values` as
+  `HashMap<ParsedValueName<'t>, ParsedRawValue<'t>>`; remove `ParsedTypedValue`, parser callbacks
+  stored in parsed data, `Any`, `TypeId`, and `ParseResult::parse_values`.
+- [x] Add a typed consumption method on `Value<'t, T, Error>` that removes its matching raw entry
+  from the map, invokes `self.parse`, and returns `Result<Option<T>, AnnotatedParseError<'t, Error>>`.
+  It must create `MissingValue` later only when no raw entry exists; conversion failures must retain
+  the originating `Value`'s `name`, `value_infix`, and `meta_var` in `AnnotatedParseError`.
+- [x] Define and test the duplicate-name policy while retaining the map: the current behavior is
+  last value wins. Preserve it unless the phase discovers that repeated values must be represented
+  as `HashMap<ParsedValueName<'t>, Vec<ParsedRawValue<'t>>>` for correct existing semantics.
+- [x] Ensure the typed extraction API accepts values with `T: 't`, including a test type that
+  borrows input/definition data; do not introduce a `T: 'static` bound. Candidate accumulation
+  must operate on an independent raw-state view so a failed conversion does not consume data
+  needed when trying the next alternative.
 
 **Automated Verification**:
 
-- [ ] New unit tests: successful typed parse, parse error produces `AnnotatedParseError`,
-  multiple distinct value types coexist in the same map and downcast correctly — all pass
-- [ ] `cargo test --workspace --all-features` passes; parser-dependent integration tests remain
+- [x] New unit tests: successful typed extraction, parse error produces `AnnotatedParseError`,
+  omitted value returns `None`, last duplicate raw value wins, and a borrowing `T: 't` parses
+  without a `'static` bound — all pass
+- [x] `cargo test --workspace --all-features` passes; parser-dependent integration tests remain
   hidden by the temporary `#[cfg(parser_tests)]` predicate until Phase 7.
-- [ ] `RUSTFLAGS='--cfg parser_tests' cargo test --workspace --all-features --no-run` succeeds,
+- [x] `RUSTFLAGS='--cfg parser_tests' cargo test --workspace --all-features --no-run` succeeds,
   verifying that the temporarily hidden integration tests still compile.
 
 ---
@@ -898,8 +916,11 @@ end-to-end.
   impls: parse each sub-argument, accumulate errors/early-exits/incomplete-state, and only
   invoke the user function once all sub-results are values (fresh implementation, not the
   deleted commented-out sketch).
-- [ ] Implement `Arguments::Alternatives` selection logic: try each alternative in order, keep
-  the first that produces `Result::Value`, else combine errors from all failed alternatives.
+- [ ] Implement `Arguments::Alternatives` selection logic: for every alternative, clone (or use
+  an immutable view plus a per-candidate consumed-name set for) the complete raw staged state and
+  run typed value parsing and result accumulation before deciding the winner. Keep the first that
+  produces `Result::Value`; conversion errors from a value parser must make that candidate fail
+  and allow the next alternative to run. If all candidates fail, combine all candidate errors.
 - [ ] Implement `Arguments::parse` (`src/arguments.rs`), composing stages 1-6 in the order
   specified by `docs/parsing.md`.
 - [ ] Verify all existing `parse_*`/`with_*`/`convert_error` method families on `Arguments`
@@ -916,8 +937,9 @@ end-to-end.
   generation)
 - [ ] `tests/hilfe.rs` passes
 - [ ] New integration tests covering: single flag, single value, combined multi-argument struct
-  (derive macro), alternatives (first alternative fails, second succeeds), early-exit (`--help`/
-  `--version`) short-circuiting result accumulation — all pass
+  (derive macro), alternatives where the first matching branch's value conversion fails and the
+  second succeeds, early-exit (`--help`/`--version`) short-circuiting result accumulation — all
+  pass
 - [ ] `cargo test --workspace --all-features` passes
 
 **Manual Verification**:

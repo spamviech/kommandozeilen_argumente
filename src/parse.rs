@@ -289,7 +289,7 @@ fn create_description<'t, T>(description: &Description<'t, Option<T>>) -> Descri
     )
 }
 
-impl<T: 'static + ParseArgument + Clone + Debug + Display> ParseArgument for Option<T> {
+impl<T: ParseArgument + Clone + Debug + Display> ParseArgument for Option<T> {
     #[inline]
     fn arguments<'t>(
         description: Description<'t, Self>,
@@ -382,7 +382,7 @@ impl<T: 'static + ParseArgument + Clone + Debug + Display> ParseArgument for Opt
     }
 }
 
-impl<T: 'static + EnumArgument + Display + Clone> ParseArgument for T {
+impl<T: EnumArgument + Display + Clone> ParseArgument for T {
     #[inline]
     fn arguments<'t>(
         description: Description<'t, Self>,

@@ -79,17 +79,23 @@ Inputs:
 - `Argumente<'_, T, F>` of the alternative taken.
 - A vector of early\_exit arguments, containing name, message & original input.
 - A vector of flag-arguments with their name, value (might be inverted) & the original input.
-- A map of value-arguments with name -> (value-string, original input).
+- A map of value-arguments with name -> `(OsString, original input)`.
 - Remaining arguments with the parsed long names and associated value-strings removed.
 
 Stage responsibility:
-Value-strings are parsed according to the parse-value-function.
-The result is stored with as `dyn std::any::Any` and a `TypeId`,
-to allow holding them in the same map.
+Keep the raw-value map intact until its owning typed `Value<'t, T, F>` is accumulated. That
+argument removes its own entry and invokes its own parse-value function, yielding `T` directly or
+an `AnnotatedParseError`. The type remains in the statically typed argument/combine tree; it is
+not erased into `Any` and therefore may borrow for the definition lifetime (`T: 't`).
+
+This parsing is performed while evaluating each alternative, not after one has already been
+chosen. Each candidate receives an independent raw-state view (normally a clone of the raw map),
+so a failed conversion neither selects that candidate nor consumes input needed by the next one.
 
 Outputs:
 
-- A map of value-arguments with name -> `(value: Box<dyn Any>, TypeId)`
+- A candidate-specific raw-value map, consumed incrementally by typed value arguments during
+  candidate accumulation.
 - Remaining arguments with the parsed long names and associated value-strings removed.
 
 ## Pick alternative
@@ -98,33 +104,33 @@ Inputs: `NonEmpty` (alternatives) of:
 
 - A vector of early\_exit arguments, containing name, message & original input.
 - A vector of flag-arguments with their name (all are true) & the original input.
-- A map of value-arguments with name -> (value: Any, TypeId)
+- A map of value-arguments with name -> `(OsString, original input)`.
 - Remaining arguments with the parsed arguments and associated value-strings removed.
 
 Stage responsibility:
-Pick the alternative without an error or return all errors
+For each alternative in order, parse its raw values and accumulate its typed result using an
+independent copy/view of the complete staged state. Pick the first candidate that fully succeeds.
+A value conversion error rejects only that candidate and evaluation continues with the next one.
+If no candidate succeeds, return the accumulated errors from every failed candidate.
 
 Outputs:
 
-- A vector of early\_exit arguments, containing name, message & original input.
-- A vector of flag-arguments with their name (all are true) & the original input.
-- A map of value-arguments with name -> (value: Any, TypeId)
-- Remaining arguments with the parsed arguments and associated value-strings removed.
+- The successful candidate's typed result and its remaining arguments; or all candidate errors.
 
 ## Accumulate results
 
 Inputs:
 
-- A vector of early\_exit arguments, containing name, message & original input.
-- A vector of flag-arguments with their name (all are true) & the original input.
-- A map of value-arguments with name -> (value: Any, TypeId)
-- Remaining arguments with the parsed arguments and associated value-strings removed.
+- One candidate's independent staged state: early exits, flags, raw values, and remaining
+  arguments.
 
 Stage responsibility:
-Convert the type-less parsed types to the result-struct.
+Convert one candidate's parsed pieces to the result struct through their typed owning definitions.
+This is part of evaluating an alternative and happens before the winning alternative is selected.
 
 - For flag-arguments, convert the boolean according to the configured method.
-- For value-arguments, use the TypeId to downcast to the actual type.
+- For value-arguments, the matching typed `Value<'t, T, F>` removes and parses its raw entry,
+  returning `T` directly; no `TypeId` lookup or runtime downcast occurs.
 - Use the combine-function to construct larger structs.
 
 Outputs: (Result enum, remaining arguments)

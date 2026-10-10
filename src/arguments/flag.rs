@@ -250,11 +250,7 @@ impl<'t, T> Flag<'t, T> {
                     .map_or_else(
                         || Some(ArgumentInput::Unchanged(argument)),
                         |(name, value)| {
-                            flags.push(ParsedFlag {
-                                name: Cow::Owned(name.into()),
-                                value,
-                                input,
-                            });
+                            flags.push(ParsedFlag { name: Cow::Owned(name.into()), value, input });
                             None
                         },
                     )

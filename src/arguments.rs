@@ -162,9 +162,9 @@ pub struct ParsedValueName<'s> {
 
 /// The raw value associated with a recognized value argument.
 #[derive(Debug, Clone)]
-pub struct ParsedValue<'s> {
-    /// The unparsed value substring.
-    pub value: Cow<'s, str>,
+pub struct ParsedRawValue<'s> {
+    /// The unparsed operating-system string.
+    pub value: OsString,
     /// The original input argument that supplied the value.
     pub input: Cow<'s, str>,
 }
@@ -186,7 +186,7 @@ pub struct ParseResult<'definition, 'argument, T, F> {
     /// A vector of flag-arguments with their name (all are true) & the original input.
     pub flags: Vec<ParsedFlag<'definition>>,
     /// A map of value-arguments with name -> (value-string, original input).
-    pub values: HashMap<ParsedValueName<'definition>, ParsedValue<'definition>>,
+    pub values: HashMap<ParsedValueName<'argument>, ParsedRawValue<'argument>>,
     /// Remaining arguments with the parsed merged short names and associated value-strings
     /// removed.
     pub remaining: Vec<ArgumentInput>,
