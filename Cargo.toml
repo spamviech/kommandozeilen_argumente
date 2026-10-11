@@ -31,6 +31,10 @@ derive = ["kommandozeilen_argumente_derive"]
 name = "derive"
 required-features = ["derive"]
 
+[[test]]
+name = "staged_parser"
+required-features = ["derive"]
+
 [[example]]
 name = "derive_de"
 required-features = ["derive"]

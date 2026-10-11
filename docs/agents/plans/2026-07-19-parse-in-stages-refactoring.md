@@ -952,7 +952,7 @@ end-to-end.
 - [x] `tests/derive.rs`'s 6 test functions all pass with real parsing (not just help-text
   generation)
 - [x] `tests/hilfe.rs` passes
-- [ ] New integration tests covering: single flag, single value, combined multi-argument struct
+- [x] New integration tests covering: single flag, single value, combined multi-argument struct
   (derive macro), alternatives where the first matching branch's value conversion fails and the
   second succeeds, early-exit (`--help`/`--version`) short-circuiting result accumulation — all
   pass
@@ -960,7 +960,7 @@ end-to-end.
 
 **Manual Verification**:
 
-- [ ] Build one of the crate's example binaries (or a small throwaway binary using
+- [x] Build one of the crate's example binaries (or a small throwaway binary using
   `#[derive(Parse)]`) and confirm `--help`, a valid flag/value combination, and an invalid
   argument all produce the expected CLI behavior and exit codes
 
@@ -994,6 +994,8 @@ this refactor started, plus whatever new warnings the rename/staged-parsing work
   still unused after the rename), and fix the `OptionHelper`/`ergebnis_anpassen`-style unread-field
   warning if it still exists.
 - [ ] Remove any now-unnecessary `todo!()`s discovered to be reachable during this phase.
+- [ ] Make sure using the derive macros works without requiring `use` of specific items
+  and doesn't produce warnings/lints when they are missing, or present.
 - [ ] Run `cargo +nightly udeps` (or equivalent) to catch unused *dependencies* introduced or
   exposed by the rename.
 - [ ] Review `src/lib.rs`'s re-export list once more against every public item actually defined,
