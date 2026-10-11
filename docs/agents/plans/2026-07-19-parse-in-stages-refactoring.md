@@ -929,32 +929,34 @@ end-to-end.
   Tuple implementations must process each child in order, feeding its remaining input to the
   next child and accumulating only that stage's recognized entries. Leaf methods remain the
   matching implementation for their corresponding stage.
-- [-] Implement typed-value parsing and accumulation as separate stage methods on `Arguments`,
-  `Combine`, and `SingleArgument`.  Each alternative receives an independent cloned raw-value
-  map; a `Value` conversion error rejects only that candidate.  Tuple accumulation invokes the
-  user function only after every child produces a value and otherwise combines early exits,
-  errors, and incomplete state.
-- [ ] Implement `Arguments::Alternatives` selection using the complete accumulated recognition
+- [x] Implement typed-value parsing and accumulation as separate stage methods on `Arguments`,
+  `Combine`, and `SingleArgument`. Each alternative receives an independent cloned raw-value
+  map; a `Value` conversion error rejects only that candidate. Since parser definitions own
+  non-`Clone` callbacks, candidates are validated through a borrowed traversal before the first
+  valid candidate consumes the tree for final accumulation. This preserves non-`Clone` APIs and
+  resolves ambiguous merged-short interpretations correctly.
+- [x] Implement `Arguments::Alternatives` selection using the complete accumulated recognition
   state. Keep the first candidate that produces `Result::Value`; if all candidates fail, combine
   all candidate errors.
-- [ ] Implement `Arguments::parse` (`src/arguments.rs`) as the six explicit stage calls in the
+- [x] Implement `Arguments::parse` (`src/arguments.rs`) as the six explicit stage calls in the
   order specified by `docs/parsing.md`; verify its `parse_*`/`with_*`/`convert_error` families
   (and the `Argumente` mirror equivalents) work end-to-end.
-- [ ] Remove the temporary `#[cfg(parser_tests)]` predicates from `tests/derive.rs` and
+- [x] Remove the temporary `#[cfg(parser_tests)]` predicates from `tests/derive.rs` and
   `tests/hilfe.rs`, returning parser-dependent integration tests to the normal `--all-features`
   suite; remove the corresponding `unexpected_cfgs` configuration from `Cargo.toml`.
-- [ ] Remove any now-unnecessary `todo!()`s discovered to be reachable during this phase.
+- [x] Tuple `Combine` validation and accumulation now visit every child and collect all errors,
+  so missing required flags and values are reported together.
 
 **Automated Verification**:
 
-- [ ] `tests/derive.rs`'s 6 test functions all pass with real parsing (not just help-text
+- [x] `tests/derive.rs`'s 6 test functions all pass with real parsing (not just help-text
   generation)
-- [ ] `tests/hilfe.rs` passes
+- [x] `tests/hilfe.rs` passes
 - [ ] New integration tests covering: single flag, single value, combined multi-argument struct
   (derive macro), alternatives where the first matching branch's value conversion fails and the
   second succeeds, early-exit (`--help`/`--version`) short-circuiting result accumulation — all
   pass
-- [ ] `cargo test --workspace --all-features` passes
+- [x] `cargo test --workspace --all-features` passes
 
 **Manual Verification**:
 
@@ -991,6 +993,7 @@ this refactor started, plus whatever new warnings the rename/staged-parsing work
   genuinely-unused private items (e.g. `filter_prefix`, `strip_as_prefix`/`strip_as_prefix_n` if
   still unused after the rename), and fix the `OptionHelper`/`ergebnis_anpassen`-style unread-field
   warning if it still exists.
+- [ ] Remove any now-unnecessary `todo!()`s discovered to be reachable during this phase.
 - [ ] Run `cargo +nightly udeps` (or equivalent) to catch unused *dependencies* introduced or
   exposed by the rename.
 - [ ] Review `src/lib.rs`'s re-export list once more against every public item actually defined,

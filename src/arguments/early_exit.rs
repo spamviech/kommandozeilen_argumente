@@ -173,12 +173,25 @@ impl<'t> EarlyExit<'t> {
         &self,
         args: impl Iterator<Item = OsString>,
     ) -> ParsedMergedShortForms<'t> {
+        self.parse_merged_short_inputs(args.map(ArgumentInput::Unchanged))
+    }
+
+    /// Parses merged short-form arguments while retaining adjusted-block remainders.
+    #[inline]
+    pub(crate) fn parse_merged_short_inputs(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedMergedShortForms<'t> {
         let Self { description, message } = self;
         let mut early_exits = Vec::new();
         let remaining = args
-            .map(|argument| {
-                let input = Cow::Owned(argument.to_string_lossy().into_owned());
-                let argument = ArgumentInput::Unchanged(argument);
+            .filter_map(|argument| {
+                let input = match &argument {
+                    ArgumentInput::Unchanged(argument) => {
+                        Cow::Owned(argument.to_string_lossy().into_owned())
+                    },
+                    ArgumentInput::AdjustedMergedShortNames(_) => Cow::Borrowed(""),
+                };
                 if let Some(parsed) = description.name.parse_early_exit_merge_short_forms(&argument)
                 {
                     early_exits.push(ParsedEarlyExit {
@@ -191,7 +204,6 @@ impl<'t> EarlyExit<'t> {
                     Some(argument)
                 }
             })
-            .flatten()
             .collect();
         ParsedMergedShortForms {
             early_exits,

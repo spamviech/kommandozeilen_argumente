@@ -295,12 +295,25 @@ impl<'t, T> Flag<'t, T> {
         &self,
         args: impl Iterator<Item = OsString>,
     ) -> ParsedMergedShortForms<'t> {
+        self.parse_merged_short_inputs(args.map(ArgumentInput::Unchanged))
+    }
+
+    /// Parses merged short-form arguments while retaining adjusted-block remainders.
+    #[inline]
+    pub(crate) fn parse_merged_short_inputs(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedMergedShortForms<'t> {
         let Self { description, invert_prefix: _, invert_infix: _, convert: _, display: _ } = self;
         let mut flags = Vec::new();
         let remaining = args
-            .map(|argument| {
-                let input = Cow::Owned(argument.to_string_lossy().into_owned());
-                let argument = ArgumentInput::Unchanged(argument);
+            .filter_map(|argument| {
+                let input = match &argument {
+                    ArgumentInput::Unchanged(argument) => {
+                        Cow::Owned(argument.to_string_lossy().into_owned())
+                    },
+                    ArgumentInput::AdjustedMergedShortNames(_) => Cow::Borrowed(""),
+                };
                 if let Some(parsed) = description.name.parse_flag_merge_short_forms(&argument) {
                     flags.push(ParsedFlag {
                         name: Cow::Owned(parsed.name.into()),
@@ -312,7 +325,6 @@ impl<'t, T> Flag<'t, T> {
                     Some(argument)
                 }
             })
-            .flatten()
             .collect();
         ParsedMergedShortForms {
             early_exits: Vec::new(),

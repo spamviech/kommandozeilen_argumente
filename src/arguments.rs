@@ -369,20 +369,7 @@ impl<'t, T, F> Arguments<'t, T, F> {
         args: impl Iterator<Item = ArgumentInput>,
     ) -> NonEmpty<ParsedMergedShortForms<'t>> {
         match self {
-            Self::Single(argument) => {
-                let args = args.collect_vec();
-                let mut result =
-                    argument.parse_merged_short_forms(args.iter().filter_map(|argument| {
-                        match argument {
-                            ArgumentInput::Unchanged(argument) => Some(argument.clone()),
-                            ArgumentInput::AdjustedMergedShortNames(_) => None,
-                        }
-                    }));
-                result.remaining.extend(args.into_iter().filter(|argument| {
-                    matches!(argument, ArgumentInput::AdjustedMergedShortNames(_))
-                }));
-                NonEmpty::singleton(result)
-            },
+            Self::Single(argument) => argument.parse_merged_short_input_candidates(args),
             Self::Combined(combine) => combine.parse_merged_short_inputs(Box::new(args)),
             Self::Alternatives(alternatives) => {
                 let args = args.collect_vec();
@@ -474,24 +461,60 @@ impl<'t, T, F> Arguments<'t, T, F> {
                 )
             },
             arguments => {
-                let merged = arguments.parse_merged_short_forms(args);
-                let mut candidates = Vec::new();
-                for merged in merged {
+                let input = args.collect_vec();
+                let mut errors = Vec::new();
+                let mut selected = None;
+                for merged in arguments.parse_merged_short_forms(input.iter().cloned()) {
                     for short in arguments.parse_short_forms(merged.remaining.clone().into_iter()) {
                         for long in arguments.parse_long_forms(short.remaining.clone().into_iter())
                         {
-                            candidates.push(RecognizedArguments::from_stages(
+                            let candidate = RecognizedArguments::from_stages(
                                 merged.clone(),
                                 short.clone(),
                                 long,
-                            ));
+                            );
+                            match arguments.validate(candidate.clone()) {
+                                OutcomeResult::Value(()) | OutcomeResult::EarlyExit(_) => {
+                                    selected = Some(candidate);
+                                    break;
+                                },
+                                OutcomeResult::Error(candidate_errors) => {
+                                    errors.extend(candidate_errors);
+                                },
+                            }
+                        }
+                        if selected.is_some() {
+                            break;
                         }
                     }
+                    if selected.is_some() {
+                        break;
+                    }
                 }
-                let candidate =
-                    candidates.into_iter().next().expect("Parsing has at least one candidate.");
-                let remaining = candidate.remaining.clone();
-                (arguments.accumulate(candidate), remaining)
+                match selected {
+                    Some(candidate) => {
+                        let remaining = candidate.remaining.clone();
+                        (arguments.accumulate(candidate), remaining)
+                    },
+                    None => (
+                        OutcomeResult::Error(
+                            NonEmpty::from_vec(errors)
+                                .expect("Parsing has at least one failed candidate."),
+                        ),
+                        Vec::new(),
+                    ),
+                }
+            },
+        }
+    }
+
+    /// Validates a candidate's typed parsing before consuming the parser branch.
+    pub(crate) fn validate(&self, recognized: RecognizedArguments<'t>) -> OutcomeResult<'t, (), F> {
+        match self {
+            Self::Single(argument) => argument.validate(recognized),
+            Self::Combined(combine) => combine.validate(recognized),
+            Self::Alternatives(_) => {
+                unreachable!("Alternatives are handled before staged recognition.")
             },
         }
     }

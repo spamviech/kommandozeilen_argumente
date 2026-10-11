@@ -402,7 +402,7 @@ fn parse_long_value_forms<'argument>(
 fn parse_value_merged_short_forms<'argument>(
     name: &Name<'argument>,
     value_infix: &Compare<'argument>,
-    args: impl Iterator<Item = OsString>,
+    args: impl Iterator<Item = ArgumentInput>,
 ) -> ParsedMergedShortForms<'argument> {
     let mut values = HashMap::new();
     let mut missing_values: std::collections::HashSet<ParsedValueName<'argument>> =
@@ -410,12 +410,23 @@ fn parse_value_merged_short_forms<'argument>(
     let mut args = args.peekable();
     let mut remaining = Vec::new();
     while let Some(argument) = args.next() {
-        let input = Cow::Owned(argument.to_string_lossy().into_owned());
-        let argument = ArgumentInput::Unchanged(argument);
+        let input = match &argument {
+            ArgumentInput::Unchanged(argument) => {
+                Cow::Owned(argument.to_string_lossy().into_owned())
+            },
+            ArgumentInput::AdjustedMergedShortNames(_) => Cow::Borrowed(""),
+        };
         if let Some(parsed) = name.parse_with_value_merge_short_forms(value_infix, &argument) {
-            let value = parsed
-                .inline_value
-                .map_or_else(|| args.next(), |value| Some(OsString::from(value.into_string())));
+            let value = parsed.inline_value.map_or_else(
+                || {
+                    args.next_if(|argument| matches!(argument, ArgumentInput::Unchanged(_)))
+                        .and_then(|argument| match argument {
+                            ArgumentInput::Unchanged(value) => Some(value),
+                            ArgumentInput::AdjustedMergedShortNames(_) => None,
+                        })
+                },
+                |value| Some(OsString::from(value.into_string())),
+            );
             let parsed_name = ParsedValueName { name: Cow::Owned(parsed.name.into()) };
             if let Some(value) = value {
                 let _ = values.insert(parsed_name, ParsedRawValue { value, input });
@@ -568,7 +579,43 @@ impl<'t, T, E> Value<'t, T, E> {
         &self,
         args: impl Iterator<Item = OsString>,
     ) -> ParsedMergedShortForms<'t> {
+        self.parse_merged_short_inputs(args.map(ArgumentInput::Unchanged))
+    }
+
+    /// Parses merged short-form arguments while retaining adjusted-block remainders.
+    #[inline]
+    pub(crate) fn parse_merged_short_inputs(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedMergedShortForms<'t> {
         parse_value_merged_short_forms(&self.description.name, &self.value_infix, args)
+    }
+
+    /// Produces both interpretations of a matched merged short value.
+    ///
+    /// A value-like suffix can instead be a sequence of subsequent short flags.  The matched
+    /// branch is returned first; the untouched branch lets the enclosing combination recognize
+    /// those flags and is validated before the parser definition is consumed.
+    pub(crate) fn parse_merged_short_input_candidates(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> NonEmpty<ParsedMergedShortForms<'t>> {
+        let args = args.collect::<Vec<_>>();
+        let parsed = self.parse_merged_short_inputs(args.iter().cloned());
+        if parsed.values.is_empty() && parsed.missing_values.is_empty() {
+            NonEmpty::singleton(parsed)
+        } else {
+            NonEmpty {
+                head: parsed,
+                tail: vec![ParsedMergedShortForms {
+                    early_exits: Vec::new(),
+                    flags: Vec::new(),
+                    missing_values: Default::default(),
+                    values: Default::default(),
+                    remaining: args,
+                }],
+            }
+        }
     }
 }
 #[cfg(test)]
@@ -791,7 +838,11 @@ impl<'t, T, E> Wert<'t, T, E> {
         args: impl Iterator<Item = OsString>,
     ) -> ParsedMergedShortForms<'t> {
         let value_infix = self.wert_infix.clone().into();
-        parse_value_merged_short_forms(&self.beschreibung.name, &value_infix, args)
+        parse_value_merged_short_forms(
+            &self.beschreibung.name,
+            &value_infix,
+            args.map(ArgumentInput::Unchanged),
+        )
     }
 
     /// Erzeugt Syntax und Hilfetext für dieses Argument.

@@ -323,22 +323,86 @@ impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
         self,
         args: impl Iterator<Item = OsString>,
     ) -> ParsedMergedShortForms<'t> {
+        self.parse_merged_short_inputs(args.map(crate::description::ArgumentInput::Unchanged))
+    }
+
+    fn parse_merged_short_inputs(
+        self,
+        args: impl Iterator<Item = crate::description::ArgumentInput>,
+    ) -> ParsedMergedShortForms<'t> {
         match self {
             Self::English(SingleArgument::Flag(flag))
-            | Self::German(EinzelArgument::Flag(flag)) => flag.parse_merged_short_forms(args),
+            | Self::German(EinzelArgument::Flag(flag)) => flag.parse_merged_short_inputs(args),
             Self::English(SingleArgument::EarlyExit { early_exit, .. }) => {
-                early_exit.parse_merged_short_forms(args)
+                early_exit.parse_merged_short_inputs(args)
             },
-            Self::German(EinzelArgument::FrühesBeenden { frühes_beenden, .. }) => {
-                frühes_beenden.parse_merged_short_forms(args)
+            Self::German(EinzelArgument::FrühesBeenden { frühes_beenden, .. }) => frühes_beenden
+                .parse_merged_short_forms(args.filter_map(|argument| match argument {
+                    crate::description::ArgumentInput::Unchanged(argument) => Some(argument),
+                    crate::description::ArgumentInput::AdjustedMergedShortNames(_) => None,
+                })),
+            Self::English(SingleArgument::Value(value)) => value.parse_merged_short_inputs(args),
+            Self::German(EinzelArgument::Wert(wert)) => {
+                wert.parse_merged_short_forms(args.filter_map(|argument| match argument {
+                    crate::description::ArgumentInput::Unchanged(argument) => Some(argument),
+                    crate::description::ArgumentInput::AdjustedMergedShortNames(_) => None,
+                }))
             },
-            Self::English(SingleArgument::Value(value)) => value.parse_merged_short_forms(args),
-            Self::German(EinzelArgument::Wert(wert)) => wert.parse_merged_short_forms(args),
         }
     }
 }
 
 impl<'t, T, ParseError> SingleArgument<'t, T, ParseError> {
+    /// Validates typed accumulation without consuming defaults or callbacks.
+    pub(crate) fn validate(
+        &self,
+        mut recognized: RecognizedArguments<'t>,
+    ) -> Result<'t, (), ParseError> {
+        if let Some(messages) = nonempty::NonEmpty::from_vec(
+            recognized.early_exits.into_iter().map(|early_exit| early_exit.message).collect(),
+        ) {
+            return Result::EarlyExit(messages);
+        }
+        match self {
+            Self::Flag(flag) => {
+                let value = flag
+                    .description
+                    .name
+                    .long
+                    .iter()
+                    .chain(flag.description.name.short.iter())
+                    .find_map(|name| {
+                        recognized
+                            .flags
+                            .iter()
+                            .rev()
+                            .find(|flag| flag.name == name.as_str())
+                            .map(|flag| flag.value)
+                    });
+                if value.is_some() || flag.description.default.is_some() {
+                    Result::Value(())
+                } else {
+                    Result::Error(nonempty::nonempty![Error::MissingFlag {
+                        name: flag.description.name.clone(),
+                        invert_prefix: flag.invert_prefix.string.clone(),
+                        invert_infix: flag.invert_infix.string.clone(),
+                    }])
+                }
+            },
+            Self::EarlyExit { .. } => Result::Value(()),
+            Self::Value(value) => match value.take_parsed_value(&mut recognized.values) {
+                Ok(Some(_)) => Result::Value(()),
+                Ok(None) if value.description.default.is_some() => Result::Value(()),
+                Ok(None) => Result::Error(nonempty::nonempty![Error::MissingValue {
+                    name: value.description.name.clone(),
+                    value_infix: value.value_infix.string.clone(),
+                    meta_var: value.meta_var,
+                }]),
+                Err(error) => Result::Error(nonempty::nonempty![Error::ParseError(error)]),
+            },
+        }
+    }
+
     pub(crate) fn accumulate(
         self,
         mut recognized: RecognizedArguments<'t>,
@@ -429,6 +493,26 @@ impl<'t, T, ParseError> SingleArgument<'t, T, ParseError> {
         args: impl Iterator<Item = OsString>,
     ) -> ParsedMergedShortForms<'t> {
         SingleArgumentRef::English(self).parse_merged_short_forms(args)
+    }
+
+    /// Parses merged short-form arguments while retaining adjusted-block remainders.
+    #[inline]
+    pub(crate) fn parse_merged_short_inputs(
+        &self,
+        args: impl Iterator<Item = crate::description::ArgumentInput>,
+    ) -> ParsedMergedShortForms<'t> {
+        SingleArgumentRef::English(self).parse_merged_short_inputs(args)
+    }
+
+    /// Produces all merged-short recognition candidates for this argument.
+    pub(crate) fn parse_merged_short_input_candidates(
+        &self,
+        args: impl Iterator<Item = crate::description::ArgumentInput>,
+    ) -> nonempty::NonEmpty<ParsedMergedShortForms<'t>> {
+        match self {
+            Self::Value(value) => value.parse_merged_short_input_candidates(args),
+            _ => nonempty::NonEmpty::singleton(self.parse_merged_short_inputs(args)),
+        }
     }
 }
 

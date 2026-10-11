@@ -32,7 +32,7 @@ name = "derive"
 required-features = ["derive"]
 
 [[example]]
-name = "derive"
+name = "derive_de"
 required-features = ["derive"]
 
 [[example]]
@@ -96,7 +96,7 @@ trivial_numeric_casts = "warn"
 unreachable_pub = "warn"
 unsafe_code = "warn"
 unsafe_op_in_unsafe_fn = "warn"
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(parser_tests)'] }
+unexpected_cfgs = "warn"
 unused_crate_dependencies = "warn"
 unused_extern_crates = "warn"
 unused_import_braces = "warn"

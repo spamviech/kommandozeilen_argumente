@@ -125,6 +125,12 @@ pub trait Combine<'t, T, Fehler> {
         todo!()
     }
 
+    /// Validates typed accumulation without consuming this combination.
+    #[inline]
+    fn validate(&self, _recognized: RecognizedArguments<'t>) -> Result<'t, (), Fehler> {
+        todo!()
+    }
+
     /// Accumulates the typed values recognized for this combination.
     #[inline]
     fn accumulate(self: Box<Self>, _recognized: RecognizedArguments<'t>) -> Result<'t, T, Fehler> {
@@ -244,16 +250,52 @@ macro_rules! impl_combine_tuple {
                 }
 
                 #[inline]
+                fn validate(&self, recognized: RecognizedArguments<'t>) -> Result<'t, (), Error> {
+                    let (_function, $([<arg_ $suffix:snake:lower>]),+) = self;
+                    let mut errors = Vec::new();
+                    $(
+                        match [<arg_ $suffix:snake:lower>].validate(recognized.clone()) {
+                            Result::Value(()) => {},
+                            Result::EarlyExit(messages) => return Result::EarlyExit(messages),
+                            Result::Error(child_errors) => errors.extend(child_errors),
+                        }
+                    )+
+                    match NonEmpty::from_vec(errors) {
+                        Some(errors) => Result::Error(errors),
+                        None => Result::Value(()),
+                    }
+                }
+
+                #[inline]
                 fn accumulate(
                     self: Box<Self>,
                     recognized: RecognizedArguments<'t>,
                 ) -> Result<'t, T, Error> {
                     let (function, $([<arg_ $suffix:snake:lower>]),+) = *self;
+                    let mut errors = Vec::new();
+                    let mut early_exit = None;
                     $(
                         let [<value_ $suffix:snake:lower>] = match [<arg_ $suffix:snake:lower>].accumulate(recognized.clone()) {
-                            Result::Value(value) => value,
-                            Result::EarlyExit(messages) => return Result::EarlyExit(messages),
-                            Result::Error(errors) => return Result::Error(errors),
+                            Result::Value(value) => Some(value),
+                            Result::EarlyExit(messages) => {
+                                early_exit = Some(messages);
+                                None
+                            },
+                            Result::Error(child_errors) => {
+                                errors.extend(child_errors);
+                                None
+                            },
+                        };
+                    )+
+                    if let Some(messages) = early_exit {
+                        return Result::EarlyExit(messages);
+                    }
+                    if let Some(errors) = NonEmpty::from_vec(errors) {
+                        return Result::Error(errors);
+                    }
+                    $(
+                        let Some([<value_ $suffix:snake:lower>]) = [<value_ $suffix:snake:lower>] else {
+                            unreachable!("A successful accumulation produces every child value.");
                         };
                     )+
                     Result::Value(function($([<value_ $suffix:snake:lower>]),+))
@@ -430,6 +472,11 @@ where
         let mut result = ParsedLongForms::empty();
         result.remaining = args.collect();
         NonEmpty::singleton(result)
+    }
+
+    #[inline]
+    fn validate(&self, _recognized: RecognizedArguments<'t>) -> Result<'t, (), Fehler> {
+        Result::Value(())
     }
 
     #[inline]
