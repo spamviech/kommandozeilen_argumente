@@ -188,7 +188,7 @@ impl Name<'_> {
         value_found: impl FnOnce() -> E,
         arg: &ArgumentInput,
     ) -> Option<ParsedMergedShortName<E>> {
-        let Name { long_prefix: _, long: _, short_prefix, short } = self;
+        let Name { long_prefix, long: _, short_prefix, short } = self;
         if short.is_empty() {
             return None;
         }
@@ -196,6 +196,11 @@ impl Name<'_> {
             ArgumentInput::Unchanged(arg) => {
                 if let Some(string) = arg.to_str() {
                     let normalized = Normalized::new(string);
+                    // A long-form prefix must not be interpreted as a short-prefix followed by
+                    // a merged block (for example, `--help` is not `-h` plus `elp`).
+                    if long_prefix.strip_as_prefix_n(&normalized).is_some() {
+                        return None;
+                    }
                     if let Some((prefix, kurz_suffix)) = short_prefix.strip_as_prefix_n(&normalized)
                     {
                         let graphemes: Box<dyn Iterator<Item = &str>> =
@@ -394,7 +399,7 @@ impl Name<'_> {
         value_infix: &Compare<'_>,
         arg: &ArgumentInput,
     ) -> Option<ParsedMergedShortName<()>> {
-        let Name { long_prefix: _, long: _, short_prefix, short } = self;
+        let Name { long_prefix, long: _, short_prefix, short } = self;
         if short.is_empty() {
             return None;
         }
@@ -402,6 +407,9 @@ impl Name<'_> {
             ArgumentInput::Unchanged(arg) => {
                 let string = arg.to_str()?;
                 let normalized = Normalized::new(string);
+                if long_prefix.strip_as_prefix_n(&normalized).is_some() {
+                    return None;
+                }
                 let (prefix, suffix) = short_prefix.strip_as_prefix_n(&normalized)?;
                 (prefix.into_owned(), suffix.as_str().graphemes(true).map(Box::from).collect())
             },

@@ -10,7 +10,9 @@ use std::{
 use nonempty::NonEmpty;
 
 use crate::{
-    arguments::{ParsedFlag, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, help::Help},
+    arguments::{
+        ParsedFlag, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, help::Help,
+    },
     description::{ArgumentInput, Description, Name},
     dyn_to_owned::{Bool, Show},
     language::Language,

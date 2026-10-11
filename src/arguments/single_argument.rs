@@ -10,13 +10,14 @@ use void::Void;
 
 use crate::{
     arguments::{
-        ParsedLongForms, ParsedMergedShortForms, ParsedShortForms,
+        ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, RecognizedArguments,
         early_exit::{EarlyExit, FrühesBeenden},
         flag::Flag,
         help::{Help, Hilfe},
         value::{Value, Wert},
     },
     dyn_to_owned::Show,
+    outcome::{Error, Result},
 };
 
 /// Configuration of a single command-line argument.
@@ -324,9 +325,7 @@ impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
     ) -> ParsedMergedShortForms<'t> {
         match self {
             Self::English(SingleArgument::Flag(flag))
-            | Self::German(EinzelArgument::Flag(flag)) => {
-                flag.parse_merged_short_forms(args)
-            },
+            | Self::German(EinzelArgument::Flag(flag)) => flag.parse_merged_short_forms(args),
             Self::English(SingleArgument::EarlyExit { early_exit, .. }) => {
                 early_exit.parse_merged_short_forms(args)
             },
@@ -339,7 +338,60 @@ impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
     }
 }
 
-impl<'t, T, Error> SingleArgument<'t, T, Error> {
+impl<'t, T, ParseError> SingleArgument<'t, T, ParseError> {
+    pub(crate) fn accumulate(
+        self,
+        mut recognized: RecognizedArguments<'t>,
+    ) -> Result<'t, T, ParseError> {
+        if let Some(messages) = nonempty::NonEmpty::from_vec(
+            recognized.early_exits.into_iter().map(|early_exit| early_exit.message).collect(),
+        ) {
+            return Result::EarlyExit(messages);
+        }
+        match self {
+            Self::Flag(flag) => {
+                let value = flag
+                    .description
+                    .name
+                    .long
+                    .iter()
+                    .chain(flag.description.name.short.iter())
+                    .find_map(|name| {
+                        recognized
+                            .flags
+                            .iter()
+                            .rev()
+                            .find(|flag| flag.name == name.as_str())
+                            .map(|flag| flag.value)
+                    });
+                match value {
+                    Some(value) => Result::Value((flag.convert)(value)),
+                    None => match flag.description.default {
+                        Some(default) => Result::Value(default),
+                        None => Result::Error(nonempty::nonempty![Error::MissingFlag {
+                            name: flag.description.name,
+                            invert_prefix: flag.invert_prefix.string,
+                            invert_infix: flag.invert_infix.string,
+                        }]),
+                    },
+                }
+            },
+            Self::EarlyExit { value, .. } => Result::Value(value),
+            Self::Value(value) => match value.take_parsed_value(&mut recognized.values) {
+                Ok(Some(value)) => Result::Value(value),
+                Ok(None) => match value.description.default {
+                    Some(default) => Result::Value(default),
+                    None => Result::Error(nonempty::nonempty![Error::MissingValue {
+                        name: value.description.name,
+                        value_infix: value.value_infix.string,
+                        meta_var: value.meta_var,
+                    }]),
+                },
+                Err(error) => Result::Error(nonempty::nonempty![Error::ParseError(error)]),
+            },
+        }
+    }
+
     /// Creates this argument's syntax and corresponding help text.
     #[inline]
     pub fn create_help_text(&self, meta_default: &str, meta_possible_values: &str) -> Help {

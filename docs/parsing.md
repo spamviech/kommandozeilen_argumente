@@ -152,3 +152,24 @@ Result variants:
 - EarlyExit-messages, errors if any
 - Result struct, errors if any
 - errors if no result can be constructed
+
+## Known issue: candidate ownership during staged parsing
+
+The current implementation can produce several syntactically valid recognition candidates for a
+combined argument definition, but it does not yet keep each candidate associated with an owned or
+replayable parser branch. Accumulating a candidate consumes the non-`Clone` `Arguments` tree
+because it owns user-provided parsing and combine callbacks. Consequently, the implementation
+cannot safely try every recognition candidate without either cloning callbacks or discarding all
+but one candidate.
+
+This is observable for ambiguous merged short forms. For example, one candidate may interpret
+`-fb` as a value argument named `f` with raw value `b`, while another correctly recognizes two
+short flags. The parser must attempt typed conversion and accumulation for both candidates, and
+select the first one that succeeds; selecting the first syntactic candidate alone can return a
+spurious conversion or missing-flag error.
+
+Future correction: represent a parsing candidate as its complete staged state **and** its
+corresponding parser branch, or make the branch replayable from the original input. Candidate
+evaluation must then consume only that branch and its independent raw-value state. This preserves
+support for non-`Clone` callbacks, allows every candidate to be accumulated, and implements the
+"Pick alternative" stage described above.

@@ -242,6 +242,47 @@ impl<'t, T, E, F: FnOnce(Result<'t, T, E>) -> Result<'t, T, E>> Combine<'t, T, E
     ) -> NonEmpty<help::Alternativen> {
         self.arguments.create_help_text(variant, meta_default, meta_allowed_values).map(Into::into)
     }
+
+    #[inline]
+    fn parse_merged_short_forms(
+        &self,
+        args: Box<dyn Iterator<Item = OsString> + '_>,
+    ) -> NonEmpty<crate::arguments::ParsedMergedShortForms<'t>> {
+        self.arguments.parse_merged_short_forms(args)
+    }
+
+    #[inline]
+    fn parse_merged_short_inputs(
+        &self,
+        args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+    ) -> NonEmpty<crate::arguments::ParsedMergedShortForms<'t>> {
+        self.arguments.parse_merged_short_inputs(args)
+    }
+
+    #[inline]
+    fn parse_short_forms(
+        &self,
+        args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+    ) -> NonEmpty<crate::arguments::ParsedShortForms<'t>> {
+        self.arguments.parse_short_forms(args)
+    }
+
+    #[inline]
+    fn parse_long_forms(
+        &self,
+        args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+    ) -> NonEmpty<crate::arguments::ParsedLongForms<'t>> {
+        self.arguments.parse_long_forms(args)
+    }
+
+    #[inline]
+    fn accumulate(
+        self: Box<Self>,
+        recognized: crate::arguments::RecognizedArguments<'t>,
+    ) -> Result<'t, T, E> {
+        let Self { adjust_result, arguments } = *self;
+        adjust_result(arguments.accumulate(recognized))
+    }
 }
 
 /// Creates the [`Show`] closure for [`Option<T>`] as a trait object.

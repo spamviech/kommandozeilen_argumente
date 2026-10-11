@@ -11,10 +11,11 @@ use paste::paste;
 use crate::{
     arguments::{
         ArgumentInput, Arguments, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms,
+        RecognizedArguments,
         argumente::Argumente,
         help::{self, CreateHelpText},
     },
-    outcome::{IntermediateResult, ZwischenErgebnis},
+    outcome::{IntermediateResult, Result, ZwischenErgebnis},
 };
 
 /// Combine multiple arguments with the given function.
@@ -87,8 +88,7 @@ pub trait Combine<'t, T, Fehler> {
     fn parse_merged_short_forms(
         &self,
         args: Box<dyn Iterator<Item = OsString> + '_>,
-    ) -> NonEmpty<ParsedMergedShortForms<'t>>
-    {
+    ) -> NonEmpty<ParsedMergedShortForms<'t>> {
         let _ = args;
         todo!()
     }
@@ -110,8 +110,7 @@ pub trait Combine<'t, T, Fehler> {
     fn parse_short_forms(
         &self,
         args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
-    ) -> NonEmpty<ParsedShortForms<'t>>
-    {
+    ) -> NonEmpty<ParsedShortForms<'t>> {
         let _ = args;
         todo!()
     }
@@ -121,9 +120,14 @@ pub trait Combine<'t, T, Fehler> {
     fn parse_long_forms(
         &self,
         args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
-    ) -> NonEmpty<ParsedLongForms<'t>>
-    {
+    ) -> NonEmpty<ParsedLongForms<'t>> {
         let _ = args;
+        todo!()
+    }
+
+    /// Accumulates the typed values recognized for this combination.
+    #[inline]
+    fn accumulate(self: Box<Self>, _recognized: RecognizedArguments<'t>) -> Result<'t, T, Fehler> {
         todo!()
     }
 }
@@ -149,6 +153,7 @@ macro_rules! impl_combine_tuple {
                 Error: Debug,
                 $(
                     [<'t $suffix:snake:lower>]: 't,
+                    't: [<'t $suffix:snake:lower>],
                     [<T $suffix:camel>]: Debug,
                 )+
             {
@@ -239,6 +244,22 @@ macro_rules! impl_combine_tuple {
                 }
 
                 #[inline]
+                fn accumulate(
+                    self: Box<Self>,
+                    recognized: RecognizedArguments<'t>,
+                ) -> Result<'t, T, Error> {
+                    let (function, $([<arg_ $suffix:snake:lower>]),+) = *self;
+                    $(
+                        let [<value_ $suffix:snake:lower>] = match [<arg_ $suffix:snake:lower>].accumulate(recognized.clone()) {
+                            Result::Value(value) => value,
+                            Result::EarlyExit(messages) => return Result::EarlyExit(messages),
+                            Result::Error(errors) => return Result::Error(errors),
+                        };
+                    )+
+                    Result::Value(function($([<value_ $suffix:snake:lower>]),+))
+                }
+
+                #[inline]
                 fn debug_fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
                     let (_function, $([<arg_ $suffix:snake:lower>]),+) = self;
                     write!(formatter, "(<closure>")?;
@@ -271,6 +292,7 @@ macro_rules! impl_combine_tuple {
                 Error: Debug,
                 $(
                     [<'t $suffix:snake:lower>]: 't,
+                    't: [<'t $suffix:snake:lower>],
                     [<T $suffix:camel>]: Debug,
                 )+
             {}
@@ -292,6 +314,7 @@ macro_rules! impl_combine_tuple {
                 Fehler: Debug,
                 $(
                     [<'t $suffix:snake:lower>]: 't,
+                    't: [<'t $suffix:snake:lower>],
                     [<T $suffix:camel>]: Debug,
                 )+
             {
@@ -346,6 +369,7 @@ macro_rules! impl_combine_tuple {
                 Fehler: Debug,
                 $(
                     [<'t $suffix:snake:lower>]: 't,
+                    't: [<'t $suffix:snake:lower>],
                     [<T $suffix:camel>]: Debug,
                 )+
             {}
@@ -366,6 +390,51 @@ where
         _meta_erlaubte_werte: &str,
     ) -> NonEmpty<help::Alternativen> {
         nonempty![help::Alternativen::Leer]
+    }
+
+    #[inline]
+    fn parse_merged_short_forms(
+        &self,
+        args: Box<dyn Iterator<Item = OsString> + '_>,
+    ) -> NonEmpty<ParsedMergedShortForms<'t>> {
+        let mut result = ParsedMergedShortForms::empty();
+        result.remaining = args.map(ArgumentInput::Unchanged).collect();
+        NonEmpty::singleton(result)
+    }
+
+    #[inline]
+    fn parse_merged_short_inputs(
+        &self,
+        args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+    ) -> NonEmpty<ParsedMergedShortForms<'t>> {
+        let mut result = ParsedMergedShortForms::empty();
+        result.remaining = args.collect();
+        NonEmpty::singleton(result)
+    }
+
+    #[inline]
+    fn parse_short_forms(
+        &self,
+        args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+    ) -> NonEmpty<ParsedShortForms<'t>> {
+        let mut result = ParsedShortForms::empty();
+        result.remaining = args.collect();
+        NonEmpty::singleton(result)
+    }
+
+    #[inline]
+    fn parse_long_forms(
+        &self,
+        args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+    ) -> NonEmpty<ParsedLongForms<'t>> {
+        let mut result = ParsedLongForms::empty();
+        result.remaining = args.collect();
+        NonEmpty::singleton(result)
+    }
+
+    #[inline]
+    fn accumulate(self: Box<Self>, _recognized: RecognizedArguments<'t>) -> Result<'t, T, Fehler> {
+        Result::Value(self.0())
     }
 
     #[inline]

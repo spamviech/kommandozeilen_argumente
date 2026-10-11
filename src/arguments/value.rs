@@ -315,6 +315,8 @@ fn parse_short_value_forms<'argument>(
     args: impl Iterator<Item = ArgumentInput>,
 ) -> ParsedShortForms<'argument> {
     let mut values = HashMap::new();
+    let mut missing_values: std::collections::HashSet<ParsedValueName<'argument>> =
+        Default::default();
     let mut args = args.peekable();
     let mut remaining = Vec::new();
     while let Some(argument) = args.next() {
@@ -324,6 +326,7 @@ fn parse_short_value_forms<'argument>(
                 if let Some((name, inline_value)) =
                     name.parse_short_with_value(value_infix, &argument)
                 {
+                    let parsed_name = ParsedValueName { name: Cow::Owned(name.into()) };
                     if let Some(value) = inline_value.map(Cow::into_owned).or_else(|| {
                         args.next_if(|argument| matches!(argument, ArgumentInput::Unchanged(_)))
                             .and_then(|argument| match argument {
@@ -331,10 +334,9 @@ fn parse_short_value_forms<'argument>(
                                 ArgumentInput::AdjustedMergedShortNames(_) => None,
                             })
                     }) {
-                        let _ = values.insert(
-                            ParsedValueName { name: Cow::Owned(name.into()) },
-                            ParsedRawValue { value, input },
-                        );
+                        let _ = values.insert(parsed_name, ParsedRawValue { value, input });
+                    } else {
+                        let _ = missing_values.insert(parsed_name);
                     }
                 } else {
                     remaining.push(ArgumentInput::Unchanged(argument));
@@ -343,7 +345,13 @@ fn parse_short_value_forms<'argument>(
             adjusted @ ArgumentInput::AdjustedMergedShortNames(_) => remaining.push(adjusted),
         }
     }
-    ParsedShortForms { early_exits: Vec::new(), flags: Vec::new(), missing_values: Default::default(), values, remaining }
+    ParsedShortForms {
+        early_exits: Vec::new(),
+        flags: Vec::new(),
+        missing_values,
+        values,
+        remaining,
+    }
 }
 
 fn parse_long_value_forms<'argument>(
@@ -352,6 +360,8 @@ fn parse_long_value_forms<'argument>(
     args: impl Iterator<Item = ArgumentInput>,
 ) -> ParsedLongForms<'argument> {
     let mut values = HashMap::new();
+    let mut missing_values: std::collections::HashSet<ParsedValueName<'argument>> =
+        Default::default();
     let mut args = args.peekable();
     let mut remaining = Vec::new();
     while let Some(argument) = args.next() {
@@ -361,6 +371,7 @@ fn parse_long_value_forms<'argument>(
                 if let Some((name, inline_value)) =
                     name.parse_long_with_value(value_infix, &argument)
                 {
+                    let parsed_name = ParsedValueName { name: Cow::Owned(name.into()) };
                     if let Some(value) = inline_value.map(Cow::into_owned).or_else(|| {
                         args.next_if(|argument| matches!(argument, ArgumentInput::Unchanged(_)))
                             .and_then(|argument| match argument {
@@ -368,10 +379,9 @@ fn parse_long_value_forms<'argument>(
                                 ArgumentInput::AdjustedMergedShortNames(_) => None,
                             })
                     }) {
-                        let _ = values.insert(
-                            ParsedValueName { name: Cow::Owned(name.into()) },
-                            ParsedRawValue { value, input },
-                        );
+                        let _ = values.insert(parsed_name, ParsedRawValue { value, input });
+                    } else {
+                        let _ = missing_values.insert(parsed_name);
                     }
                 } else {
                     remaining.push(ArgumentInput::Unchanged(argument));
@@ -380,7 +390,13 @@ fn parse_long_value_forms<'argument>(
             adjusted @ ArgumentInput::AdjustedMergedShortNames(_) => remaining.push(adjusted),
         }
     }
-    ParsedLongForms { early_exits: Vec::new(), flags: Vec::new(), missing_values: Default::default(), values, remaining }
+    ParsedLongForms {
+        early_exits: Vec::new(),
+        flags: Vec::new(),
+        missing_values,
+        values,
+        remaining,
+    }
 }
 
 fn parse_value_merged_short_forms<'argument>(
@@ -389,6 +405,8 @@ fn parse_value_merged_short_forms<'argument>(
     args: impl Iterator<Item = OsString>,
 ) -> ParsedMergedShortForms<'argument> {
     let mut values = HashMap::new();
+    let mut missing_values: std::collections::HashSet<ParsedValueName<'argument>> =
+        Default::default();
     let mut args = args.peekable();
     let mut remaining = Vec::new();
     while let Some(argument) = args.next() {
@@ -398,11 +416,11 @@ fn parse_value_merged_short_forms<'argument>(
             let value = parsed
                 .inline_value
                 .map_or_else(|| args.next(), |value| Some(OsString::from(value.into_string())));
+            let parsed_name = ParsedValueName { name: Cow::Owned(parsed.name.into()) };
             if let Some(value) = value {
-                let _ = values.insert(
-                    ParsedValueName { name: Cow::Owned(parsed.name.into()) },
-                    ParsedRawValue { value, input },
-                );
+                let _ = values.insert(parsed_name, ParsedRawValue { value, input });
+            } else {
+                let _ = missing_values.insert(parsed_name);
             }
             if let Some(argument) = parsed.remaining {
                 remaining.push(argument);
@@ -411,7 +429,13 @@ fn parse_value_merged_short_forms<'argument>(
             remaining.push(argument);
         }
     }
-    ParsedMergedShortForms { early_exits: Vec::new(), flags: Vec::new(), missing_values: Default::default(), values, remaining }
+    ParsedMergedShortForms {
+        early_exits: Vec::new(),
+        flags: Vec::new(),
+        missing_values,
+        values,
+        remaining,
+    }
 }
 /// Creates syntax and help text from the shared parts of a German or English value argument.
 fn create_value_help_text<T>(

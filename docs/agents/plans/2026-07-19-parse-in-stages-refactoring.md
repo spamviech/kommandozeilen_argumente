@@ -911,7 +911,7 @@ end-to-end.
 
 **Tasks**:
 
-- [-] Split the overloaded `ParseResult` into stage-specific result/state types in
+- [x] Split the overloaded `ParseResult` into stage-specific result/state types in
   `src/arguments.rs`.  Stage 1 (`ParsedMergedShortForms`), stage 2
   (`ParsedShortForms`), and stage 3 (`ParsedLongForms`) each represent only that stage's
   matches and remaining input; add an explicit accumulated recognition state that merges their
@@ -919,7 +919,7 @@ end-to-end.
   do not reuse a type merely because its fields happen to coincide. A recognized value name with
   no eligible raw value is recorded explicitly and must become `Error::MissingValue` during
   typed accumulation; adjusted merged-short-name remainders are never eligible as a value.
-- [-] Add recursive methods for every name-recognition stage to `Arguments`, `Combine`, and
+- [x] Add recursive methods for every name-recognition stage to `Arguments`, `Combine`, and
   `SingleArgument`: `parse_merged_short_forms`, `parse_short_forms`, and `parse_long_forms`.
   Stage 1 accepts `Iterator<Item = OsString>` and creates `ArgumentInput::Unchanged` entries;
   stages 2 and 3 accept `Iterator<Item = ArgumentInput>` so that the adjusted merged-short-name
@@ -929,7 +929,7 @@ end-to-end.
   Tuple implementations must process each child in order, feeding its remaining input to the
   next child and accumulating only that stage's recognized entries. Leaf methods remain the
   matching implementation for their corresponding stage.
-- [ ] Implement typed-value parsing and accumulation as separate stage methods on `Arguments`,
+- [-] Implement typed-value parsing and accumulation as separate stage methods on `Arguments`,
   `Combine`, and `SingleArgument`.  Each alternative receives an independent cloned raw-value
   map; a `Value` conversion error rejects only that candidate.  Tuple accumulation invokes the
   user function only after every child produces a value and otherwise combines early exits,

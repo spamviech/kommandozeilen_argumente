@@ -217,8 +217,7 @@ mod tests {
             Description::new("--", "help", "-", "h", None, None::<Void>),
             "help message",
         );
-        let result =
-            early_exit.parse_merged_short_forms([OsString::from("-h")].into_iter());
+        let result = early_exit.parse_merged_short_forms([OsString::from("-h")].into_iter());
 
         assert_eq!(result.early_exits.len(), 1);
         assert_eq!(result.early_exits[0].name, "h");
@@ -232,9 +231,8 @@ mod tests {
             Description::new("--", "help", "-", "h", None, None::<Void>),
             "help message",
         );
-        let result = early_exit.parse_short_form(
-            [OsString::from("-h")].into_iter().map(ArgumentInput::Unchanged),
-        );
+        let result = early_exit
+            .parse_short_form([OsString::from("-h")].into_iter().map(ArgumentInput::Unchanged));
 
         assert_eq!(result.early_exits.len(), 1);
         assert_eq!(result.early_exits[0].name, "h");
@@ -247,9 +245,8 @@ mod tests {
             Description::new("--", "help", "-", "h", None, None::<Void>),
             "help message",
         );
-        let result = early_exit.parse_long_form(
-            [OsString::from("--help")].into_iter().map(ArgumentInput::Unchanged),
-        );
+        let result = early_exit
+            .parse_long_form([OsString::from("--help")].into_iter().map(ArgumentInput::Unchanged));
 
         assert_eq!(result.early_exits.len(), 1);
         assert_eq!(result.early_exits[0].name, "help");

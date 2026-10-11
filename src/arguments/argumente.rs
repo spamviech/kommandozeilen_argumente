@@ -292,7 +292,7 @@ where
             EinzelArgument(einzelargument) => {
                 NonEmpty::singleton(einzelargument.parse_merged_short_forms(args))
             },
-            Kombiniere(kombiniere) => todo!(),
+            Kombiniere(kombiniere) => kombiniere.parse_merged_short_forms(Box::new(args)),
             Alternativen(non_empty) => {
                 let args = args.collect_vec();
 

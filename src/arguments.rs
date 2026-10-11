@@ -23,7 +23,7 @@ use crate::{
     },
     description::ArgumentInput,
     language::Language,
-    outcome::Error,
+    outcome::{Error, Result as OutcomeResult},
 };
 
 pub mod argumente;
@@ -229,41 +229,126 @@ pub struct RecognizedArguments<'argument> {
     pub remaining: Vec<ArgumentInput>,
 }
 
+impl<'argument> RecognizedArguments<'argument> {
+    fn from_stages(
+        merged: ParsedMergedShortForms<'argument>,
+        short: ParsedShortForms<'argument>,
+        long: ParsedLongForms<'argument>,
+    ) -> Self {
+        let mut result = Self {
+            early_exits: merged.early_exits,
+            flags: merged.flags,
+            missing_values: merged.missing_values,
+            values: merged.values,
+            remaining: long.remaining,
+        };
+        result.merge_stage(short.early_exits, short.flags, short.missing_values, short.values);
+        result.merge_stage(long.early_exits, long.flags, long.missing_values, long.values);
+        result
+    }
+
+    fn merge_stage(
+        &mut self,
+        mut early_exits: Vec<ParsedEarlyExit<'argument>>,
+        mut flags: Vec<ParsedFlag<'argument>>,
+        missing_values: HashSet<ParsedValueName<'argument>>,
+        values: HashMap<ParsedValueName<'argument>, ParsedRawValue<'argument>>,
+    ) {
+        self.early_exits.append(&mut early_exits);
+        self.flags.append(&mut flags);
+        for name in missing_values {
+            if !self.values.contains_key(&name) {
+                let _ = self.missing_values.insert(name);
+            }
+        }
+        for (name, value) in values {
+            let _ = self.missing_values.remove(&name);
+            let _ = self.values.insert(name, value);
+        }
+    }
+}
+
 impl<'argument> ParsedMergedShortForms<'argument> {
     pub(crate) fn empty() -> Self {
         Self {
-            early_exits: Vec::new(), flags: Vec::new(), missing_values: HashSet::new(),
-            values: HashMap::new(), remaining: Vec::new(),
+            early_exits: Vec::new(),
+            flags: Vec::new(),
+            missing_values: HashSet::new(),
+            values: HashMap::new(),
+            remaining: Vec::new(),
         }
     }
 
     pub(crate) fn merge(mut self, mut next: Self) -> Self {
         self.early_exits.append(&mut next.early_exits);
         self.flags.append(&mut next.flags);
-        for name in next.missing_values { if !self.values.contains_key(&name) { let _ = self.missing_values.insert(name); } }
-        for (name, value) in next.values { let _ = self.missing_values.remove(&name); let _ = self.values.insert(name, value); }
+        for name in next.missing_values {
+            if !self.values.contains_key(&name) {
+                let _ = self.missing_values.insert(name);
+            }
+        }
+        for (name, value) in next.values {
+            let _ = self.missing_values.remove(&name);
+            let _ = self.values.insert(name, value);
+        }
         self.remaining = next.remaining;
         self
     }
 }
 
 impl<'argument> ParsedShortForms<'argument> {
-    pub(crate) fn empty() -> Self { Self { early_exits: Vec::new(), flags: Vec::new(), missing_values: HashSet::new(), values: HashMap::new(), remaining: Vec::new() } }
+    pub(crate) fn empty() -> Self {
+        Self {
+            early_exits: Vec::new(),
+            flags: Vec::new(),
+            missing_values: HashSet::new(),
+            values: HashMap::new(),
+            remaining: Vec::new(),
+        }
+    }
+
     pub(crate) fn merge(mut self, mut next: Self) -> Self {
-        self.early_exits.append(&mut next.early_exits); self.flags.append(&mut next.flags);
-        for name in next.missing_values { if !self.values.contains_key(&name) { let _ = self.missing_values.insert(name); } }
-        for (name, value) in next.values { let _ = self.missing_values.remove(&name); let _ = self.values.insert(name, value); }
-        self.remaining = next.remaining; self
+        self.early_exits.append(&mut next.early_exits);
+        self.flags.append(&mut next.flags);
+        for name in next.missing_values {
+            if !self.values.contains_key(&name) {
+                let _ = self.missing_values.insert(name);
+            }
+        }
+        for (name, value) in next.values {
+            let _ = self.missing_values.remove(&name);
+            let _ = self.values.insert(name, value);
+        }
+        self.remaining = next.remaining;
+        self
     }
 }
 
 impl<'argument> ParsedLongForms<'argument> {
-    pub(crate) fn empty() -> Self { Self { early_exits: Vec::new(), flags: Vec::new(), missing_values: HashSet::new(), values: HashMap::new(), remaining: Vec::new() } }
+    pub(crate) fn empty() -> Self {
+        Self {
+            early_exits: Vec::new(),
+            flags: Vec::new(),
+            missing_values: HashSet::new(),
+            values: HashMap::new(),
+            remaining: Vec::new(),
+        }
+    }
+
     pub(crate) fn merge(mut self, mut next: Self) -> Self {
-        self.early_exits.append(&mut next.early_exits); self.flags.append(&mut next.flags);
-        for name in next.missing_values { if !self.values.contains_key(&name) { let _ = self.missing_values.insert(name); } }
-        for (name, value) in next.values { let _ = self.missing_values.remove(&name); let _ = self.values.insert(name, value); }
-        self.remaining = next.remaining; self
+        self.early_exits.append(&mut next.early_exits);
+        self.flags.append(&mut next.flags);
+        for name in next.missing_values {
+            if !self.values.contains_key(&name) {
+                let _ = self.missing_values.insert(name);
+            }
+        }
+        for (name, value) in next.values {
+            let _ = self.missing_values.remove(&name);
+            let _ = self.values.insert(name, value);
+        }
+        self.remaining = next.remaining;
+        self
     }
 }
 
@@ -286,10 +371,13 @@ impl<'t, T, F> Arguments<'t, T, F> {
         match self {
             Self::Single(argument) => {
                 let args = args.collect_vec();
-                let mut result = argument.parse_merged_short_forms(args.iter().filter_map(|argument| match argument {
-                    ArgumentInput::Unchanged(argument) => Some(argument.clone()),
-                    ArgumentInput::AdjustedMergedShortNames(_) => None,
-                }));
+                let mut result =
+                    argument.parse_merged_short_forms(args.iter().filter_map(|argument| {
+                        match argument {
+                            ArgumentInput::Unchanged(argument) => Some(argument.clone()),
+                            ArgumentInput::AdjustedMergedShortNames(_) => None,
+                        }
+                    }));
                 result.remaining.extend(args.into_iter().filter(|argument| {
                     matches!(argument, ArgumentInput::AdjustedMergedShortNames(_))
                 }));
@@ -319,9 +407,12 @@ impl<'t, T, F> Arguments<'t, T, F> {
             Self::Combined(combine) => combine.parse_short_forms(Box::new(args)),
             Self::Alternatives(alternatives) => {
                 let args = args.collect_vec();
-                NonEmpty::collect(alternatives.iter().flat_map(|argument| {
-                    argument.parse_short_forms(args.iter().cloned())
-                })).expect("Iterator of NonEmpty<NonEmpty<_>>.")
+                NonEmpty::collect(
+                    alternatives
+                        .iter()
+                        .flat_map(|argument| argument.parse_short_forms(args.iter().cloned())),
+                )
+                .expect("Iterator of NonEmpty<NonEmpty<_>>.")
             },
         }
     }
@@ -337,22 +428,82 @@ impl<'t, T, F> Arguments<'t, T, F> {
             Self::Combined(combine) => combine.parse_long_forms(Box::new(args)),
             Self::Alternatives(alternatives) => {
                 let args = args.collect_vec();
-                NonEmpty::collect(alternatives.iter().flat_map(|argument| {
-                    argument.parse_long_forms(args.iter().cloned())
-                })).expect("Iterator of NonEmpty<NonEmpty<_>>.")
+                NonEmpty::collect(
+                    alternatives
+                        .iter()
+                        .flat_map(|argument| argument.parse_long_forms(args.iter().cloned())),
+                )
+                .expect("Iterator of NonEmpty<NonEmpty<_>>.")
             },
         }
     }
 }
 
 impl<'t, T, F> Arguments<'t, T, F> {
-    /// Parses the supplied arguments and produces the corresponding value.
+    /// Parses the supplied arguments through the six staged parsing steps.
     #[inline]
     pub fn parse(
         self,
         args: impl Iterator<Item = OsString>,
-    ) -> (crate::outcome::Result<'t, T, F>, Vec<ArgumentInput>) {
-        todo!("parse({:?})", args.collect::<Vec<_>>());
+    ) -> (OutcomeResult<'t, T, F>, Vec<ArgumentInput>) {
+        match self {
+            Self::Alternatives(alternatives) => {
+                let args = args.collect_vec();
+                let mut errors = Vec::new();
+                let mut remaining = Vec::new();
+                for alternative in *alternatives {
+                    let (result, candidate_remaining) = alternative.parse(args.iter().cloned());
+                    match result {
+                        OutcomeResult::Value(value) => {
+                            return (OutcomeResult::Value(value), candidate_remaining);
+                        },
+                        OutcomeResult::EarlyExit(messages) => {
+                            return (OutcomeResult::EarlyExit(messages), candidate_remaining);
+                        },
+                        OutcomeResult::Error(candidate_errors) => {
+                            remaining = candidate_remaining;
+                            errors.extend(candidate_errors);
+                        },
+                    }
+                }
+                (
+                    OutcomeResult::Error(
+                        NonEmpty::from_vec(errors).expect("Alternatives are non-empty."),
+                    ),
+                    remaining,
+                )
+            },
+            arguments => {
+                let merged = arguments.parse_merged_short_forms(args);
+                let mut candidates = Vec::new();
+                for merged in merged {
+                    for short in arguments.parse_short_forms(merged.remaining.clone().into_iter()) {
+                        for long in arguments.parse_long_forms(short.remaining.clone().into_iter())
+                        {
+                            candidates.push(RecognizedArguments::from_stages(
+                                merged.clone(),
+                                short.clone(),
+                                long,
+                            ));
+                        }
+                    }
+                }
+                let candidate =
+                    candidates.into_iter().next().expect("Parsing has at least one candidate.");
+                let remaining = candidate.remaining.clone();
+                (arguments.accumulate(candidate), remaining)
+            },
+        }
+    }
+
+    pub(crate) fn accumulate(self, recognized: RecognizedArguments<'t>) -> OutcomeResult<'t, T, F> {
+        match self {
+            Self::Single(argument) => argument.accumulate(recognized),
+            Self::Combined(combine) => combine.accumulate(recognized),
+            Self::Alternatives(_) => {
+                unreachable!("Alternatives are handled before staged recognition.")
+            },
+        }
     }
 
     /// Parses arguments from the environment.
