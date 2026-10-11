@@ -144,7 +144,10 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Er
     use Error::{DataVariant, Generics, NotEnum};
     let item = parse_item(input.clone())?;
     // Item als #[non_exhaustive] markiert
-    #[allow(clippy::wildcard_enum_match_arm)]
+    #[allow(
+        clippy::wildcard_enum_match_arm,
+        reason = "venial::Item has variants unsupported by this derive macro."
+    )]
     let Enum { variants, name, generic_params, where_clause, attributes, .. } = match item {
         Item::Enum(enum_) => enum_,
         Item::Struct(_) => return Err(NotEnum { typ: UnsupportedType::Struct, input }),

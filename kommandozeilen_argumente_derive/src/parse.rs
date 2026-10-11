@@ -293,7 +293,10 @@ type CreateError = Box<dyn FnOnce(Option<String>) -> ParseValueError>;
 
 /// Description of the program.
 #[derive(Debug, Clone)]
-#[allow(clippy::missing_docs_in_private_items)]
+#[allow(
+    clippy::missing_docs_in_private_items,
+    reason = "The private settings type mirrors macro attributes."
+)]
 struct ProgramSettings<Description> {
     name: ProgramName,
     version: ProgramVersion,
@@ -363,8 +366,9 @@ struct ProgramVersionDisplay {
 impl ToTokens for ProgramVersionDisplay {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let crate_ident = crate_ident();
-        let add_some_if_option =
-            |tokens: TokenStream| if self.ist_option { quote!(Some(#tokens)) } else { tokens };
+        let add_some_if_option = |token_stream: TokenStream| {
+            if self.ist_option { quote!(Some(#token_stream)) } else { token_stream }
+        };
         match &self.program_version {
             ProgramVersion::Specified(string) => {
                 tokens.extend(add_some_if_option(quote!(#string)));
@@ -407,7 +411,10 @@ impl ProgramDescription {
 
 /// Function that creates a `--hilfe` flag.
 struct CreateHelp(
-    #[allow(clippy::type_complexity)]
+    #[allow(
+        clippy::type_complexity,
+        reason = "The callback signature captures the generated help configuration."
+    )]
     Option<
         Box<
             dyn FnOnce(
@@ -422,7 +429,10 @@ struct CreateHelp(
 
 /// Function that creates a `--version` flag.
 struct CreateVersion(
-    #[allow(clippy::type_complexity)]
+    #[allow(
+        clippy::type_complexity,
+        reason = "The callback signature captures the generated version configuration."
+    )]
     Option<Box<dyn FnOnce(TokenStream, Language, &ProgramName, &ProgramVersion) -> TokenStream>>,
 );
 
@@ -576,7 +586,11 @@ fn literal_or_to_string(token_stream: &TokenStream) -> String {
 }
 
 /// Parse the attributes for a value argument.
-#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
+#[allow(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "The attribute parser handles every supported argument setting in one pass."
+)]
 fn parse_value_argument(
     args: Vec<Argument>,
     mut language: Option<&mut Option<Language>>,
@@ -649,7 +663,10 @@ fn parse_value_argument(
             ArgumentValue::NoValue => match name.as_str() {
                 "name" => set_argument!(
                     programm_einstellungen.as_mut().map(
-                        #[allow(clippy::shadow_unrelated)]
+                        #[allow(
+                            clippy::shadow_unrelated,
+                            reason = "The closure parameter describes the program settings field."
+                        )]
                         |program_description| { &mut program_description.name }
                     ),
                     ProgramName(None),
@@ -659,7 +676,10 @@ fn parse_value_argument(
                     <
                         [
                             programm_einstellungen.as_mut().map(
-                                #[allow(clippy::shadow_unrelated)]
+                                #[allow(
+                                    clippy::shadow_unrelated,
+                                    reason = "The closure parameter describes the program settings field."
+                                )]
                                 |program_description| { &mut program_description.version }
                             ),
                             ProgramVersion::CrateMacro,
@@ -763,11 +783,14 @@ fn parse_value_argument(
                         language,
                         Some(Language::parse(ts)),
                         Argument { name, value: ArgumentValue::Stream(ts) }
-                    )
+                    );
                 },
                 "name" => set_argument!(
                     programm_einstellungen.as_mut().map(
-                        #[allow(clippy::shadow_unrelated)]
+                        #[allow(
+                            clippy::shadow_unrelated,
+                            reason = "The closure parameter describes the program settings field."
+                        )]
                         |program_description| { &mut program_description.name }
                     ),
                     ProgramName(Some(literal_or_to_string(&ts))),
@@ -775,7 +798,10 @@ fn parse_value_argument(
                 ),
                 "version" => set_argument!(
                     programm_einstellungen.as_mut().map(
-                        #[allow(clippy::shadow_unrelated)]
+                        #[allow(
+                            clippy::shadow_unrelated,
+                            reason = "The closure parameter describes the program settings field."
+                        )]
                         |program_description| { &mut program_description.version }
                     ),
                     ProgramVersion::Specified(literal_or_to_string(&ts)),
@@ -783,7 +809,10 @@ fn parse_value_argument(
                 ),
                 "beschreibung" | "description" => set_argument!(
                     programm_einstellungen.as_mut().and_then(
-                        #[allow(clippy::shadow_unrelated)]
+                        #[allow(
+                            clippy::shadow_unrelated,
+                            reason = "The closure parameter describes the program settings field."
+                        )]
                         |program_description| { program_description.beschreibung.as_mut() }
                     ),
                     ProgramDescription(Some(literal_or_to_string(&ts))),
@@ -794,43 +823,49 @@ fn parse_value_argument(
                         long_prefix,
                         literal_or_to_string(&ts),
                         Argument { name, value: ArgumentValue::Stream(ts) }
-                    )
+                    );
                 },
                 "kurz_präfix" | "short_prefix" => {
                     set_argument_string!(
                         short_prefix,
                         literal_or_to_string(&ts),
                         Argument { name, value: ArgumentValue::Stream(ts) }
-                    )
+                    );
                 },
-                "invertiere_präfix" | "invert_prefix" => set_argument_string!(
-                    invertiere_präfix,
-                    literal_or_to_string(&ts),
-                    Argument { name, value: ArgumentValue::Stream(ts) }
-                ),
-                "invertiere_infix" | "invert_infix" => set_argument_string!(
-                    invertiere_infix,
-                    literal_or_to_string(&ts),
-                    Argument { name, value: ArgumentValue::Stream(ts) }
-                ),
+                "invertiere_präfix" | "invert_prefix" => {
+                    set_argument_string!(
+                        invertiere_präfix,
+                        literal_or_to_string(&ts),
+                        Argument { name, value: ArgumentValue::Stream(ts) }
+                    );
+                },
+                "invertiere_infix" | "invert_infix" => {
+                    set_argument_string!(
+                        invertiere_infix,
+                        literal_or_to_string(&ts),
+                        Argument { name, value: ArgumentValue::Stream(ts) }
+                    );
+                },
                 "wert_infix" | "value_infix" => {
                     set_argument_string!(
                         wert_infix,
                         literal_or_to_string(&ts),
                         Argument { name, value: ArgumentValue::Stream(ts) }
-                    )
+                    );
                 },
-                "meta_var" => set_argument!(
-                    meta_var,
-                    Some(MetaVar(literal_or_to_string(&ts))),
-                    Argument { name, value: ArgumentValue::Stream(ts) }
-                ),
+                "meta_var" => {
+                    set_argument!(
+                        meta_var,
+                        Some(MetaVar(literal_or_to_string(&ts))),
+                        Argument { name, value: ArgumentValue::Stream(ts) }
+                    );
+                },
                 "standard" | "default" => {
                     set_argument!(
                         standard,
                         Standard(quote!(Some(#ts))),
                         Argument { name, value: ArgumentValue::Stream(ts) }
-                    )
+                    );
                 },
                 "lang" | "long" => set_argument_names!(
                     long_names,
@@ -1001,7 +1036,11 @@ fn parse_value_argument(
                         );
                         if let Err(erstelle_fehler) = result {
                             return Err(Box::new(|arg_name| match erstelle_fehler(arg_name) {
-                                #[allow(clippy::shadow_unrelated)]
+                                #[allow(
+                                    clippy::shadow_unrelated,
+                                    reason = "The destructured error fields preserve their \
+                                              established names."
+                                )]
                                 Unsupported { arg_name, argument } => Unsupported {
                                     arg_name,
                                     argument: Argument {
@@ -1011,7 +1050,7 @@ fn parse_value_argument(
                                 },
                                 fehler @ NoLongName { .. } => fehler,
                             }));
-                        };
+                        }
                         **standard_programm_einstellungen = ProgramSettings {
                             name: sub_programm_einstellungen.name,
                             version: sub_programm_einstellungen.version,
@@ -1019,7 +1058,7 @@ fn parse_value_argument(
                                 "Some-Wert für Programm-Description wird bei rekursivem Aufruf \
                                  nie None!",
                             ),
-                        };
+                        }
                     },
                     ("case", _, _, _) => {
                         for sub_arg in sub_args {
@@ -1217,12 +1256,18 @@ macro_rules! unwrap_or_return {
 }
 
 /// Implementation of the derive macro for the [`Parse`] trait.
-#[allow(clippy::too_many_lines)]
+#[allow(
+    clippy::too_many_lines,
+    reason = "Deriving Parse requires collecting and translating all struct and field attributes."
+)]
 pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
     use Error::{EmptyFieldName, Generics, NotStruct, UnnamedFields};
     let item = parse_item(input.clone())?;
     // Item als #[non_exhaustive] markiert
-    #[allow(clippy::wildcard_enum_match_arm)]
+    #[allow(
+        clippy::wildcard_enum_match_arm,
+        reason = "venial::Item has variants unsupported by this derive macro."
+    )]
     let Struct { fields, name, generic_params, where_clause, attributes, .. } = match item {
         Item::Struct(struct_) => struct_,
         Item::Enum(_) => return Err(NotStruct { typ: UnsupportedType::Enum, input }),
@@ -1442,7 +1487,11 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
         with_version
     };
     let ts = quote! {
-        #[allow(clippy::shadow_unrelated, clippy::disallowed_script_idents)]
+        #[allow(
+            clippy::shadow_unrelated,
+            clippy::disallowed_script_idents,
+            reason = "Generated bindings use user-provided field names and Unicode identifiers."
+        )]
         impl ::#crate_ident::Parse for #name {
             type Error = String;
 

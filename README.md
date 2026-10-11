@@ -1,14 +1,22 @@
-# kommandozeilen_argumente
+# `kommandozeilen_argumente`
 
-__Anmerkung__: Dies ist die englische ReadMe, für die deutsche Version siehe
+__Anmerkung__: Dies ist die englische `ReadMe`, für die deutsche Version siehe
 [LIESMICH.md](https://github.com/spamviech/kommandozeilen_argumente/blob/main/LIESMICH.md).
 
 Parser for command line arguments with optional automatic help generation.
 
+## API migration (0.3.0)
+
+Version 0.3.0 makes the English API the primary API: use names such as `Arguments`,
+`Description`, `Value`, `EarlyExit`, `Result`, and `Language` in new code. German names remain
+as explicitly mirrored compatibility types. The `combine!` macro is the preferred spelling;
+`kombiniere!` remains as a compatibility wrapper for the German `Argumente` mirror.
+
 Arguments are created with the provided associated functions,
 the result type is specified with a type variable.
 Arguments can be combined to more complex structures using more than one argument
-with the `combine!` macro, or one of the dedicated `combineN` functions.
+with the `combine!` macro, or one of the dedicated `combineN` functions. The legacy German
+`kombiniere!` macro remains available as a compatibility wrapper.
 
 Arguments are identified by their long names and potentially their short names.
 Long names are usually given after two minus characters `--long`.
@@ -29,8 +37,8 @@ Without a default value the argument must be used, resulting in a parse error ot
 Arguments without values are called flags, they can be active or inactive.
 In most cases they represent `bool` arguments, but other types are also supported.
 
-A flag with long name `flag`, long_prefix `--`, short name `f`, short_prefix `-`,
-invert_prefix `no` and invert_prefix `-` can be activated with `--flag` or `-f`
+A flag with long name `flag`, `long_prefix` `--`, short name `f`, `short_prefix` `-`,
+`invert_prefix` `no` and `invert_prefix` `-` can be activated with `--flag` or `-f`
 and deactivated with `--no-flag`.
 
 If several flags with short names `f`, `g` and `h` exist they can be activated together with `-fgh`.
@@ -50,8 +58,8 @@ The value is parsed from a `OsString`.
 
 It is possible to show all allowed values in the generated help text.
 
-A value argument with long name `value`, long_prefix `--`, short name `v`, short_prefix `-`
-and value_infix `=` for a number type is parsed with result `3` for each of the following inputs:
+A value argument with long name `value`, `long_prefix` `--`, short name `v`, `short_prefix` `-`
+and `value_infix` `=` for a number type is parsed with result `3` for each of the following inputs:
 
 - `--value 3`
 - `--value=3`
