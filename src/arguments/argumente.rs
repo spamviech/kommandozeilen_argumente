@@ -30,7 +30,6 @@ use crate::{
     outcome::{Ergebnis, Error, Fehler},
 };
 
-// TODO tests mit Unicode-namen
 
 /// Konfiguration der Kommandozeilen-Argumente.
 ///

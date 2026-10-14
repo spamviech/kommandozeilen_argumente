@@ -15,7 +15,8 @@ The first three stages pass input forward as `ArgumentInput`:
 - `ArgumentInput::Unchanged(OsString)` is an untouched operating-system argument. It may match a
   name or, where applicable, supply the following raw value.
 - `ArgumentInput::AdjustedMergedShortNames` is a remainder of a merged short-name block. It is
-  carried forward unchanged and is never matched as a standalone name or consumed as a value.
+  carried forward for continued merged-short recognition, but is never matched as a standalone name
+  and is never itself used as a raw value.
 
 Recognition records early exits, flags, names with missing values, raw `OsString` values, and
 remaining input. Repeated value names retain their last value. The three recognition-stage

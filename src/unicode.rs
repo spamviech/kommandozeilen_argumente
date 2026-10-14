@@ -489,3 +489,36 @@ impl<'t> From<Vergleich<'t>> for Compare<'t> {
         Compare { string: input.string.into(), case: input.case }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{Case, Compare, Normalized};
+
+    #[test]
+    fn normalizes_canonical_and_cjk_compatibility_forms() {
+        assert_eq!(Normalized::new("cafe\u{301}").as_str(), "café");
+        assert_eq!(Normalized::new("\u{f900}").as_str(), "豈\u{fe00}");
+    }
+
+    #[test]
+    fn compares_non_ascii_case_as_configured() {
+        let normalized = Normalized::new("Ä");
+        assert!(!normalized.eq_with_case("ä", Case::Sensitive));
+        assert!(normalized.eq_with_case("ä", Case::Insensitive));
+    }
+
+    #[test]
+    fn strips_normalized_prefixes_at_grapheme_boundaries() {
+        let composed = Compare::from("é");
+        let input = Normalized::new("e\u{301}x");
+        let (prefix, suffix) = composed.strip_as_prefix_n(&input).expect("matching prefix");
+        assert_eq!(prefix.as_str(), "é");
+        assert_eq!(suffix.as_str(), "x");
+
+        let grapheme = Compare::from("e\u{301}");
+        let input = Normalized::new("e\u{301}x");
+        let (prefix, suffix) = grapheme.strip_as_prefix_n(&input).expect("matching grapheme");
+        assert_eq!(prefix.as_str(), "é");
+        assert_eq!(suffix.as_str(), "x");
+    }
+}

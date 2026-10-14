@@ -787,3 +787,79 @@ impl<'t, S: AsRef<str>> ShortNames<'t> for &'t Vec<S> {
         self.iter().map(|value| value.as_ref().into()).collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsString;
+
+    use nonempty::nonempty;
+
+    use super::{AdjustedMergedShortNames, ArgumentInput, Description, MergedShortNameSuffix};
+    use crate::unicode::Normalized;
+
+    fn description(short: impl super::ShortNames<'static>) -> Description<'static, ()> {
+        Description::new("--", "café", "-", short, None, None)
+    }
+
+    #[test]
+    fn matches_canonically_equivalent_long_and_short_names() {
+        let description = description("é");
+        assert!(description.name.parse_early_exit(&OsString::from("--cafe\u{301}")));
+        assert!(description.name.parse_early_exit(&OsString::from("-e\u{301}")));
+    }
+
+    #[test]
+    fn merged_short_names_preserve_multiscalar_graphemes() {
+        let description = description(vec!["e\u{301}", "x"]);
+        let parsed = description
+            .name
+            .parse_flag_merge_short_forms(&ArgumentInput::Unchanged(OsString::from("-e\u{301}x")))
+            .expect("recognized multi-scalar grapheme");
+        assert_eq!(parsed.name.as_ref(), "é");
+        assert_eq!(
+            parsed.remaining,
+            Some(ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
+                prefix: Normalized::new("-").into_owned(),
+                graphemes: nonempty![Box::from("x")],
+                suffix: MergedShortNameSuffix::Unchanged,
+            }))
+        );
+    }
+
+    #[test]
+    fn multigrapheme_short_name_is_standalone_only() {
+        let description = description("ab");
+        assert!(description.name.parse_early_exit(&OsString::from("-ab")));
+        assert!(
+            description
+                .name
+                .parse_flag_merge_short_forms(&ArgumentInput::Unchanged(OsString::from("-ab")))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn overlapping_long_and_short_prefixes_do_not_reinterpret_long_forms_as_merged_blocks() {
+        let description: Description<'_, ()> =
+            Description::new("--", "help", "-", "h", None, None);
+        assert!(
+            description
+                .name
+                .parse_flag_merge_short_forms(&ArgumentInput::Unchanged(OsString::from("--help")))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn identical_windows_style_prefixes_do_not_reinterpret_long_forms_as_merged_blocks() {
+        let description: Description<'_, ()> =
+            Description::new("/", "help", "/", "h", None, None);
+        assert!(description.name.parse_early_exit(&OsString::from("/help")));
+        assert!(
+            description
+                .name
+                .parse_flag_merge_short_forms(&ArgumentInput::Unchanged(OsString::from("/help")))
+                .is_none()
+        );
+    }
+}

@@ -12,8 +12,8 @@ use std::{
 
 use kommandozeilen_argumente::{
     ArgumentInput, Arguments, Description, EarlyExit, Parse, ParseArgument, ParseError, Result,
-    Value, arguments::single_argument::SingleArgument, dyn_to_owned::Parse as ParseCallback,
-    nonempty,
+    Value, arguments::single_argument::SingleArgument, combine,
+    dyn_to_owned::Parse as ParseCallback, nonempty,
 };
 
 const EMPTY_REMAINING: [ArgumentInput; 0] = [];
@@ -122,4 +122,94 @@ fn early_exit_short_circuits_result_accumulation() {
 
     assert_eq!(remaining, EMPTY_REMAINING);
     assert!(matches!(result, Result::EarlyExit(messages) if messages.head == "show help"));
+}
+
+#[test]
+fn parses_canonically_equivalent_unicode_names_in_all_public_forms() {
+    let flag = <bool as ParseArgument>::new(Description::new("--", "f\u{f6}o", "-", "f", None, None));
+    let value = <u16 as ParseArgument>::new(Description::new("--", "p\u{f6}rt", "-", "p", None, None));
+    let arguments = combine!(|flag, value| (flag, value), flag, value);
+    let (result, remaining) = arguments.parse(
+        [OsString::from("--fo\u{308}o"), OsString::from("-p8080")].into_iter(),
+    );
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert!(matches!(result, Result::Value((true, 8080))));
+
+    let early_exit = EarlyExit::new(
+        Description::new("--", "h\u{e9}lp", "-", "h", None, None),
+        "unicode help",
+    );
+    let (result, remaining) = Arguments::single_argument(SingleArgument::early_exit(early_exit))
+        .parse([OsString::from("--he\u{301}lp")].into_iter());
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert!(matches!(result, Result::EarlyExit(messages) if messages.head == "unicode help"));
+}
+
+#[test]
+fn merged_short_names_consume_whole_multiscalar_graphemes() {
+    let accent = <bool as ParseArgument>::new(Description::new("--", "accent", "-", "e\u{301}", None, None));
+    let x = <bool as ParseArgument>::new(Description::new("--", "x", "-", "x", None, None));
+    let (result, remaining) = combine!(|accent, x| (accent, x), accent, x)
+        .parse([OsString::from("-e\u{301}x")].into_iter());
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert!(matches!(result, Result::Value((true, true))));
+}
+
+#[test]
+fn multigrapheme_short_names_are_not_merged() {
+    let argument = <bool as ParseArgument>::new(Description::new("--", "alpha", "-", "ab", None, None));
+    let (result, remaining) = argument.parse([OsString::from("-ab")].into_iter());
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert!(matches!(result, Result::Value(true)));
+
+    let argument = <bool as ParseArgument>::new(Description::new("--", "alpha", "-", "ab", None, None));
+    let (result, remaining) = argument.parse([OsString::from("-a")].into_iter());
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert!(matches!(result, Result::Error(_)));
+}
+
+#[test]
+fn adjusted_merged_remainders_continue_merged_short_recognition() {
+    let flag = <bool as ParseArgument>::new(Description::new("--", "flag", "-", "f", None, None));
+    let value = <u16 as ParseArgument>::new(Description::new("--", "value", "-", "x", None, None));
+    let (result, remaining) = combine!(|flag, value| (flag, value), flag, value)
+        .parse([OsString::from("-fx"), OsString::from("42")].into_iter());
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert!(matches!(result, Result::Value((true, 42))));
+}
+
+#[test]
+fn values_report_missing_use_defaults_and_keep_the_last_occurrence() {
+    let required = <u16 as ParseArgument>::new(Description::new("--", "port", "-", "p", None, None));
+    let (result, _) = required.parse(std::iter::empty());
+    assert!(matches!(result, Result::Error(errors) if matches!(errors.head, kommandozeilen_argumente::Error::MissingValue { .. })));
+
+    let defaulted = <u16 as ParseArgument>::new(Description::new("--", "port", "-", "p", None, Some(80)));
+    let (result, remaining) = defaulted.parse(std::iter::empty());
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert!(matches!(result, Result::Value(80)));
+
+    let repeated = <u16 as ParseArgument>::new(Description::new("--", "port", "-", "p", None, None));
+    let (result, remaining) = repeated.parse(
+        [OsString::from("--port=80"), OsString::from("--port=8080")].into_iter(),
+    );
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert!(matches!(result, Result::Value(8080)));
+}
+
+#[cfg(unix)]
+#[test]
+fn non_utf8_raw_values_reach_the_typed_value_parser() {
+    use std::os::unix::ffi::OsStringExt as _;
+
+    let argument = <String as ParseArgument>::new(Description::new("--", "text", "-", "t", None, None));
+    let (result, remaining) = argument.parse(
+        [OsString::from("--text"), OsString::from_vec(vec![0xff])].into_iter(),
+    );
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert!(matches!(result, Result::Error(errors) if matches!(
+        &errors.head,
+        kommandozeilen_argumente::Error::ParseError(error)
+            if matches!(error.error, ParseError::InvalidString(_))
+    )));
 }

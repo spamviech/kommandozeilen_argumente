@@ -86,26 +86,26 @@ No migration is required. This is additive test coverage with removal of a stale
 Add local unit tests around the behavior that controls every parser stage, then remove the TODO once direct and integration coverage exists.
 
 **Tasks**:
-- [ ] In `src/unicode.rs`, add a `#[cfg(test)]` module that verifies `Normalized::new` canonicalizes a decomposed accent to NFC and normalizes the CJK compatibility form handled by `cjk_compat_variants`.
-- [ ] In `src/unicode.rs`, test `Compare`/`Normalized::eq_with_case` with a non-ASCII case pair (for example `Ä`/`ä`) under both `Case::Sensitive` and `Case::Insensitive`.
-- [ ] In `src/unicode.rs`, test `Compare::strip_as_prefix_n` with a decomposed/composed prefix and with a multi-scalar grapheme, asserting the returned prefix/suffix split occurs only at a grapheme boundary.
-- [ ] In `src/description.rs`, add a `#[cfg(test)]` module that constructs `Name`/`Description` values and verifies composed definition names match canonically equivalent decomposed long and short inputs.
-- [ ] In `src/description.rs`, test merged short recognition with a multi-scalar but single grapheme short name followed by an ASCII short name; assert each recognition preserves whole graphemes in `AdjustedMergedShortNames`.
-- [ ] In `src/description.rs`, test that a configured short name containing two graphemes remains usable as a standalone name but is not recognized as a merged-short component.
-- [ ] In `src/description.rs`, test that an input starting with the long prefix is never reinterpreted as a short-prefix merged block, including when the short and long prefixes overlap.
-- [ ] Remove `// TODO tests mit Unicode-namen` from `src/arguments/argumente.rs`; do not replace it with another broad TODO.
+- [x] In `src/unicode.rs`, add a `#[cfg(test)]` module that verifies `Normalized::new` canonicalizes a decomposed accent to NFC and normalizes the CJK compatibility form handled by `cjk_compat_variants`.
+- [x] In `src/unicode.rs`, test `Compare`/`Normalized::eq_with_case` with a non-ASCII case pair (for example `Ä`/`ä`) under both `Case::Sensitive` and `Case::Insensitive`.
+- [x] In `src/unicode.rs`, test `Compare::strip_as_prefix_n` with a decomposed/composed prefix and with a multi-scalar grapheme, asserting the returned prefix/suffix split occurs only at a grapheme boundary.
+- [x] In `src/description.rs`, add a `#[cfg(test)]` module that constructs `Name`/`Description` values and verifies composed definition names match canonically equivalent decomposed long and short inputs.
+- [x] In `src/description.rs`, test merged short recognition with a multi-scalar but single grapheme short name followed by an ASCII short name; assert each recognition preserves whole graphemes in `AdjustedMergedShortNames`.
+- [x] In `src/description.rs`, test that a configured short name containing two graphemes remains usable as a standalone name but is not recognized as a merged-short component.
+- [x] In `src/description.rs`, test that an input starting with the long prefix is never reinterpreted as a short-prefix merged block, including when the short and long prefixes overlap.
+- [x] Remove `// TODO tests mit Unicode-namen` from `src/arguments/argumente.rs`; do not replace it with another broad TODO.
 
 **Automated Verification**:
-- [ ] The new `unicode` unit tests pass with `cargo test unicode::tests`.
-- [ ] The new `description` unit tests pass with `cargo test description::tests`.
-- [ ] `cargo test` passes.
+- [x] The new `unicode` unit tests pass with `cargo test unicode::tests`.
+- [x] The new `description` unit tests pass with `cargo test description::tests`.
+- [x] `cargo test` passes.
 
 ## Phase 2: End-to-End Staged Parser Contract
 
 Extend the public parser integration suite with compact tests that traverse all six documented stages and assert outcomes plus unconsumed `ArgumentInput` exactly where stage boundaries matter.
 
 **Tasks**:
-- [ ] In `tests/staged_parser.rs`, add a combined public-parser test for canonically equivalent Unicode long and short names covering a flag, a typed value, and an early exit; assert successful values/messages and no remaining input.
+- [-] In `tests/staged_parser.rs`, add a combined public-parser test for canonically equivalent Unicode long and short names covering a flag, a typed value, and an early exit; assert successful values/messages and no remaining input.
 - [ ] Add an end-to-end merged-short test combining a multi-scalar single-grapheme short flag with an ASCII flag, proving the entire grapheme is consumed rather than its Unicode scalar components.
 - [ ] Add an end-to-end test distinguishing standalone and merged behavior for a multi-grapheme configured short name: it may match as a complete standalone form, but it must not be consumed one grapheme at a time as a merged-short component.
 - [ ] Add an ambiguity test where a merged short value name is followed by text that can be interpreted either as its inline value or as subsequent flags; assert the first fully validating candidate follows the documented value-first ordering and that fallback reaches the flags interpretation when the value candidate cannot validate.
