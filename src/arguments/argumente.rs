@@ -822,10 +822,6 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
     /// Erzeugt die Syntax und den zugehörigen Hilfetext dieses Arguments.
     #[inline]
     #[must_use]
-    #[expect(
-        clippy::missing_panics_doc,
-        reason = "The non-empty invariant is guaranteed by the alternatives representation."
-    )]
     pub fn erzeuge_hilfe_text(
         &self,
         variante: &dyn CreateHelpText,
@@ -848,15 +844,13 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
                 .create_help_text(variante, meta_standard, meta_erlaubte_werte)
                 .map(Into::into),
             Self::Alternativen(alternativen) => {
-                // TODO use alternativen.as_ref().flat_map(...), coming in nonempty > 0.10.0
-                NonEmpty::collect(alternativen.iter().map(|argument| {
+                Box::as_ref(alternativen).as_ref().map(|argument| {
                     help::Alternativen::Alternativen(Box::new(argument.erzeuge_hilfe_text(
                         variante,
                         meta_standard,
                         meta_erlaubte_werte,
                     )))
-                }))
-                .expect("NonEmpty::map(...) has at least one argument!")
+                })
             },
         }
     }
