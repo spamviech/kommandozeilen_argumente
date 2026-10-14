@@ -12,6 +12,20 @@ Version 0.3.0 makes the English API the primary API: use names such as `Argument
 as explicitly mirrored compatibility types. The `combine!` macro is the preferred spelling;
 `kombiniere!` remains as a compatibility wrapper for the German `Argumente` mirror.
 
+### Parsing behavior
+
+Parsing is implemented as a staged pipeline. It recognizes merged short names first, then
+standalone short names, then long names, before validating typed values and selecting an
+alternative. Thus merged short flags take precedence when short and long prefixes overlap, and
+an adjusted remainder of a merged block is never mistaken for a value. Raw values remain
+`OsString`s until the corresponding `Value` parses them, preserving non-Unicode command-line
+input where the platform supports it.
+
+`Arguments::alternatives` tries candidates in declaration order. A candidate whose value
+conversion fails does not prevent a later candidate from succeeding. The first candidate that
+fully validates is accumulated into the final result. If none validate, their parse errors are
+reported together. See [the staged-parsing design](docs/parsing.md) for the complete behavior.
+
 Arguments are created with the provided associated functions,
 the result type is specified with a type variable.
 Arguments can be combined to more complex structures using more than one argument
@@ -179,7 +193,7 @@ are available in the
 Both cases produce the following help text:
 
 ```cmd
-kommandozeilen_argumente 0.2.0
+kommandozeilen_argumente 0.3.0
 program description.
 
 derive_en.exe [OPTIONS]

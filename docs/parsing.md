@@ -1,173 +1,86 @@
-# Parsing
+# Staged parsing
 
-General idea: split up parsing in multiple stages.
-Doing it all at ones becomes way too complicated.
-Focus on a single thing per stage to keep the scope manageable.
+The parser recognizes command-line syntax before it constructs typed values. Splitting the work
+into stages keeps name precedence, merged short forms, alternatives, and value conversion
+independent. Every candidate is evaluated without stopping at the first error; errors are
+returned only when no candidate succeeds.
 
-All stages can encounter parse-errors.
-They will not stop parsing.
-Instead, they are collected and presented as a vector at the end.
+The public entry point is `Arguments::parse` (and the `Argumente` mirror). It executes the six
+steps below.
 
-The parser preserves syntactic state between name-recognition stages with
-`ArgumentInput`. Stage 1 receives the operating system's `OsString` arguments and turns
-unconsumed inputs into `ArgumentInput::Unchanged`. It can instead leave an
-`ArgumentInput::AdjustedMergedShortNames` remainder after consuming a name from a merged short
-name block. Stages 2 and 3 receive `ArgumentInput`s directly: they only inspect or consume an
-`Unchanged(OsString)`, and carry every `AdjustedMergedShortNames` remainder forward unchanged.
-In particular, an adjusted merged-short-name remainder is never a value string for a preceding
-value argument.
+## Shared recognition state
 
-## Parse merged short name arguments
+The first three stages pass input forward as `ArgumentInput`:
 
-This has to happen first.
-When the prefix for short and long names is equal this might influence the result of later stages.
-Merged short names always take precedence.
+- `ArgumentInput::Unchanged(OsString)` is an untouched operating-system argument. It may match a
+  name or, where applicable, supply the following raw value.
+- `ArgumentInput::AdjustedMergedShortNames` is a remainder of a merged short-name block. It is
+  carried forward unchanged and is never matched as a standalone name or consumed as a value.
 
-Rules to allow merging of short names:
+Recognition records early exits, flags, names with missing values, raw `OsString` values, and
+remaining input. Repeated value names retain their last value. The three recognition-stage
+outputs are merged into one `RecognizedArguments` state before typed evaluation.
 
-- All short names in the same string share the same (short) prefix.
-- Only short names consisting of a single [grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes) participate.
-- At most one value argument per block.
-    It must be the last argument name in the string, optionally followed by \[a value-infix and\] the value sub-string.
-- Merging of short names must be allowed for this particular argument.
+## 1. Recognize merged short forms
 
-Results of this stage are a `NonEmpty` (alternatives) of:
+Merged short names are recognized first, so they take precedence when short and long prefixes
+are identical. For example, compatible `f`, `g`, and `h` flags can recognize `-fgh`.
 
-- `Argumente<'_, T, F>` of the alternative taken.
-- A vector of early\_exit arguments, containing name, message & original input.
-- A vector of flag-arguments with their name (all are true) & the original input.
-- A map of value-arguments with name -> (value-string, original input).
-- Remaining arguments with the parsed merged short names and associated value-strings removed.
+A name participates only when:
 
-## Parse non-merged short name arguments
+- all names in the block share the short prefix;
+- each short name is exactly one Unicode grapheme cluster;
+- merging is enabled for that argument; and
+- at most one value argument occurs, and it is last. Its inline value may follow directly or
+  after the value infix.
 
-Input: Remaining `ArgumentInput`s of the previous stage. Only
-`ArgumentInput::Unchanged(OsString)` participates in standalone short-name matching or may be
-consumed as the following raw value; `AdjustedMergedShortNames` is preserved unchanged.
+A value argument can also take the next `Unchanged` input as its raw value. The stage may leave
+an adjusted remainder for later recognizers. Value-like text after a short value name is
+ambiguous: it may be that value or subsequent merged flags. Both recognition candidates are
+retained, with the value interpretation first.
 
-Parsed in this stage (only short names):
+## 2. Recognize standalone short forms
 
-- A flag/early\_exit argument
-- A value argument, followed by \[a value-infix and\] the value sub-string.
-- A value argument, followed by the value string in the next input-OsString.
+Only `Unchanged` inputs participate. This stage recognizes short flags and early exits, as well
+as short value names with either an inline value (optionally separated by the value infix) or the
+following `Unchanged` input. Adjusted merged-block remainders pass through unchanged.
 
-Results of this stage are a `NonEmpty` (alternatives) of:
+## 3. Recognize long forms
 
-- `Argumente<'_, T, F>` of the alternative taken.
-- A vector of early\_exit arguments, containing name, message & original input.
-- A vector of flag-arguments with their name (all are true) & the original input.
-- A map of value-arguments with name -> (value-string, original input).
-- Remaining arguments with the parsed short names and associated value-strings removed.
+Only `Unchanged` inputs participate. This stage recognizes long flags, including inverted flags,
+early exits, and value names with an inline value after the value infix or with the following
+`Unchanged` input. Adjusted merged-block remainders again pass through unchanged.
 
-Parsed arguments are then merged with the previous stage.
+## 4. Validate typed values
 
-## Parse long name arguments
+Each complete recognition candidate is traversed through the typed `Arguments`/`Combine` tree.
+Each `Value` removes its own raw entry from a candidate-local copy of the raw-value map and calls
+its parse callback. Flags use their most recently recognized value; defaults satisfy omitted
+arguments. Missing required flags and values, and value conversion failures, become parser
+errors.
 
-Input: Remaining `ArgumentInput`s of the previous stage. Only
-`ArgumentInput::Unchanged(OsString)` participates in long-name matching or may be consumed as
-the following raw value; `AdjustedMergedShortNames` is preserved unchanged.
-Parsed in this stage (only long names):
+An early exit validates immediately and does not require the other arguments to be present.
+Definitions and callbacks need not implement `Clone`: only the candidate's recognition state is
+cloned. Parse callbacks should be pure, because a selected value is parsed during validation and
+again during final accumulation.
 
-- A flag/early\_exit argument
-- A value argument, followed by \[a value-infix and\] the value sub-string.
-- A value argument, followed by the value string in the next input-OsString.
+## 5. Select an alternative
 
-Results of this stage are a `NonEmpty` (alternatives) of:
+`Arguments::Alternatives` evaluates its branches in declaration order using the complete input.
+The first branch whose validation produces a value or an early exit wins. A failed value
+conversion rejects only that branch; later branches can still succeed. If all branches fail,
+the parser returns the accumulated errors from all failed branches.
 
-- `Argumente<'_, T, F>` of the alternative taken.
-- A vector of early\_exit arguments, containing name, message & original input.
-- A vector of flag-arguments with their name, value (might be inverted) & the original input.
-- A map of value-arguments with name -> (value-string, original input).
-- Remaining arguments with the parsed long names and associated value-strings removed.
+The same first-successful-candidate rule resolves ambiguities introduced by merged short values.
 
-Parsed arguments are then merged with the previous stage.
+## 6. Accumulate the selected result
 
-## Parse OsString for value arguments
+After validation selects a candidate, the parser consumes the selected `Arguments` definition
+once. The typed tree parses its selected raw values, applies flag conversions/defaults, and calls
+the `Combine` function to build the result. An early exit instead returns its messages. The
+unconsumed `ArgumentInput`s are returned alongside the result for the caller or a complete-parse
+convenience method to handle.
 
-Execute for each alternative.
-
-Inputs:
-
-- `Argumente<'_, T, F>` of the alternative taken.
-- A vector of early\_exit arguments, containing name, message & original input.
-- A vector of flag-arguments with their name, value (might be inverted) & the original input.
-- A map of value-arguments with name -> `(OsString, original input)`.
-- Remaining arguments with the parsed long names and associated value-strings removed.
-
-Stage responsibility:
-Keep the raw-value map intact until its owning typed `Value<'t, T, F>` is accumulated. That
-argument removes its own entry and invokes its own parse-value function, yielding `T` directly or
-an `AnnotatedParseError`. The type remains in the statically typed argument/combine tree; it is
-not erased into `Any` and therefore may borrow for the definition lifetime (`T: 't`).
-
-This parsing is performed while evaluating each alternative, not after one has already been
-chosen. Each candidate receives an independent raw-state view (normally a clone of the raw map),
-so a failed conversion neither selects that candidate nor consumes input needed by the next one.
-
-Outputs:
-
-- A candidate-specific raw-value map, consumed incrementally by typed value arguments during
-  candidate accumulation.
-- Remaining arguments with the parsed long names and associated value-strings removed.
-
-## Pick alternative
-
-Inputs: `NonEmpty` (alternatives) of:
-
-- A vector of early\_exit arguments, containing name, message & original input.
-- A vector of flag-arguments with their name (all are true) & the original input.
-- A map of value-arguments with name -> `(OsString, original input)`.
-- Remaining arguments with the parsed arguments and associated value-strings removed.
-
-Stage responsibility:
-For each alternative in order, parse its raw values and accumulate its typed result using an
-independent copy/view of the complete staged state. Pick the first candidate that fully succeeds.
-A value conversion error rejects only that candidate and evaluation continues with the next one.
-If no candidate succeeds, return the accumulated errors from every failed candidate.
-
-Outputs:
-
-- The successful candidate's typed result and its remaining arguments; or all candidate errors.
-
-## Accumulate results
-
-Inputs:
-
-- One candidate's independent staged state: early exits, flags, raw values, and remaining
-  arguments.
-
-Stage responsibility:
-Convert one candidate's parsed pieces to the result struct through their typed owning definitions.
-This is part of evaluating an alternative and happens before the winning alternative is selected.
-
-- For flag-arguments, convert the boolean according to the configured method.
-- For value-arguments, the matching typed `Value<'t, T, F>` removes and parses its raw entry,
-  returning `T` directly; no `TypeId` lookup or runtime downcast occurs.
-- Use the combine-function to construct larger structs.
-
-Outputs: (Result enum, remaining arguments)
-
-Result variants:
-
-- EarlyExit-messages, errors if any
-- Result struct, errors if any
-- errors if no result can be constructed
-
-## Candidate selection without cloning parser definitions
-
-An `Arguments` definition owns user-supplied defaults, parse callbacks, display callbacks, and
-combine closures, none of which are required to implement `Clone`. Recognition can nevertheless
-produce several candidates — for example, `-fb` may mean a value argument `f` with inline value
-`b`, or two flags `f` and `b`.
-
-The parser therefore validates each candidate through a borrowed traversal of the argument tree
-before consuming it. `SingleArgument::validate`, `Combine::validate`, and
-`Arguments::validate` use candidate-local cloned raw-value maps to parse values and check required
-arguments, but discard produced typed values. The first candidate that validates to a value (or an
-early exit) is selected. Only then is the owning parser tree consumed once by `accumulate` to
-produce the final typed result. Failed validations contribute their errors if no candidate
-succeeds.
-
-This preserves support for non-`Clone` callbacks and gives ambiguous merged-short syntax the
-required first-successful-candidate semantics. Parse callbacks should be pure: a selected value is
-parsed once during validation and once during final accumulation.
+Raw values are never erased to `Any` or downcast. Their static type remains in the owning
+`Value<'t, T, E>`, so callbacks may produce values borrowing from the argument-definition
+lifetime.

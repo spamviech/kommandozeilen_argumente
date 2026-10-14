@@ -7,6 +7,7 @@ use std::{
     borrow::Cow,
     ffi::{OsStr, OsString},
     result,
+    string::ToString,
 };
 
 use kommandozeilen_argumente::{
@@ -99,7 +100,7 @@ fn tries_the_next_alternative_after_a_value_conversion_failure() {
 #[test]
 fn converts_errors_for_single_arguments() {
     let arguments = Arguments::from(alternative_value(reject_value))
-        .convert_error(|error| error.len(), |error| error.to_string());
+        .convert_error(|error| error.len(), ToString::to_string);
 
     let (result, remaining) = arguments.parse([OsString::from("--choice=rejected")].into_iter());
 
