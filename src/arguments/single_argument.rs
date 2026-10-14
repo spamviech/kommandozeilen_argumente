@@ -232,6 +232,45 @@ impl<'t, T, Error> SingleArgument<'t, T, Error> {
     pub fn value(value: Value<'t, T, Error>) -> Self {
         Self::Value(value)
     }
+
+    /// Creates this argument's syntax and corresponding help text.
+    #[inline]
+    pub fn create_help_text(&self, meta_default: &str, meta_possible_values: &str) -> Help {
+        SingleArgumentRef(self).create_help_text(meta_default, meta_possible_values)
+    }
+
+    /// Converts this argument's value and parsing error to strings using its display functions.
+    #[inline]
+    pub fn as_string_value(&self) -> SingleArgument<'_, String, String> {
+        SingleArgumentRef(self).as_string_value()
+    }
+
+    /// Parses standalone short-form arguments.
+    #[inline]
+    pub fn parse_short_form(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedShortForms<'t> {
+        SingleArgumentRef(self).parse_short_form(args)
+    }
+
+    /// Parses long-form arguments.
+    #[inline]
+    pub fn parse_long_form(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedLongForms<'t> {
+        SingleArgumentRef(self).parse_long_form(args)
+    }
+
+    /// Parses merged short-form arguments.
+    #[inline]
+    pub fn parse_merged_short_forms(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParsedMergedShortForms<'t> {
+        SingleArgumentRef(self).parse_merged_short_forms(args)
+    }
 }
 
 impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
@@ -241,17 +280,16 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
         SingleArgument::value(wert.into()).into()
     }
 
-    // FIXME why are there not english variants for these methods in SingleArgument?
     /// Erzeugt die Syntax und den zugehörigen Hilfetext dieses Arguments.
     #[inline]
     pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe {
-        SingleArgumentRef::German(self).create_help_text(meta_standard, meta_erlaubte_werte).into()
+        EinzelArgumentRef(self).erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)
     }
 
     /// Konvertiert Wert und Parse-Fehler mittels ihrer Anzeigefunktionen in Strings.
     #[inline]
     pub fn als_string_wert(&self) -> EinzelArgument<'_, String, String> {
-        SingleArgumentRef::German(self).as_string_value().into()
+        EinzelArgumentRef(self).als_string_wert()
     }
 
     /// Parst eigenständige kurze Argumentformen.
@@ -260,7 +298,7 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
         &self,
         args: impl Iterator<Item = ArgumentInput>,
     ) -> ParsedShortForms<'t> {
-        SingleArgumentRef::German(self).parse_short_form(args)
+        EinzelArgumentRef(self).parse_short_form(args)
     }
 
     /// Parst lange Argumentformen.
@@ -269,7 +307,7 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
         &self,
         args: impl Iterator<Item = ArgumentInput>,
     ) -> ParsedLongForms<'t> {
-        SingleArgumentRef::German(self).parse_long_form(args)
+        EinzelArgumentRef(self).parse_long_form(args)
     }
 
     /// Parst zusammengefasste kurze Argumentformen.
@@ -278,99 +316,53 @@ impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
         &self,
         args: impl Iterator<Item = OsString>,
     ) -> ParsedMergedShortForms<'t> {
-        SingleArgumentRef::German(self).parse_merged_short_forms(args)
+        EinzelArgumentRef(self).parse_merged_short_forms(args)
     }
 }
 
-// FIXME split up english/german Ref-types
-/// Borrowed view over either language-specific single-argument representation.
-enum SingleArgumentRef<'a, 't, T, Error> {
-    /// Borrows the English-primary representation.
-    English(&'a SingleArgument<'t, T, Error>),
-    /// Borrows the German mirror representation.
-    German(&'a EinzelArgument<'t, T, Error>),
-}
+/// Borrowed view over an English single-argument representation.
+struct SingleArgumentRef<'a, 't, T, Error>(&'a SingleArgument<'t, T, Error>);
 
 impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
     /// Creates help text for the referenced argument.
     fn create_help_text(&self, meta_default: &str, meta_possible_values: &str) -> Help {
-        match self {
-            Self::English(SingleArgument::EarlyExit { early_exit, .. }) => {
-                early_exit.create_help_text()
-            },
-            Self::English(SingleArgument::Value(value)) => {
+        match self.0 {
+            SingleArgument::EarlyExit { early_exit, .. } => early_exit.create_help_text(),
+            SingleArgument::Value(value) => {
                 value.create_help_text(meta_default, meta_possible_values)
             },
-            Self::English(SingleArgument::Flag(flag))
-            | Self::German(EinzelArgument::Flag(flag)) => flag.create_help_text(meta_default),
-            Self::German(EinzelArgument::FrühesBeenden { frühes_beenden, .. }) => {
-                frühes_beenden.erzeuge_hilfe_text().into()
-            },
-            Self::German(EinzelArgument::Wert(wert)) => {
-                wert.erzeuge_hilfe_text(meta_default, meta_possible_values).into()
-            },
+            SingleArgument::Flag(flag) => flag.create_help_text(meta_default),
         }
     }
 
     /// Converts the referenced argument to its string-rendered representation.
     fn as_string_value(&self) -> SingleArgument<'a, String, String> {
-        match self {
-            Self::English(SingleArgument::Flag(flag))
-            | Self::German(EinzelArgument::Flag(flag)) => {
-                SingleArgument::Flag(flag.as_string_flag())
+        match self.0 {
+            SingleArgument::Flag(flag) => SingleArgument::Flag(flag.as_string_flag()),
+            SingleArgument::EarlyExit { early_exit, value, display } => SingleArgument::EarlyExit {
+                early_exit: early_exit.clone(),
+                value: display(value),
+                display: Cow::Borrowed(&Clone::clone),
             },
-            Self::English(SingleArgument::EarlyExit { early_exit, value, display }) => {
-                SingleArgument::EarlyExit {
-                    early_exit: early_exit.clone(),
-                    value: display(value),
-                    display: Cow::Borrowed(&Clone::clone),
-                }
-            },
-            Self::German(EinzelArgument::FrühesBeenden { frühes_beenden, wert, anzeige }) => {
-                SingleArgument::EarlyExit {
-                    early_exit: frühes_beenden.clone().into(),
-                    value: anzeige(wert),
-                    display: Cow::Borrowed(&Clone::clone),
-                }
-            },
-            Self::English(SingleArgument::Value(value)) => {
-                SingleArgument::Value(value.as_string_value())
-            },
-            Self::German(EinzelArgument::Wert(wert)) => {
-                SingleArgument::Value(wert.als_string_wert().into())
-            },
+            SingleArgument::Value(value) => SingleArgument::Value(value.as_string_value()),
         }
     }
 
     /// Parses non-merged short forms for the referenced argument.
     fn parse_short_form(self, args: impl Iterator<Item = ArgumentInput>) -> ParsedShortForms<'t> {
-        match self {
-            Self::English(SingleArgument::Flag(flag))
-            | Self::German(EinzelArgument::Flag(flag)) => flag.parse_short_form(args),
-            Self::English(SingleArgument::EarlyExit { early_exit, .. }) => {
-                early_exit.parse_short_form(args)
-            },
-            Self::German(EinzelArgument::FrühesBeenden { frühes_beenden, .. }) => {
-                frühes_beenden.parse_short_form(args)
-            },
-            Self::English(SingleArgument::Value(value)) => value.parse_short_form(args),
-            Self::German(EinzelArgument::Wert(wert)) => wert.parse_short_form(args),
+        match self.0 {
+            SingleArgument::Flag(flag) => flag.parse_short_form(args),
+            SingleArgument::EarlyExit { early_exit, .. } => early_exit.parse_short_form(args),
+            SingleArgument::Value(value) => value.parse_short_form(args),
         }
     }
 
     /// Parses long forms for the referenced argument.
     fn parse_long_form(self, args: impl Iterator<Item = ArgumentInput>) -> ParsedLongForms<'t> {
-        match self {
-            Self::English(SingleArgument::Flag(flag))
-            | Self::German(EinzelArgument::Flag(flag)) => flag.parse_long_form(args),
-            Self::English(SingleArgument::EarlyExit { early_exit, .. }) => {
-                early_exit.parse_long_form(args)
-            },
-            Self::German(EinzelArgument::FrühesBeenden { frühes_beenden, .. }) => {
-                frühes_beenden.parse_long_form(args)
-            },
-            Self::English(SingleArgument::Value(value)) => value.parse_long_form(args),
-            Self::German(EinzelArgument::Wert(wert)) => wert.parse_long_form(args),
+        match self.0 {
+            SingleArgument::Flag(flag) => flag.parse_long_form(args),
+            SingleArgument::EarlyExit { early_exit, .. } => early_exit.parse_long_form(args),
+            SingleArgument::Value(value) => value.parse_long_form(args),
         }
     }
 
@@ -387,24 +379,81 @@ impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
         self,
         args: impl Iterator<Item = ArgumentInput>,
     ) -> ParsedMergedShortForms<'t> {
-        match self {
-            Self::English(SingleArgument::Flag(flag))
-            | Self::German(EinzelArgument::Flag(flag)) => flag.parse_merged_short_inputs(args),
-            Self::English(SingleArgument::EarlyExit { early_exit, .. }) => {
+        match self.0 {
+            SingleArgument::Flag(flag) => flag.parse_merged_short_inputs(args),
+            SingleArgument::EarlyExit { early_exit, .. } => {
                 early_exit.parse_merged_short_inputs(args)
             },
-            Self::German(EinzelArgument::FrühesBeenden { frühes_beenden, .. }) => frühes_beenden
-                .parse_merged_short_forms(args.filter_map(|argument| match argument {
-                    ArgumentInput::Unchanged(argument) => Some(argument),
-                    ArgumentInput::AdjustedMergedShortNames(_) => None,
-                })),
-            Self::English(SingleArgument::Value(value)) => value.parse_merged_short_inputs(args),
-            Self::German(EinzelArgument::Wert(wert)) => {
-                wert.parse_merged_short_forms(args.filter_map(|argument| match argument {
-                    ArgumentInput::Unchanged(argument) => Some(argument),
-                    ArgumentInput::AdjustedMergedShortNames(_) => None,
-                }))
+            SingleArgument::Value(value) => value.parse_merged_short_inputs(args),
+        }
+    }
+}
+
+/// Borrowed view over a German single-argument representation.
+struct EinzelArgumentRef<'a, 't, T, Fehler>(&'a EinzelArgument<'t, T, Fehler>);
+
+impl<'a, 't, T, Fehler> EinzelArgumentRef<'a, 't, T, Fehler> {
+    /// Erzeugt Hilfetext für das referenzierte Argument.
+    fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe {
+        match self.0 {
+            EinzelArgument::Flag(flag) => flag.create_help_text(meta_standard).into(),
+            EinzelArgument::FrühesBeenden { frühes_beenden, .. } => {
+                frühes_beenden.erzeuge_hilfe_text()
             },
+            EinzelArgument::Wert(wert) => {
+                wert.erzeuge_hilfe_text(meta_standard, meta_erlaubte_werte)
+            },
+        }
+    }
+
+    /// Konvertiert das referenzierte Argument in seine String-Repräsentation.
+    fn als_string_wert(&self) -> EinzelArgument<'a, String, String> {
+        match self.0 {
+            EinzelArgument::Flag(flag) => EinzelArgument::Flag(flag.as_string_flag()),
+            EinzelArgument::FrühesBeenden { frühes_beenden, wert, anzeige } => {
+                EinzelArgument::FrühesBeenden {
+                    frühes_beenden: frühes_beenden.clone(),
+                    wert: anzeige(wert),
+                    anzeige: Cow::Borrowed(&Clone::clone),
+                }
+            },
+            EinzelArgument::Wert(wert) => EinzelArgument::Wert(wert.als_string_wert()),
+        }
+    }
+
+    /// Parst eigenständige kurze Argumentformen.
+    fn parse_short_form(self, args: impl Iterator<Item = ArgumentInput>) -> ParsedShortForms<'t> {
+        match self.0 {
+            EinzelArgument::Flag(flag) => flag.parse_short_form(args),
+            EinzelArgument::FrühesBeenden { frühes_beenden, .. } => {
+                frühes_beenden.parse_short_form(args)
+            },
+            EinzelArgument::Wert(wert) => wert.parse_short_form(args),
+        }
+    }
+
+    /// Parst lange Argumentformen.
+    fn parse_long_form(self, args: impl Iterator<Item = ArgumentInput>) -> ParsedLongForms<'t> {
+        match self.0 {
+            EinzelArgument::Flag(flag) => flag.parse_long_form(args),
+            EinzelArgument::FrühesBeenden { frühes_beenden, .. } => {
+                frühes_beenden.parse_long_form(args)
+            },
+            EinzelArgument::Wert(wert) => wert.parse_long_form(args),
+        }
+    }
+
+    /// Parst zusammengefasste kurze Argumentformen.
+    fn parse_merged_short_forms(
+        self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParsedMergedShortForms<'t> {
+        match self.0 {
+            EinzelArgument::Flag(flag) => flag.parse_merged_short_forms(args),
+            EinzelArgument::FrühesBeenden { frühes_beenden, .. } => {
+                frühes_beenden.parse_merged_short_forms(args)
+            },
+            EinzelArgument::Wert(wert) => wert.parse_merged_short_forms(args),
         }
     }
 }
@@ -531,52 +580,13 @@ impl<'t, T, ParseError> SingleArgument<'t, T, ParseError> {
         }
     }
 
-    /// Creates this argument's syntax and corresponding help text.
-    #[inline]
-    pub fn create_help_text(&self, meta_default: &str, meta_possible_values: &str) -> Help {
-        SingleArgumentRef::English(self).create_help_text(meta_default, meta_possible_values)
-    }
-
-    /// Converts this argument's value and parsing error to strings using its display functions.
-    #[inline]
-    pub fn as_string_value(&self) -> SingleArgument<'_, String, String> {
-        SingleArgumentRef::English(self).as_string_value()
-    }
-
-    /// Parses standalone short-form arguments.
-    #[inline]
-    pub fn parse_short_form(
-        &self,
-        args: impl Iterator<Item = ArgumentInput>,
-    ) -> ParsedShortForms<'t> {
-        SingleArgumentRef::English(self).parse_short_form(args)
-    }
-
-    /// Parses long-form arguments.
-    #[inline]
-    pub fn parse_long_form(
-        &self,
-        args: impl Iterator<Item = ArgumentInput>,
-    ) -> ParsedLongForms<'t> {
-        SingleArgumentRef::English(self).parse_long_form(args)
-    }
-
-    /// Parses merged short-form arguments.
-    #[inline]
-    pub fn parse_merged_short_forms(
-        &self,
-        args: impl Iterator<Item = OsString>,
-    ) -> ParsedMergedShortForms<'t> {
-        SingleArgumentRef::English(self).parse_merged_short_forms(args)
-    }
-
     /// Parses merged short-form arguments while retaining adjusted-block remainders.
     #[inline]
     pub(crate) fn parse_merged_short_inputs(
         &self,
         args: impl Iterator<Item = ArgumentInput>,
     ) -> ParsedMergedShortForms<'t> {
-        SingleArgumentRef::English(self).parse_merged_short_inputs(args)
+        SingleArgumentRef(self).parse_merged_short_inputs(args)
     }
 
     /// Produces all merged-short recognition candidates for this argument.
