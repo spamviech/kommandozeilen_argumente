@@ -35,7 +35,6 @@ pub mod help;
 pub mod single_argument;
 pub mod value;
 
-// TODO Name/Version für Hilfetext angeben, als alternative für macros (derive-Feature)
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
 
