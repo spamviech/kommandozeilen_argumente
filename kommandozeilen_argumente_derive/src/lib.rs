@@ -31,6 +31,7 @@ fn unwrap_or_compile_error<Error: Display>(result: Result<TokenStream2, Error>) 
 /// ## Deutsch
 /// Derive-Makro für das [`Parse`](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html)-Trait.
 #[proc_macro_derive(Parse, attributes(kommandozeilen_argumente))]
+#[inline]
 pub fn derive_parse(item: TokenStream) -> TokenStream {
     unwrap_or_compile_error(parse::derive_parse(item.into()))
 }
@@ -40,6 +41,7 @@ pub fn derive_parse(item: TokenStream) -> TokenStream {
 /// ## Deutsch
 /// Derive-Makro für das [`EnumArgument`](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.EnumArgument.html)-Trait.
 #[proc_macro_derive(EnumArgument, attributes(kommandozeilen_argumente))]
+#[inline]
 pub fn derive_arg_enum(item: TokenStream) -> TokenStream {
     unwrap_or_compile_error(enum_argument::derive_enum_argument(item.into()))
 }

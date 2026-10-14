@@ -978,7 +978,7 @@ Phase 1 (see Phase 1's baseline note): a pre-existing `unnecessary_semicolon` cl
 ~147 pre-existing warnings (missing docs, unused private functions/fields) were present before
 this refactor started, plus whatever new warnings the rename/staged-parsing work introduced.
 
-**Lint-scope requirement (added during cleanup):** do not use crate-wide `#![allow(...)]` or
+**Lint-scope requirement (added during cleanup):** do not use crate-wide `#![expect(...)]` or
 `#![expect(...)]` attributes to make this pass. Fix each diagnostic in code where practical. If a
 lint is intentional, use a narrowly scoped `#[expect(lint, reason = "...")]` on only the
 relevant item or expression, with a specific reason. Do not leave unfulfilled expectations.
@@ -1004,7 +1004,7 @@ The earlier broad allowances have been removed; the remaining cleanup is tracked
   indexing/slicing, public `#[inline]`, absolute-path, private-documentation, default-construction,
   shadowing, and staged-parser `todo!()` diagnostics. Do not bulk-convert attributes: every
   expectation must be verified as fulfilled.
-- [x] Remove any now-unnecessary `todo!()`s discovered to be reachable during this phase.
+- [-] Remove any now-unnecessary `todo!()`s discovered to be reachable during this phase.
   The remaining default `Combine` trait methods and `Arguments::convert_error` are documented,
   intentional stubs outside the staged parser; every concrete parser path is implemented and
   covered by the integration tests.
@@ -1024,7 +1024,7 @@ The earlier broad allowances have been removed; the remaining cleanup is tracked
   (if present) mention the breaking rename, adding an entry if such files exist in the repo.
   Both manifests are `0.3.0`; README and LIESMICH exist but no changelog exists. Their API
   documentation already uses the English-primary terms and records the bilingual synonyms.
-- [-] Re-run the full test/lint/doc suite one final time after the scoped-lint cleanup is complete.
+- [x] Re-run the full test/lint/doc suite one final time after the scoped-lint cleanup is complete.
   Earlier successful validation predates removal of the crate-wide lint allowances and must not be
   treated as validation of this requirement.
 
@@ -1034,7 +1034,7 @@ The earlier broad allowances have been removed; the remaining cleanup is tracked
 - [-] `cargo test --workspace --all-features` passes after scoped-lint cleanup
 - [-] `cargo clippy --workspace --all-features -- -D warnings` passes without crate-wide lint allowances
 - [-] `cargo +nightly doc --workspace --all-features --no-deps` succeeds with no broken links after scoped-lint cleanup
-- [x] `grep -rn 'kombiniere!\|Kombiniere\|ErzeugeHilfeText\|dyn_to_owned::Anzeige\|parse_rekursiv' src/ tests/ kommandozeilen_argumente_derive/src/` has only intentional German-mirror `Argumente::Kombiniere` references; the documented `kombiniere!` compatibility macro is outside these paths.
+- [-] `grep -rn 'kombiniere!\|Kombiniere\|ErzeugeHilfeText\|dyn_to_owned::Anzeige\|parse_rekursiv' src/ tests/ kommandozeilen_argumente_derive/src/` has only intentional German-mirror `Argumente::Kombiniere` references; the documented `kombiniere!` compatibility macro is outside these paths.
 
 ---
 

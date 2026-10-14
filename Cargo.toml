@@ -55,15 +55,60 @@ unicode-segmentation.workspace = true
 void.workspace = true
 
 [workspace.dependencies]
-dyn-clone = "1.0.17"
-either = "1.6.1"
-itertools = "0.12.1"
-nonempty = "0.10.0"
-paste = "1.0.15"
-unicase = "2.6.0"
-unicode-normalization = "0.1.19"
-unicode-segmentation = "1.9.0"
-void = "1.0.2"
+[workspace.dependencies.dyn-clone]
+version = "1.0.17"
+default-features = false
+
+[workspace.dependencies.either]
+version = "1.6.1"
+default-features = false
+
+[workspace.dependencies.itertools]
+version = "0.15.0"
+default-features = false
+features = ["use_alloc"]
+
+[workspace.dependencies.litrs]
+version = "1.0.0"
+default-features = false
+features = ["proc-macro2"]
+
+[workspace.dependencies.nonempty]
+version = "0.12.0"
+default-features = false
+
+[workspace.dependencies.paste]
+version = "1.0.15"
+default-features = false
+
+[workspace.dependencies.proc-macro2]
+version = "1.0.36"
+default-features = false
+
+[workspace.dependencies.unicase]
+version = "2.6.0"
+default-features = false
+
+[workspace.dependencies.unicode-normalization]
+version = "0.1.19"
+default-features = false
+
+[workspace.dependencies.unicode-segmentation]
+version = "1.9.0"
+default-features = false
+features = ["no_std"]
+
+[workspace.dependencies.quote]
+version = "1.0.17"
+default-features = false
+
+[workspace.dependencies.void]
+version = "1.0.1"
+default-features = false
+
+[workspace.dependencies.venial]
+version = "0.6.0"
+default-features = false
 
 [dependencies.kommandozeilen_argumente_derive]
 path = "./kommandozeilen_argumente_derive"

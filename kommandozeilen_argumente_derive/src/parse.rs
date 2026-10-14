@@ -148,12 +148,12 @@ fn create_version_method(
                 None,
             )
         );
-        let ProgramSettings { name: program_name, version: program_version, beschreibung: () } =
+        let ProgramSettings { name: program_name, version: program_version, description: () } =
             program_settings;
         let program_name = program_name.or(default_name);
         let program_version_display = ProgramVersionDisplay {
             program_version: program_version.or_default(default_version),
-            ist_option: false,
+            is_option: false,
         };
         quote!(
             #item.with_version_early_exit(
@@ -197,13 +197,13 @@ fn create_help_method<'t>(
     let ProgramSettings {
         name: program_name,
         version: program_version,
-        beschreibung: program_description,
+        description: program_description,
     } = program_settings;
     move |item, default_name, default_version, default_description| {
         let program_name = program_name.or(default_name);
         let program_version_display = ProgramVersionDisplay {
             program_version: program_version.or_default(default_version),
-            ist_option: true,
+            is_option: true,
         };
         let program_description = program_description.or(default_description);
         quote!(
@@ -293,14 +293,13 @@ type CreateError = Box<dyn FnOnce(Option<String>) -> ParseValueError>;
 
 /// Description of the program.
 #[derive(Debug, Clone)]
-#[allow(
-    clippy::missing_docs_in_private_items,
-    reason = "The private settings type mirrors macro attributes."
-)]
 struct ProgramSettings<Description> {
+    /// Program name specified through the derive macro.
     name: ProgramName,
+    /// Program version specified through the derive macro.
     version: ProgramVersion,
-    beschreibung: Description,
+    /// Program description specified through the derive macro.
+    description: Description,
 }
 
 // TODO erlaube env-Variable
@@ -360,14 +359,14 @@ struct ProgramVersionDisplay {
     /// Whether the value is specified in an option.
     /// In an option, [`ProgramVersion::Unspecified`] produces [`None`],
     /// otherwise it produces the value from the `CARGO_PKG_VERSION` variable.
-    ist_option: bool,
+    is_option: bool,
 }
 
 impl ToTokens for ProgramVersionDisplay {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let crate_ident = crate_ident();
         let add_some_if_option = |token_stream: TokenStream| {
-            if self.ist_option { quote!(Some(#token_stream)) } else { token_stream }
+            if self.is_option { quote!(Some(#token_stream)) } else { token_stream }
         };
         match &self.program_version {
             ProgramVersion::Specified(string) => {
@@ -377,7 +376,7 @@ impl ToTokens for ProgramVersionDisplay {
                 tokens.extend(add_some_if_option(quote!(::#crate_ident::crate_version!())));
             },
             ProgramVersion::Unspecified => {
-                if self.ist_option {
+                if self.is_option {
                     tokens.extend(quote!(None));
                 } else {
                     tokens.extend(add_some_if_option(quote!(::#crate_ident::crate_version!())));
@@ -411,7 +410,7 @@ impl ProgramDescription {
 
 /// Function that creates a `--hilfe` flag.
 struct CreateHelp(
-    #[allow(
+    #[expect(
         clippy::type_complexity,
         reason = "The callback signature captures the generated help configuration."
     )]
@@ -429,7 +428,7 @@ struct CreateHelp(
 
 /// Function that creates a `--version` flag.
 struct CreateVersion(
-    #[allow(
+    #[expect(
         clippy::type_complexity,
         reason = "The callback signature captures the generated version configuration."
     )]
@@ -454,7 +453,7 @@ macro_rules! create_newtype {
 
 create_newtype! {
     MetaVar: String,
-    Standard: TokenStream,
+    DefaultValue: TokenStream,
 }
 
 /// Create newtypes for string-like values wrapped in a [`Compare`] in the generated
@@ -586,7 +585,7 @@ fn literal_or_to_string(token_stream: &TokenStream) -> String {
 }
 
 /// Parse the attributes for a value argument.
-#[allow(
+#[expect(
     clippy::too_many_arguments,
     clippy::too_many_lines,
     reason = "The attribute parser handles every supported argument setting in one pass."
@@ -594,29 +593,29 @@ fn literal_or_to_string(token_stream: &TokenStream) -> String {
 fn parse_value_argument(
     args: Vec<Argument>,
     mut language: Option<&mut Option<Language>>,
-    mut standard_programm_einstellungen: Option<&mut ProgramSettings<ProgramDescription>>,
-    mut erstelle_hilfe: Option<&mut CreateHelp>,
-    mut erstelle_version: Option<&mut CreateVersion>,
-    mut programm_einstellungen: Option<&mut ProgramSettings<Option<ProgramDescription>>>,
+    mut default_program_settings: Option<&mut ProgramSettings<ProgramDescription>>,
+    mut create_help: Option<&mut CreateHelp>,
+    mut create_version: Option<&mut CreateVersion>,
+    mut program_settings: Option<&mut ProgramSettings<Option<ProgramDescription>>>,
     mut long_prefix: Option<&mut LongPrefix>,
     mut long_names: Option<&mut LongNames>,
     mut short_prefix: Option<&mut ShortPrefix>,
     mut short_names: Option<&mut ShortNames>,
-    mut invertiere_präfix: Option<&mut InvertPrefix>,
-    mut invertiere_infix: Option<&mut InvertInfix>,
-    mut wert_infix: Option<&mut ValueInfix>,
+    mut invert_prefix: Option<&mut InvertPrefix>,
+    mut invert_infix: Option<&mut InvertInfix>,
+    mut value_infix: Option<&mut ValueInfix>,
     mut meta_var: Option<&mut Option<MetaVar>>,
-    mut standard: Option<&mut Standard>,
+    mut default_value: Option<&mut DefaultValue>,
     mut field_argument: Option<&mut FieldArgument>,
 ) -> Result<(), CreateError> {
     use ParseValueError::{NoLongName, Unsupported};
     let crate_ident = crate_ident();
     /// Set the argument value or return [`ParseValueError::Unsupported`].
     macro_rules! set_argument {
-        (< $([$mut_var: expr, $wert: expr $(,)?]),+ $(,)?>, $sub_arg: expr $(,)?) => {
+        (< $([$mut_var: expr, $value: expr $(,)?]),+ $(,)?>, $sub_arg: expr $(,)?) => {
             $(
                 if let Some(var) = $mut_var.as_mut() {
-                    **var = $wert;
+                    **var = $value;
                 } else
             )+
             {
@@ -626,15 +625,15 @@ fn parse_value_argument(
                 }));
             }
         };
-        ($mut_var: expr, $wert: expr, $sub_arg: expr $(,)?) => {
-            set_argument!(<[$mut_var, $wert]>, $sub_arg)
+        ($mut_var: expr, $value: expr, $sub_arg: expr $(,)?) => {
+            set_argument!(<[$mut_var, $value]>, $sub_arg)
         };
     }
     /// Helper macro for the argument-setting macros below.
     macro_rules! set_argument_field {
-        ($mut_var:expr, $feld:ident, $wert:expr, $sub_arg:expr) => {
+        ($mut_var:expr, $feld:ident, $value:expr, $sub_arg:expr) => {
             if let Some(var) = $mut_var.as_mut() {
-                var.$feld = $wert;
+                var.$feld = $value;
             } else {
                 return Err(Box::new(|arg_name| Unsupported { arg_name, argument: $sub_arg }));
             }
@@ -642,57 +641,49 @@ fn parse_value_argument(
     }
     /// Set [`LongNames`] or [`ShortNames`] for an argument.
     macro_rules! set_argument_names {
-        ($mut_var:expr, $wert:expr, $sub_arg:expr) => {
-            set_argument_field!($mut_var, namen, $wert, $sub_arg)
+        ($mut_var:expr, $value:expr, $sub_arg:expr) => {
+            set_argument_field!($mut_var, namen, $value, $sub_arg)
         };
     }
     /// Set a [`String`] value for an argument.
     macro_rules! set_argument_string {
-        ($mut_var:expr, $wert:expr, $sub_arg:expr) => {
-            set_argument_field!($mut_var, string, Some($wert), $sub_arg)
+        ($mut_var:expr, $value:expr, $sub_arg:expr) => {
+            set_argument_field!($mut_var, string, Some($value), $sub_arg)
         };
     }
     /// Set the [`Case`] value for an argument.
     macro_rules! set_argument_case {
-        ($mut_var:expr, $wert:expr, $sub_arg:expr) => {
-            set_argument_field!($mut_var, case, Some($wert), $sub_arg)
+        ($mut_var:expr, $value:expr, $sub_arg:expr) => {
+            set_argument_field!($mut_var, case, Some($value), $sub_arg)
         };
     }
     for Argument { name, value } in args {
         match value {
             ArgumentValue::NoValue => match name.as_str() {
                 "name" => set_argument!(
-                    programm_einstellungen.as_mut().map(
-                        #[allow(
-                            clippy::shadow_unrelated,
-                            reason = "The closure parameter describes the program settings field."
-                        )]
-                        |program_description| { &mut program_description.name }
-                    ),
+                    program_settings
+                        .as_mut()
+                        .map(|program_settings| { &mut program_settings.name }),
                     ProgramName(None),
                     Argument { name, value }
                 ),
                 "version" => set_argument!(
                     <
                         [
-                            programm_einstellungen.as_mut().map(
-                                #[allow(
-                                    clippy::shadow_unrelated,
-                                    reason = "The closure parameter describes the program settings field."
-                                )]
-                                |program_description| { &mut program_description.version }
+                            program_settings.as_mut().map(
+                                |program_settings| { &mut program_settings.version }
                             ),
                             ProgramVersion::CrateMacro,
                         ],
                         [
-                            erstelle_version,
+                            create_version,
                             CreateVersion(Some(Box::new(create_version_method(
                                 None,
                                 None,
                                 ProgramSettings {
                                     name: ProgramName(None),
                                     version: ProgramVersion::Unspecified,
-                                    beschreibung: ()
+                                    description: ()
                                 }
                             )))),
                         ],
@@ -700,27 +691,27 @@ fn parse_value_argument(
                     Argument { name, value }
                 ),
                 "hilfe" => set_argument!(
-                    erstelle_hilfe,
+                    create_help,
                     CreateHelp(Some(Box::new(create_help_method(
                         &Deutsch,
                         None,
                         ProgramSettings {
                             name: ProgramName(None),
                             version: ProgramVersion::HelpWithoutSubArgument,
-                            beschreibung: ProgramDescription(None)
+                            description: ProgramDescription(None)
                         }
                     )))),
                     Argument { name, value }
                 ),
                 "help" => set_argument!(
-                    erstelle_hilfe,
+                    create_help,
                     CreateHelp(Some(Box::new(create_help_method(
                         &English,
                         None,
                         ProgramSettings {
                             name: ProgramName(None),
                             version: ProgramVersion::HelpWithoutSubArgument,
-                            beschreibung: ProgramDescription(None)
+                            description: ProgramDescription(None)
                         }
                     )))),
                     Argument { name, value }
@@ -739,7 +730,11 @@ fn parse_value_argument(
                     set_argument!(field_argument, FieldArgument::FromStr, Argument { name, value });
                 },
                 "benötigt" | "required" => {
-                    set_argument!(standard, Standard(quote!(None)), Argument { name, value });
+                    set_argument!(
+                        default_value,
+                        DefaultValue(quote!(None)),
+                        Argument { name, value }
+                    );
                 },
                 _ => {
                     return Err(Box::new(|arg_name| Unsupported {
@@ -786,35 +781,23 @@ fn parse_value_argument(
                     );
                 },
                 "name" => set_argument!(
-                    programm_einstellungen.as_mut().map(
-                        #[allow(
-                            clippy::shadow_unrelated,
-                            reason = "The closure parameter describes the program settings field."
-                        )]
-                        |program_description| { &mut program_description.name }
-                    ),
+                    program_settings
+                        .as_mut()
+                        .map(|program_settings| { &mut program_settings.name }),
                     ProgramName(Some(literal_or_to_string(&ts))),
                     Argument { name, value: ArgumentValue::Stream(ts) }
                 ),
                 "version" => set_argument!(
-                    programm_einstellungen.as_mut().map(
-                        #[allow(
-                            clippy::shadow_unrelated,
-                            reason = "The closure parameter describes the program settings field."
-                        )]
-                        |program_description| { &mut program_description.version }
-                    ),
+                    program_settings
+                        .as_mut()
+                        .map(|program_settings| { &mut program_settings.version }),
                     ProgramVersion::Specified(literal_or_to_string(&ts)),
                     Argument { name, value: ArgumentValue::Stream(ts) }
                 ),
                 "beschreibung" | "description" => set_argument!(
-                    programm_einstellungen.as_mut().and_then(
-                        #[allow(
-                            clippy::shadow_unrelated,
-                            reason = "The closure parameter describes the program settings field."
-                        )]
-                        |program_description| { program_description.beschreibung.as_mut() }
-                    ),
+                    program_settings
+                        .as_mut()
+                        .and_then(|program_settings| { program_settings.description.as_mut() }),
                     ProgramDescription(Some(literal_or_to_string(&ts))),
                     Argument { name, value: ArgumentValue::Stream(ts) }
                 ),
@@ -834,21 +817,21 @@ fn parse_value_argument(
                 },
                 "invertiere_präfix" | "invert_prefix" => {
                     set_argument_string!(
-                        invertiere_präfix,
+                        invert_prefix,
                         literal_or_to_string(&ts),
                         Argument { name, value: ArgumentValue::Stream(ts) }
                     );
                 },
                 "invertiere_infix" | "invert_infix" => {
                     set_argument_string!(
-                        invertiere_infix,
+                        invert_infix,
                         literal_or_to_string(&ts),
                         Argument { name, value: ArgumentValue::Stream(ts) }
                     );
                 },
                 "wert_infix" | "value_infix" => {
                     set_argument_string!(
-                        wert_infix,
+                        value_infix,
                         literal_or_to_string(&ts),
                         Argument { name, value: ArgumentValue::Stream(ts) }
                     );
@@ -862,8 +845,8 @@ fn parse_value_argument(
                 },
                 "standard" | "default" => {
                     set_argument!(
-                        standard,
-                        Standard(quote!(Some(#ts))),
+                        default_value,
+                        DefaultValue(quote!(Some(#ts))),
                         Argument { name, value: ArgumentValue::Stream(ts) }
                     );
                 },
@@ -889,9 +872,9 @@ fn parse_value_argument(
                     set_argument_case!(long_names, case, argument);
                     set_argument_case!(short_prefix, case, argument);
                     set_argument_case!(short_names, case, argument);
-                    set_argument_case!(invertiere_präfix, case, argument);
-                    set_argument_case!(invertiere_infix, case, argument);
-                    set_argument_case!(wert_infix, case, argument);
+                    set_argument_case!(invert_prefix, case, argument);
+                    set_argument_case!(invert_infix, case, argument);
+                    set_argument_case!(value_infix, case, argument);
                 },
                 _ => {
                     return Err(Box::new(|arg_name| Unsupported {
@@ -903,23 +886,23 @@ fn parse_value_argument(
             ArgumentValue::SubArgument(sub_args) => {
                 /// Parse a sub-argument recursively.
                 macro_rules! recursive {
-                    ($programm_einstellungen: expr, $sub_sprache: ident, $präfix_und_namen: ident $(,)?) => {
-                        let mut $sub_sprache = None;
+                    ($program_settings: expr, $sub_language: ident, $prefix_and_names: ident $(,)?) => {
+                        let mut $sub_language = None;
                         let mut sub_long_prefix = LongPrefix::default();
-                        let mut sub_lang = LongNames::default();
+                        let mut sub_long = LongNames::default();
                         let mut sub_short_prefix = ShortPrefix::default();
-                        let mut sub_kurz = ShortNames::default();
+                        let mut sub_short = ShortNames::default();
                         let result = parse_value_argument(
                             sub_args,
-                            Some(&mut $sub_sprache),
+                            Some(&mut $sub_language),
                             None,
                             None,
                             None,
-                            $programm_einstellungen,
+                            $program_settings,
                             Some(&mut sub_long_prefix),
-                            Some(&mut sub_lang),
+                            Some(&mut sub_long),
                             Some(&mut sub_short_prefix),
-                            Some(&mut sub_kurz),
+                            Some(&mut sub_short),
                             None,
                             None,
                             None,
@@ -927,8 +910,8 @@ fn parse_value_argument(
                             None,
                             None,
                         );
-                        if let Err(erstelle_fehler) = result {
-                            return Err(Box::new(|arg_name| match erstelle_fehler(arg_name) {
+                        if let Err(create_error) = result {
+                            return Err(Box::new(|arg_name| match create_error(arg_name) {
                                 Unsupported { arg_name, argument } => Unsupported {
                                     arg_name,
                                     argument: Argument {
@@ -936,10 +919,10 @@ fn parse_value_argument(
                                         value: ArgumentValue::SubArgument(vec![argument])
                                     }
                                 },
-                                fehler => fehler,
+                                error => error,
                             }))
                         };
-                        let (sub_lang_ts, erster) = match sub_lang.namen.as_ref() {
+                        let (sub_lang_ts, erster) = match sub_long.namen.as_ref() {
                             Some((head, tail)) => (
                                 quote!(
                                     #crate_ident::NonEmpty {
@@ -951,32 +934,28 @@ fn parse_value_argument(
                             ),
                             None => (quote!(#name), &name),
                         };
-                        let sub_kurz_ts = sub_kurz.into_vec_tokens(erster, sub_lang.case);
-                        let $präfix_und_namen =
+                        let sub_kurz_ts = sub_short.into_vec_tokens(erster, sub_long.case);
+                        let $prefix_and_names =
                             (sub_long_prefix, sub_lang_ts, sub_short_prefix, sub_kurz_ts);
                     }
                 }
                 match (
                     name.as_str(),
-                    erstelle_hilfe.as_mut(),
-                    erstelle_version.as_mut(),
-                    standard_programm_einstellungen.as_mut(),
+                    create_help.as_mut(),
+                    create_version.as_mut(),
+                    default_program_settings.as_mut(),
                 ) {
                     ("hilfe" | "help", Some(erstelle_hilfe), _, _) => {
-                        let mut sub_programm_einstellungen = ProgramSettings {
+                        let mut sub_program_settings = ProgramSettings {
                             name: ProgramName(None),
                             version: ProgramVersion::Unspecified,
-                            beschreibung: Some(ProgramDescription(None)),
+                            description: Some(ProgramDescription(None)),
                         };
-                        recursive!(
-                            Some(&mut sub_programm_einstellungen),
-                            sub_language,
-                            präfix_und_namen,
-                        );
+                        recursive!(Some(&mut sub_program_settings), sub_language, prefix_and_name,);
                         let sub_program_description = ProgramSettings {
-                            name: sub_programm_einstellungen.name,
-                            version: sub_programm_einstellungen.version,
-                            beschreibung: sub_programm_einstellungen.beschreibung.expect(
+                            name: sub_program_settings.name,
+                            version: sub_program_settings.version,
+                            description: sub_program_settings.description.expect(
                                 "Some-Wert für Programm-Description wird bei rekursiven Aufruf \
                                  nie None!",
                             ),
@@ -984,37 +963,33 @@ fn parse_value_argument(
                         let default_language = if name == "hilfe" { Deutsch } else { English };
                         **erstelle_hilfe = CreateHelp(Some(Box::new(create_help_method(
                             &sub_language.unwrap_or(default_language),
-                            Some(präfix_und_namen),
+                            Some(prefix_and_name),
                             sub_program_description,
                         ))));
                     },
                     ("version", _, Some(erstelle_version), _) => {
-                        let mut sub_programm_einstellungen = ProgramSettings {
+                        let mut sub_program_settings = ProgramSettings {
                             name: ProgramName(None),
                             version: ProgramVersion::Unspecified,
-                            beschreibung: None,
+                            description: None,
                         };
-                        recursive!(
-                            Some(&mut sub_programm_einstellungen),
-                            sub_language,
-                            präfix_und_namen,
-                        );
+                        recursive!(Some(&mut sub_program_settings), sub_language, prefix_and_names,);
                         let sub_program_description = ProgramSettings {
-                            name: sub_programm_einstellungen.name,
-                            version: sub_programm_einstellungen.version,
-                            beschreibung: (),
+                            name: sub_program_settings.name,
+                            version: sub_program_settings.version,
+                            description: (),
                         };
                         **erstelle_version = CreateVersion(Some(Box::new(create_version_method(
                             sub_language,
-                            Some(präfix_und_namen),
+                            Some(prefix_and_names),
                             sub_program_description,
                         ))));
                     },
-                    ("programm" | "program", _, _, Some(standard_programm_einstellungen)) => {
-                        let mut sub_programm_einstellungen = ProgramSettings {
+                    ("programm" | "program", _, _, Some(default_program_settings)) => {
+                        let mut sub_program_settings = ProgramSettings {
                             name: ProgramName(None),
                             version: ProgramVersion::Unspecified,
-                            beschreibung: Some(ProgramDescription(None)),
+                            description: Some(ProgramDescription(None)),
                         };
                         let result = parse_value_argument(
                             sub_args,
@@ -1022,7 +997,7 @@ fn parse_value_argument(
                             None,
                             None,
                             None,
-                            Some(&mut sub_programm_einstellungen),
+                            Some(&mut sub_program_settings),
                             None,
                             None,
                             None,
@@ -1034,13 +1009,8 @@ fn parse_value_argument(
                             None,
                             None,
                         );
-                        if let Err(erstelle_fehler) = result {
-                            return Err(Box::new(|arg_name| match erstelle_fehler(arg_name) {
-                                #[allow(
-                                    clippy::shadow_unrelated,
-                                    reason = "The destructured error fields preserve their \
-                                              established names."
-                                )]
+                        if let Err(create_error) = result {
+                            return Err(Box::new(|arg_name| match create_error(arg_name) {
                                 Unsupported { arg_name, argument } => Unsupported {
                                     arg_name,
                                     argument: Argument {
@@ -1048,13 +1018,13 @@ fn parse_value_argument(
                                         value: ArgumentValue::SubArgument(vec![argument]),
                                     },
                                 },
-                                fehler @ NoLongName { .. } => fehler,
+                                error @ NoLongName { .. } => error,
                             }));
                         }
-                        **standard_programm_einstellungen = ProgramSettings {
-                            name: sub_programm_einstellungen.name,
-                            version: sub_programm_einstellungen.version,
-                            beschreibung: sub_programm_einstellungen.beschreibung.expect(
+                        **default_program_settings = ProgramSettings {
+                            name: sub_program_settings.name,
+                            version: sub_program_settings.version,
+                            description: sub_program_settings.description.expect(
                                 "Some-Wert für Programm-Description wird bei rekursivem Aufruf \
                                  nie None!",
                             ),
@@ -1097,21 +1067,13 @@ fn parse_value_argument(
                                         set_argument_case!(short_names, case, error_argument!());
                                     },
                                     "invertiere_präfix" | "invert_prefix" => {
-                                        set_argument_case!(
-                                            invertiere_präfix,
-                                            case,
-                                            error_argument!()
-                                        );
+                                        set_argument_case!(invert_prefix, case, error_argument!());
                                     },
                                     "invertiere_infix" | "invert_infix" => {
-                                        set_argument_case!(
-                                            invertiere_infix,
-                                            case,
-                                            error_argument!()
-                                        );
+                                        set_argument_case!(invert_infix, case, error_argument!());
                                     },
                                     "wert_infix" | "value_infix" => {
-                                        set_argument_case!(wert_infix, case, error_argument!());
+                                        set_argument_case!(value_infix, case, error_argument!());
                                     },
                                     _ => {
                                         return Err(Box::new(|arg_name| Unsupported {
@@ -1205,8 +1167,8 @@ impl Display for Error {
         };
         match self {
             Venial(error) => write!(formatter, "{error}"),
-            SplitArguments(fehler) => write!(formatter, "{fehler}"),
-            ParseValue(fehler) => write!(formatter, "{fehler}"),
+            SplitArguments(error) => write!(formatter, "{error}"),
+            ParseValue(error) => write!(formatter, "{error}"),
             NotStruct { typ, input } => {
                 write!(formatter, "Only structs are supported, but received {typ}: {input}")
             },
@@ -1250,13 +1212,13 @@ macro_rules! unwrap_or_return {
     ($result:expr $(, $($arg:expr)+)? $(,)?) => {
         match $result {
             Ok(wert) => wert,
-            Err(funktion) => return Err(funktion($($($arg)+)?).into()),
+            Err(function) => return Err(function($($($arg)+)?).into()),
         }
     };
 }
 
 /// Implementation of the derive macro for the [`Parse`] trait.
-#[allow(
+#[expect(
     clippy::too_many_lines,
     reason = "Deriving Parse requires collecting and translating all struct and field attributes."
 )]
@@ -1264,9 +1226,9 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
     use Error::{EmptyFieldName, Generics, NotStruct, UnnamedFields};
     let item = parse_item(input.clone())?;
     // Item als #[non_exhaustive] markiert
-    #[allow(
+    #[expect(
         clippy::wildcard_enum_match_arm,
-        reason = "venial::Item has variants unsupported by this derive macro."
+        reason = "venial::Item in non_exhaustive. Only Types are supported."
     )]
     let Struct { fields, name, generic_params, where_clause, attributes, .. } = match item {
         Item::Struct(struct_) => struct_,
@@ -1299,7 +1261,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
     let mut default_program_setttings = ProgramSettings {
         name: ProgramName(None),
         version: ProgramVersion::Unspecified,
-        beschreibung: ProgramDescription(None),
+        description: ProgramDescription(None),
     };
     let mut long_prefix = LongPrefix::default();
     let mut short_prefix = ShortPrefix::default();
@@ -1353,14 +1315,14 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
         }
         let mut lang = quote!(#field_ident_str);
         let mut kurz = quote!(None::<&str>);
-        let mut feld_long_prefix = long_prefix.clone();
-        let mut feld_short_prefix = short_prefix.clone();
+        let mut field_long_prefix = long_prefix.clone();
+        let mut field_short_prefix = short_prefix.clone();
         let mut field_invert_prefix = invert_prefix.clone();
         let mut field_invert_infix = invert_infix.clone();
         let mut field_value_infix = value_infix.clone();
         let mut field_meta_var = None;
         let mut standard =
-            Standard(quote!(<#field_type as ::#crate_ident::ParseArgument>::default()));
+            DefaultValue(quote!(<#field_type as ::#crate_ident::ParseArgument>::default()));
         let mut field_argument = FieldArgument::EnumArgument;
         for attr in field_attrs {
             if path_is_ident(&attr, "doc") {
@@ -1390,9 +1352,9 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
                         None,
                         None,
                         None,
-                        Some(&mut feld_long_prefix),
+                        Some(&mut field_long_prefix),
                         Some(&mut long_names),
-                        Some(&mut feld_short_prefix),
+                        Some(&mut field_short_prefix),
                         Some(&mut short_names),
                         Some(&mut field_invert_prefix),
                         Some(&mut field_invert_infix),
@@ -1417,11 +1379,11 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
                 };
                 kurz = short_names.into_vec_tokens(erster, long_names.case);
             } else {
-                // nicht verwendetes Attribut
+                // unused attribute
             }
         }
-        let feld_long_prefix = feld_long_prefix.token_stream(&language);
-        let feld_short_prefix = feld_short_prefix.token_stream(&language);
+        let field_long_prefix = field_long_prefix.token_stream(&language);
+        let field_short_prefix = field_short_prefix.token_stream(&language);
         let field_invert_prefix = field_invert_prefix.token_stream(&language);
         let field_invert_infix = field_invert_infix.token_stream(&language);
         let field_value_infix = field_value_infix.token_stream(&language);
@@ -1441,9 +1403,9 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
             if help_string.is_empty() { quote!(None::<&str>) } else { quote!(Some(#help_string)) };
         let create_description = quote!(
             let description = ::#crate_ident::Description::new(
-                #feld_long_prefix,
+                #field_long_prefix,
                 #lang,
-                #feld_short_prefix,
+                #field_short_prefix,
                 #kurz,
                 #hilfe,
                 #standard,
@@ -1466,8 +1428,8 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
         )*
         ::#crate_ident::combine!(|#(#idents),*| Self {#(#idents),*}, #(#idents),*)
     );
-    let with_version = if let CreateVersion(Some(version_hinzufügen)) = create_version {
-        version_hinzufügen(
+    let with_version = if let CreateVersion(Some(add_version)) = create_version {
+        add_version(
             combined,
             language,
             &default_program_setttings.name,
@@ -1476,21 +1438,20 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
     } else {
         combined
     };
-    let with_help = if let CreateHelp(Some(hilfe_hinzufügen)) = create_help {
-        hilfe_hinzufügen(
+    let with_help = if let CreateHelp(Some(add_help)) = create_help {
+        add_help(
             with_version,
             &default_program_setttings.name,
             &default_program_setttings.version,
-            &default_program_setttings.beschreibung,
+            &default_program_setttings.description,
         )
     } else {
         with_version
     };
     let ts = quote! {
-        #[allow(
+        #[expect(
             clippy::shadow_unrelated,
-            clippy::disallowed_script_idents,
-            reason = "Generated bindings use user-provided field names and Unicode identifiers."
+            reason = "Generated bindings use user-provided field names."
         )]
         impl ::#crate_ident::Parse for #name {
             type Error = String;

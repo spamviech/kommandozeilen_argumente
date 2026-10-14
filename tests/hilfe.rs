@@ -1,19 +1,12 @@
 //! Tests zur automatisch erzeugen Hilfe.
 
-// dependencies of the lib
-#![allow(unused_crate_dependencies)]
-#![allow(
-    clippy::tests_outside_test_module,
-    clippy::print_stdout,
-    clippy::print_stderr,
-    clippy::exit,
-    clippy::use_debug
-)]
+#![expect(unused_crate_dependencies, reason = "dependencies of the lib")]
+#![expect(clippy::tests_outside_test_module, clippy::print_stdout, reason = "Integration test.")]
 
 use std::{
     ffi::OsString,
     fmt::{self, Debug, Formatter},
-    iter,
+    iter, result,
 };
 
 use kommandozeilen_argumente::{
@@ -35,7 +28,7 @@ impl Debug for DString {
 }
 
 #[test]
-fn help_test() -> std::result::Result<(), DString> {
+fn help_test() -> result::Result<(), DString> {
     let language = Language::ENGLISH;
     let flag = Flag::new_with_language(
         Description::new_with_language("test", None::<&str>, Some("help"), Some(false), language),
@@ -65,7 +58,7 @@ fn help_test() -> std::result::Result<(), DString> {
 }
 
 #[test]
-fn hilfe_test() -> std::result::Result<(), DString> {
+fn hilfe_test() -> result::Result<(), DString> {
     let sprache = Sprache::DEUTSCH;
     let flag = Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache("test", None::<&str>, Some("hilfe"), Some(false), sprache),

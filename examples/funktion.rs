@@ -1,7 +1,6 @@
 //! Ein Beispiel des Funktion-Apis.
 
-// dependencies of the lib
-#![allow(unused_crate_dependencies)]
+#![expect(unused_crate_dependencies, reason = "dependencies of the lib")]
 
 use std::{
     borrow::Cow,
@@ -141,7 +140,7 @@ fn main() {
         ),
         sprache,
     );
-    #[allow(clippy::shadow_unrelated)]
+    #[expect(clippy::shadow_unrelated, reason = "lambda-Argumente, über Aufruf identisch.")]
     let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung| Args {
         flag,
         umbenannt,
@@ -160,7 +159,7 @@ fn main() {
         );
     let args = argumente_mit_hilfe_und_version
         .parse_vollständig_mit_sprache_aus_env(NonZeroI32::new(1).expect("1 != 0"), sprache);
-    #[allow(clippy::print_stdout, clippy::use_debug)]
+    #[expect(clippy::print_stdout, clippy::use_debug, reason = "Beispiel-Implementierung.")]
     {
         println!("{args:?}");
     }

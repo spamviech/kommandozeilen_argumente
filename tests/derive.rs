@@ -1,20 +1,19 @@
 //! Tests zum Parsen von Kommandozeilen-Argumenten, erzeugt über das derive-Feature.
 
-// dependencies of the lib
-#![allow(unused_crate_dependencies)]
-#![allow(
+#![expect(unused_crate_dependencies, reason = "dependencies of the lib")]
+#![expect(
     clippy::tests_outside_test_module,
     clippy::print_stdout,
     clippy::print_stderr,
-    clippy::exit,
-    clippy::use_debug
+    clippy::use_debug,
+    reason = "Integration test."
 )]
 
 use std::{
     borrow::Cow,
     ffi::OsString,
     fmt::{self, Debug, Display, Formatter},
-    iter,
+    iter, result,
 };
 
 use kommandozeilen_argumente::{
@@ -91,7 +90,7 @@ struct Test {
     /// opt
     #[kommandozeilen_argumente(lang: alternativ, kurz: [p, q, r])]
     opt: Option<Bla>,
-    #[allow(clippy::doc_markdown)]
+    #[expect(clippy::doc_markdown, reason = "Used in cli implementation.")]
     /// from_str
     #[kommandozeilen_argumente(FromStr, standard: 42, meta_var: VAR)]
     from_str: i32,
@@ -105,7 +104,7 @@ struct Test {
 struct Empty;
 
 #[test]
-fn derive_empty_test() -> std::result::Result<(), DString> {
+fn derive_empty_test() -> result::Result<(), DString> {
     let arguments: Arguments<'_, Empty, String> = Empty::arguments();
     match arguments.parse(iter::empty()) {
         (Result::Value(Empty), unused) if unused.is_empty() => Ok(()),
@@ -117,7 +116,7 @@ fn derive_empty_test() -> std::result::Result<(), DString> {
 }
 
 #[test]
-fn derive_hilfe_test() -> std::result::Result<(), DString> {
+fn derive_hilfe_test() -> result::Result<(), DString> {
     let arg = Test::arguments();
     match arg.parse(iter::once(OsString::from("--hilfe"))) {
         (Result::EarlyExit(nachrichten), nicht_verwendet) => {
@@ -222,7 +221,7 @@ struct Test2 {
 }
 
 #[test]
-fn derive_help_test() -> std::result::Result<(), DString> {
+fn derive_help_test() -> result::Result<(), DString> {
     let arg = Test2::arguments();
     match arg.parse(iter::once(OsString::from("--help"))) {
         (Result::EarlyExit(nachrichten), nicht_verwendet) => {
@@ -247,7 +246,7 @@ fn derive_help_test() -> std::result::Result<(), DString> {
 }
 
 #[test]
-fn verschmelze_kurzformen_hilfe() -> std::result::Result<(), DString> {
+fn verschmelze_kurzformen_hilfe() -> result::Result<(), DString> {
     let arg = Test::arguments();
     match arg.parse(iter::once(OsString::from("-vh"))) {
         (Result::EarlyExit(nachrichten), nicht_verwendet) => {
@@ -278,9 +277,8 @@ fn verschmelze_kurzformen_hilfe() -> std::result::Result<(), DString> {
 }
 
 #[test]
-fn verschmelze_kurzformen_wert() -> std::result::Result<(), DString> {
+fn verschmelze_kurzformen_wert() -> result::Result<(), DString> {
     // soll nicht für Wert-Argumente (vor allem am Anfang der Liste) funktionieren!
-    // FIXME wert am Anfang soll keinen Parse-Fehler auslösen!
     let arg2 = Test2::arguments();
     match arg2.parse(
         [OsString::from(String::from("-xfb")), OsString::from(String::from("Muh"))].into_iter(),
@@ -316,7 +314,7 @@ fn verschmelze_kurzformen_wert() -> std::result::Result<(), DString> {
 }
 
 #[test]
-fn verschmelze_kurzformen_erfolgreich() -> std::result::Result<(), DString> {
+fn verschmelze_kurzformen_erfolgreich() -> result::Result<(), DString> {
     let arg2 = Test2::arguments();
     match arg2.parse(iter::once(OsString::from("-fb"))) {
         (Result::Value(test2), nicht_verwendet) => {

@@ -14,7 +14,6 @@ use unicode_segmentation::UnicodeSegmentation;
 /// ## Deutsches Synonym
 /// [`Normalisiert`]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[allow(single_use_lifetimes)]
 pub struct Normalized<'t>(Cow<'t, str>);
 
 impl AsRef<str> for Normalized<'_> {
@@ -121,7 +120,6 @@ impl<'t> Normalized<'t> {
 /// ## English synonym
 /// [`Normalized`]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[allow(single_use_lifetimes)]
 pub struct Normalisiert<'t>(Cow<'t, str>);
 
 impl AsRef<str> for Normalisiert<'_> {
@@ -263,7 +261,6 @@ impl From<Case> for bool {
 /// ## Deutsches Synonym
 /// [`Vergleich`]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[allow(single_use_lifetimes)]
 pub struct Compare<'t> {
     /// The string to compare to.
     ///
@@ -281,7 +278,7 @@ pub struct Compare<'t> {
 /// Erzeuge [`From`]-Implementierung für `$type` und `($type, Case)`.
 macro_rules! impl_compare_from {
     ($type:ty) => {
-        #[allow(single_use_lifetimes)]
+        #[allow(single_use_lifetimes, reason = "&'t str")]
         impl<'t> From<$type> for Compare<'t> {
             #[inline]
             fn from(input: $type) -> Self {
@@ -289,7 +286,7 @@ macro_rules! impl_compare_from {
             }
         }
 
-        #[allow(single_use_lifetimes)]
+        #[allow(single_use_lifetimes, reason = "&'t str")]
         impl<'t> From<($type, Case)> for Compare<'t> {
             #[inline]
             fn from((string, case): ($type, Case)) -> Self {
@@ -345,25 +342,6 @@ impl Compare<'_> {
     }
 
     /// Versuche einen String vom Anfang des anderen Strings zu entfernen.
-    pub(crate) fn strip_as_prefix<'t>(
-        &self,
-        string: &'t Normalized<'t>,
-    ) -> Option<(&'t str, &'t str)> {
-        let string_str = string.as_ref();
-        let string_länge = string_str.len();
-        let mut graphemes_indices = string_str.grapheme_indices(true);
-        let mut präfixe = vec![(string_str, string_länge)];
-        while let Some((ix, _str)) = graphemes_indices.next_back() {
-            präfixe.push((graphemes_indices.as_str(), ix));
-        }
-        präfixe.iter().rev().find(|(präfix, _ix)| self.eq(*präfix)).map(|(_präfix, ix)| {
-            // Index von [`graphemes_indices`] ist valide.
-            #[allow(clippy::string_slice, clippy::indexing_slicing)]
-            (&string_str[0..*ix], &string_str[*ix..string_länge])
-        })
-    }
-
-    /// Versuche einen String vom Anfang des anderen Strings zu entfernen.
     pub(crate) fn strip_as_prefix_n<'t>(
         &self,
         string: &'t Normalized<'t>,
@@ -377,7 +355,11 @@ impl Compare<'_> {
         }
         präfixe.iter().rev().find(|(präfix, _ix)| self.eq(*präfix)).map(|(_präfix, ix)| {
             // Index von [`graphemes_indices`] ist valide.
-            #[allow(clippy::string_slice, clippy::indexing_slicing)]
+            #[expect(
+                clippy::string_slice,
+                reason = "The index originates from Unicode grapheme boundaries and is valid for \
+                          this string."
+            )]
             (
                 Normalized(Cow::Borrowed(&string_str[0..*ix])),
                 Normalized(Cow::Borrowed(&string_str[*ix..string_länge])),
@@ -392,7 +374,6 @@ impl Compare<'_> {
 /// ## English synonym
 /// [`Compare`]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-#[allow(single_use_lifetimes)]
 pub struct Vergleich<'t> {
     /// Der zu vergleichende String.
     ///
@@ -410,7 +391,7 @@ pub struct Vergleich<'t> {
 /// Erzeuge [`From`]-Implementierung für `$type` und `($type, Case)`.
 macro_rules! impl_vergleich_from {
     ($type:ty) => {
-        #[allow(single_use_lifetimes)]
+        #[allow(single_use_lifetimes, reason = "&'t str")]
         impl<'t> From<$type> for Vergleich<'t> {
             #[inline]
             fn from(input: $type) -> Self {
@@ -418,7 +399,7 @@ macro_rules! impl_vergleich_from {
             }
         }
 
-        #[allow(single_use_lifetimes)]
+        #[allow(single_use_lifetimes, reason = "&'t str")]
         impl<'t> From<($type, Case)> for Vergleich<'t> {
             #[inline]
             fn from((string, case): ($type, Case)) -> Self {
@@ -475,47 +456,6 @@ impl Vergleich<'_> {
     #[must_use]
     pub fn as_str(&self) -> &str {
         self.string.as_ref()
-    }
-
-    /// Versuche einen String vom Anfang des anderen Strings zu entfernen.
-    pub(crate) fn strip_als_präfix<'t>(
-        &self,
-        string: &'t Normalisiert<'t>,
-    ) -> Option<(&'t str, &'t str)> {
-        let string_str = string.as_ref();
-        let string_länge = string_str.len();
-        let mut graphemes_indices = string_str.grapheme_indices(true);
-        let mut präfixe = vec![(string_str, string_länge)];
-        while let Some((ix, _str)) = graphemes_indices.next_back() {
-            präfixe.push((graphemes_indices.as_str(), ix));
-        }
-        präfixe.iter().rev().find(|(präfix, _ix)| self.eq(*präfix)).map(|(_präfix, ix)| {
-            // Index von [`graphemes_indices`] ist valide.
-            #[allow(clippy::string_slice, clippy::indexing_slicing)]
-            (&string_str[0..*ix], &string_str[*ix..string_länge])
-        })
-    }
-
-    /// Versuche einen String vom Anfang des anderen Strings zu entfernen.
-    pub(crate) fn strip_als_präfix_n<'t>(
-        &self,
-        string: &'t Normalisiert<'t>,
-    ) -> Option<(Normalisiert<'t>, Normalisiert<'t>)> {
-        let string_str = string.as_ref();
-        let string_länge = string_str.len();
-        let mut graphemes_indices = string_str.grapheme_indices(true);
-        let mut präfixe = vec![(string_str, string_länge)];
-        while let Some((ix, _str)) = graphemes_indices.next_back() {
-            präfixe.push((graphemes_indices.as_str(), ix));
-        }
-        präfixe.iter().rev().find(|(präfix, _ix)| self.eq(*präfix)).map(|(_präfix, ix)| {
-            // Index von [`graphemes_indices`] ist valide.
-            #[allow(clippy::string_slice, clippy::indexing_slicing)]
-            (
-                Normalisiert(Cow::Borrowed(&string_str[0..*ix])),
-                Normalisiert(Cow::Borrowed(&string_str[*ix..string_länge])),
-            )
-        })
     }
 }
 

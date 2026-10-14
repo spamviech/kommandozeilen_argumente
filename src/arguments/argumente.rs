@@ -36,7 +36,11 @@ use crate::{
 ///
 /// ## English synonym
 /// [`Arguments`]
-#[allow(clippy::large_enum_variant, clippy::module_name_repetitions)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "The alternatives variant is intentionally boxed only where needed for the public \
+              representation."
+)]
 #[must_use]
 pub enum Argumente<'t, T, Fehler> {
     /// Ein einzelnes Argument.
@@ -85,6 +89,7 @@ impl<T: Debug, Fehler: Debug> Debug for Argumente<'_, T, Fehler> {
 }
 
 impl<'t, T, Error> From<Arguments<'t, T, Error>> for Argumente<'t, T, Error> {
+    #[inline]
     fn from(arguments: Arguments<'t, T, Error>) -> Self {
         match arguments {
             Arguments::Single(argument) => Self::EinzelArgument(argument.into()),
@@ -97,6 +102,7 @@ impl<'t, T, Error> From<Arguments<'t, T, Error>> for Argumente<'t, T, Error> {
 }
 
 impl<'t, T, Fehler> From<Argumente<'t, T, Fehler>> for Arguments<'t, T, Fehler> {
+    #[inline]
     fn from(argumente: Argumente<'t, T, Fehler>) -> Self {
         match argumente {
             Argumente::EinzelArgument(argument) => Self::Single(argument.into()),
@@ -108,12 +114,14 @@ impl<'t, T, Fehler> From<Argumente<'t, T, Fehler>> for Arguments<'t, T, Fehler> 
     }
 }
 impl<'t, T, Fehler> From<EinzelArgument<'t, T, Fehler>> for Arguments<'t, T, Fehler> {
+    #[inline]
     fn from(argument: EinzelArgument<'t, T, Fehler>) -> Self {
         Self::Single(argument.into())
     }
 }
 
 impl<'t, T, Fehler> From<Wert<'t, T, Fehler>> for Arguments<'t, T, Fehler> {
+    #[inline]
     fn from(value: Wert<'t, T, Fehler>) -> Self {
         Self::Single(Value::from(value).into())
     }
@@ -207,6 +215,10 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     }
 }
 
+#[expect(
+    clippy::multiple_inherent_impl,
+    reason = "This localized parser implementation intentionally requires this pattern."
+)]
 impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Erzeuge eine [`Argumente::Kombiniere`]-Variante mit sinnvollen Typ-Parametern.
     ///
@@ -242,24 +254,6 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     #[inline]
     pub fn alternatives(alternatives: NonEmpty<Self>) -> Self {
         Self::alternativen(alternatives)
-    }
-
-    /// Erzeuge eine [`Argumente::Alternativen`]-Variante mit sinnvollen Typ-Parametern.
-    ///
-    /// ## English synonym
-    /// [`alternatives_boxed`](Self::alternatives_boxed)
-    #[inline]
-    pub fn alternativen_boxed(alternativen: Box<NonEmpty<Self>>) -> Self {
-        Arguments::alternatives_boxed(Box::new((*alternativen).map(Into::into))).into()
-    }
-
-    /// Create a [`Argumente::Alternativen`]-variant with sensible type parameters.
-    ///
-    /// ## Deutsches Synonym
-    /// [`alternativen_boxed`](Self::alternativen_boxed)
-    #[inline]
-    pub fn alternatives_boxed(alternatives: Box<NonEmpty<Self>>) -> Self {
-        Self::alternativen_boxed(alternatives)
     }
 }
 
@@ -303,6 +297,7 @@ where
         }
     }
 }
+
 impl<'t, T, F> Argumente<'t, T, F> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
@@ -433,7 +428,11 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// [`parse_complete`](Self::parse_complete)
     #[inline]
     #[must_use]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "This public localization API accepts each independently configurable message \
+                  explicitly."
+    )]
     pub fn parse_vollständig(
         self,
         args: impl Iterator<Item = OsString>,
@@ -468,7 +467,11 @@ impl<'t, T, F> Argumente<'t, T, F> {
     /// [`parse_vollständig`](Self::parse_vollständig)
     #[inline]
     #[must_use]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "This public localization API accepts each independently configurable message \
+                  explicitly."
+    )]
     pub fn parse_complete(
         self,
         args: impl Iterator<Item = OsString>,
@@ -750,6 +753,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
     }
 }
 
+#[expect(clippy::multiple_inherent_impl, reason = "Use Fehler for german method names.")]
 impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Konvertiere den Fehler mit der spezifizierten Funktion.
     ///
@@ -794,7 +798,10 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
     /// Erzeugt die Syntax und den zugehörigen Hilfetext dieses Arguments.
     #[inline]
     #[must_use]
-    #[allow(clippy::missing_panics_doc)]
+    #[expect(
+        clippy::missing_panics_doc,
+        reason = "The non-empty invariant is guaranteed by the alternatives representation."
+    )]
     pub fn erzeuge_hilfe_text(
         &self,
         variante: &dyn CreateHelpText,
@@ -832,7 +839,6 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     /// ## English synonym
     /// [`Arguments::with_version_early_exit`]
     #[inline]
-    #[allow(clippy::too_many_arguments)]
     pub fn mit_version_frühes_beenden(
         self,
         eigene_beschreibung: Beschreibung<'t, Void>,
@@ -871,7 +877,11 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     /// ## English synonym
     /// [`Arguments::with_help_early_exit`]
     #[inline]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "This public localization API accepts each independently configurable message \
+                  explicitly."
+    )]
     pub fn mit_hilfe_frühes_beenden(
         self,
         variante: &dyn CreateHelpText,
@@ -940,7 +950,11 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     /// ## English synonym
     /// [`Arguments::with_help_and_version_early_exit`]
     #[inline]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "This public localization API accepts each independently configurable message \
+                  explicitly."
+    )]
     pub fn mit_hilfe_und_version_frühes_beenden(
         self,
         variante: &dyn CreateHelpText,
@@ -982,7 +996,6 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     /// ## English synonym
     /// [`Arguments::with_help_and_version_early_exit_with_language`]
     #[inline]
-    #[allow(clippy::too_many_arguments)]
     pub fn mit_hilfe_und_version_frühes_beenden_mit_sprache(
         self,
         variante: &dyn CreateHelpText,

@@ -6,6 +6,7 @@ use std::{
     ffi::{OsStr, OsString},
     fmt::{Debug, Display},
     num::NonZeroI32,
+    result,
     str::FromStr,
 };
 
@@ -13,7 +14,7 @@ use nonempty::NonEmpty;
 
 use crate::{
     arguments::{
-        Arguments,
+        Arguments, ParsedMergedShortForms, ParsedShortForms,
         argumente::Argumente,
         combine::Combine,
         flag::Flag,
@@ -38,7 +39,10 @@ pub use kommandozeilen_argumente_derive::Parse;
 /// ## Deutsch
 /// Trait für Typen, die direkt mit dem [derive-Makro](derive@Parse) für [`Parse`] verwendet
 /// werden können.
-#[allow(clippy::module_name_repetitions)]
+#[expect(
+    clippy::module_name_repetitions,
+    reason = "The trait name intentionally mirrors the module name in the public API."
+)]
 pub trait ParseArgument: Sized {
     /// Creates [`Arguments`] with the configured properties.
     ///
@@ -69,11 +73,10 @@ pub trait ParseArgument: Sized {
     /// ## Deutsches Synonym
     /// [`argumente_mit_sprache`](ParseArgument::argumente_mit_sprache)
     #[inline]
-    #[allow(clippy::needless_lifetimes)]
-    fn arguments_with_language<'t>(
-        description: Description<'t, Self>,
+    fn arguments_with_language(
+        description: Description<'_, Self>,
         language: Language,
-    ) -> Arguments<'t, Self, String> {
+    ) -> Arguments<'_, Self, String> {
         Self::arguments(
             description,
             language.invert_prefix,
@@ -91,11 +94,10 @@ pub trait ParseArgument: Sized {
     /// ## English synonym
     /// [`arguments_with_language`](ParseArgument::arguments_with_language)
     #[inline]
-    #[allow(clippy::needless_lifetimes)]
-    fn argumente_mit_sprache<'t>(
-        beschreibung: Beschreibung<'t, Self>,
+    fn argumente_mit_sprache(
+        beschreibung: Beschreibung<'_, Self>,
         sprache: Sprache,
-    ) -> Argumente<'t, Self, String> {
+    ) -> Argumente<'_, Self, String> {
         Self::arguments_with_language(beschreibung.into(), sprache.into()).into()
     }
 
@@ -104,8 +106,7 @@ pub trait ParseArgument: Sized {
     /// ## Deutsche Version
     /// [`neu`](ParseArgument::neu)
     #[inline]
-    #[allow(clippy::needless_lifetimes)]
-    fn new<'t>(description: Description<'t, Self>) -> Arguments<'t, Self, String> {
+    fn new(description: Description<'_, Self>) -> Arguments<'_, Self, String> {
         Self::arguments_with_language(description, Language::ENGLISH)
     }
 
@@ -117,8 +118,7 @@ pub trait ParseArgument: Sized {
     /// ## English version
     /// [`new`](ParseArgument::new)
     #[inline]
-    #[allow(clippy::needless_lifetimes)]
-    fn neu<'t>(beschreibung: Beschreibung<'t, Self>) -> Argumente<'t, Self, String> {
+    fn neu(beschreibung: Beschreibung<'_, Self>) -> Argumente<'_, Self, String> {
         Self::argumente_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
 }
@@ -133,9 +133,9 @@ impl ParseArgument for bool {
         _meta_var: &'t str,
     ) -> Arguments<'t, Self, String> {
         Arguments::from(Flag {
-            description: description.into(),
-            invert_prefix: invert_prefix.into().into(),
-            invert_infix: invert_infix.into().into(),
+            description,
+            invert_prefix: invert_prefix.into(),
+            invert_infix: invert_infix.into(),
             display: Cow::Borrowed(&<bool as ToString>::to_string),
             convert: Cow::Borrowed(&identity),
         })
@@ -165,7 +165,7 @@ impl ParseArgument for String {
                 if let Some(string) = os_str.to_str() {
                     Ok(String::from(string))
                 } else {
-                    Err(ParseError::InvalidString(OsString::from(os_str)).into())
+                    Err(ParseError::InvalidString(OsString::from(os_str)))
                 }
             }),
             display: Cow::Borrowed(&<String as Clone>::clone),
@@ -247,7 +247,7 @@ impl<'t, T, E, F: FnOnce(Result<'t, T, E>) -> Result<'t, T, E>> Combine<'t, T, E
     fn parse_merged_short_forms(
         &self,
         args: Box<dyn Iterator<Item = OsString> + '_>,
-    ) -> NonEmpty<crate::arguments::ParsedMergedShortForms<'t>> {
+    ) -> NonEmpty<ParsedMergedShortForms<'t>> {
         self.arguments.parse_merged_short_forms(args)
     }
 
@@ -255,7 +255,7 @@ impl<'t, T, E, F: FnOnce(Result<'t, T, E>) -> Result<'t, T, E>> Combine<'t, T, E
     fn parse_merged_short_inputs(
         &self,
         args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
-    ) -> NonEmpty<crate::arguments::ParsedMergedShortForms<'t>> {
+    ) -> NonEmpty<ParsedMergedShortForms<'t>> {
         self.arguments.parse_merged_short_inputs(args)
     }
 
@@ -263,11 +263,15 @@ impl<'t, T, E, F: FnOnce(Result<'t, T, E>) -> Result<'t, T, E>> Combine<'t, T, E
     fn parse_short_forms(
         &self,
         args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
-    ) -> NonEmpty<crate::arguments::ParsedShortForms<'t>> {
+    ) -> NonEmpty<ParsedShortForms<'t>> {
         self.arguments.parse_short_forms(args)
     }
 
     #[inline]
+    #[expect(
+        clippy::absolute_paths,
+        reason = "This localized parser implementation intentionally requires this pattern."
+    )]
     fn parse_long_forms(
         &self,
         args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
@@ -276,6 +280,10 @@ impl<'t, T, E, F: FnOnce(Result<'t, T, E>) -> Result<'t, T, E>> Combine<'t, T, E
     }
 
     #[inline]
+    #[expect(
+        clippy::absolute_paths,
+        reason = "This localized parser implementation intentionally requires this pattern."
+    )]
     fn accumulate(
         self: Box<Self>,
         recognized: crate::arguments::RecognizedArguments<'t>,
@@ -290,7 +298,7 @@ fn create_boxed_option_display<'t, T>(
     display: Cow<'t, dyn Show<'t, T>>,
 ) -> Box<dyn 't + Show<'t, Option<T>>> {
     Box::new(move |opt: &Option<T>| {
-        #[allow(clippy::min_ident_chars)]
+        #[expect(clippy::min_ident_chars, reason = "t: T")]
         if let Some(t) = opt { display(t) } else { String::from("None") }
     })
 }
@@ -348,7 +356,10 @@ impl<T: ParseArgument + Clone + Debug + Display> ParseArgument for Option<T> {
             meta_var,
         );
         let adjust_result = create_result_adjuster(description.default.clone());
-        #[allow(clippy::shadow_unrelated)]
+        #[expect(
+            clippy::shadow_unrelated,
+            reason = "Macro-generated bindings intentionally reuse user-facing argument names."
+        )]
         match arguments {
             Arguments::Single(SingleArgument::Flag(Flag {
                 description: _,
@@ -360,7 +371,7 @@ impl<T: ParseArgument + Clone + Debug + Display> ParseArgument for Option<T> {
                 let boxed_convert: Box<dyn Bool<'t, Option<T>>> =
                     Box::new(move |value| Some(convert(value)));
                 Arguments::Single(SingleArgument::Flag(Flag {
-                    description: description.into(),
+                    description,
                     invert_prefix,
                     invert_infix,
                     convert: Cow::Owned(boxed_convert),
@@ -435,16 +446,16 @@ impl<T: EnumArgument + Display + Clone> ParseArgument for T {
         let boxed_parse: Box<dyn dyn_to_owned::Parse<'t, T, ParseError<String>>> =
             Box::new(move |os_str: &OsStr| {
                 let Some(string) = os_str.to_str() else {
-                    return Err(ParseError::InvalidString(OsString::from(os_str)).into());
+                    return Err(ParseError::InvalidString(OsString::from(os_str)));
                 };
                 <T as EnumArgument>::varianten()
                     .into_iter()
                     .flatten()
                     .find(
-                        #[allow(clippy::min_ident_chars)]
+                        #[expect(clippy::min_ident_chars, reason = "t: T")]
                         |t| t.to_string() == string,
                     )
-                    .ok_or_else(|| ParseError::ParseError(String::from(string)).into())
+                    .ok_or_else(|| ParseError::ParseError(String::from(string)))
             });
         Arguments::from(Value {
             description,
@@ -462,6 +473,12 @@ impl<T: EnumArgument + Display + Clone> ParseArgument for T {
         None
     }
 }
+
+/// Result of [`Parse::parse_with_early_exit`] and similar methods.
+pub type ParseEarlyExitResult<'t, T, E> = result::Result<T, NonEmpty<Error<'t, E>>>;
+
+/// Result of [`Parse::parse_mit_frühen_beenden`] and similar methods.
+pub type ParseFrühesBeendenResult<'t, T, E> = result::Result<T, NonEmpty<Fehler<'t, E>>>;
 
 /// Allows parsing from command-line arguments based on a default configuration.
 ///
@@ -533,10 +550,14 @@ pub trait Parse: Sized {
     /// ## Deutsches Synonym
     /// [`parse_mit_frühen_beenden`](Parse::parse_mit_frühen_beenden)
     #[inline]
-    #[allow(clippy::type_complexity)]
+    #[expect(
+        clippy::type_complexity,
+        reason = "The public trait signature accurately exposes the parser result without an \
+                  obscuring alias."
+    )]
     fn parse_with_early_exit<'t>(
         args: impl Iterator<Item = OsString>,
-    ) -> (std::result::Result<Self, NonEmpty<Error<'t, Self::Error>>>, Vec<ArgumentInput>)
+    ) -> (result::Result<Self, NonEmpty<Error<'t, Self::Error>>>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Error: 't,
@@ -552,10 +573,9 @@ pub trait Parse: Sized {
     /// ## English synonym
     /// [`parse_with_early_exit`](Parse::parse_with_early_exit)
     #[inline]
-    #[allow(clippy::type_complexity)]
     fn parse_mit_frühen_beenden<'t>(
         args: impl Iterator<Item = OsString>,
-    ) -> (std::result::Result<Self, NonEmpty<Fehler<'t, Self::Error>>>, Vec<ArgumentInput>)
+    ) -> (ParseFrühesBeendenResult<'t, Self, Self::Error>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Error: 't,
@@ -571,9 +591,8 @@ pub trait Parse: Sized {
     /// ## Deutsches Synonym
     /// [`parse_aus_env_mit_frühen_beenden`](Argumente::parse_aus_env_mit_frühen_beenden)
     #[inline]
-    #[allow(clippy::type_complexity)]
     fn parse_from_env_with_early_exit<'t>()
-    -> (std::result::Result<Self, NonEmpty<Error<'t, Self::Error>>>, Vec<ArgumentInput>)
+    -> (ParseEarlyExitResult<'t, Self, Self::Error>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Error: 't,
@@ -589,9 +608,8 @@ pub trait Parse: Sized {
     /// ## English synonym
     /// [`parse_from_env_with_early_exit`](Parse::parse_from_env_with_early_exit)
     #[inline]
-    #[allow(clippy::type_complexity)]
     fn parse_aus_env_mit_frühen_beenden<'t>()
-    -> (std::result::Result<Self, NonEmpty<Fehler<'t, Self::Error>>>, Vec<ArgumentInput>)
+    -> (ParseFrühesBeendenResult<'t, Self, Self::Error>, Vec<ArgumentInput>)
     where
         Self: 't,
         Self::Error: 't,

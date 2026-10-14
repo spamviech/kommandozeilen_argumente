@@ -79,6 +79,10 @@ impl From<Alternatives> for Alternativen {
 
 impl From<Alternativen> for Alternatives {
     #[inline]
+    #[expect(
+        clippy::similar_names,
+        reason = "alternatives/alternativen, depending on the language."
+    )]
     fn from(alternatives: Alternativen) -> Self {
         match alternatives {
             Alternativen::EinzelArgument(hilfe) => Self::Single(hilfe.into()),
@@ -106,7 +110,6 @@ pub trait CreateHelpText {
 #[derive(Debug, Clone, Copy)]
 pub struct Standard;
 
-#[allow(deprecated)]
 impl CreateHelpText for Standard {
     #[inline]
     fn create_help_text(
@@ -124,7 +127,6 @@ impl CreateHelpText for Standard {
 #[derive(Debug, Clone, Copy)]
 pub struct Default;
 
-#[allow(deprecated)]
 impl CreateHelpText for Default {
     #[inline]
     fn create_help_text(

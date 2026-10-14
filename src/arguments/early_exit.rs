@@ -1,6 +1,10 @@
 //! Flag arguments that cause early exits.
 
-use std::{borrow::Cow, ffi::OsString};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    ffi::OsString,
+};
 
 use nonempty::NonEmpty;
 use void::Void;
@@ -50,34 +54,8 @@ impl<'t> From<FrühesBeenden<'t>> for EarlyExit<'t> {
     }
 }
 
-impl<'t> EarlyExit<'t> {
-    /// Creates a flag that causes an early exit and displays `message`.
-    #[inline]
-    pub fn new(description: Description<'t, Void>, message: impl Into<Cow<'t, str>>) -> Self {
-        Self { description, message: message.into() }
-    }
-
-    /// Creates this argument's syntax and help text.
-    #[inline]
-    pub fn create_help_text(&self) -> Help {
-        create_help_text(&self.description.name, self.description.help, self.description.default)
-    }
-}
-
-impl<'t> FrühesBeenden<'t> {
-    /// Erstellt eine Flag, die ein frühes Beenden auslöst und `nachricht` anzeigt.
-    #[inline]
-    pub fn neu(beschreibung: Beschreibung<'t, Void>, nachricht: impl Into<Cow<'t, str>>) -> Self {
-        EarlyExit::new(beschreibung.into(), nachricht).into()
-    }
-
-    /// Erzeugt Syntax und Hilfetext für dieses Argument.
-    #[inline]
-    pub fn erzeuge_hilfe_text(&self) -> Hilfe {
-        EarlyExit::from(self.clone()).create_help_text().into()
-    }
-}
-
+/// Creates help text from an early-exit argument's metadata.
+#[must_use]
 fn create_help_text(name: &Name<'_>, help: Option<&str>, default: Option<Void>) -> Help {
     let Name { long_prefix, long, short_prefix, short } = name;
     let mut syntax = String::new();
@@ -96,6 +74,19 @@ fn create_help_text(name: &Name<'_>, help: Option<&str>, default: Option<Void>) 
 }
 
 impl<'t> EarlyExit<'t> {
+    /// Creates a flag that causes an early exit and displays `message`.
+    #[inline]
+    pub fn new(description: Description<'t, Void>, message: impl Into<Cow<'t, str>>) -> Self {
+        Self { description, message: message.into() }
+    }
+
+    /// Creates this argument's syntax and help text.
+    #[inline]
+    #[must_use]
+    pub fn create_help_text(&self) -> Help {
+        create_help_text(&self.description.name, self.description.help, self.description.default)
+    }
+
     /// Parses standalone short-form arguments.
     #[inline]
     pub fn parse_short_form(
@@ -125,8 +116,8 @@ impl<'t> EarlyExit<'t> {
         ParsedShortForms {
             early_exits,
             flags: Vec::new(),
-            missing_values: Default::default(),
-            values: Default::default(),
+            missing_values: HashSet::default(),
+            values: HashMap::default(),
             remaining,
         }
     }
@@ -161,8 +152,8 @@ impl<'t> EarlyExit<'t> {
         ParsedLongForms {
             early_exits,
             flags: Vec::new(),
-            missing_values: Default::default(),
-            values: Default::default(),
+            missing_values: HashSet::default(),
+            values: HashMap::default(),
             remaining,
         }
     }
@@ -208,65 +199,27 @@ impl<'t> EarlyExit<'t> {
         ParsedMergedShortForms {
             early_exits,
             flags: Vec::new(),
-            missing_values: Default::default(),
-            values: Default::default(),
+            missing_values: HashSet::default(),
+            values: HashMap::default(),
             remaining,
         }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::ffi::OsString;
-
-    use void::Void;
-
-    use crate::{ArgumentInput, Description, arguments::early_exit::EarlyExit};
-
-    #[test]
-    fn parses_merged_short_early_exit() {
-        let early_exit = EarlyExit::new(
-            Description::new("--", "help", "-", "h", None, None::<Void>),
-            "help message",
-        );
-        let result = early_exit.parse_merged_short_forms([OsString::from("-h")].into_iter());
-
-        assert_eq!(result.early_exits.len(), 1);
-        assert_eq!(result.early_exits[0].name, "h");
-        assert_eq!(result.early_exits[0].message, "help message");
-        assert!(result.remaining.is_empty());
-    }
-
-    #[test]
-    fn parses_a_standalone_short_early_exit() {
-        let early_exit = EarlyExit::new(
-            Description::new("--", "help", "-", "h", None, None::<Void>),
-            "help message",
-        );
-        let result = early_exit
-            .parse_short_form([OsString::from("-h")].into_iter().map(ArgumentInput::Unchanged));
-
-        assert_eq!(result.early_exits.len(), 1);
-        assert_eq!(result.early_exits[0].name, "h");
-        assert!(result.remaining.is_empty());
-    }
-
-    #[test]
-    fn parses_a_long_early_exit() {
-        let early_exit = EarlyExit::new(
-            Description::new("--", "help", "-", "h", None, None::<Void>),
-            "help message",
-        );
-        let result = early_exit
-            .parse_long_form([OsString::from("--help")].into_iter().map(ArgumentInput::Unchanged));
-
-        assert_eq!(result.early_exits.len(), 1);
-        assert_eq!(result.early_exits[0].name, "help");
-        assert!(result.remaining.is_empty());
-    }
-}
-
 impl<'t> FrühesBeenden<'t> {
+    /// Erstellt eine Flag, die ein frühes Beenden auslöst und `nachricht` anzeigt.
+    #[inline]
+    pub fn neu(beschreibung: Beschreibung<'t, Void>, nachricht: impl Into<Cow<'t, str>>) -> Self {
+        EarlyExit::new(beschreibung.into(), nachricht).into()
+    }
+
+    /// Erzeugt Syntax und Hilfetext für dieses Argument.
+    #[inline]
+    #[must_use]
+    pub fn erzeuge_hilfe_text(&self) -> Hilfe {
+        EarlyExit::from(self.clone()).create_help_text().into()
+    }
+
     /// Parst eigenständige kurze Argumentformen.
     #[inline]
     pub fn parse_short_form(
@@ -292,5 +245,60 @@ impl<'t> FrühesBeenden<'t> {
         args: impl Iterator<Item = OsString>,
     ) -> ParsedMergedShortForms<'t> {
         EarlyExit::from(self.clone()).parse_merged_short_forms(args)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![expect(clippy::indexing_slicing, reason = "Easier assert_eq! for the first element.")]
+
+    use std::ffi::OsString;
+
+    use void::Void;
+
+    use crate::{ArgumentInput, arguments::early_exit::EarlyExit, description::Description};
+
+    const EMPTY_REMAINING: [ArgumentInput; 0] = [];
+
+    #[test]
+    fn parses_merged_short_early_exit() {
+        let early_exit = EarlyExit::new(
+            Description::new("--", "help", "-", "h", None, None::<Void>),
+            "help message",
+        );
+        let result = early_exit.parse_merged_short_forms([OsString::from("-h")].into_iter());
+
+        assert_eq!(result.early_exits.len(), 1);
+        assert_eq!(result.early_exits[0].name, "h");
+        assert_eq!(result.early_exits[0].message, "help message");
+        assert_eq!(result.remaining, EMPTY_REMAINING);
+    }
+
+    #[test]
+    fn parses_a_standalone_short_early_exit() {
+        let early_exit = EarlyExit::new(
+            Description::new("--", "help", "-", "h", None, None::<Void>),
+            "help message",
+        );
+        let result = early_exit
+            .parse_short_form([OsString::from("-h")].into_iter().map(ArgumentInput::Unchanged));
+
+        assert_eq!(result.early_exits.len(), 1);
+        assert_eq!(result.early_exits[0].name, "h");
+        assert_eq!(result.remaining, EMPTY_REMAINING);
+    }
+
+    #[test]
+    fn parses_a_long_early_exit() {
+        let early_exit = EarlyExit::new(
+            Description::new("--", "help", "-", "h", None, None::<Void>),
+            "help message",
+        );
+        let result = early_exit
+            .parse_long_form([OsString::from("--help")].into_iter().map(ArgumentInput::Unchanged));
+
+        assert_eq!(result.early_exits.len(), 1);
+        assert_eq!(result.early_exits[0].name, "help");
+        assert_eq!(result.remaining, EMPTY_REMAINING);
     }
 }

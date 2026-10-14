@@ -1,7 +1,6 @@
 //! An example using the function-api with english names.
 
-// dependencies of the lib
-#![allow(unused_crate_dependencies)]
+#![expect(unused_crate_dependencies, reason = "dependencies of the lib")]
 
 use std::{
     borrow::Cow,
@@ -140,7 +139,10 @@ fn main() {
         ),
         language,
     );
-    #[allow(clippy::shadow_unrelated)]
+    #[expect(
+        clippy::shadow_unrelated,
+        reason = "lambda arguments, linked by calling with arguments."
+    )]
     let merge = |flag, renamed, required, value, enumeration| Args {
         flag,
         renamed,
@@ -158,7 +160,7 @@ fn main() {
         );
     let args = argumente
         .parse_complete_with_language_from_env(NonZeroI32::new(1).expect("1 != 0"), language);
-    #[allow(clippy::print_stdout, clippy::use_debug)]
+    #[expect(clippy::print_stdout, clippy::use_debug, reason = "example implementation.")]
     {
         println!("{args:?}");
     }

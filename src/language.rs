@@ -111,6 +111,7 @@ impl Language {
 
     /// Converts German-named language strings to their English-primary type.
     #[must_use]
+    #[inline]
     pub const fn from_sprache(sprache: Sprache) -> Self {
         let Sprache {
             lang_präfix,
@@ -228,6 +229,7 @@ impl Sprache {
 
     /// Konvertiert englisch-primäre Sprach-Strings in ihren deutsch benannten Spiegeltyp.
     #[must_use]
+    #[inline]
     pub const fn from_language(language: Language) -> Self {
         let Language {
             long_prefix,
@@ -285,12 +287,14 @@ impl Sprache {
 }
 
 impl From<Language> for Sprache {
+    #[inline]
     fn from(language: Language) -> Self {
         Self::from_language(language)
     }
 }
 
 impl From<Sprache> for Language {
+    #[inline]
     fn from(sprache: Sprache) -> Self {
         Self::from_sprache(sprache)
     }

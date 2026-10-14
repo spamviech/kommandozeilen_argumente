@@ -2,6 +2,7 @@
 
 use std::{
     borrow::Cow,
+    collections::{HashMap, HashSet},
     convert::identity,
     ffi::OsString,
     fmt::{self, Debug},
@@ -145,61 +146,7 @@ impl<T> Flag<'_, T> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::ffi::OsString;
-
-    use crate::{ArgumentInput, Description, arguments::flag::Flag};
-
-    #[test]
-    fn parses_a_short_flag_from_a_merged_block() {
-        let flag = Flag::new(Description::new("--", "flag", "-", "f", None, Some(false)));
-        let result = flag.parse_merged_short_forms(
-            [OsString::from("-faf"), OsString::from("--other")].into_iter(),
-        );
-
-        assert_eq!(result.flags.len(), 1);
-        assert_eq!(result.flags[0].name, "f");
-        assert_eq!(result.remaining.len(), 2);
-    }
-
-    #[test]
-    fn leaves_short_form_disabled_argument_unchanged() {
-        let flag = Flag::new(Description::new("--", "flag", "-", None::<&str>, None, Some(false)));
-        let result = flag.parse_merged_short_forms([OsString::from("-f")].into_iter());
-
-        assert!(result.flags.is_empty());
-        assert_eq!(result.remaining.len(), 1);
-    }
-
-    #[test]
-    fn parses_a_standalone_short_flag() {
-        let flag = Flag::new(Description::new("--", "flag", "-", "f", None, Some(false)));
-        let result = flag.parse_short_form(
-            [OsString::from("-f"), OsString::from("-ff")].into_iter().map(ArgumentInput::Unchanged),
-        );
-
-        assert_eq!(result.flags.len(), 1);
-        assert_eq!(result.flags[0].name, "f");
-        assert_eq!(result.remaining.len(), 1);
-    }
-
-    #[test]
-    fn parses_long_flags_and_inversion() {
-        let flag = Flag::new(Description::new("--", "flag", "-", "f", None, Some(false)));
-        let result = flag.parse_long_form(
-            [OsString::from("--flag"), OsString::from("--no-flag"), OsString::from("-f")]
-                .into_iter()
-                .map(ArgumentInput::Unchanged),
-        );
-
-        assert_eq!(result.flags.len(), 2);
-        assert!(result.flags[0].value);
-        assert!(!result.flags[1].value);
-        assert_eq!(result.remaining.len(), 1);
-    }
-}
-
+/// Parses non-merged short flag forms from the supplied inputs.
 fn parse_short_flag_forms<'argument, T>(
     description: &Description<'argument, T>,
     invert_prefix: &Compare<'argument>,
@@ -228,8 +175,8 @@ fn parse_short_flag_forms<'argument, T>(
     ParsedShortForms {
         early_exits: Vec::new(),
         flags,
-        missing_values: Default::default(),
-        values: Default::default(),
+        missing_values: HashSet::default(),
+        values: HashMap::default(),
         remaining,
     }
 }
@@ -276,8 +223,8 @@ impl<'t, T> Flag<'t, T> {
         ParsedLongForms {
             early_exits: Vec::new(),
             flags,
-            missing_values: Default::default(),
-            values: Default::default(),
+            missing_values: HashSet::default(),
+            values: HashMap::default(),
             remaining,
         }
     }
@@ -329,9 +276,66 @@ impl<'t, T> Flag<'t, T> {
         ParsedMergedShortForms {
             early_exits: Vec::new(),
             flags,
-            missing_values: Default::default(),
-            values: Default::default(),
+            missing_values: HashSet::default(),
+            values: HashMap::default(),
             remaining,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![expect(clippy::indexing_slicing, reason = "Easier assert_eq! for the first element.")]
+
+    use std::ffi::OsString;
+
+    use crate::{ArgumentInput, Description, arguments::flag::Flag};
+
+    #[test]
+    fn parses_a_short_flag_from_a_merged_block() {
+        let flag = Flag::new(Description::new("--", "flag", "-", "f", None, Some(false)));
+        let result = flag.parse_merged_short_forms(
+            [OsString::from("-faf"), OsString::from("--other")].into_iter(),
+        );
+
+        assert_eq!(result.flags.len(), 1);
+        assert_eq!(result.flags[0].name, "f");
+        assert_eq!(result.remaining.len(), 2);
+    }
+
+    #[test]
+    fn leaves_short_form_disabled_argument_unchanged() {
+        let flag = Flag::new(Description::new("--", "flag", "-", None::<&str>, None, Some(false)));
+        let result = flag.parse_merged_short_forms([OsString::from("-f")].into_iter());
+
+        assert!(result.flags.is_empty());
+        assert_eq!(result.remaining.len(), 1);
+    }
+
+    #[test]
+    fn parses_a_standalone_short_flag() {
+        let flag = Flag::new(Description::new("--", "flag", "-", "f", None, Some(false)));
+        let result = flag.parse_short_form(
+            [OsString::from("-f"), OsString::from("-ff")].into_iter().map(ArgumentInput::Unchanged),
+        );
+
+        assert_eq!(result.flags.len(), 1);
+        assert_eq!(result.flags[0].name, "f");
+        assert_eq!(result.remaining.len(), 1);
+    }
+
+    #[test]
+    fn parses_long_flags_and_inversion() {
+        let flag = Flag::new(Description::new("--", "flag", "-", "f", None, Some(false)));
+        let result = flag.parse_long_form(
+            [OsString::from("--flag"), OsString::from("--no-flag"), OsString::from("-f")]
+                .into_iter()
+                .map(ArgumentInput::Unchanged),
+        );
+
+        assert_eq!(result.flags.len(), 2);
+        assert!(result.flags[0].value);
+        assert!(!result.flags[1].value);
+        assert_eq!(result.remaining.len(), 1);
     }
 }

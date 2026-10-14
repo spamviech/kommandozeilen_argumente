@@ -1,9 +1,6 @@
 #![doc = include_str!("../README.md")]
-
 // Verwende doc_cfg für bessere Dokumentation von feature-gated derive Macros.
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
-
-#[expect(clippy::doc_markdown, reason = "Required by this parser API or compatibility implementation.")]
 
 #[doc(no_inline)]
 pub use ::nonempty::{NonEmpty, nonempty};

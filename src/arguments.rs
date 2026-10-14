@@ -23,7 +23,7 @@ use crate::{
     },
     description::ArgumentInput,
     language::Language,
-    outcome::{Error, Result as OutcomeResult},
+    outcome::{self, Error, Result as OutcomeResult},
 };
 
 pub mod argumente;
@@ -34,7 +34,6 @@ pub mod help;
 pub mod single_argument;
 pub mod value;
 
-#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 // TODO Name/Version für Hilfetext angeben, als alternative für macros (derive-Feature)
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
@@ -52,7 +51,11 @@ impl<T, Error> Debug for CombineDebug<'_, '_, T, Error> {
 ///
 /// ## Deutsches Synonym
 /// [`Argumente`](argumente::Argumente)
-#[allow(clippy::large_enum_variant, clippy::module_name_repetitions)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "The alternatives variant is intentionally boxed only where needed for the public \
+              representation."
+)]
 #[must_use]
 pub enum Arguments<'t, T, Error> {
     /// A single argument.
@@ -64,6 +67,7 @@ pub enum Arguments<'t, T, Error> {
 }
 
 impl<T: Debug, Error: Debug> Debug for Arguments<'_, T, Error> {
+    #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Single(argument) => formatter.debug_tuple("Single").field(argument).finish(),
@@ -78,30 +82,35 @@ impl<T: Debug, Error: Debug> Debug for Arguments<'_, T, Error> {
 }
 
 impl<'t, T, Error> From<SingleArgument<'t, T, Error>> for Arguments<'t, T, Error> {
+    #[inline]
     fn from(argument: SingleArgument<'t, T, Error>) -> Self {
         Self::Single(argument)
     }
 }
 
 impl<'t, T, Error> From<Flag<'t, T>> for Arguments<'t, T, Error> {
+    #[inline]
     fn from(flag: Flag<'t, T>) -> Self {
         Self::Single(flag.into())
     }
 }
 
 impl<'t, T, Error> From<Value<'t, T, Error>> for Arguments<'t, T, Error> {
+    #[inline]
     fn from(value: Value<'t, T, Error>) -> Self {
         Self::Single(value.into())
     }
 }
 
 impl<T, Error> From<NonEmpty<Self>> for Arguments<'_, T, Error> {
+    #[inline]
     fn from(alternatives: NonEmpty<Self>) -> Self {
         Self::Alternatives(Box::new(alternatives))
     }
 }
 
 impl<T, Error> From<Box<NonEmpty<Self>>> for Arguments<'_, T, Error> {
+    #[inline]
     fn from(alternatives: Box<NonEmpty<Self>>) -> Self {
         Self::Alternatives(alternatives)
     }
@@ -109,23 +118,21 @@ impl<T, Error> From<Box<NonEmpty<Self>>> for Arguments<'_, T, Error> {
 
 impl<'t, T, Error> Arguments<'t, T, Error> {
     /// Creates a single-argument variant with suitable type parameters.
+    #[inline]
     pub fn single_argument(argument: SingleArgument<'t, T, Error>) -> Self {
         Self::Single(argument)
     }
 
     /// Creates a combined-arguments variant with suitable type parameters.
+    #[inline]
     pub fn combine(combine: impl 't + Combine<'t, T, Error>) -> Self {
         Self::Combined(Box::new(combine))
     }
 
     /// Creates an alternatives variant with suitable type parameters.
+    #[inline]
     pub fn alternatives(alternatives: NonEmpty<Self>) -> Self {
         Self::Alternatives(Box::new(alternatives))
-    }
-
-    /// Creates a boxed alternatives variant with suitable type parameters.
-    pub fn alternatives_boxed(alternatives: Box<NonEmpty<Self>>) -> Self {
-        Self::Alternatives(alternatives)
     }
 }
 
@@ -230,6 +237,7 @@ pub struct RecognizedArguments<'argument> {
 }
 
 impl<'argument> RecognizedArguments<'argument> {
+    /// Combines the results of the three name-recognition stages.
     fn from_stages(
         merged: ParsedMergedShortForms<'argument>,
         short: ParsedShortForms<'argument>,
@@ -247,6 +255,7 @@ impl<'argument> RecognizedArguments<'argument> {
         result
     }
 
+    /// Merges one recognition stage into this accumulated state.
     fn merge_stage(
         &mut self,
         mut early_exits: Vec<ParsedEarlyExit<'argument>>,
@@ -268,7 +277,8 @@ impl<'argument> RecognizedArguments<'argument> {
     }
 }
 
-impl<'argument> ParsedMergedShortForms<'argument> {
+impl ParsedMergedShortForms<'_> {
+    /// Creates an empty result for the merged-short-form recognition stage.
     pub(crate) fn empty() -> Self {
         Self {
             early_exits: Vec::new(),
@@ -279,6 +289,7 @@ impl<'argument> ParsedMergedShortForms<'argument> {
         }
     }
 
+    /// Appends the next result from the same recognition stage.
     pub(crate) fn merge(mut self, mut next: Self) -> Self {
         self.early_exits.append(&mut next.early_exits);
         self.flags.append(&mut next.flags);
@@ -296,7 +307,8 @@ impl<'argument> ParsedMergedShortForms<'argument> {
     }
 }
 
-impl<'argument> ParsedShortForms<'argument> {
+impl ParsedShortForms<'_> {
+    /// Creates an empty result for the short-form recognition stage.
     pub(crate) fn empty() -> Self {
         Self {
             early_exits: Vec::new(),
@@ -307,6 +319,7 @@ impl<'argument> ParsedShortForms<'argument> {
         }
     }
 
+    /// Appends the next result from the same recognition stage.
     pub(crate) fn merge(mut self, mut next: Self) -> Self {
         self.early_exits.append(&mut next.early_exits);
         self.flags.append(&mut next.flags);
@@ -324,7 +337,8 @@ impl<'argument> ParsedShortForms<'argument> {
     }
 }
 
-impl<'argument> ParsedLongForms<'argument> {
+impl ParsedLongForms<'_> {
+    /// Creates an empty result for the long-form recognition stage.
     pub(crate) fn empty() -> Self {
         Self {
             early_exits: Vec::new(),
@@ -335,6 +349,7 @@ impl<'argument> ParsedLongForms<'argument> {
         }
     }
 
+    /// Appends the next result from the same recognition stage.
     pub(crate) fn merge(mut self, mut next: Self) -> Self {
         self.early_exits.append(&mut next.early_exits);
         self.flags.append(&mut next.flags);
@@ -385,6 +400,10 @@ impl<'t, T, F> Arguments<'t, T, F> {
 
     /// Parses standalone short-form arguments after merged short forms.
     #[inline]
+    #[expect(
+        clippy::missing_panics_doc,
+        reason = "Collecting an iterator of an NonEmpty to a NonEmpty."
+    )]
     pub fn parse_short_forms(
         &self,
         args: impl Iterator<Item = ArgumentInput>,
@@ -406,6 +425,10 @@ impl<'t, T, F> Arguments<'t, T, F> {
 
     /// Parses long-form arguments after standalone short forms.
     #[inline]
+    #[expect(
+        clippy::missing_panics_doc,
+        reason = "Collecting an iterator of an NonEmpty to a NonEmpty."
+    )]
     pub fn parse_long_forms(
         &self,
         args: impl Iterator<Item = ArgumentInput>,
@@ -426,9 +449,17 @@ impl<'t, T, F> Arguments<'t, T, F> {
     }
 }
 
+#[expect(
+    clippy::multiple_inherent_impl,
+    reason = "Impl for parsing after methods for intermediate results."
+)]
 impl<'t, T, F> Arguments<'t, T, F> {
     /// Parses the supplied arguments through the six staged parsing steps.
     #[inline]
+    #[expect(
+        clippy::missing_panics_doc,
+        reason = "Length is always checked before collecting to a NonEmpty."
+    )]
     pub fn parse(
         self,
         args: impl Iterator<Item = OsString>,
@@ -460,7 +491,7 @@ impl<'t, T, F> Arguments<'t, T, F> {
                     remaining,
                 )
             },
-            arguments => {
+            arguments @ (Self::Single(_) | Self::Combined(_)) => {
                 let input = args.collect_vec();
                 let mut errors = Vec::new();
                 let mut selected = None;
@@ -509,6 +540,10 @@ impl<'t, T, F> Arguments<'t, T, F> {
     }
 
     /// Validates a candidate's typed parsing before consuming the parser branch.
+    ///
+    /// ## Panics
+    ///
+    /// When passing a [`Arguments::Alternatives`].
     pub(crate) fn validate(&self, recognized: RecognizedArguments<'t>) -> OutcomeResult<'t, (), F> {
         match self {
             Self::Single(argument) => argument.validate(recognized),
@@ -519,6 +554,11 @@ impl<'t, T, F> Arguments<'t, T, F> {
         }
     }
 
+    /// Accumulates this argument's recognized inputs into its typed result.
+    ///
+    /// ## Panics
+    ///
+    /// When passing a [`Arguments::Alternatives`].
     pub(crate) fn accumulate(self, recognized: RecognizedArguments<'t>) -> OutcomeResult<'t, T, F> {
         match self {
             Self::Single(argument) => argument.accumulate(recognized),
@@ -531,7 +571,7 @@ impl<'t, T, F> Arguments<'t, T, F> {
 
     /// Parses arguments from the environment.
     #[inline]
-    pub fn parse_from_env(self) -> (crate::outcome::Result<'t, T, F>, Vec<ArgumentInput>)
+    pub fn parse_from_env(self) -> (outcome::Result<'t, T, F>, Vec<ArgumentInput>)
     where
         Self: 't,
         F: 't,
@@ -551,15 +591,19 @@ impl<'t, T, F> Arguments<'t, T, F> {
     {
         let (result, remaining) = self.parse(args);
         let result = match result {
-            crate::outcome::Result::Value(value) => Ok(value),
-            crate::outcome::Result::EarlyExit(messages) => {
-                #[allow(clippy::print_stdout)]
+            outcome::Result::Value(value) => Ok(value),
+            outcome::Result::EarlyExit(messages) => {
+                #[expect(
+                    clippy::print_stdout,
+                    reason = "This convenience API is specifically responsible for printing \
+                              parser output."
+                )]
                 for message in messages {
                     println!("{message}");
                 }
                 process::exit(0);
             },
-            crate::outcome::Result::Error(errors) => Err(errors),
+            outcome::Result::Error(errors) => Err(errors),
         };
         (result, remaining)
     }
@@ -579,7 +623,11 @@ impl<'t, T, F> Arguments<'t, T, F> {
     /// Parses arguments completely, reporting an error and exiting on failure.
     #[inline]
     #[must_use]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "This public localization API accepts each independently configurable message \
+                  explicitly."
+    )]
     pub fn parse_complete(
         self,
         args: impl Iterator<Item = OsString>,
@@ -594,22 +642,33 @@ impl<'t, T, F> Arguments<'t, T, F> {
         F: Display,
     {
         let (result, remaining) = self.parse(args);
-        #[allow(clippy::print_stderr)]
+        #[expect(
+            clippy::print_stderr,
+            reason = "This convenience API is specifically responsible for printing parser errors."
+        )]
         if !remaining.is_empty() {
             eprintln!("{unused_arg}");
             process::exit(error_code.get());
         }
         match result {
-            crate::outcome::Result::Value(value) => value,
-            crate::outcome::Result::EarlyExit(messages) => {
-                #[allow(clippy::print_stdout)]
+            outcome::Result::Value(value) => value,
+            outcome::Result::EarlyExit(messages) => {
+                #[expect(
+                    clippy::print_stdout,
+                    reason = "This convenience API is specifically responsible for printing \
+                              parser output."
+                )]
                 for message in messages {
                     println!("{message}");
                 }
                 process::exit(0);
             },
-            crate::outcome::Result::Error(errors) => {
-                #[allow(clippy::print_stderr)]
+            outcome::Result::Error(errors) => {
+                #[expect(
+                    clippy::print_stderr,
+                    reason = "This convenience API is specifically responsible for printing \
+                              parser errors."
+                )]
                 for error in errors {
                     eprintln!(
                         "{}",
@@ -666,7 +725,6 @@ impl<'t, T, F> Arguments<'t, T, F> {
     /// Parses environment arguments completely.
     #[inline]
     #[must_use]
-    #[allow(clippy::too_many_arguments)]
     pub fn parse_complete_from_env(
         self,
         error_code: NonZeroI32,
@@ -715,6 +773,10 @@ impl<'t, T, F> Arguments<'t, T, F> {
     }
 }
 
+#[expect(
+    clippy::multiple_inherent_impl,
+    reason = "Impl together with special mapping for Error=Void."
+)]
 impl<'t, T, Error> Arguments<'t, T, Error> {
     /// Converts errors with the supplied functions.
     #[inline]
@@ -736,6 +798,7 @@ impl<'t, T, Error> Arguments<'t, T, Error> {
     }
 }
 
+// TODO can we use `!`, stabilized in rust 1.100 here?
 impl<'t, T> Arguments<'t, T, Void> {
     /// Converts the infallible error type using [`void::unreachable`].
     #[inline]
@@ -770,15 +833,15 @@ impl<T, Error> Arguments<'_, T, Error> {
                 .create_help_text(variant, meta_default, meta_possible_values)
                 .map(Into::into),
             Self::Alternatives(alternatives) => {
-                // TODO use alternatives.as_ref().flat_map(...), coming in nonempty > 0.10.0
-                NonEmpty::collect(alternatives.iter().map(|argument| {
+                // Avoid .as_ref() to refer to the Box<> method.
+                let alternatives: &NonEmpty<_> = alternatives;
+                alternatives.as_ref().map(|argument| {
                     help::Alternatives::Alternatives(Box::new(argument.create_help_text(
                         variant,
                         meta_default,
                         meta_possible_values,
                     )))
-                }))
-                .expect("NonEmpty::map(...) has at least one argument!")
+                })
             },
         }
     }
@@ -831,7 +894,11 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     /// ## Deutsches Synonym
     /// [`mit_hilfe_frühes_beenden`](argumente::Argumente::mit_hilfe_frühes_beenden)
     #[inline]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "This public localization API accepts each independently configurable message \
+                  explicitly."
+    )]
     pub fn with_help_early_exit(
         self,
         variant: &dyn CreateHelpText,
@@ -869,6 +936,10 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
             "{name}{program_description}\n\n{exe_name} [{meta_options}]\n\n{meta_options}:\n"
         );
         for help in helps {
+            #[expect(
+                clippy::arithmetic_side_effects,
+                reason = "We accept the potential overflow here."
+            )]
             write_argument_or_alternatives(
                 &mut help_text,
                 Cow::Borrowed(meta_syntax_prefix),
@@ -895,7 +966,11 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     /// ## Deutsches Synonym
     /// [`mit_hilfe_und_version_frühes_beenden`](argumente::Argumente::mit_hilfe_und_version_frühes_beenden)
     #[inline]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "This public localization API accepts each independently configurable message \
+                  explicitly."
+    )]
     pub fn with_help_and_version_early_exit(
         self,
         variant: &dyn CreateHelpText,
@@ -972,7 +1047,6 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     /// ## Deutsches Synonym
     /// [`mit_hilfe_und_version_frühes_beenden_mit_sprache`](argumente::Argumente::mit_hilfe_und_version_frühes_beenden_mit_sprache).
     #[inline]
-    #[allow(clippy::too_many_arguments)]
     pub fn with_help_and_version_early_exit_with_language(
         self,
         variant: &dyn CreateHelpText,
@@ -1020,7 +1094,11 @@ fn max_syntax_width(helps: &NonEmpty<help::Alternatives>, alternative_prefix: &s
         .filter_map(|argument| match argument {
             help::Alternatives::Single(argument) => Some(argument.syntax.len()),
             help::Alternatives::Alternatives(alternatives) => {
-                #[allow(clippy::arithmetic_side_effects)]
+                #[expect(
+                    clippy::arithmetic_side_effects,
+                    reason = "The widths originate from validated display measurements and are \
+                              intentionally combined."
+                )]
                 let width =
                     alternative_prefix.len() + max_syntax_width(alternatives, alternative_prefix);
                 Some(width)
@@ -1049,7 +1127,11 @@ fn write_argument_or_alternatives(
             let help::Help { syntax, help } = argument;
             output.push_str(&current_prefix);
             output.push_str(syntax);
-            #[allow(clippy::arithmetic_side_effects)]
+            #[expect(
+                clippy::arithmetic_side_effects,
+                reason = "The widths originate from validated display measurements and are \
+                          intentionally combined."
+            )]
             let padding = max_syntax_width - current_prefix.len() - syntax.len();
             let mut buffer: [u8; 4] = [0; 4];
             let padding_string = syntax_padding.encode_utf8(&mut buffer).repeat(padding);
@@ -1060,7 +1142,11 @@ fn write_argument_or_alternatives(
             output.push('\n');
         },
         help::Alternatives::Alternatives(alternatives) => {
-            #[allow(clippy::arithmetic_side_effects)]
+            #[expect(
+                clippy::arithmetic_side_effects,
+                reason = "The widths originate from validated display measurements and are \
+                          intentionally combined."
+            )]
             let separator_width = max_syntax_width - current_prefix.len();
             let mut buffer: [u8; 4] = [0; 4];
             let separator = format!(

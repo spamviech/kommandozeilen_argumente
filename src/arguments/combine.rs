@@ -22,7 +22,7 @@ use crate::{
 #[macro_export]
 macro_rules! combine {
     ($function: expr, $a: expr, $b: expr, $c: expr, $d: expr, $e: expr, $f: expr, $g: expr $(, $tail: ident)+ $(,)?) => {
-        #[allow(clippy::shadow_unrelated, clippy::shadow_same, clippy::shadow_reuse)]
+        #[expect(clippy::shadow_unrelated, clippy::shadow_same, clippy::shadow_reuse, reason = "Macro-generated bindings intentionally reuse user-facing argument names.")]
         {
             let combine = $crate::arguments::Arguments::combine((
                 |a, b, c, d, e, f, g| (a, b, c, d, e, f, g),
@@ -76,9 +76,14 @@ pub trait Combine<'t, T, Fehler> {
     }
 
     /// Format this combination for [`Debug`].
+    ///
+    /// ## Errors
+    ///
+    /// When [`write!`] fails.
     #[inline]
     fn debug_fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        write!(formatter, "<closure>")
+        let _ = formatter;
+        todo!()
     }
 
     /// Parses merged short-form arguments for this combination.
@@ -196,8 +201,9 @@ macro_rules! impl_combine_tuple {
                     args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
                 ) -> NonEmpty<ParsedMergedShortForms<'t>> {
                     let (_function, $([<arg_ $suffix:snake:lower>]),+) = self;
-                    let mut candidates = vec![ParsedMergedShortForms::empty()];
-                    candidates[0].remaining = args.collect();
+                    let mut initial = ParsedMergedShortForms::empty();
+                    initial.remaining = args.collect();
+                    let mut candidates = vec![initial];
                     $(
                         candidates = candidates.into_iter().flat_map(|candidate| {
                             [<arg_ $suffix:snake:lower>]
@@ -216,8 +222,9 @@ macro_rules! impl_combine_tuple {
                 ) -> NonEmpty<ParsedShortForms<'t>>
                 {
                     let (_function, $([<arg_ $suffix:snake:lower>]),+) = self;
-                    let mut candidates = vec![ParsedShortForms::empty()];
-                    candidates[0].remaining = args.collect();
+                    let mut initial = ParsedShortForms::empty();
+                    initial.remaining = args.collect();
+                    let mut candidates = vec![initial];
                     $(
                         candidates = candidates.into_iter().flat_map(|candidate| {
                             [<arg_ $suffix:snake:lower>]
@@ -236,8 +243,9 @@ macro_rules! impl_combine_tuple {
                 ) -> NonEmpty<ParsedLongForms<'t>>
                 {
                     let (_function, $([<arg_ $suffix:snake:lower>]),+) = self;
-                    let mut candidates = vec![ParsedLongForms::empty()];
-                    candidates[0].remaining = args.collect();
+                    let mut initial = ParsedLongForms::empty();
+                    initial.remaining = args.collect();
+                    let mut candidates = vec![initial];
                     $(
                         candidates = candidates.into_iter().flat_map(|candidate| {
                             [<arg_ $suffix:snake:lower>]

@@ -158,7 +158,11 @@ impl Name<'_> {
         if let Some(string) = arg.to_str() {
             let normalized = Normalized::new(string);
             if let Some((_prefix, lang_str)) = &long_prefix.strip_as_prefix_n(&normalized) {
-                #[allow(clippy::redundant_else)]
+                #[expect(
+                    clippy::redundant_else,
+                    reason = "The branches are deliberately visually separated while parsing \
+                              argument forms."
+                )]
                 if contains_str(long, lang_str.as_str()) {
                     return Some(name_gefunden());
                 } else if let Some(wert) = parse_invertiert(long, lang_str) {
@@ -327,7 +331,6 @@ impl Name<'_> {
     ///
     /// Returns [`Some`] when a name was found and [`None`] otherwise.
     #[inline]
-    #[allow(clippy::option_option)]
     pub(crate) fn parse_early_exit(&self, arg: &OsStr) -> bool {
         self.parse_flag_aux(|| (), |_, _| None, arg).is_some()
     }
@@ -346,7 +349,6 @@ impl Name<'_> {
     ///
     /// Returns [`Some`] when a name was found and [`None`] otherwise.
     #[inline]
-    #[allow(clippy::option_option)]
     pub(crate) fn parse_early_exit_merge_short_forms(
         &self,
         arg: &ArgumentInput,
@@ -354,51 +356,67 @@ impl Name<'_> {
         self.parse_flag_merge_short_forms_aux(|| (), arg)
     }
 
-    /// Parses a long name as a value.
-    #[allow(clippy::option_option)]
-    pub(crate) fn parse_long_with_value<'t>(
-        &self,
+    /// Parses a standalone name as a value.
+    fn parse_with_value<'t, 'i>(
+        prefix: &Compare<'_>,
+        names: impl Iterator<Item = &'i Compare<'i>>,
         value_infix: &Compare<'_>,
+        infix_required: bool,
         arg: &'t OsStr,
-    ) -> Option<(Box<str>, Option<Cow<'t, OsStr>>)> {
+    ) -> Option<(Box<str>, Option<Normalized<'t>>)> {
         let string = arg.to_str()?;
-        for name in &self.long {
-            if long_name_matches(&self.long_prefix, name, string) {
+        let normalized = Normalized::new(string);
+        let (_prefix, name_infix_value) = prefix.strip_as_prefix_n(&normalized)?;
+        for name in names {
+            // Note: When it is part of the same argument, the parse-function for the inline_value
+            // receives a normalized string representation as the argument.
+            let Some((name, infix_value)) = name.strip_as_prefix_n(&name_infix_value) else {
+                continue;
+            };
+            if infix_value.as_str().is_empty() {
+                // Full argument consumed
                 return Some((name.as_str().into(), None));
             }
-            if let Some(value) =
-                raw_value_after_long_name(&self.long_prefix, name, value_infix, string)
-            {
-                return Some((name.as_str().into(), Some(value)));
-            }
+            // Infix is optional for short names.
+            let value = if let Some((_infix, value)) = value_infix.strip_as_prefix_n(&infix_value) {
+                value
+            } else if infix_required {
+                continue;
+            } else {
+                infix_value
+            };
+
+            return Some((name.as_str().into(), Some(value.into_owned())));
         }
         None
     }
 
+    /// Parses a long name as a value.
+    pub(crate) fn parse_long_with_value<'t>(
+        &self,
+        value_infix: &Compare<'_>,
+        arg: &'t OsStr,
+    ) -> Option<(Box<str>, Option<Normalized<'t>>)> {
+        Self::parse_with_value(&self.long_prefix, self.long.iter(), value_infix, true, arg)
+    }
+
     /// Parses a standalone short name as a value.
-    #[allow(clippy::option_option)]
     pub(crate) fn parse_short_with_value<'t>(
         &self,
         value_infix: &Compare<'_>,
         arg: &'t OsStr,
-    ) -> Option<(Box<str>, Option<Cow<'t, OsStr>>)> {
-        let string = arg.to_str()?;
-        let normalized = Normalized::new(string);
-        let (_, suffix) = self.short_prefix.strip_as_prefix_n(&normalized)?;
-        let short_name = suffix.as_str().graphemes(true).next()?;
-        let name = self.short.iter().find(|name| (**name).eq(short_name))?;
-        let value = raw_value_after_short_name(&self.short_prefix, name, value_infix, string)?
-            .map(|value| Cow::Borrowed(OsStr::new(value)));
-        Some((name.as_str().into(), value))
+    ) -> Option<(Box<str>, Option<Normalized<'t>>)> {
+        Self::parse_with_value(&self.short_prefix, self.short.iter(), value_infix, false, arg)
     }
 
     /// Parses the name as a value.
-    #[allow(clippy::option_option)]
     pub(crate) fn parse_with_value_merge_short_forms(
         &self,
         value_infix: &Compare<'_>,
         arg: &ArgumentInput,
     ) -> Option<ParsedMergedShortName<()>> {
+        struct InfixChecked;
+
         let Name { long_prefix, long: _, short_prefix, short } = self;
         if short.is_empty() {
             return None;
@@ -421,33 +439,48 @@ impl Name<'_> {
             ArgumentInput::AdjustedMergedShortNames { .. } => return None,
         };
 
-        let (index, name) = graphemes
-            .iter()
-            .enumerate()
-            .rev()
-            .find(|(_, grapheme)| contains_str(short, grapheme))?;
-        let inline_value = graphemes[index + 1..].concat();
-        let inline_value = match arg {
-            ArgumentInput::Unchanged(argument) => argument.to_str().and_then(|input| {
-                raw_value_after_merged_short_name(short_prefix, short, value_infix, input)
-            }),
-            ArgumentInput::AdjustedMergedShortNames { .. } => {
-                (!inline_value.is_empty()).then(|| {
-                    match raw_suffix_after_prefix(value_infix, &inline_value) {
-                        Some(value) => Box::from(value),
-                        None => Box::from(inline_value),
+        let (remaining_graphemes, name, _infix, inline_value) = graphemes.into_iter().fold(
+            (Vec::new(), None, None, Vec::new()),
+            |(mut remaining, name, infix, mut inline_value), grapheme| {
+                // Note: When it is part of the same argument, the parse-function for the
+                // inline_value receives a normalized string representation as the
+                // argument.
+                if infix.is_some() {
+                    inline_value.push(grapheme);
+                    (remaining, name, infix, inline_value)
+                } else if name.is_some() {
+                    if value_infix == grapheme.as_ref() {
+                        // Drop the infix grapheme, we only support single-grapheme value_infix with
+                        // short names.
+                    } else {
+                        inline_value.push(grapheme);
                     }
-                })
+                    (remaining, name, Some(InfixChecked), inline_value)
+                } else if contains_str(short, &grapheme) {
+                    (remaining, Some(grapheme), infix, inline_value)
+                } else {
+                    remaining.push(grapheme);
+                    (remaining, name, infix, inline_value)
+                }
             },
-        };
-        let remaining = NonEmpty::collect(graphemes[..index].iter().cloned()).map(|graphemes| {
+        );
+
+        let remaining = NonEmpty::from_vec(remaining_graphemes).map(|remaining_graphemes| {
             ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
                 prefix: prefix.into_owned(),
-                graphemes,
+                graphemes: remaining_graphemes,
                 suffix: MergedShortNameSuffix::Removed,
             })
         });
-        Some(ParsedMergedShortName { name: name.clone(), value: (), inline_value, remaining })
+        let inline_value =
+            (!inline_value.is_empty()).then_some(inline_value.concat().into_boxed_str());
+
+        name.map(|name| ParsedMergedShortName {
+            name: name.clone(),
+            value: (),
+            inline_value,
+            remaining,
+        })
     }
 
     /// Appends a regular-expression representation of the long names to `string`.
@@ -622,80 +655,6 @@ impl<'t, T> Beschreibung<'t, T> {
     }
 }
 
-/// Returns the raw suffix after a normalized match of `prefix`.
-///
-/// The match boundary is found by testing grapheme-boundary prefixes of the original input, so
-/// the returned slice always refers to the original, unnormalized string.
-fn raw_suffix_after_prefix<'t>(prefix: &Compare<'_>, input: &'t str) -> Option<&'t str> {
-    input
-        .grapheme_indices(true)
-        .map(|(index, _)| index)
-        .chain(iter::once(input.len()))
-        .find(|&index| prefix.eq(&input[..index]))
-        .map(|index| &input[index..])
-}
-
-/// Returns whether the raw input is a normalized match for a complete long name.
-fn long_name_matches(long_prefix: &Compare<'_>, name: &Compare<'_>, input: &str) -> bool {
-    let normalized = Normalized::new(input);
-    long_prefix.strip_as_prefix_n(&normalized).is_some_and(|(_, suffix)| name.eq(suffix.as_str()))
-}
-
-/// Returns the raw value suffix after a long name and value infix.
-///
-/// Candidate prefixes end at grapheme boundaries in the original input. Each candidate is then
-/// normalized for matching, so the returned `OsStr` preserves the exact unnormalized value.
-fn raw_value_after_long_name<'t>(
-    long_prefix: &Compare<'_>,
-    name: &Compare<'_>,
-    value_infix: &Compare<'_>,
-    input: &'t str,
-) -> Option<Cow<'t, OsStr>> {
-    raw_suffix_after_prefix(
-        value_infix,
-        raw_suffix_after_prefix(name, raw_suffix_after_prefix(long_prefix, input)?)?,
-    )
-    .map(|value| Cow::Borrowed(OsStr::new(value)))
-}
-
-/// Returns the raw value suffix after a short name and value infix.
-fn raw_value_after_short_name<'t>(
-    short_prefix: &Compare<'_>,
-    name: &Compare<'_>,
-    value_infix: &Compare<'_>,
-    input: &'t str,
-) -> Option<Option<&'t str>> {
-    let suffix = raw_suffix_after_prefix(name, raw_suffix_after_prefix(short_prefix, input)?)?;
-    if suffix.is_empty() {
-        Some(None)
-    } else {
-        Some(Some(raw_suffix_after_prefix(value_infix, suffix).unwrap_or(suffix)))
-    }
-}
-
-/// Returns the raw inline value after the last recognized short name in a merged block.
-fn raw_value_after_merged_short_name(
-    short_prefix: &Compare<'_>,
-    short_names: &[Compare<'_>],
-    value_infix: &Compare<'_>,
-    input: &str,
-) -> Option<Box<str>> {
-    let suffix = raw_suffix_after_prefix(short_prefix, input)?;
-    let (_, name) = suffix
-        .grapheme_indices(true)
-        .filter_map(|(index, grapheme)| {
-            short_names
-                .iter()
-                .any(|short_name| short_name.eq(grapheme))
-                .then_some((index, grapheme))
-        })
-        .last()?;
-    let value_suffix = &suffix[name.len()..];
-    (!value_suffix.is_empty()).then(|| {
-        Box::from(raw_suffix_after_prefix(value_infix, value_suffix).unwrap_or(value_suffix))
-    })
-}
-
 /// Returns whether `searched` is in `collection`.
 pub(crate) fn contains_str<'t>(
     collection: impl IntoIterator<Item = &'t Compare<'t>>,
@@ -709,7 +668,7 @@ pub trait LongNames<'t> {
     /// Converts to a non-empty collection of comparisons.
     fn long_names(self) -> NonEmpty<Compare<'t>>;
 }
-
+/// Implements [`LongNames`] for a supported long-name representation.
 macro_rules! impl_long_names {
     ($type:ty) => {
         impl<'t> LongNames<'t> for $type {
@@ -771,6 +730,7 @@ pub trait ShortNames<'t> {
     /// Converts to comparisons.
     fn short_names(self) -> Vec<Compare<'t>>;
 }
+/// Implements [`ShortNames`] for a supported short-name representation.
 macro_rules! impl_short_names {
     ($type:ty) => {
         impl<'t> ShortNames<'t> for $type {

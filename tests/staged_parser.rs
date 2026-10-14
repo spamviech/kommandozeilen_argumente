@@ -1,17 +1,21 @@
 //! End-to-end coverage for the staged parser.
 
-#![allow(unused_crate_dependencies)]
-#![allow(clippy::tests_outside_test_module)]
+#![expect(unused_crate_dependencies, reason = "dependencies of the lib")]
+#![expect(clippy::tests_outside_test_module, reason = "Integration test.")]
 
 use std::{
     borrow::Cow,
     ffi::{OsStr, OsString},
+    result,
 };
 
 use kommandozeilen_argumente::{
-    Arguments, Description, EarlyExit, Parse, ParseArgument, ParseError, Result, Value,
-    arguments::single_argument::SingleArgument, dyn_to_owned::Parse as ParseCallback, nonempty,
+    ArgumentInput, Arguments, Description, EarlyExit, Parse, ParseArgument, ParseError, Result,
+    Value, arguments::single_argument::SingleArgument, dyn_to_owned::Parse as ParseCallback,
+    nonempty,
 };
+
+const EMPTY_REMAINING: [ArgumentInput; 0] = [];
 
 #[test]
 fn parses_a_single_flag() {
@@ -20,7 +24,7 @@ fn parses_a_single_flag() {
 
     let (result, remaining) = arguments.parse([OsString::from("--verbose")].into_iter());
 
-    assert!(remaining.is_empty());
+    assert_eq!(remaining, EMPTY_REMAINING);
     assert!(matches!(result, Result::Value(true)));
 }
 
@@ -31,7 +35,7 @@ fn parses_a_single_value() {
 
     let (result, remaining) = arguments.parse([OsString::from("--port=8080")].into_iter());
 
-    assert!(remaining.is_empty());
+    assert_eq!(remaining, EMPTY_REMAINING);
     assert!(matches!(result, Result::Value(8080)));
 }
 
@@ -47,24 +51,25 @@ fn derives_and_accumulates_a_combined_struct() {
         [OsString::from("--verbose"), OsString::from("--port"), OsString::from("8080")].into_iter(),
     );
 
-    assert!(remaining.is_empty());
+    assert_eq!(remaining, EMPTY_REMAINING);
     assert!(matches!(result, Result::Value(Configuration { verbose: true, port: 8080 })));
 }
 
-fn reject_value(_: &OsStr) -> std::result::Result<String, ParseError<String>> {
+fn reject_value(_: &OsStr) -> result::Result<String, ParseError<String>> {
     Err(ParseError::ParseError(String::from("rejected by the first alternative")))
 }
 
-fn accept_value(value: &OsStr) -> std::result::Result<String, ParseError<String>> {
+fn accept_value(value: &OsStr) -> result::Result<String, ParseError<String>> {
     value.to_str().map(String::from).ok_or_else(|| ParseError::InvalidString(value.to_owned()))
 }
 
+#[expect(clippy::ptr_arg, reason = "Required interface for Show.")]
 fn string_display(value: &String) -> String {
     value.clone()
 }
 
 fn alternative_value(
-    parse: fn(&OsStr) -> std::result::Result<String, ParseError<String>>,
+    parse: fn(&OsStr) -> result::Result<String, ParseError<String>>,
 ) -> Value<'static, String, String> {
     let parse: Box<dyn ParseCallback<'static, String, ParseError<String>>> = Box::new(parse);
     Value {
@@ -87,7 +92,7 @@ fn tries_the_next_alternative_after_a_value_conversion_failure() {
 
     let (result, remaining) = arguments.parse([OsString::from("--choice=accepted")].into_iter());
 
-    assert!(remaining.is_empty());
+    assert_eq!(remaining, EMPTY_REMAINING);
     assert!(matches!(result, Result::Value(value) if value == "accepted"));
 }
 
@@ -99,6 +104,6 @@ fn early_exit_short_circuits_result_accumulation() {
 
     let (result, remaining) = arguments.parse([OsString::from("--help")].into_iter());
 
-    assert!(remaining.is_empty());
+    assert_eq!(remaining, EMPTY_REMAINING);
     assert!(matches!(result, Result::EarlyExit(messages) if messages.head == "show help"));
 }

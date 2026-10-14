@@ -88,14 +88,14 @@ impl Display for Error {
             Unsupported(Argument { name, value: NoValue }) => {
                 write!(formatter, "Unsupported argument: {name}")
             },
-            Unsupported(Argument { name, value: wert @ SubArgument(_sub_args) }) => {
-                write!(formatter, "Unsupported sub-argument of {name}: {wert}")
+            Unsupported(Argument { name, value: value @ SubArgument(_sub_args) }) => {
+                write!(formatter, "Unsupported sub-argument of {name}: {value}")
             },
-            Unsupported(Argument { name, value: wert @ List(_list) }) => {
-                write!(formatter, "Unsupported list argument {name}: {wert}")
+            Unsupported(Argument { name, value: value @ List(_list) }) => {
+                write!(formatter, "Unsupported list argument {name}: {value}")
             },
-            Unsupported(Argument { name, value: wert @ Stream(_tokens) }) => {
-                write!(formatter, "Unsupported named argument {name}: {wert}")
+            Unsupported(Argument { name, value: value @ Stream(_tokens) }) => {
+                write!(formatter, "Unsupported named argument {name}: {value}")
             },
         }
     }
@@ -143,10 +143,9 @@ fn parse_attributes(field: Option<&Ident>, attrs: Vec<Attribute>) -> Result<Opti
 pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Error> {
     use Error::{DataVariant, Generics, NotEnum};
     let item = parse_item(input.clone())?;
-    // Item als #[non_exhaustive] markiert
-    #[allow(
+    #[expect(
         clippy::wildcard_enum_match_arm,
-        reason = "venial::Item has variants unsupported by this derive macro."
+        reason = "venial::Item marked as non_exhaustive. We only support Types."
     )]
     let Enum { variants, name, generic_params, where_clause, attributes, .. } = match item {
         Item::Enum(enum_) => enum_,

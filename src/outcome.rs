@@ -16,6 +16,13 @@ use crate::{
     unicode::Normalized,
 };
 
+/// Type alias for [`SingeArgResult`]. Parses the directly following argument as the value.
+pub type ParseNextArgFn<'t, T, E> = Box<dyn 't + Fn(&OsStr) -> SingeArgResult<'t, T, E>>;
+
+/// Type alias for [`SingeArgResult`]. Parses a following argument in this parsing context.
+pub type ParseFollowingArgFn<'t, T, E> =
+    Box<dyn 't + Fn(&OsStr) -> Option<SingeArgResult<'t, T, E>>>;
+
 /// Result of parsing one argument.
 pub enum SingeArgResult<'t, T, E> {
     /// The argument was completely parsed.
@@ -30,18 +37,19 @@ pub enum SingeArgResult<'t, T, E> {
         /// The current argument after removing the parsed short name.
         adjusted_arg: Option<AdjustedMergedShortNames>,
         /// Parses the directly following argument as the value.
-        parse_next_arg: Box<dyn 't + Fn(&OsStr) -> SingeArgResult<'t, T, E>>,
+        parse_next_arg: ParseNextArgFn<'t, T, E>,
     },
     /// More input is required.
     IncompleteParse {
         /// The current argument after removing the parsed short name.
         adjusted_arg: Option<AdjustedMergedShortNames>,
         /// Parses a following argument in this parsing context.
-        parse_following_arg: Box<dyn 't + Fn(&OsStr) -> Option<SingeArgResult<'t, T, E>>>,
+        parse_following_arg: ParseFollowingArgFn<'t, T, E>,
     },
 }
 
 impl<T: Debug, E: Debug> Debug for SingeArgResult<'_, T, E> {
+    #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::FullParse { adjusted_arg, result } => {
@@ -63,6 +71,7 @@ impl<T: Debug, E: Debug> Debug for SingeArgResult<'_, T, E> {
 
 impl<'t, T: 't, E: 't> SingeArgResult<'t, T, E> {
     /// Converts a successful value.
+    #[inline]
     pub fn convert<S>(self, mapper: impl 't + Clone + Fn(T) -> S) -> SingeArgResult<'t, S, E> {
         match self {
             Self::FullParse { adjusted_arg, result } => {
@@ -160,6 +169,7 @@ pub enum ParseError<E> {
 
 impl<'t, T, E, A> IntermediateResult<'t, T, E, A> {
     /// Converts a successful value.
+    #[inline]
     pub fn convert<S>(self, mapper: impl FnOnce(T) -> S) -> IntermediateResult<'t, S, E, A> {
         match self {
             Self::Value(value) => IntermediateResult::Value(mapper(value)),
@@ -170,6 +180,7 @@ impl<'t, T, E, A> IntermediateResult<'t, T, E, A> {
     }
 
     /// Converts the embedded errors.
+    #[inline]
     pub fn convert_error<F>(self, mapper: impl Fn(E) -> F) -> IntermediateResult<'t, T, F, A> {
         match self {
             Self::Value(value) => IntermediateResult::Value(value),
@@ -182,6 +193,7 @@ impl<'t, T, E, A> IntermediateResult<'t, T, E, A> {
     }
 
     /// Converts an incomplete value.
+    #[inline]
     pub fn convert_incomplete<B>(
         self,
         mapper: impl FnOnce(A) -> B,
@@ -197,6 +209,7 @@ impl<'t, T, E, A> IntermediateResult<'t, T, E, A> {
 
 impl<'t, T, E> Result<'t, T, E> {
     /// Converts a successful value.
+    #[inline]
     pub fn convert<S>(self, mapper: impl FnOnce(T) -> S) -> Result<'t, S, E> {
         match self {
             Self::Value(value) => Result::Value(mapper(value)),
@@ -206,6 +219,7 @@ impl<'t, T, E> Result<'t, T, E> {
     }
 
     /// Converts the embedded errors.
+    #[inline]
     pub fn convert_error<F>(self, mapper: impl Fn(E) -> F) -> Result<'t, T, F> {
         match self {
             Self::Value(value) => Result::Value(value),
@@ -217,6 +231,7 @@ impl<'t, T, E> Result<'t, T, E> {
 
 impl<'t, E> Error<'t, E> {
     /// Converts the embedded error.
+    #[inline]
     pub fn convert<F>(self, mapper: impl FnOnce(E) -> F) -> Error<'t, F> {
         match self {
             Self::MissingFlag { name, invert_prefix, invert_infix } => {
@@ -231,6 +246,7 @@ impl<'t, E> Error<'t, E> {
 }
 impl<'t, E> AnnotatedParseError<'t, E> {
     /// Converts the embedded error.
+    #[inline]
     pub fn convert<F>(self, mapper: impl FnOnce(E) -> F) -> AnnotatedParseError<'t, F> {
         let Self { name, value_infix, meta_var, error } = self;
         AnnotatedParseError { name, value_infix, meta_var, error: error.convert(mapper) }
@@ -238,6 +254,7 @@ impl<'t, E> AnnotatedParseError<'t, E> {
 }
 impl<E> ParseError<E> {
     /// Converts the embedded error.
+    #[inline]
     pub fn convert<F>(self, mapper: impl FnOnce(E) -> F) -> ParseError<F> {
         match self {
             Self::InvalidString(value) => ParseError::InvalidString(value),
@@ -245,7 +262,7 @@ impl<E> ParseError<E> {
         }
     }
 }
-
+/// Appends a regular-expression fragment for the supplied names.
 fn names_regex<S: AsRef<str>>(string: &mut String, head: &S, tail: &[S]) {
     if !tail.is_empty() {
         string.push('(');
@@ -263,11 +280,13 @@ fn names_regex<S: AsRef<str>>(string: &mut String, head: &S, tail: &[S]) {
 
 impl<E: Display> Error<'_, E> {
     /// Creates a human-readable error message using English defaults.
+    #[inline]
     pub fn error_message(&self) -> String {
         self.create_error_message_with_language(Language::ENGLISH)
     }
 
     /// Creates a human-readable error message using `language`.
+    #[inline]
     pub fn create_error_message_with_language(&self, language: Language) -> String {
         self.create_error_message(
             language.missing_flag,
@@ -278,6 +297,7 @@ impl<E: Display> Error<'_, E> {
     }
 
     /// Creates a human-readable error message.
+    #[inline]
     pub fn create_error_message(
         &self,
         missing_flag: &str,
@@ -412,6 +432,7 @@ pub enum ParseFehler<E> {
 }
 
 impl<'t, T, E, A> From<IntermediateResult<'t, T, E, A>> for ZwischenErgebnis<'t, T, E, A> {
+    #[inline]
     fn from(value: IntermediateResult<'t, T, E, A>) -> Self {
         match value {
             IntermediateResult::Value(value) => Self::Wert(value),
@@ -422,6 +443,7 @@ impl<'t, T, E, A> From<IntermediateResult<'t, T, E, A>> for ZwischenErgebnis<'t,
     }
 }
 impl<'t, T, E, A> From<ZwischenErgebnis<'t, T, E, A>> for IntermediateResult<'t, T, E, A> {
+    #[inline]
     fn from(value: ZwischenErgebnis<'t, T, E, A>) -> Self {
         match value {
             ZwischenErgebnis::Wert(value) => Self::Value(value),
@@ -432,6 +454,7 @@ impl<'t, T, E, A> From<ZwischenErgebnis<'t, T, E, A>> for IntermediateResult<'t,
     }
 }
 impl<'t, T, E> From<Result<'t, T, E>> for Ergebnis<'t, T, E> {
+    #[inline]
     fn from(value: Result<'t, T, E>) -> Self {
         match value {
             Result::Value(value) => Self::Wert(value),
@@ -441,6 +464,7 @@ impl<'t, T, E> From<Result<'t, T, E>> for Ergebnis<'t, T, E> {
     }
 }
 impl<'t, T, E> From<Ergebnis<'t, T, E>> for Result<'t, T, E> {
+    #[inline]
     fn from(value: Ergebnis<'t, T, E>) -> Self {
         match value {
             Ergebnis::Wert(value) => Self::Value(value),
@@ -450,6 +474,7 @@ impl<'t, T, E> From<Ergebnis<'t, T, E>> for Result<'t, T, E> {
     }
 }
 impl<'t, E> From<Error<'t, E>> for Fehler<'t, E> {
+    #[inline]
     fn from(value: Error<'t, E>) -> Self {
         match value {
             Error::MissingFlag { name, invert_prefix, invert_infix } => Self::FehlendeFlag {
@@ -465,6 +490,7 @@ impl<'t, E> From<Error<'t, E>> for Fehler<'t, E> {
     }
 }
 impl<'t, E> From<Fehler<'t, E>> for Error<'t, E> {
+    #[inline]
     fn from(value: Fehler<'t, E>) -> Self {
         match value {
             Fehler::FehlendeFlag { name, invertiere_präfix, invertiere_infix } => {
@@ -482,6 +508,7 @@ impl<'t, E> From<Fehler<'t, E>> for Error<'t, E> {
     }
 }
 impl<'t, E> From<AnnotatedParseError<'t, E>> for KommentierterParseFehler<'t, E> {
+    #[inline]
     fn from(value: AnnotatedParseError<'t, E>) -> Self {
         Self {
             name: value.name,
@@ -492,6 +519,7 @@ impl<'t, E> From<AnnotatedParseError<'t, E>> for KommentierterParseFehler<'t, E>
     }
 }
 impl<'t, E> From<KommentierterParseFehler<'t, E>> for AnnotatedParseError<'t, E> {
+    #[inline]
     fn from(value: KommentierterParseFehler<'t, E>) -> Self {
         Self {
             name: value.name,
@@ -502,6 +530,7 @@ impl<'t, E> From<KommentierterParseFehler<'t, E>> for AnnotatedParseError<'t, E>
     }
 }
 impl<E: Into<F>, F> From<ParseError<E>> for ParseFehler<F> {
+    #[inline]
     fn from(value: ParseError<E>) -> Self {
         match value {
             ParseError::InvalidString(value) => Self::InvaliderString(value),
@@ -510,6 +539,7 @@ impl<E: Into<F>, F> From<ParseError<E>> for ParseFehler<F> {
     }
 }
 impl<E, F: Into<E>> From<ParseFehler<F>> for ParseError<E> {
+    #[inline]
     fn from(value: ParseFehler<F>) -> Self {
         match value {
             ParseFehler::InvaliderString(value) => Self::InvalidString(value),
@@ -520,16 +550,19 @@ impl<E, F: Into<E>> From<ParseFehler<F>> for ParseError<E> {
 
 impl<'t, T, E, A> ZwischenErgebnis<'t, T, E, A> {
     /// Konvertiert einen erfolgreich geparsten Wert.
+    #[inline]
     pub fn konvertiere<S>(self, mapper: impl FnOnce(T) -> S) -> ZwischenErgebnis<'t, S, E, A> {
         IntermediateResult::from(self).convert(mapper).into()
     }
 
     /// Konvertiert die enthaltenen Fehler.
+    #[inline]
     pub fn konvertiere_fehler<F>(self, mapper: impl Fn(E) -> F) -> ZwischenErgebnis<'t, T, F, A> {
         IntermediateResult::from(self).convert_error(mapper).into()
     }
 
     /// Konvertiert einen unvollständigen Wert.
+    #[inline]
     pub fn konvertiere_incomplete<B>(
         self,
         mapper: impl FnOnce(A) -> B,
@@ -539,40 +572,47 @@ impl<'t, T, E, A> ZwischenErgebnis<'t, T, E, A> {
 }
 impl<'t, T, E> Ergebnis<'t, T, E> {
     /// Konvertiert einen erfolgreich geparsten Wert.
+    #[inline]
     pub fn konvertiere<S>(self, mapper: impl FnOnce(T) -> S) -> Ergebnis<'t, S, E> {
         Result::from(self).convert(mapper).into()
     }
 
     /// Konvertiert die enthaltenen Fehler.
+    #[inline]
     pub fn konvertiere_fehler<F>(self, mapper: impl Fn(E) -> F) -> Ergebnis<'t, T, F> {
         Result::from(self).convert_error(mapper).into()
     }
 }
 impl<'t, E> Fehler<'t, E> {
     /// Konvertiert den enthaltenen Fehler.
+    #[inline]
     pub fn konvertiere<F>(self, mapper: impl FnOnce(E) -> F) -> Fehler<'t, F> {
         Error::from(self).convert(mapper).into()
     }
 }
 impl<'t, E> KommentierterParseFehler<'t, E> {
     /// Konvertiert den enthaltenen Fehler.
+    #[inline]
     pub fn konvertiere<F>(self, mapper: impl FnOnce(E) -> F) -> KommentierterParseFehler<'t, F> {
         AnnotatedParseError::from(self).convert(mapper).into()
     }
 }
 impl<E> ParseFehler<E> {
     /// Konvertiert den enthaltenen Fehler.
+    #[inline]
     pub fn konvertiere<F>(self, mapper: impl FnOnce(E) -> F) -> ParseFehler<F> {
         ParseError::from(self).convert(mapper).into()
     }
 }
 impl<E: Display> Fehler<'_, E> {
     /// Erstellt eine menschenlesbare Fehlermeldung mit deutschen Standardwerten.
+    #[inline]
     pub fn fehlermeldung(&self) -> String {
         self.erstelle_fehlermeldung_mit_sprache(Sprache::DEUTSCH)
     }
 
     /// Erstellt eine menschenlesbare Fehlermeldung mit `sprache`.
+    #[inline]
     pub fn erstelle_fehlermeldung_mit_sprache(&self, sprache: Sprache) -> String {
         self.erstelle_fehlermeldung(
             sprache.fehlende_flag,
@@ -583,6 +623,7 @@ impl<E: Display> Fehler<'_, E> {
     }
 
     /// Erstellt eine menschenlesbare Fehlermeldung.
+    #[inline]
     pub fn erstelle_fehlermeldung(
         &self,
         fehlende_flag: &str,

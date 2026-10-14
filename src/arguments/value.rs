@@ -2,7 +2,7 @@
 
 use std::{
     borrow::Cow,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     ffi::{OsStr, OsString},
     fmt::{self, Debug, Display},
     str::FromStr,
@@ -57,11 +57,19 @@ pub trait EnumArgument: Sized {
 }
 
 /// A value argument.
+///
+/// Note: When specifying the value in the same argument, i.e. separated by a `value_infix`,
+/// or without one directly after a short name,
+/// only Unicode (utf8) string representations for the value are supported.
+/// The parse-function receives a [`Normalized`](crate::unicode::Normalized) String in this case.
 #[must_use]
 pub struct Value<'t, T, Error> {
     /// General description of the argument.
     pub description: Description<'t, T>,
     /// Infix that separates an inline value from its name.
+    ///
+    /// Note: When using short names, `value_infix` longer than a
+    /// [`Grapheme`](unicode_segmentation::UnicodeSegmentation::graphemes) are not supported.
     pub value_infix: Compare<'t>,
     /// Metavariable used in help text.
     pub meta_var: &'t str,
@@ -76,11 +84,20 @@ pub struct Value<'t, T, Error> {
 }
 
 /// German mirror of [`Value`].
+///
+/// Anmerkung: Wenn ein Wert im selben Argument wie der Name angegeben wird,
+/// durch ein `wert_infix` getrennt, oder ohne Trennzeichen direkt nach einem Kurznamen,
+/// werden nur Unicode String Darstellungen für den Wert unterstützt.
+/// Die parse-Funktion erhält dabei eine [`Normalisiert`](crate::unicode::Normalisiert)en String.
 #[must_use]
 pub struct Wert<'t, T, Fehler> {
     /// Allgemeine Beschreibung des Arguments.
     pub beschreibung: Beschreibung<'t, T>,
     /// Infix, das einen Wert im selben Argument vom Namen trennt.
+    ///
+    /// Anmerkung: In Kombination mit Kurznamen werten `wert_infix`e länger als ein
+    /// [`Grapheme`](unicode_segmentation::UnicodeSegmentation::graphemes)
+    /// nicht unterstützt.
     pub wert_infix: Vergleich<'t>,
     /// Meta-Variable im Hilfetext.
     pub meta_var: &'t str,
@@ -107,7 +124,7 @@ impl<'t, T, E> From<Value<'t, T, E>> for Wert<'t, T, E> {
             display_error,
         } = value;
         let parse_boxed: Box<dyn 't + Parse<'t, T, ParseFehler<E>>> =
-            Box::new(move |value: &OsStr| parse(value).map_err(ParseFehler::from));
+            Box::new(move |input: &OsStr| parse(input).map_err(ParseFehler::from));
         Self {
             beschreibung: description.into(),
             wert_infix: value_infix.into(),
@@ -133,7 +150,7 @@ impl<'t, T, E> From<Wert<'t, T, E>> for Value<'t, T, E> {
             anzeige_fehler,
         } = value;
         let parse_boxed: Box<dyn 't + Parse<'t, T, ParseError<E>>> =
-            Box::new(move |value: &OsStr| parse(value).map_err(ParseError::from));
+            Box::new(move |input: &OsStr| parse(input).map_err(ParseError::from));
         Self {
             description: beschreibung.into(),
             value_infix: wert_infix.into(),
@@ -147,6 +164,7 @@ impl<'t, T, E> From<Wert<'t, T, E>> for Value<'t, T, E> {
 }
 
 impl<T: Debug, E> Debug for Value<'_, T, E> {
+    #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Value")
@@ -161,6 +179,7 @@ impl<T: Debug, E> Debug for Value<'_, T, E> {
     }
 }
 impl<T: Debug, E> Debug for Wert<'_, T, E> {
+    #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Wert")
@@ -262,7 +281,11 @@ impl<'t, T: Display + EnumArgument> Wert<'t, T, String> {
         Value::new_enum_with_language(beschreibung.into(), sprache.into()).into()
     }
 }
-
+/// Appends comma-separated displayed values to `string`.
+#[expect(
+    clippy::ptr_arg,
+    reason = "Lifetimes don't work out (easily) using as_ref and &dyn Show<'_,T>"
+)]
 fn show_elements<'t, T: 't>(
     string: &mut String,
     display: &Cow<'_, dyn Show<'_, T>>,
@@ -275,7 +298,13 @@ fn show_elements<'t, T: 't>(
         string.push_str(&display(value));
     }
 }
-
+/// Converts a typed value argument into its string-rendered representation.
+#[expect(
+    clippy::ptr_arg,
+    clippy::too_many_arguments,
+    reason = "Internal function, we are using Cow everywhere. Takes all configuration options \
+              individually."
+)]
 fn as_string_value<'a, 't, T, E, PE: Into<ParseError<E>>>(
     name: &'a Name<'t>,
     help: Option<&'t str>,
@@ -308,15 +337,14 @@ where
         display_error: Cow::Borrowed(&Clone::clone),
     }
 }
-
+/// Parses non-merged short value forms from the supplied inputs.
 fn parse_short_value_forms<'argument>(
     name: &Name<'argument>,
     value_infix: &Compare<'argument>,
     args: impl Iterator<Item = ArgumentInput>,
 ) -> ParsedShortForms<'argument> {
     let mut values = HashMap::new();
-    let mut missing_values: std::collections::HashSet<ParsedValueName<'argument>> =
-        Default::default();
+    let mut missing_values: HashSet<ParsedValueName<'argument>> = HashSet::default();
     let mut args = args.peekable();
     let mut remaining = Vec::new();
     while let Some(argument) = args.next() {
@@ -327,13 +355,17 @@ fn parse_short_value_forms<'argument>(
                     name.parse_short_with_value(value_infix, &argument)
                 {
                     let parsed_name = ParsedValueName { name: Cow::Owned(name.into()) };
-                    if let Some(value) = inline_value.map(Cow::into_owned).or_else(|| {
-                        args.next_if(|argument| matches!(argument, ArgumentInput::Unchanged(_)))
-                            .and_then(|argument| match argument {
-                                ArgumentInput::Unchanged(value) => Some(value),
-                                ArgumentInput::AdjustedMergedShortNames(_) => None,
-                            })
-                    }) {
+                    if let Some(value) = inline_value
+                        .map(|normalized| OsString::from(normalized.as_str()))
+                        .or_else(|| {
+                            args.next_if(|arg| matches!(arg, ArgumentInput::Unchanged(_))).and_then(
+                                |arg| match arg {
+                                    ArgumentInput::Unchanged(value) => Some(value),
+                                    ArgumentInput::AdjustedMergedShortNames(_) => None,
+                                },
+                            )
+                        })
+                    {
                         let _ = values.insert(parsed_name, ParsedRawValue { value, input });
                     } else {
                         let _ = missing_values.insert(parsed_name);
@@ -353,15 +385,14 @@ fn parse_short_value_forms<'argument>(
         remaining,
     }
 }
-
+/// Parses long value forms from the supplied inputs.
 fn parse_long_value_forms<'argument>(
     name: &Name<'argument>,
     value_infix: &Compare<'argument>,
     args: impl Iterator<Item = ArgumentInput>,
 ) -> ParsedLongForms<'argument> {
     let mut values = HashMap::new();
-    let mut missing_values: std::collections::HashSet<ParsedValueName<'argument>> =
-        Default::default();
+    let mut missing_values: HashSet<ParsedValueName<'argument>> = HashSet::default();
     let mut args = args.peekable();
     let mut remaining = Vec::new();
     while let Some(argument) = args.next() {
@@ -372,13 +403,17 @@ fn parse_long_value_forms<'argument>(
                     name.parse_long_with_value(value_infix, &argument)
                 {
                     let parsed_name = ParsedValueName { name: Cow::Owned(name.into()) };
-                    if let Some(value) = inline_value.map(Cow::into_owned).or_else(|| {
-                        args.next_if(|argument| matches!(argument, ArgumentInput::Unchanged(_)))
-                            .and_then(|argument| match argument {
-                                ArgumentInput::Unchanged(value) => Some(value),
-                                ArgumentInput::AdjustedMergedShortNames(_) => None,
-                            })
-                    }) {
+                    if let Some(value) = inline_value
+                        .map(|normalized| OsString::from(normalized.as_str()))
+                        .or_else(|| {
+                            args.next_if(|arg| matches!(arg, ArgumentInput::Unchanged(_))).and_then(
+                                |arg| match arg {
+                                    ArgumentInput::Unchanged(value) => Some(value),
+                                    ArgumentInput::AdjustedMergedShortNames(_) => None,
+                                },
+                            )
+                        })
+                    {
                         let _ = values.insert(parsed_name, ParsedRawValue { value, input });
                     } else {
                         let _ = missing_values.insert(parsed_name);
@@ -398,15 +433,14 @@ fn parse_long_value_forms<'argument>(
         remaining,
     }
 }
-
+/// Parses merged short value forms from the supplied inputs.
 fn parse_value_merged_short_forms<'argument>(
     name: &Name<'argument>,
     value_infix: &Compare<'argument>,
     args: impl Iterator<Item = ArgumentInput>,
 ) -> ParsedMergedShortForms<'argument> {
     let mut values = HashMap::new();
-    let mut missing_values: std::collections::HashSet<ParsedValueName<'argument>> =
-        Default::default();
+    let mut missing_values: HashSet<ParsedValueName<'argument>> = HashSet::default();
     let mut args = args.peekable();
     let mut remaining = Vec::new();
     while let Some(argument) = args.next() {
@@ -419,11 +453,12 @@ fn parse_value_merged_short_forms<'argument>(
         if let Some(parsed) = name.parse_with_value_merge_short_forms(value_infix, &argument) {
             let value = parsed.inline_value.map_or_else(
                 || {
-                    args.next_if(|argument| matches!(argument, ArgumentInput::Unchanged(_)))
-                        .and_then(|argument| match argument {
+                    args.next_if(|arg| matches!(arg, ArgumentInput::Unchanged(_))).and_then(|arg| {
+                        match arg {
                             ArgumentInput::Unchanged(value) => Some(value),
                             ArgumentInput::AdjustedMergedShortNames(_) => None,
-                        })
+                        }
+                    })
                 },
                 |value| Some(OsString::from(value.into_string())),
             );
@@ -433,8 +468,8 @@ fn parse_value_merged_short_forms<'argument>(
             } else {
                 let _ = missing_values.insert(parsed_name);
             }
-            if let Some(argument) = parsed.remaining {
-                remaining.push(argument);
+            if let Some(remaining_input) = parsed.remaining {
+                remaining.push(remaining_input);
             }
         } else {
             remaining.push(argument);
@@ -449,6 +484,11 @@ fn parse_value_merged_short_forms<'argument>(
     }
 }
 /// Creates syntax and help text from the shared parts of a German or English value argument.
+#[expect(
+    clippy::ptr_arg,
+    clippy::too_many_arguments,
+    reason = "Internal method, we are using Cow everywhere."
+)]
 fn create_value_help_text<T>(
     name: &Name<'_>,
     help: Option<&str>,
@@ -461,7 +501,7 @@ fn create_value_help_text<T>(
     meta_allowed_values: &str,
 ) -> Help {
     let Name { long_prefix, long, short_prefix, short } = name;
-    let mut syntax = format!("{}", long_prefix.as_str());
+    let mut syntax = long_prefix.as_str().to_owned();
     Name::alternatives_as_regex(&long.head, &long.tail, &mut syntax);
     syntax.push_str("( |");
     syntax.push_str(value_infix);
@@ -502,6 +542,7 @@ fn create_value_help_text<T>(
 
 impl<'t, T, E> Value<'t, T, E> {
     /// Creates this argument's syntax and help text.
+    #[inline]
     pub fn create_help_text(&self, meta_default: &str, meta_allowed_values: &str) -> Help {
         create_value_help_text(
             &self.description.name,
@@ -517,6 +558,7 @@ impl<'t, T, E> Value<'t, T, E> {
     }
 
     /// Converts this value argument to strings using its display functions.
+    #[inline]
     pub fn as_string_value(&self) -> Value<'_, String, String> {
         as_string_value(
             &self.description.name,
@@ -535,6 +577,15 @@ impl<'t, T, E> Value<'t, T, E> {
     ///
     /// The map is candidate-local during alternative evaluation, so consuming a value here cannot
     /// prevent another alternative from attempting to parse the same original input.
+    ///
+    /// ## Errors
+    ///
+    /// If no matching value was found.
+    #[inline]
+    #[expect(
+        clippy::result_large_err,
+        reason = "Only move Error to the Heap when required by the public interface."
+    )]
     pub fn take_parsed_value(
         &self,
         values: &mut HashMap<ParsedValueName<'t>, ParsedRawValue<'t>>,
@@ -610,16 +661,92 @@ impl<'t, T, E> Value<'t, T, E> {
                 tail: vec![ParsedMergedShortForms {
                     early_exits: Vec::new(),
                     flags: Vec::new(),
-                    missing_values: Default::default(),
-                    values: Default::default(),
+                    missing_values: HashSet::default(),
+                    values: HashMap::default(),
                     remaining: args,
                 }],
             }
         }
     }
 }
+
+impl<'t, T, E> Wert<'t, T, E> {
+    /// Parst eigenständige kurze Argumentformen.
+    #[inline]
+    pub fn parse_short_form(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedShortForms<'t> {
+        let value_infix = self.wert_infix.clone().into();
+        parse_short_value_forms(&self.beschreibung.name, &value_infix, args)
+    }
+
+    /// Parst lange Argumentformen.
+    #[inline]
+    pub fn parse_long_form(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedLongForms<'t> {
+        let value_infix = self.wert_infix.clone().into();
+        parse_long_value_forms(&self.beschreibung.name, &value_infix, args)
+    }
+
+    /// Parst zusammengefasste kurze Argumentformen.
+    #[inline]
+    pub fn parse_merged_short_forms(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParsedMergedShortForms<'t> {
+        let value_infix = self.wert_infix.clone().into();
+        parse_value_merged_short_forms(
+            &self.beschreibung.name,
+            &value_infix,
+            args.map(ArgumentInput::Unchanged),
+        )
+    }
+
+    /// Erzeugt Syntax und Hilfetext für dieses Argument.
+    #[inline]
+    pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe {
+        create_value_help_text(
+            &self.beschreibung.name,
+            self.beschreibung.hilfe,
+            self.beschreibung.standard.as_ref(),
+            self.wert_infix.as_str(),
+            self.meta_var,
+            self.mögliche_werte.as_ref(),
+            &self.anzeige,
+            meta_standard,
+            meta_erlaubte_werte,
+        )
+        .into()
+    }
+
+    /// Konvertiert dieses Wert-Argument mittels seiner Anzeigefunktionen in Strings.
+    #[inline]
+    pub fn als_string_wert(&self) -> Wert<'_, String, String> {
+        as_string_value(
+            &self.beschreibung.name,
+            self.beschreibung.hilfe,
+            self.beschreibung.standard.as_ref(),
+            self.wert_infix.clone().into(),
+            self.meta_var,
+            self.mögliche_werte.as_ref(),
+            &self.parse,
+            &self.anzeige,
+            &self.anzeige_fehler,
+        )
+        .into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #![expect(
+        clippy::unwrap_used,
+        reason = "Simplify writing assert_eq for the single element of a map."
+    )]
+
     use std::{
         borrow::Cow,
         ffi::{OsStr, OsString},
@@ -630,6 +757,8 @@ mod tests {
         outcome::ParseError,
     };
 
+    const EMPTY_REMAINING: [ArgumentInput; 0] = [];
+
     #[test]
     fn parses_merged_short_value_with_and_without_infix() {
         let value =
@@ -638,7 +767,7 @@ mod tests {
             let result = value.parse_merged_short_forms([OsString::from(input)].into_iter());
             assert_eq!(result.values.len(), 1);
             assert_eq!(result.values.values().next().unwrap().value, "value");
-            assert!(result.remaining.is_empty());
+            assert_eq!(result.remaining, EMPTY_REMAINING);
         }
     }
 
@@ -652,20 +781,24 @@ mod tests {
             );
             assert_eq!(result.values.len(), 1);
             assert_eq!(result.values.values().next().unwrap().value, "value");
-            assert!(result.remaining.is_empty());
+            assert_eq!(result.remaining, EMPTY_REMAINING);
         }
-        let result = value.parse_short_form(
-            [OsString::from("-o"), OsString::from("value")]
-                .into_iter()
-                .map(ArgumentInput::Unchanged),
-        );
-        assert_eq!(result.values.values().next().unwrap().value, "value");
+        {
+            let result = value.parse_short_form(
+                [OsString::from("-o"), OsString::from("value")]
+                    .into_iter()
+                    .map(ArgumentInput::Unchanged),
+            );
+            assert_eq!(result.values.values().next().unwrap().value, "value");
+        }
 
-        let result = value.parse_short_form(
-            [OsString::from("--output")].into_iter().map(ArgumentInput::Unchanged),
-        );
-        assert!(result.values.is_empty());
-        assert_eq!(result.remaining.len(), 1);
+        {
+            let result = value.parse_short_form(
+                [OsString::from("--output")].into_iter().map(ArgumentInput::Unchanged),
+            );
+            assert!(result.values.is_empty());
+            assert_eq!(result.remaining.len(), 1);
+        }
     }
 
     #[test]
@@ -677,27 +810,31 @@ mod tests {
 
         assert_eq!(result.values.len(), 1);
         assert_eq!(result.values.values().next().unwrap().value, "value");
-        assert!(result.remaining.is_empty());
+        assert_eq!(result.remaining, EMPTY_REMAINING);
     }
 
     #[test]
     fn parses_long_values_with_inline_and_next_argument_values() {
         let value =
             Value::<String, _>::new(Description::new("--", "output", "-", "o", None, None), None);
-        let result = value.parse_long_form(
-            [OsString::from("--output=value")].into_iter().map(ArgumentInput::Unchanged),
-        );
-        assert_eq!(result.values.len(), 1);
-        assert_eq!(result.values.values().next().unwrap().value, "value");
-        assert!(result.remaining.is_empty());
-        let result = value.parse_long_form(
-            [OsString::from("--output"), OsString::from("value")]
-                .into_iter()
-                .map(ArgumentInput::Unchanged),
-        );
-        assert_eq!(result.values.len(), 1);
-        assert_eq!(result.values.values().next().unwrap().value, "value");
-        assert!(result.remaining.is_empty());
+        {
+            let result = value.parse_long_form(
+                [OsString::from("--output=value")].into_iter().map(ArgumentInput::Unchanged),
+            );
+            assert_eq!(result.values.len(), 1);
+            assert_eq!(result.values.values().next().unwrap().value, "value");
+            assert_eq!(result.remaining, EMPTY_REMAINING);
+        }
+        {
+            let result = value.parse_long_form(
+                [OsString::from("--output"), OsString::from("value")]
+                    .into_iter()
+                    .map(ArgumentInput::Unchanged),
+            );
+            assert_eq!(result.values.len(), 1);
+            assert_eq!(result.values.values().next().unwrap().value, "value");
+            assert_eq!(result.remaining, EMPTY_REMAINING);
+        }
     }
 
     #[test]
@@ -710,27 +847,28 @@ mod tests {
 
         assert_eq!(result.values.len(), 1);
         assert_eq!(result.values.values().next().unwrap().value, "value");
-        assert!(result.remaining.is_empty());
+        assert_eq!(result.remaining, EMPTY_REMAINING);
     }
 
     #[test]
     fn preserves_raw_value_after_normalized_short_names() {
         let value =
             Value::<String, _>::new(Description::new("--", "output", "-", "é", None, None), None);
-        for parse in [Value::parse_short_form] {
-            let result = parse(
-                &value,
+        {
+            let result = value.parse_short_form(
                 [OsString::from("-e\u{301}=value")].into_iter().map(ArgumentInput::Unchanged),
             );
             assert_eq!(result.values.len(), 1);
             assert_eq!(result.values.values().next().unwrap().value, "value");
-            assert!(result.remaining.is_empty());
+            assert_eq!(result.remaining, EMPTY_REMAINING);
         }
-        let result =
-            value.parse_merged_short_forms([OsString::from("-e\u{301}=value")].into_iter());
-        assert_eq!(result.values.len(), 1);
-        assert_eq!(result.values.values().next().unwrap().value, "value");
-        assert!(result.remaining.is_empty());
+        {
+            let result =
+                value.parse_merged_short_forms([OsString::from("-e\u{301}=value")].into_iter());
+            assert_eq!(result.values.len(), 1);
+            assert_eq!(result.values.values().next().unwrap().value, "value");
+            assert_eq!(result.remaining, EMPTY_REMAINING);
+        }
     }
 
     #[test]
@@ -797,7 +935,7 @@ mod tests {
             possible_values: None,
             parse: Cow::Owned(parse),
             display: Cow::Borrowed(&|value: &Borrowed<'_>| value.0.into()),
-            display_error: Cow::Borrowed(&|_: &()| String::new()),
+            display_error: Cow::Borrowed(&|(): &()| String::new()),
         };
         let mut result = value.parse_long_form(
             [OsString::from("--borrowed=input")].into_iter().map(ArgumentInput::Unchanged),
@@ -807,73 +945,5 @@ mod tests {
             value.take_parsed_value(&mut result.values).unwrap(),
             Some(Borrowed("definition value"))
         );
-    }
-}
-
-impl<'t, T, E> Wert<'t, T, E> {
-    /// Parst eigenständige kurze Argumentformen.
-    #[inline]
-    pub fn parse_short_form(
-        &self,
-        args: impl Iterator<Item = ArgumentInput>,
-    ) -> ParsedShortForms<'t> {
-        let value_infix = self.wert_infix.clone().into();
-        parse_short_value_forms(&self.beschreibung.name, &value_infix, args)
-    }
-
-    /// Parst lange Argumentformen.
-    #[inline]
-    pub fn parse_long_form(
-        &self,
-        args: impl Iterator<Item = ArgumentInput>,
-    ) -> ParsedLongForms<'t> {
-        let value_infix = self.wert_infix.clone().into();
-        parse_long_value_forms(&self.beschreibung.name, &value_infix, args)
-    }
-
-    /// Parst zusammengefasste kurze Argumentformen.
-    #[inline]
-    pub fn parse_merged_short_forms(
-        &self,
-        args: impl Iterator<Item = OsString>,
-    ) -> ParsedMergedShortForms<'t> {
-        let value_infix = self.wert_infix.clone().into();
-        parse_value_merged_short_forms(
-            &self.beschreibung.name,
-            &value_infix,
-            args.map(ArgumentInput::Unchanged),
-        )
-    }
-
-    /// Erzeugt Syntax und Hilfetext für dieses Argument.
-    pub fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe {
-        create_value_help_text(
-            &self.beschreibung.name,
-            self.beschreibung.hilfe,
-            self.beschreibung.standard.as_ref(),
-            self.wert_infix.as_str(),
-            self.meta_var,
-            self.mögliche_werte.as_ref(),
-            &self.anzeige,
-            meta_standard,
-            meta_erlaubte_werte,
-        )
-        .into()
-    }
-
-    /// Konvertiert dieses Wert-Argument mittels seiner Anzeigefunktionen in Strings.
-    pub fn als_string_wert(&self) -> Wert<'_, String, String> {
-        as_string_value(
-            &self.beschreibung.name,
-            self.beschreibung.hilfe,
-            self.beschreibung.standard.as_ref(),
-            self.wert_infix.clone().into(),
-            self.meta_var,
-            self.mögliche_werte.as_ref(),
-            &self.parse,
-            &self.anzeige,
-            &self.anzeige_fehler,
-        )
-        .into()
     }
 }
