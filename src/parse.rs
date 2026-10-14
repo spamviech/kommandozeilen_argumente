@@ -30,15 +30,15 @@ use crate::{
 };
 
 #[rustfmt::skip]
-#[cfg(any(feature = "derive", all(doc, not(doctest))))]
-#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
+#[cfg(feature = "derive")]
+#[cfg_attr(all(doc, feature = "derive", not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::Parse;
 
-/// Trait for types directly usable with the [derive macro](derive@Parse) for [`Parse`].
+/// Trait for types directly usable with the `#[derive(Parse)]` macro for [`Parse`].
 ///
 /// ## Deutsch
-/// Trait für Typen, die direkt mit dem [derive-Makro](derive@Parse) für [`Parse`] verwendet
-/// werden können.
+/// Trait für Typen, die direkt mit dem `#[derive(Parse)]`-Makro für [`Parse`] verwendet werden
+/// können.
 #[expect(
     clippy::module_name_repetitions,
     reason = "The trait name intentionally mirrors the module name in the public API."
@@ -485,12 +485,14 @@ pub type ParseFrühesBeendenResult<'t, T, E> = result::Result<T, NonEmpty<Fehler
 
 /// Allows parsing from command-line arguments based on a default configuration.
 ///
-/// With the `derive` feature, an implementation can be [generated automatically](derive@Parse).
+/// With the `derive` feature, an implementation can be generated automatically with
+/// `#[derive(Parse)]`.
 ///
 /// ## Deutsch
 /// Erlaubt das Parsen von Kommandozeilen-Argumenten anhand einer Standardkonfiguration.
 ///
-/// Mit dem `derive`-Feature kann eine Implementierung [automatisch erzeugt werden](derive@Parse).
+/// Mit dem `derive`-Feature kann eine Implementierung automatisch mit `#[derive(Parse)]` erzeugt
+/// werden.
 pub trait Parse: Sized {
     /// Possible parse error, the automatically created implementation uses [`String`].
     ///

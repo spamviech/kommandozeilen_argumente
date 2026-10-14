@@ -24,15 +24,15 @@ use crate::{
 };
 
 #[rustfmt::skip]
-#[cfg(any(feature = "derive", all(doc, not(doctest))))]
-#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
+#[cfg(feature = "derive")]
+#[cfg_attr(all(doc, feature = "derive", not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::EnumArgument;
 
 /// A type with a fixed set of values and a parsing method.
 /// Intended for sum types containing only unit variants.
 ///
 /// With the `derive` feature, its implementation can be
-/// [generated automatically](derive@EnumArgument).
+/// generated automatically with `#[derive(EnumArgument)]`.
 ///
 /// ## Deutsch
 /// Trait für Typen mit einer festen Anzahl an Werten und einer Methode zum Parsen.
