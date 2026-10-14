@@ -25,11 +25,17 @@ publish = false
 
 [features]
 default = []
-derive = ["kommandozeilen_argumente_derive"]
+# Exposes the German mirror API; `Language::GERMAN` remains available without it.
+german = []
+derive = ["dep:kommandozeilen_argumente_derive"]
 
 [[test]]
 name = "derive"
 required-features = ["derive"]
+
+[[test]]
+name = "hilfe"
+required-features = ["german"]
 
 [[test]]
 name = "staged_parser"
@@ -37,11 +43,15 @@ required-features = ["derive"]
 
 [[example]]
 name = "derive_de"
-required-features = ["derive"]
+required-features = ["derive", "german"]
 
 [[example]]
 name = "derive_en"
 required-features = ["derive"]
+
+[[example]]
+name = "funktion"
+required-features = ["german"]
 
 [dependencies]
 dyn-clone.workspace = true

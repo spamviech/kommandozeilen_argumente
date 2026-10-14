@@ -9,13 +9,27 @@ Parser für Kommandozeilen-Argumente mit optionaler, automatischer Hilfe-Generie
 
 Version 0.3.0 verwendet die englische API als primäre API: Neuer Code sollte Namen wie
 `Arguments`, `Description`, `Value`, `EarlyExit`, `Result` und `Language` verwenden. Die
-Deutschsprachigen Namen bleiben als explizite Spiegeltypen zur Kompatibilität erhalten. Das
-`combine!`-Macro ist die bevorzugte Schreibweise; `kombiniere!` bleibt als
-Kompatibilitäts-Wrapper für den deutschen `Argumente`-Spiegel erhalten.
+Deutschsprachige Spiegel-API ist zur Kompatibilität über das optionale `german`-Feature verfügbar.
+Das `combine!`-Macro ist die bevorzugte Schreibweise; `kombiniere!` ist mit diesem Feature als
+Kompatibilitäts-Wrapper für den deutschen `Argumente`-Spiegel verfügbar.
+
+## Feature „german“
+
+Die englischsprachige primäre API ist ohne Feature-Flags verfügbar. Das `german`-Feature stellt
+zusätzlich deutschsprachige Spiegeltypen, deutsch benannte Methoden und das `kombiniere!`-Macro
+bereit:
+
+```toml
+[dependencies]
+kommandozeilen_argumente = { version = "0.3", features = ["german"] }
+```
+
+`Language::GERMAN` ist auch ohne das `german`-Feature verfügbar, damit die englische API weiterhin
+deutsche Standardtexte erzeugen kann. Der Spiegeltyp `Sprache` benötigt hingegen das Feature.
 
 Zum erstellen eines neuen Arguments werden assoziierte Funktionen bereitgestellt,
 der Ergebnistyp wird dabei durch eine Typ-Variable festgelegt.
-Argumente können mithilfe des bevorzugten `combine!`-Macros (oder des
+Argumente können mithilfe des bevorzugten `combine!`-Macros (mit `german`-Feature auch des
 Kompatibilitäts-Wrappers `kombiniere!`), bzw. dedizierten `kombiniereN`-Funktionen, zu
 komplexeren Strukturen zusammengefasst werden,
 die zum parsen potentiell mehrere Argumente benötigen.
@@ -29,9 +43,9 @@ lang sind.
 
 Alle verwendeten Strings, z.B. für die erzeugte Hilfe-Meldung, sind konfigurierbar.
 Sofern es relevant ist werden für Deutsch und Englisch spezialisierte Funktionen bereitgestellt.
-Außerdem werden Synonyme in Deutsch und Englisch angeboten.
-Eine Wiederholung der Strings kann über den `Sprache`-Typ und die darin enthaltenen
-Standard-Werte vermieden werden.
+Deutschsprachige Synonyme und Spiegeltypen benötigen das `german`-Feature.
+Eine Wiederholung der Strings kann über den stets verfügbaren `Language`-Typ und die darin
+enthaltenen Standardwerte vermieden werden.
 
 Argumente können Standard-Werte haben, der verwendet wird sofern keiner ihrer Namen verwendet wird.
 Ohne Standard-Wert muss das Argument verwendet werden, ansonsten schlägt das Parsen fehl.

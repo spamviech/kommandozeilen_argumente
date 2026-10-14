@@ -9,14 +9,14 @@ use std::{
 use nonempty::NonEmpty;
 use void::Void;
 
+#[cfg(feature = "german")]
+use crate::{arguments::help::Hilfe, description::Beschreibung};
 use crate::{
     arguments::{
-        ParsedEarlyExit, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms,
-        help::{Help, Hilfe},
+        ParsedEarlyExit, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, help::Help,
     },
-    description::{ArgumentInput, Beschreibung, Description, Name},
+    description::{ArgumentInput, Description, Name},
 };
-
 /// A flag argument that causes an early exit.
 ///
 /// ## Deutsch
@@ -33,6 +33,7 @@ pub struct EarlyExit<'t> {
 /// German mirror of [`EarlyExit`].
 #[derive(Debug, Clone)]
 #[must_use]
+#[cfg(feature = "german")]
 pub struct FrühesBeenden<'t> {
     /// Allgemeine Beschreibung des Arguments.
     pub beschreibung: Beschreibung<'t, Void>,
@@ -40,6 +41,7 @@ pub struct FrühesBeenden<'t> {
     pub nachricht: Cow<'t, str>,
 }
 
+#[cfg(feature = "german")]
 impl<'t> From<EarlyExit<'t>> for FrühesBeenden<'t> {
     #[inline]
     fn from(EarlyExit { description, message }: EarlyExit<'t>) -> Self {
@@ -47,6 +49,7 @@ impl<'t> From<EarlyExit<'t>> for FrühesBeenden<'t> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t> From<FrühesBeenden<'t>> for EarlyExit<'t> {
     #[inline]
     fn from(FrühesBeenden { beschreibung, nachricht }: FrühesBeenden<'t>) -> Self {
@@ -206,6 +209,7 @@ impl<'t> EarlyExit<'t> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t> FrühesBeenden<'t> {
     /// Erstellt eine Flag, die ein frühes Beenden auslöst und `nachricht` anzeigt.
     #[inline]

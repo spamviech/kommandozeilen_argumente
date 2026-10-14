@@ -54,6 +54,7 @@ macro_rules! combine {
 /// ## Compatibility
 ///
 /// Use [`combine!`] in new code.
+#[cfg(feature = "german")]
 #[macro_export]
 macro_rules! kombiniere {
     ($($tokens:tt)*) => {
@@ -70,8 +71,8 @@ pub trait Combine<'t, T, Fehler> {
         _variante: &dyn CreateHelpText,
         _meta_standard: &str,
         _meta_erlaubte_werte: &str,
-    ) -> NonEmpty<help::Alternativen> {
-        nonempty![help::Alternativen::Leer]
+    ) -> NonEmpty<help::Alternatives> {
+        nonempty![help::Alternatives::Empty]
     }
 
     /// Formats this combination for [`Debug`].
@@ -149,14 +150,13 @@ macro_rules! impl_combine_tuple {
                     variant: &dyn CreateHelpText,
                     meta_default: &str,
                     meta_possible_values: &str,
-                ) -> NonEmpty<help::Alternativen> {
+                ) -> NonEmpty<help::Alternatives> {
                     let (_function, $([<arg_ $suffix:snake:lower>]),+) = self;
                     let mut helps = Vec::new();
                     $(
                         helps.extend(
                             [<arg_ $suffix:lower>]
                                 .create_help_text(variant, meta_default, meta_possible_values)
-                                .map(Into::into)
                         );
                     )+
                     NonEmpty::from_vec(helps).expect("At least one suffix as a macro argument!")
@@ -310,8 +310,8 @@ where
         _variante: &dyn CreateHelpText,
         _meta_standard: &str,
         _meta_erlaubte_werte: &str,
-    ) -> NonEmpty<help::Alternativen> {
-        nonempty![help::Alternativen::Leer]
+    ) -> NonEmpty<help::Alternatives> {
+        nonempty![help::Alternatives::Empty]
     }
 
     #[inline]

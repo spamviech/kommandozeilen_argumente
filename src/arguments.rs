@@ -26,6 +26,7 @@ use crate::{
     outcome::{self, Error, Result as OutcomeResult},
 };
 
+#[cfg(feature = "german")]
 pub mod argumente;
 pub mod combine;
 pub mod early_exit;
@@ -794,8 +795,8 @@ impl<'t, T, Error, NewError> Combine<'t, T, NewError>
         variant: &dyn CreateHelpText,
         meta_default: &str,
         meta_possible_values: &str,
-    ) -> NonEmpty<help::Alternativen> {
-        self.arguments.create_help_text(variant, meta_default, meta_possible_values).map(Into::into)
+    ) -> NonEmpty<help::Alternatives> {
+        self.arguments.create_help_text(variant, meta_default, meta_possible_values)
     }
 
     #[inline]
@@ -914,18 +915,16 @@ impl<T, Error> Arguments<'_, T, Error> {
         meta_possible_values: &str,
     ) -> NonEmpty<help::Alternatives> {
         match self {
-            Self::Single(argument) => nonempty![help::Alternatives::Single(
-                variant
-                    .create_help_text(
-                        argument.as_string_value().into(),
-                        meta_default,
-                        meta_possible_values,
-                    )
-                    .into()
-            )],
-            Self::Combined(combine) => combine
-                .create_help_text(variant, meta_default, meta_possible_values)
-                .map(Into::into),
+            Self::Single(argument) => {
+                nonempty![help::Alternatives::Single(variant.create_help_text(
+                    argument.as_string_value(),
+                    meta_default,
+                    meta_possible_values,
+                ))]
+            },
+            Self::Combined(combine) => {
+                combine.create_help_text(variant, meta_default, meta_possible_values)
+            },
             Self::Alternatives(alternatives) => {
                 // Avoid .as_ref() to refer to the Box<> method.
                 let alternatives: &NonEmpty<_> = alternatives;

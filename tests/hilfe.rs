@@ -6,16 +6,13 @@
 use std::{
     ffi::OsString,
     fmt::{self, Debug, Formatter},
-    iter, result,
+    iter,
+    result::Result,
 };
 
 use kommandozeilen_argumente::{
-    Argumente, Arguments, Beschreibung, Description, Ergebnis, Language, Result, Sprache,
-    arguments::{
-        flag::Flag,
-        help::{Default, Standard},
-        single_argument::{EinzelArgument, SingleArgument},
-    },
+    Argumente, Beschreibung, Ergebnis, Sprache,
+    arguments::{flag::Flag, help::Standard, single_argument::EinzelArgument},
 };
 
 // Wrapper um String, mit Debug=Display Implementierung
@@ -28,37 +25,7 @@ impl Debug for DString {
 }
 
 #[test]
-fn help_test() -> result::Result<(), DString> {
-    let language = Language::ENGLISH;
-    let flag = Flag::new_with_language(
-        Description::new_with_language("test", None::<&str>, Some("help"), Some(false), language),
-        language,
-    );
-    let argument = Arguments::single_argument(SingleArgument::flag(flag));
-    let arguments_with_help = argument.with_help_early_exit_with_language(
-        &Default,
-        "program",
-        Some("My great program."),
-        Some("0.test"),
-        language,
-    );
-
-    match arguments_with_help.parse(iter::once(OsString::from("--help"))) {
-        (Result::EarlyExit(messages), unused) if unused.is_empty() => {
-            for message in messages {
-                println!("{message}");
-            }
-            Ok(())
-        },
-        (_result, unused) if !unused.is_empty() => {
-            Err(DString(format!("Unused arguments: {unused:?}")))
-        },
-        result => Err(DString(format!("Unexpected result: {result:?}"))),
-    }
-}
-
-#[test]
-fn hilfe_test() -> result::Result<(), DString> {
+fn hilfe_test() -> Result<(), DString> {
     let sprache = Sprache::DEUTSCH;
     let flag = Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache("test", None::<&str>, Some("hilfe"), Some(false), sprache),

@@ -5,8 +5,8 @@ into stages keeps name precedence, merged short forms, alternatives, and value c
 independent. Every candidate is evaluated without stopping at the first error; errors are
 returned only when no candidate succeeds.
 
-The public entry point is `Arguments::parse` (and the `Argumente` mirror). It executes the six
-steps below.
+The public entry point is `Arguments::parse`. With the optional `german` feature, the
+`Argumente` mirror is available as well. It executes the six steps below.
 
 ## Shared recognition state
 

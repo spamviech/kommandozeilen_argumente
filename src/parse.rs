@@ -12,20 +12,26 @@ use std::{
 
 use nonempty::NonEmpty;
 
+#[cfg(feature = "german")]
+use crate::{
+    arguments::argumente::Argumente,
+    description::Beschreibung,
+    language::Sprache,
+    outcome::{Ergebnis, Fehler},
+};
 use crate::{
     arguments::{
         Arguments, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, RecognizedArguments,
-        argumente::Argumente,
         combine::Combine,
         flag::Flag,
         help::{self, CreateHelpText},
         single_argument::SingleArgument,
         value::{EnumArgument, Value},
     },
-    description::{ArgumentInput, Beschreibung, Description},
+    description::{ArgumentInput, Description},
     dyn_to_owned::{self, Bool, Show},
-    language::{Language, Sprache},
-    outcome::{Ergebnis, Error, Fehler, ParseError, Result},
+    language::Language,
+    outcome::{Error, ParseError, Result},
     unicode::Compare,
 };
 
@@ -94,6 +100,7 @@ pub trait ParseArgument: Sized {
     /// ## English synonym
     /// [`arguments_with_language`](ParseArgument::arguments_with_language)
     #[inline]
+    #[cfg(feature = "german")]
     fn argumente_mit_sprache(
         beschreibung: Beschreibung<'_, Self>,
         sprache: Sprache,
@@ -118,6 +125,7 @@ pub trait ParseArgument: Sized {
     /// ## English version
     /// [`new`](ParseArgument::new)
     #[inline]
+    #[cfg(feature = "german")]
     fn neu(beschreibung: Beschreibung<'_, Self>) -> Argumente<'_, Self, String> {
         Self::argumente_mit_sprache(beschreibung, Sprache::DEUTSCH)
     }
@@ -239,8 +247,8 @@ impl<'t, T: Debug, E: Debug, F: FnOnce(Result<'t, T, E>) -> Result<'t, T, E>> Co
         variant: &dyn CreateHelpText,
         meta_default: &str,
         meta_allowed_values: &str,
-    ) -> NonEmpty<help::Alternativen> {
-        self.arguments.create_help_text(variant, meta_default, meta_allowed_values).map(Into::into)
+    ) -> NonEmpty<help::Alternatives> {
+        self.arguments.create_help_text(variant, meta_default, meta_allowed_values)
     }
 
     #[inline]
@@ -481,6 +489,7 @@ impl<T: EnumArgument + Display + Clone> ParseArgument for T {
 pub type ParseEarlyExitResult<'t, T, E> = result::Result<T, NonEmpty<Error<'t, E>>>;
 
 /// Result of [`Parse::parse_mit_frühen_beenden`] and similar methods.
+#[cfg(feature = "german")]
 pub type ParseFrühesBeendenResult<'t, T, E> = result::Result<T, NonEmpty<Fehler<'t, E>>>;
 
 /// Allows parsing from command-line arguments based on a default configuration.
@@ -539,6 +548,7 @@ pub trait Parse: Sized {
     /// ## English synonym
     /// [`parse_from_env`](Parse::parse_from_env)
     #[inline]
+    #[cfg(feature = "german")]
     fn parse_aus_env<'t>() -> (Ergebnis<'t, Self, Self::Error>, Vec<ArgumentInput>)
     where
         Self: 't,
@@ -578,6 +588,7 @@ pub trait Parse: Sized {
     /// ## English synonym
     /// [`parse_with_early_exit`](Parse::parse_with_early_exit)
     #[inline]
+    #[cfg(feature = "german")]
     fn parse_mit_frühen_beenden<'t>(
         args: impl Iterator<Item = OsString>,
     ) -> (ParseFrühesBeendenResult<'t, Self, Self::Error>, Vec<ArgumentInput>)
@@ -613,6 +624,7 @@ pub trait Parse: Sized {
     /// ## English synonym
     /// [`parse_from_env_with_early_exit`](Parse::parse_from_env_with_early_exit)
     #[inline]
+    #[cfg(feature = "german")]
     fn parse_aus_env_mit_frühen_beenden<'t>()
     -> (ParseFrühesBeendenResult<'t, Self, Self::Error>, Vec<ArgumentInput>)
     where
@@ -668,6 +680,7 @@ pub trait Parse: Sized {
     /// [`parse_complete`](Parse::parse_complete)
     #[inline]
     #[must_use]
+    #[cfg(feature = "german")]
     fn parse_vollständig(
         args: impl Iterator<Item = OsString>,
         fehler_code: NonZeroI32,
@@ -724,6 +737,7 @@ pub trait Parse: Sized {
     /// [`parse_complete_with_language`](Parse::parse_complete_with_language)
     #[inline]
     #[must_use]
+    #[cfg(feature = "german")]
     fn parse_vollständig_mit_sprache(
         args: impl Iterator<Item = OsString>,
         fehler_code: NonZeroI32,
@@ -773,6 +787,7 @@ pub trait Parse: Sized {
     /// [`parse_with_error_message`](Parse::parse_with_error_message)
     #[inline]
     #[must_use]
+    #[cfg(feature = "german")]
     fn parse_mit_fehlermeldung(
         args: impl Iterator<Item = OsString>,
         fehler_code: NonZeroI32,
@@ -826,6 +841,7 @@ pub trait Parse: Sized {
     /// [`parse_complete_from_env`](Parse::parse_complete_from_env)
     #[inline]
     #[must_use]
+    #[cfg(feature = "german")]
     fn parse_vollständig_aus_env(
         fehler_code: NonZeroI32,
         fehlende_flag: &str,
@@ -876,6 +892,7 @@ pub trait Parse: Sized {
     /// [`parse_complete_with_language_from_env`](Parse::parse_complete_with_language_from_env)
     #[inline]
     #[must_use]
+    #[cfg(feature = "german")]
     fn parse_vollständig_mit_sprache_aus_env(fehler_code: NonZeroI32, sprache: Sprache) -> Self
     where
         Self::Error: Display,
@@ -918,6 +935,7 @@ pub trait Parse: Sized {
     /// [`parse_with_error_message_from_env`](Parse::parse_with_error_message_from_env)
     #[inline]
     #[must_use]
+    #[cfg(feature = "german")]
     fn parse_mit_fehlermeldung_aus_env(fehler_code: NonZeroI32) -> Self
     where
         Self::Error: Display,

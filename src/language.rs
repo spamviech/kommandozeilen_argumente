@@ -110,6 +110,7 @@ impl Language {
     };
 
     /// Converts German-named language strings to their English-primary type.
+    #[cfg(feature = "german")]
     #[must_use]
     #[inline]
     pub const fn from_sprache(sprache: Sprache) -> Self {
@@ -170,6 +171,7 @@ impl Language {
 
 /// Alle Strings, die zum Erstellen von Hilfe-Text und Fehlermeldung notwendig sind.
 #[derive(Debug, Clone, Copy)]
+#[cfg(feature = "german")]
 pub struct Sprache {
     /// Standard-Präfix für Lang-Namen.
     pub lang_präfix: &'static str,
@@ -221,6 +223,7 @@ pub struct Sprache {
     pub alternative_trennzeichen: char,
 }
 
+#[cfg(feature = "german")]
 impl Sprache {
     /// Deutsche Strings.
     pub const DEUTSCH: Self = Self::from_language(Language::GERMAN);
@@ -286,6 +289,7 @@ impl Sprache {
     }
 }
 
+#[cfg(feature = "german")]
 impl From<Language> for Sprache {
     #[inline]
     fn from(language: Language) -> Self {
@@ -293,6 +297,7 @@ impl From<Language> for Sprache {
     }
 }
 
+#[cfg(feature = "german")]
 impl From<Sprache> for Language {
     #[inline]
     fn from(sprache: Sprache) -> Self {

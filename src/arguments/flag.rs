@@ -61,6 +61,7 @@ impl<'t> Flag<'t, bool> {
     }
 
     /// Creates a flag argument that can be disabled with a German `kein` prefix.
+    #[cfg(feature = "german")]
     ///
     /// ## Deutsch
     /// Erzeugt ein Flag-Argument, das mit einem `kein`-Präfix deaktiviert werden kann.
@@ -82,6 +83,7 @@ impl<'t> Flag<'t, bool> {
     }
 
     /// Creates a flag argument that can be disabled with the configured German language prefix.
+    #[cfg(feature = "german")]
     ///
     /// ## Deutsch
     /// Erzeugt ein Flag-Argument, das mit dem konfigurierten Präfix deaktiviert werden kann.

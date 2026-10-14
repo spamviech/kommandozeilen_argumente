@@ -2,7 +2,7 @@
 
 use nonempty::NonEmpty;
 
-use crate::arguments::single_argument::EinzelArgument;
+use crate::arguments::single_argument::SingleArgument;
 
 /// Text representation of an argument in help output.
 ///
@@ -18,6 +18,7 @@ pub struct Help {
 
 /// Deutsche Spiegelung von [`Help`].
 #[derive(Debug, Clone)]
+#[cfg(feature = "german")]
 pub struct Hilfe {
     /// Darstellen der Syntax zum (de)aktivieren der Flag/setzen des Argument-Wertes.
     pub syntax: String,
@@ -25,6 +26,7 @@ pub struct Hilfe {
     pub hilfe: Option<String>,
 }
 
+#[cfg(feature = "german")]
 impl From<Help> for Hilfe {
     #[inline]
     fn from(Help { syntax, help }: Help) -> Self {
@@ -32,6 +34,7 @@ impl From<Help> for Hilfe {
     }
 }
 
+#[cfg(feature = "german")]
 impl From<Hilfe> for Help {
     #[inline]
     fn from(Hilfe { syntax, hilfe }: Hilfe) -> Self {
@@ -55,6 +58,7 @@ pub enum Alternatives {
 
 /// Deutsche Spiegelung von [`Alternatives`].
 #[derive(Debug, Clone)]
+#[cfg(feature = "german")]
 pub enum Alternativen {
     /// Darstellung eines einzelnen Arguments im Hilfe-Text.
     EinzelArgument(Hilfe),
@@ -64,6 +68,7 @@ pub enum Alternativen {
     Leer,
 }
 
+#[cfg(feature = "german")]
 impl From<Alternatives> for Alternativen {
     #[inline]
     fn from(alternatives: Alternatives) -> Self {
@@ -77,6 +82,7 @@ impl From<Alternatives> for Alternativen {
     }
 }
 
+#[cfg(feature = "german")]
 impl From<Alternativen> for Alternatives {
     #[inline]
     #[expect(
@@ -99,10 +105,10 @@ pub trait CreateHelpText {
     /// Creates syntax and help text for an argument.
     fn create_help_text(
         &self,
-        arg: EinzelArgument<'_, String, String>,
+        arg: SingleArgument<'_, String, String>,
         meta_default: &str,
         meta_possible_values: &str,
-    ) -> Hilfe;
+    ) -> Help;
 }
 
 /// Standard variant for creating help text for a single argument, e.g.:
@@ -114,11 +120,11 @@ impl CreateHelpText for Standard {
     #[inline]
     fn create_help_text(
         &self,
-        arg: EinzelArgument<'_, String, String>,
+        arg: SingleArgument<'_, String, String>,
         meta_default: &str,
         meta_possible_values: &str,
-    ) -> Hilfe {
-        arg.erzeuge_hilfe_text(meta_default, meta_possible_values)
+    ) -> Help {
+        arg.create_help_text(meta_default, meta_possible_values)
     }
 }
 
@@ -131,10 +137,10 @@ impl CreateHelpText for Default {
     #[inline]
     fn create_help_text(
         &self,
-        arg: EinzelArgument<'_, String, String>,
+        arg: SingleArgument<'_, String, String>,
         meta_default: &str,
         meta_possible_values: &str,
-    ) -> Hilfe {
-        Standard.create_help_text(arg, meta_default, meta_possible_values)
+    ) -> Help {
+        arg.create_help_text(meta_default, meta_possible_values)
     }
 }

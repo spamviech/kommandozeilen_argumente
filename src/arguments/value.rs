@@ -10,19 +10,22 @@ use std::{
 
 use nonempty::NonEmpty;
 
+#[cfg(feature = "german")]
 use crate::{
-    ParseFehler,
+    ParseFehler, arguments::help::Hilfe, description::Beschreibung, language::Sprache,
+    unicode::Vergleich,
+};
+use crate::{
     arguments::{
         ParsedLongForms, ParsedMergedShortForms, ParsedRawValue, ParsedShortForms, ParsedValueName,
-        help::{Help, Hilfe},
+        help::Help,
     },
-    description::{ArgumentInput, Beschreibung, Description, Name},
+    description::{ArgumentInput, Description, Name},
     dyn_to_owned::{Parse, Show},
-    language::{Language, Sprache},
+    language::Language,
     outcome::{AnnotatedParseError, ParseError},
-    unicode::{Compare, Vergleich},
+    unicode::Compare,
 };
-
 #[rustfmt::skip]
 #[cfg(feature = "derive")]
 #[cfg_attr(all(doc, feature = "derive", not(doctest)), doc(cfg(feature = "derive")))]
@@ -90,6 +93,7 @@ pub struct Value<'t, T, Error> {
 /// werden nur Unicode String Darstellungen für den Wert unterstützt.
 /// Die parse-Funktion erhält dabei eine [`Normalisiert`](crate::unicode::Normalisiert)en String.
 #[must_use]
+#[cfg(feature = "german")]
 pub struct Wert<'t, T, Fehler> {
     /// Allgemeine Beschreibung des Arguments.
     pub beschreibung: Beschreibung<'t, T>,
@@ -111,6 +115,7 @@ pub struct Wert<'t, T, Fehler> {
     pub anzeige_fehler: Cow<'t, dyn Show<'t, Fehler>>,
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, E> From<Value<'t, T, E>> for Wert<'t, T, E> {
     #[inline]
     fn from(value: Value<'t, T, E>) -> Self {
@@ -137,6 +142,7 @@ impl<'t, T, E> From<Value<'t, T, E>> for Wert<'t, T, E> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, E> From<Wert<'t, T, E>> for Value<'t, T, E> {
     #[inline]
     fn from(value: Wert<'t, T, E>) -> Self {
@@ -178,6 +184,7 @@ impl<T: Debug, E> Debug for Value<'_, T, E> {
             .finish()
     }
 }
+#[cfg(feature = "german")]
 impl<T: Debug, E> Debug for Wert<'_, T, E> {
     #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -248,6 +255,7 @@ impl<'t, T: Display + EnumArgument> Value<'t, T, String> {
         }
     }
 }
+#[cfg(feature = "german")]
 impl<'t, T: Display + FromStr> Wert<'t, T, <T as FromStr>::Err>
 where
     <T as FromStr>::Err: Display,
@@ -268,6 +276,7 @@ where
         Value::new_with_language(beschreibung.into(), mögliche_werte, sprache.into()).into()
     }
 }
+#[cfg(feature = "german")]
 impl<'t, T: Display + EnumArgument> Wert<'t, T, String> {
     /// Erzeugt ein Wert-Argument auf Grundlage von [`EnumArgument`].
     #[inline]
@@ -699,6 +708,7 @@ impl<'t, T, E> Value<'t, T, E> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, E> Wert<'t, T, E> {
     /// Parst eigenständige kurze Argumentformen.
     #[inline]

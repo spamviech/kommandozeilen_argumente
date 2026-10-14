@@ -10,9 +10,11 @@ use std::{
 use either::Either;
 use nonempty::NonEmpty;
 
+#[cfg(feature = "german")]
+use crate::language::Sprache;
 use crate::{
     description::{AdjustedMergedShortNames, Name},
-    language::{Language, Sprache},
+    language::Language,
     unicode::Normalized,
 };
 
@@ -364,6 +366,7 @@ impl<E: Display> Error<'_, E> {
 /// Deutsches Spiegelbild von [`IntermediateResult`].
 #[derive(Debug)]
 #[must_use]
+#[cfg(feature = "german")]
 pub enum ZwischenErgebnis<'t, T, E, A> {
     /// Ein erfolgreich geparster Wert.
     Wert(T),
@@ -377,6 +380,7 @@ pub enum ZwischenErgebnis<'t, T, E, A> {
 /// Deutsches Spiegelbild von [`Result`].
 #[derive(Debug)]
 #[must_use]
+#[cfg(feature = "german")]
 pub enum Ergebnis<'t, T, E> {
     /// Ein erfolgreich geparster Wert.
     Wert(T),
@@ -387,6 +391,7 @@ pub enum Ergebnis<'t, T, E> {
 }
 /// Deutsches Spiegelbild von [`Error`].
 #[derive(Debug, Clone)]
+#[cfg(feature = "german")]
 pub enum Fehler<'t, E> {
     /// Eine benötigte Flag fehlte.
     FehlendeFlag {
@@ -412,6 +417,7 @@ pub enum Fehler<'t, E> {
 /// Deutsches Spiegelbild von [`AnnotatedParseError`].
 #[derive(Debug, Clone)]
 #[must_use]
+#[cfg(feature = "german")]
 pub struct KommentierterParseFehler<'t, E> {
     /// Alle Namen des Wert-Arguments.
     pub name: Name<'t>,
@@ -424,6 +430,7 @@ pub struct KommentierterParseFehler<'t, E> {
 }
 /// Deutsches Spiegelbild von [`ParseError`].
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(feature = "german")]
 pub enum ParseFehler<E> {
     /// Der String ist kein valides UTF-8.
     InvaliderString(OsString),
@@ -431,6 +438,7 @@ pub enum ParseFehler<E> {
     ParseFehler(E),
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, E, A> From<IntermediateResult<'t, T, E, A>> for ZwischenErgebnis<'t, T, E, A> {
     #[inline]
     fn from(value: IntermediateResult<'t, T, E, A>) -> Self {
@@ -442,6 +450,7 @@ impl<'t, T, E, A> From<IntermediateResult<'t, T, E, A>> for ZwischenErgebnis<'t,
         }
     }
 }
+#[cfg(feature = "german")]
 impl<'t, T, E, A> From<ZwischenErgebnis<'t, T, E, A>> for IntermediateResult<'t, T, E, A> {
     #[inline]
     fn from(value: ZwischenErgebnis<'t, T, E, A>) -> Self {
@@ -453,6 +462,7 @@ impl<'t, T, E, A> From<ZwischenErgebnis<'t, T, E, A>> for IntermediateResult<'t,
         }
     }
 }
+#[cfg(feature = "german")]
 impl<'t, T, E> From<Result<'t, T, E>> for Ergebnis<'t, T, E> {
     #[inline]
     fn from(value: Result<'t, T, E>) -> Self {
@@ -463,6 +473,7 @@ impl<'t, T, E> From<Result<'t, T, E>> for Ergebnis<'t, T, E> {
         }
     }
 }
+#[cfg(feature = "german")]
 impl<'t, T, E> From<Ergebnis<'t, T, E>> for Result<'t, T, E> {
     #[inline]
     fn from(value: Ergebnis<'t, T, E>) -> Self {
@@ -473,6 +484,7 @@ impl<'t, T, E> From<Ergebnis<'t, T, E>> for Result<'t, T, E> {
         }
     }
 }
+#[cfg(feature = "german")]
 impl<'t, E> From<Error<'t, E>> for Fehler<'t, E> {
     #[inline]
     fn from(value: Error<'t, E>) -> Self {
@@ -489,6 +501,7 @@ impl<'t, E> From<Error<'t, E>> for Fehler<'t, E> {
         }
     }
 }
+#[cfg(feature = "german")]
 impl<'t, E> From<Fehler<'t, E>> for Error<'t, E> {
     #[inline]
     fn from(value: Fehler<'t, E>) -> Self {
@@ -507,6 +520,7 @@ impl<'t, E> From<Fehler<'t, E>> for Error<'t, E> {
         }
     }
 }
+#[cfg(feature = "german")]
 impl<'t, E> From<AnnotatedParseError<'t, E>> for KommentierterParseFehler<'t, E> {
     #[inline]
     fn from(value: AnnotatedParseError<'t, E>) -> Self {
@@ -518,6 +532,7 @@ impl<'t, E> From<AnnotatedParseError<'t, E>> for KommentierterParseFehler<'t, E>
         }
     }
 }
+#[cfg(feature = "german")]
 impl<'t, E> From<KommentierterParseFehler<'t, E>> for AnnotatedParseError<'t, E> {
     #[inline]
     fn from(value: KommentierterParseFehler<'t, E>) -> Self {
@@ -529,6 +544,7 @@ impl<'t, E> From<KommentierterParseFehler<'t, E>> for AnnotatedParseError<'t, E>
         }
     }
 }
+#[cfg(feature = "german")]
 impl<E: Into<F>, F> From<ParseError<E>> for ParseFehler<F> {
     #[inline]
     fn from(value: ParseError<E>) -> Self {
@@ -538,6 +554,7 @@ impl<E: Into<F>, F> From<ParseError<E>> for ParseFehler<F> {
         }
     }
 }
+#[cfg(feature = "german")]
 impl<E, F: Into<E>> From<ParseFehler<F>> for ParseError<E> {
     #[inline]
     fn from(value: ParseFehler<F>) -> Self {
@@ -548,6 +565,7 @@ impl<E, F: Into<E>> From<ParseFehler<F>> for ParseError<E> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, E, A> ZwischenErgebnis<'t, T, E, A> {
     /// Konvertiert einen erfolgreich geparsten Wert.
     #[inline]
@@ -570,6 +588,7 @@ impl<'t, T, E, A> ZwischenErgebnis<'t, T, E, A> {
         IntermediateResult::from(self).convert_incomplete(mapper).into()
     }
 }
+#[cfg(feature = "german")]
 impl<'t, T, E> Ergebnis<'t, T, E> {
     /// Konvertiert einen erfolgreich geparsten Wert.
     #[inline]
@@ -583,6 +602,7 @@ impl<'t, T, E> Ergebnis<'t, T, E> {
         Result::from(self).convert_error(mapper).into()
     }
 }
+#[cfg(feature = "german")]
 impl<'t, E> Fehler<'t, E> {
     /// Konvertiert den enthaltenen Fehler.
     #[inline]
@@ -590,6 +610,7 @@ impl<'t, E> Fehler<'t, E> {
         Error::from(self).convert(mapper).into()
     }
 }
+#[cfg(feature = "german")]
 impl<'t, E> KommentierterParseFehler<'t, E> {
     /// Konvertiert den enthaltenen Fehler.
     #[inline]
@@ -597,6 +618,7 @@ impl<'t, E> KommentierterParseFehler<'t, E> {
         AnnotatedParseError::from(self).convert(mapper).into()
     }
 }
+#[cfg(feature = "german")]
 impl<E> ParseFehler<E> {
     /// Konvertiert den enthaltenen Fehler.
     #[inline]
@@ -604,6 +626,7 @@ impl<E> ParseFehler<E> {
         ParseError::from(self).convert(mapper).into()
     }
 }
+#[cfg(feature = "german")]
 impl<E: Display> Fehler<'_, E> {
     /// Erstellt eine menschenlesbare Fehlermeldung mit deutschen Standardwerten.
     #[inline]

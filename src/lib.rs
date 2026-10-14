@@ -40,14 +40,22 @@ pub mod unicode;
 pub use self::{
     arguments::{
         Arguments,
-        argumente::Argumente,
-        early_exit::{EarlyExit, FrühesBeenden},
+        early_exit::EarlyExit,
         flag::Flag,
-        value::{EnumArgument, Value, Wert},
+        value::{EnumArgument, Value},
     },
-    description::{ArgumentInput, Beschreibung, Description},
-    language::{Language, Sprache},
-    outcome::{Ergebnis, Error, Fehler, ParseError, ParseFehler, Result},
+    description::{ArgumentInput, Description},
+    language::Language,
+    outcome::{Error, ParseError, Result},
     parse::{Parse, ParseArgument},
-    unicode::{Case, Compare, Normalisiert, Normalized, Vergleich},
+    unicode::{Case, Compare, Normalized},
+};
+#[cfg(feature = "german")]
+#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "german")))]
+pub use self::{
+    arguments::{argumente::Argumente, early_exit::FrühesBeenden, value::Wert},
+    description::Beschreibung,
+    language::Sprache,
+    outcome::{Ergebnis, Fehler, ParseFehler},
+    unicode::{Normalisiert, Vergleich},
 };

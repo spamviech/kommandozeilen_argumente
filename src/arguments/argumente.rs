@@ -42,6 +42,7 @@ use crate::{
               representation."
 )]
 #[must_use]
+#[cfg(feature = "german")]
 pub enum Argumente<'t, T, Fehler> {
     /// Ein einzelnes Argument.
     ///
@@ -63,14 +64,17 @@ pub enum Argumente<'t, T, Fehler> {
 }
 
 /// Helper um [`Combine::debug_fmt`] mit [`fmt::Formatter::debug_tuple`] zu verwenden.
+#[cfg(feature = "german")]
 struct KombiniereDebug<'s, 't, T, Fehler>(&'s dyn Combine<'t, T, Fehler>);
 
+#[cfg(feature = "german")]
 impl<T, Fehler> Debug for KombiniereDebug<'_, '_, T, Fehler> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.debug_fmt(formatter)
     }
 }
 
+#[cfg(feature = "german")]
 impl<T: Debug, Fehler: Debug> Debug for Argumente<'_, T, Fehler> {
     #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -88,6 +92,7 @@ impl<T: Debug, Fehler: Debug> Debug for Argumente<'_, T, Fehler> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Error> From<Arguments<'t, T, Error>> for Argumente<'t, T, Error> {
     #[inline]
     fn from(arguments: Arguments<'t, T, Error>) -> Self {
@@ -101,6 +106,7 @@ impl<'t, T, Error> From<Arguments<'t, T, Error>> for Argumente<'t, T, Error> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> From<Argumente<'t, T, Fehler>> for Arguments<'t, T, Fehler> {
     #[inline]
     fn from(argumente: Argumente<'t, T, Fehler>) -> Self {
@@ -113,6 +119,7 @@ impl<'t, T, Fehler> From<Argumente<'t, T, Fehler>> for Arguments<'t, T, Fehler> 
         }
     }
 }
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> From<EinzelArgument<'t, T, Fehler>> for Arguments<'t, T, Fehler> {
     #[inline]
     fn from(argument: EinzelArgument<'t, T, Fehler>) -> Self {
@@ -120,12 +127,14 @@ impl<'t, T, Fehler> From<EinzelArgument<'t, T, Fehler>> for Arguments<'t, T, Feh
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> From<Wert<'t, T, Fehler>> for Arguments<'t, T, Fehler> {
     #[inline]
     fn from(value: Wert<'t, T, Fehler>) -> Self {
         Self::Single(Value::from(value).into())
     }
 }
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> From<EinzelArgument<'t, T, Fehler>> for Argumente<'t, T, Fehler> {
     #[inline]
     fn from(argument: EinzelArgument<'t, T, Fehler>) -> Self {
@@ -133,6 +142,7 @@ impl<'t, T, Fehler> From<EinzelArgument<'t, T, Fehler>> for Argumente<'t, T, Feh
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> From<Flag<'t, T>> for Argumente<'t, T, Fehler> {
     #[inline]
     fn from(flag: Flag<'t, T>) -> Self {
@@ -140,6 +150,7 @@ impl<'t, T, Fehler> From<Flag<'t, T>> for Argumente<'t, T, Fehler> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Fehler, Anzeige: 't + Fn(&T) -> String + Clone> From<(FrühesBeenden<'t>, T, Anzeige)>
     for Argumente<'t, T, Fehler>
 {
@@ -154,6 +165,7 @@ impl<'t, T, Fehler, Anzeige: 't + Fn(&T) -> String + Clone> From<(FrühesBeenden
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T: Display, Fehler> From<(FrühesBeenden<'t>, T)> for Argumente<'t, T, Fehler> {
     #[inline]
     fn from((frühes_beenden, wert): (FrühesBeenden<'t>, T)) -> Self {
@@ -165,6 +177,7 @@ impl<'t, T: Display, Fehler> From<(FrühesBeenden<'t>, T)> for Argumente<'t, T, 
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, Fehler> From<FrühesBeenden<'t>> for Argumente<'t, (), Fehler> {
     #[inline]
     fn from(frühes_beenden: FrühesBeenden<'t>) -> Self {
@@ -176,6 +189,7 @@ impl<'t, Fehler> From<FrühesBeenden<'t>> for Argumente<'t, (), Fehler> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> From<Wert<'t, T, Fehler>> for Argumente<'t, T, Fehler> {
     #[inline]
     fn from(wert: Wert<'t, T, Fehler>) -> Self {
@@ -183,6 +197,7 @@ impl<'t, T, Fehler> From<Wert<'t, T, Fehler>> for Argumente<'t, T, Fehler> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Error> From<Value<'t, T, Error>> for Argumente<'t, T, Error> {
     #[inline]
     fn from(value: Value<'t, T, Error>) -> Self {
@@ -190,6 +205,7 @@ impl<'t, T, Error> From<Value<'t, T, Error>> for Argumente<'t, T, Error> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<T, Fehler> From<NonEmpty<Self>> for Argumente<'_, T, Fehler> {
     #[inline]
     fn from(alternativen: NonEmpty<Self>) -> Self {
@@ -197,6 +213,7 @@ impl<T, Fehler> From<NonEmpty<Self>> for Argumente<'_, T, Fehler> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<T, Fehler> From<Box<NonEmpty<Self>>> for Argumente<'_, T, Fehler> {
     #[inline]
     fn from(alternativen: Box<NonEmpty<Self>>) -> Self {
@@ -204,6 +221,7 @@ impl<T, Fehler> From<Box<NonEmpty<Self>>> for Argumente<'_, T, Fehler> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Erzeuge eine [`Argumente::EinzelArgument`]-Variante mit sinnvollen Typ-Parametern.
     ///
@@ -219,6 +237,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     clippy::multiple_inherent_impl,
     reason = "This localized parser implementation intentionally requires this pattern."
 )]
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Erzeuge eine [`Argumente::Kombiniere`]-Variante mit sinnvollen Typ-Parametern.
     ///
@@ -257,6 +276,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, F> Argumente<'t, T, F>
 where
     T: Clone,
@@ -298,6 +318,7 @@ where
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, F> Argumente<'t, T, F> {
     /// Parse die übergebenen Argumente und erzeuge den zugehörigen Wert.
     ///
@@ -754,6 +775,7 @@ impl<'t, T, F> Argumente<'t, T, F> {
 }
 
 #[expect(clippy::multiple_inherent_impl, reason = "Use Fehler for german method names.")]
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     /// Konvertiere den Fehler mit der spezifizierten Funktion.
     ///
@@ -781,6 +803,7 @@ impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T> Argumente<'t, T, Void> {
     /// [`konvertiere_fehler`](Self::konvertiere_fehler) mit [`void::unreachable`].
     ///
@@ -794,6 +817,7 @@ impl<'t, T> Argumente<'t, T, Void> {
         self.konvertiere_fehler(|void| void::unreachable(void), anzeige_neuer_fehler)
     }
 }
+#[cfg(feature = "german")]
 impl<T, Fehler> Argumente<'_, T, Fehler> {
     /// Erzeugt die Syntax und den zugehörigen Hilfetext dieses Arguments.
     #[inline]
@@ -810,15 +834,19 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
     ) -> NonEmpty<help::Alternativen> {
         match self {
             Self::EinzelArgument(argument) => {
-                nonempty![help::Alternativen::EinzelArgument(variante.create_help_text(
-                    argument.als_string_wert(),
-                    meta_standard,
-                    meta_erlaubte_werte,
-                ))]
+                nonempty![help::Alternativen::EinzelArgument(
+                    variante
+                        .create_help_text(
+                            argument.als_string_wert().into(),
+                            meta_standard,
+                            meta_erlaubte_werte,
+                        )
+                        .into()
+                )]
             },
-            Self::Kombiniere(kombiniere) => {
-                kombiniere.create_help_text(variante, meta_standard, meta_erlaubte_werte)
-            },
+            Self::Kombiniere(kombiniere) => kombiniere
+                .create_help_text(variante, meta_standard, meta_erlaubte_werte)
+                .map(Into::into),
             Self::Alternativen(alternativen) => {
                 // TODO use alternativen.as_ref().flat_map(...), coming in nonempty > 0.10.0
                 NonEmpty::collect(alternativen.iter().map(|argument| {
@@ -833,6 +861,7 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
         }
     }
 }
+#[cfg(feature = "german")]
 impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
     /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch die Programm-Version anzeigt wird.
     ///

@@ -8,9 +8,23 @@ Parser for command line arguments with optional automatic help generation.
 ## API migration (0.3.0)
 
 Version 0.3.0 makes the English API the primary API: use names such as `Arguments`,
-`Description`, `Value`, `EarlyExit`, `Result`, and `Language` in new code. German names remain
-as explicitly mirrored compatibility types. The `combine!` macro is the preferred spelling;
-`kombiniere!` remains as a compatibility wrapper for the German `Argumente` mirror.
+`Description`, `Value`, `EarlyExit`, `Result`, and `Language` in new code. The German mirror
+API is available for compatibility behind the optional `german` feature. The `combine!` macro is
+the preferred spelling; `kombiniere!` is available with that feature as a compatibility wrapper
+for the German `Argumente` mirror.
+
+## Feature "german"
+
+The crate exposes its English-primary API without feature flags. Enable the `german` feature to
+also expose German mirror types, German-named methods, and the `kombiniere!` macro:
+
+```toml
+[dependencies]
+kommandozeilen_argumente = { version = "0.3", features = ["german"] }
+```
+
+`Language::GERMAN` is always available, including without the `german` feature, so English API
+users can still produce German default text. The `Sprache` mirror type requires the feature.
 
 ### Parsing behavior
 
@@ -29,8 +43,8 @@ reported together. See [the staged-parsing design](docs/parsing.md) for the comp
 Arguments are created with the provided associated functions,
 the result type is specified with a type variable.
 Arguments can be combined to more complex structures using more than one argument
-with the `combine!` macro, or one of the dedicated `combineN` functions. The legacy German
-`kombiniere!` macro remains available as a compatibility wrapper.
+with the `combine!` macro, or one of the dedicated `combineN` functions. With the `german`
+feature, the legacy German `kombiniere!` macro is available as a compatibility wrapper.
 
 Arguments are identified by their long names and potentially their short names.
 Long names are usually given after two minus characters `--long`.
@@ -38,10 +52,9 @@ Short names are usually given after one minus character `-short`.
 Short names are expected to consist of only one
 [Grapheme](https://docs.rs/unicode-segmentation/1.8.0/unicode_segmentation/trait.UnicodeSegmentation.html#tymethod.graphemes).
 
-All Strings can be adjusted, e.g. description of an argument in the help message.
-Specialized functions for a german and english version are available if it is relevant.
-Additionally, german an english synonyms are available.
-Avoiding repetition of strings can be achieved using the `Language` type.
+All strings can be adjusted, e.g. descriptions in the help message. The English API provides
+language-aware functions and `Language` avoids repeating default strings. German-named synonyms
+and mirror types additionally require the `german` feature.
 
 An Argument can have a default value, which is used if none of its names are used.
 Without a default value the argument must be used, resulting in a parse error otherwise.

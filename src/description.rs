@@ -14,8 +14,10 @@ use itertools::Itertools as _;
 use nonempty::NonEmpty;
 use unicode_segmentation::UnicodeSegmentation;
 
+#[cfg(feature = "german")]
+use crate::language::Sprache;
 use crate::{
-    language::{Language, Sprache},
+    language::Language,
     unicode::{Case, Compare, Normalized},
 };
 
@@ -521,6 +523,7 @@ pub struct Description<'t, T> {
 /// Beschreibung eines Kommandozeilen-Arguments.
 #[must_use]
 #[derive(Debug, Clone)]
+#[cfg(feature = "german")]
 pub struct Beschreibung<'t, T> {
     /// Names used to invoke the argument.
     ///
@@ -539,6 +542,7 @@ pub struct Beschreibung<'t, T> {
     pub standard: Option<T>,
 }
 
+#[cfg(feature = "german")]
 impl<'t, T> From<Description<'t, T>> for Beschreibung<'t, T> {
     #[inline]
     fn from(Description { name, help, default }: Description<'t, T>) -> Self {
@@ -546,6 +550,7 @@ impl<'t, T> From<Description<'t, T>> for Beschreibung<'t, T> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T> From<Beschreibung<'t, T>> for Description<'t, T> {
     #[inline]
     fn from(Beschreibung { name, hilfe, standard }: Beschreibung<'t, T>) -> Self {
@@ -603,6 +608,7 @@ impl<'t, T> Description<'t, T> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T> Beschreibung<'t, T> {
     /// Converts this description to another value type.
     ///

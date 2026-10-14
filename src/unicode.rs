@@ -120,8 +120,10 @@ impl<'t> Normalized<'t> {
 /// ## English synonym
 /// [`Normalized`]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg(feature = "german")]
 pub struct Normalisiert<'t>(Cow<'t, str>);
 
+#[cfg(feature = "german")]
 impl AsRef<str> for Normalisiert<'_> {
     #[inline]
     fn as_ref(&self) -> &str {
@@ -129,6 +131,7 @@ impl AsRef<str> for Normalisiert<'_> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, S: Into<Cow<'t, str>>> From<S> for Normalisiert<'t> {
     #[inline]
     fn from(input: S) -> Self {
@@ -136,6 +139,7 @@ impl<'t, S: Into<Cow<'t, str>>> From<S> for Normalisiert<'t> {
     }
 }
 
+#[cfg(feature = "german")]
 impl Normalisiert<'_> {
     /// Convert the [`Normalisiert`] into an owned version with `'static` lifetime,
     /// cloning the contents if required.
@@ -146,6 +150,7 @@ impl Normalisiert<'_> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t> Normalisiert<'t> {
     /// Normalisiere einen Unicode-String, sofern er nicht bereits normalisiert ist
     /// ([`is_nfc_quick`]) oder bestimmte cjk-Zeichen enthalten sind.
@@ -209,6 +214,7 @@ impl<'t> Normalisiert<'t> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t> From<Normalized<'t>> for Normalisiert<'t> {
     #[inline]
     fn from(input: Normalized<'t>) -> Self {
@@ -216,6 +222,7 @@ impl<'t> From<Normalized<'t>> for Normalisiert<'t> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t> From<Normalisiert<'t>> for Normalized<'t> {
     #[inline]
     fn from(input: Normalisiert<'t>) -> Self {
@@ -374,6 +381,7 @@ impl Compare<'_> {
 /// ## English synonym
 /// [`Compare`]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg(feature = "german")]
 pub struct Vergleich<'t> {
     /// Der zu vergleichende String.
     ///
@@ -392,6 +400,7 @@ pub struct Vergleich<'t> {
 macro_rules! impl_vergleich_from {
     ($type:ty) => {
         #[allow(single_use_lifetimes, reason = "&'t str")]
+        #[cfg(feature = "german")]
         impl<'t> From<$type> for Vergleich<'t> {
             #[inline]
             fn from(input: $type) -> Self {
@@ -400,6 +409,7 @@ macro_rules! impl_vergleich_from {
         }
 
         #[allow(single_use_lifetimes, reason = "&'t str")]
+        #[cfg(feature = "german")]
         impl<'t> From<($type, Case)> for Vergleich<'t> {
             #[inline]
             fn from((string, case): ($type, Case)) -> Self {
@@ -412,6 +422,7 @@ macro_rules! impl_vergleich_from {
 impl_vergleich_from! {String}
 impl_vergleich_from! {&'t str}
 
+#[cfg(feature = "german")]
 impl<'t> From<Normalisiert<'t>> for Vergleich<'t> {
     #[inline]
     fn from(input: Normalisiert<'t>) -> Self {
@@ -419,6 +430,7 @@ impl<'t> From<Normalisiert<'t>> for Vergleich<'t> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t> From<(Normalisiert<'t>, Case)> for Vergleich<'t> {
     #[inline]
     fn from((string, case): (Normalisiert<'t>, Case)) -> Self {
@@ -426,6 +438,7 @@ impl<'t> From<(Normalisiert<'t>, Case)> for Vergleich<'t> {
     }
 }
 
+#[cfg(feature = "german")]
 impl AsRef<str> for Vergleich<'_> {
     #[inline]
     fn as_ref(&self) -> &str {
@@ -433,6 +446,7 @@ impl AsRef<str> for Vergleich<'_> {
     }
 }
 
+#[cfg(feature = "german")]
 impl PartialEq<str> for Vergleich<'_> {
     /// Überprüfe ob zwei Strings nach Unicode Normalisierung identisch sind,
     /// optional [`ohne Groß-/Kleinschreibung zu beachten`](unicase::eq).
@@ -447,6 +461,7 @@ impl PartialEq<str> for Vergleich<'_> {
     }
 }
 
+#[cfg(feature = "german")]
 impl Vergleich<'_> {
     /// Erhalte den String slice, der den normalisierten Unicode String enthält.
     ///
@@ -459,6 +474,7 @@ impl Vergleich<'_> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t> From<Compare<'t>> for Vergleich<'t> {
     #[inline]
     fn from(input: Compare<'t>) -> Self {
@@ -466,6 +482,7 @@ impl<'t> From<Compare<'t>> for Vergleich<'t> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t> From<Vergleich<'t>> for Compare<'t> {
     #[inline]
     fn from(input: Vergleich<'t>) -> Self {

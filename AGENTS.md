@@ -19,8 +19,8 @@ Cargo workspace with two crates:
 
 ```sh
 cargo build --all-features                  # build both crates
-cargo test                                  # unit + integration tests (excludes derive-gated tests)
-cargo test --all-features                   # includes tests/derive.rs (requires "derive" feature)
+cargo test                                  # unit + default-feature integration tests (including tests/help.rs)
+cargo test --all-features                   # includes derive- and german-gated tests
 cargo test --all-features --test derive     # just the derive-macro integration test
 cargo test --all-features <test_name>       # single test by name substring
 cargo clippy --all-features --all-targets   # lint (extensive lint config in Cargo.toml)
@@ -39,9 +39,12 @@ Note: `tests/derive.rs` and the `derive`-featured examples require `--features d
 The defining structural pattern of this crate: nearly every public type/function has an English
 primary name (for example `Arguments`, `Value`, `Description`, `Result`, `Error`, `Language`) and
 a German mirror (`Argumente`, `Wert`, `Beschreibung`, `Ergebnis`, `Fehler`, `Sprache`). The
-English types contain the implementation; German mirrors convert to and from them where distinct
-field or variant names are necessary. When touching a public type, keep both APIs in sync and use
-idiomatic German names in the mirror rather than transliterations.
+English-primary API is always available; the German mirror API is behind the `german` feature.
+`Language::GERMAN` remains available without that feature, but the `Sprache` mirror requires it.
+The English types contain the implementation; German mirrors convert to and from them where
+distinct field or variant names are necessary. When touching a public type, keep both APIs in sync,
+ensure builds work both with and without `german`, and use idiomatic German names in the mirror
+rather than transliterations.
 
 ### Core modules (`src/`)
 

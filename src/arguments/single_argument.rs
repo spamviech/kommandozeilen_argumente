@@ -8,19 +8,17 @@ use std::{
 
 use void::Void;
 
+#[cfg(feature = "german")]
+use crate::arguments::{early_exit::FrühesBeenden, help::Hilfe, value::Wert};
 use crate::{
     arguments::{
         ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, RecognizedArguments,
-        early_exit::{EarlyExit, FrühesBeenden},
-        flag::Flag,
-        help::{Help, Hilfe},
-        value::{Value, Wert},
+        early_exit::EarlyExit, flag::Flag, help::Help, value::Value,
     },
     description::ArgumentInput,
     dyn_to_owned::Show,
     outcome::{Error, Result},
 };
-
 /// Configuration of a single command-line argument.
 ///
 /// ## Deutsch
@@ -44,6 +42,7 @@ pub enum SingleArgument<'t, T, Error> {
 
 /// German mirror of [`SingleArgument`].
 #[must_use]
+#[cfg(feature = "german")]
 pub enum EinzelArgument<'t, T, Fehler> {
     /// Ein Flag-Argument.
     Flag(Flag<'t, T>),
@@ -76,6 +75,7 @@ impl<T: Debug, Error: Debug> Debug for SingleArgument<'_, T, Error> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<T: Debug, Fehler: Debug> Debug for EinzelArgument<'_, T, Fehler> {
     #[inline]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -92,6 +92,7 @@ impl<T: Debug, Fehler: Debug> Debug for EinzelArgument<'_, T, Fehler> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Error> From<SingleArgument<'t, T, Error>> for EinzelArgument<'t, T, Error> {
     #[inline]
     fn from(argument: SingleArgument<'t, T, Error>) -> Self {
@@ -107,6 +108,7 @@ impl<'t, T, Error> From<SingleArgument<'t, T, Error>> for EinzelArgument<'t, T, 
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> From<EinzelArgument<'t, T, Fehler>> for SingleArgument<'t, T, Fehler> {
     #[inline]
     fn from(argument: EinzelArgument<'t, T, Fehler>) -> Self {
@@ -129,6 +131,7 @@ impl<'t, T, Error> From<Flag<'t, T>> for SingleArgument<'t, T, Error> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> From<Flag<'t, T>> for EinzelArgument<'t, T, Fehler> {
     #[inline]
     fn from(flag: Flag<'t, T>) -> Self {
@@ -143,6 +146,7 @@ impl<'t, T: Display, Error> From<(EarlyExit<'t>, T)> for SingleArgument<'t, T, E
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T: Display, Fehler> From<(FrühesBeenden<'t>, T)> for EinzelArgument<'t, T, Fehler> {
     #[inline]
     fn from((frühes_beenden, wert): (FrühesBeenden<'t>, T)) -> Self {
@@ -161,6 +165,7 @@ impl<'t, Error> From<EarlyExit<'t>> for SingleArgument<'t, (), Error> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, Fehler> From<FrühesBeenden<'t>> for EinzelArgument<'t, (), Fehler> {
     #[inline]
     fn from(frühes_beenden: FrühesBeenden<'t>) -> Self {
@@ -175,6 +180,7 @@ impl<'t, T, Error> From<Value<'t, T, Error>> for SingleArgument<'t, T, Error> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> From<Wert<'t, T, Fehler>> for EinzelArgument<'t, T, Fehler> {
     #[inline]
     fn from(wert: Wert<'t, T, Fehler>) -> Self {
@@ -196,6 +202,7 @@ impl<'t, T: Display> SingleArgument<'t, T, Void> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T: Display> EinzelArgument<'t, T, Void> {
     /// Erzeugt ein Flag-Argument mit passenden Typ-Parametern.
     #[inline]
@@ -218,6 +225,7 @@ impl<'t> SingleArgument<'t, (), Void> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t> EinzelArgument<'t, (), Void> {
     /// Erzeugt ein Frühes-Beenden-Argument mit passenden Typ-Parametern.
     #[inline]
@@ -273,6 +281,7 @@ impl<'t, T, Error> SingleArgument<'t, T, Error> {
     }
 }
 
+#[cfg(feature = "german")]
 impl<'t, T, Fehler> EinzelArgument<'t, T, Fehler> {
     /// Erzeugt ein Wert-Argument mit passenden Typ-Parametern.
     #[inline]
@@ -390,8 +399,10 @@ impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
 }
 
 /// Borrowed view over a German single-argument representation.
+#[cfg(feature = "german")]
 struct EinzelArgumentRef<'a, 't, T, Fehler>(&'a EinzelArgument<'t, T, Fehler>);
 
+#[cfg(feature = "german")]
 impl<'a, 't, T, Fehler> EinzelArgumentRef<'a, 't, T, Fehler> {
     /// Erzeugt Hilfetext für das referenzierte Argument.
     fn erzeuge_hilfe_text(&self, meta_standard: &str, meta_erlaubte_werte: &str) -> Hilfe {
