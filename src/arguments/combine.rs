@@ -12,10 +12,9 @@ use crate::{
     arguments::{
         ArgumentInput, Arguments, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms,
         RecognizedArguments,
-        argumente::Argumente,
         help::{self, CreateHelpText},
     },
-    outcome::{IntermediateResult, Result, ZwischenErgebnis},
+    outcome::Result,
 };
 
 /// Combine multiple arguments with the given function.
@@ -75,28 +74,18 @@ pub trait Combine<'t, T, Fehler> {
         nonempty![help::Alternativen::Leer]
     }
 
-    /// Format this combination for [`Debug`].
+    /// Formats this combination for [`Debug`].
     ///
-    /// ## Errors
+    /// # Errors
     ///
-    /// When [`write!`] fails.
-    #[inline]
-    fn debug_fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        let _ = formatter;
-        todo!()
-    }
+    /// Returns an error when writing to `formatter` fails.
+    fn debug_fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result;
 
     /// Parses merged short-form arguments for this combination.
-    ///
-    /// Tuple implementations provide the staged composition in a later parsing phase.
-    #[inline]
     fn parse_merged_short_forms(
         &self,
         args: Box<dyn Iterator<Item = OsString> + '_>,
-    ) -> NonEmpty<ParsedMergedShortForms<'t>> {
-        let _ = args;
-        todo!()
-    }
+    ) -> NonEmpty<ParsedMergedShortForms<'t>>;
 
     /// Parses merged short-form arguments from staged input.
     #[inline]
@@ -111,36 +100,22 @@ pub trait Combine<'t, T, Fehler> {
     }
 
     /// Parses standalone short-form arguments for this combination.
-    #[inline]
     fn parse_short_forms(
         &self,
         args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
-    ) -> NonEmpty<ParsedShortForms<'t>> {
-        let _ = args;
-        todo!()
-    }
+    ) -> NonEmpty<ParsedShortForms<'t>>;
 
     /// Parses long-form arguments for this combination.
-    #[inline]
     fn parse_long_forms(
         &self,
         args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
-    ) -> NonEmpty<ParsedLongForms<'t>> {
-        let _ = args;
-        todo!()
-    }
+    ) -> NonEmpty<ParsedLongForms<'t>>;
 
     /// Validates typed accumulation without consuming this combination.
-    #[inline]
-    fn validate(&self, _recognized: RecognizedArguments<'t>) -> Result<'t, (), Fehler> {
-        todo!()
-    }
+    fn validate(&self, recognized: RecognizedArguments<'t>) -> Result<'t, (), Fehler>;
 
     /// Accumulates the typed values recognized for this combination.
-    #[inline]
-    fn accumulate(self: Box<Self>, _recognized: RecognizedArguments<'t>) -> Result<'t, T, Fehler> {
-        todo!()
-    }
+    fn accumulate(self: Box<Self>, recognized: RecognizedArguments<'t>) -> Result<'t, T, Fehler>;
 }
 
 /// Implement the [`Combine`] trait for a tuple `(f, a0, a1, ...)`.
@@ -320,109 +295,6 @@ macro_rules! impl_combine_tuple {
                 }
             }
 
-            impl <
-                't, $([<'t $suffix:snake:lower>],)+ F, T, Error,
-                $([<T $suffix:camel>],)+
-            >
-                Combine<'t, T, Error> for (
-                    F,
-                    $(IntermediateResult<
-                        [<'t $suffix:snake:lower>],
-                        [<T $suffix:camel>],
-                        Error,
-                        Arguments<
-                            [<'t $suffix:snake:lower>],
-                            [<T $suffix:camel>],
-                            Error,
-                        >
-                    >),+
-                )
-            where
-                F: 't + Fn($([<T $suffix:camel>]),+) -> T,
-                Error: Debug,
-                $(
-                    [<'t $suffix:snake:lower>]: 't,
-                    't: [<'t $suffix:snake:lower>],
-                    [<T $suffix:camel>]: Debug,
-                )+
-            {}
-
-            impl <
-                't, $([<'t $suffix:snake:lower>],)+ F, T, Fehler,
-                $([<T $suffix:camel>],)+
-            >
-                Combine<'t, T, Fehler> for (
-                    F,
-                    $(Argumente<
-                        [<'t $suffix:snake:lower>],
-                        [<T $suffix:camel>],
-                        Fehler,
-                    >),+
-                )
-            where
-                F: 't + Fn($([<T $suffix:camel>]),+) -> T,
-                Fehler: Debug,
-                $(
-                    [<'t $suffix:snake:lower>]: 't,
-                    't: [<'t $suffix:snake:lower>],
-                    [<T $suffix:camel>]: Debug,
-                )+
-            {
-                #[inline]
-                fn create_help_text(
-                    &self,
-                    variante: &dyn CreateHelpText,
-                    meta_standard: &str,
-                    meta_erlaubte_werte: &str,
-                ) -> NonEmpty<help::Alternativen> {
-                    let (_f, $([<arg_ $suffix:snake:lower>]),+) = self;
-                    let mut hilfe_texte = Vec::new();
-                    $(
-                        hilfe_texte.extend(
-                            [<arg_ $suffix:lower>]
-                                .erzeuge_hilfe_text(variante, meta_standard, meta_erlaubte_werte)
-                        );
-                    )+
-                    NonEmpty::from_vec(hilfe_texte).expect("At least one suffix as a macro argument!")
-                }
-
-                #[inline]
-                fn debug_fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-                    let (_funktion, $([<arg_ $suffix:snake:lower>]),+) = self;
-                    write!(formatter, "(<closure>")?;
-                    $(
-                        write!(formatter, "{:?}", [<arg_ $suffix:snake:lower>])?;
-                    )+
-                    write!(formatter, ")")
-                }
-            }
-
-            impl <
-                't, $([<'t $suffix:snake:lower>],)+ F, T, Fehler,
-                $([<T $suffix:camel>],)+
-            >
-                Combine<'t, T, Fehler> for (
-                    F,
-                    $(ZwischenErgebnis<
-                        [<'t $suffix:snake:lower>],
-                        [<T $suffix:camel>],
-                        Fehler,
-                        Argumente<
-                            [<'t $suffix:snake:lower>],
-                            [<T $suffix:camel>],
-                            Fehler,
-                        >
-                    >),+
-                )
-            where
-                F: 't + Fn($([<T $suffix:camel>]),+) -> T,
-                Fehler: Debug,
-                $(
-                    [<'t $suffix:snake:lower>]: 't,
-                    't: [<'t $suffix:snake:lower>],
-                    [<T $suffix:camel>]: Debug,
-                )+
-            {}
         }
     };
 }

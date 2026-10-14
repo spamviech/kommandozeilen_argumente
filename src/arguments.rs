@@ -773,19 +773,113 @@ impl<'t, T, F> Arguments<'t, T, F> {
     }
 }
 
+/// A type-erased combination whose result errors are converted after parsing.
+///
+/// The wrapper retains the original parser tree, so it can convert errors from arbitrary
+/// user-defined [`Combine`] implementations without requiring a non-object-safe generic method
+/// on that trait.
+struct ConvertedArguments<'t, T, Error, NewError> {
+    /// The parser definition producing the original error type.
+    arguments: Arguments<'t, T, Error>,
+    /// Converts errors produced by the wrapped definition.
+    mapper: Box<dyn 't + Fn(Error) -> NewError>,
+}
+
+impl<'t, T, Error, NewError> Combine<'t, T, NewError>
+    for ConvertedArguments<'t, T, Error, NewError>
+{
+    #[inline]
+    fn create_help_text(
+        &self,
+        variant: &dyn CreateHelpText,
+        meta_default: &str,
+        meta_possible_values: &str,
+    ) -> NonEmpty<help::Alternativen> {
+        self.arguments.create_help_text(variant, meta_default, meta_possible_values).map(Into::into)
+    }
+
+    #[inline]
+    fn debug_fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.debug_tuple("ConvertedArguments").field(&"<parser>").finish()
+    }
+
+    #[inline]
+    fn parse_merged_short_forms(
+        &self,
+        args: Box<dyn Iterator<Item = OsString> + '_>,
+    ) -> NonEmpty<ParsedMergedShortForms<'t>> {
+        self.arguments.parse_merged_short_forms(args)
+    }
+
+    #[inline]
+    fn parse_merged_short_inputs(
+        &self,
+        args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+    ) -> NonEmpty<ParsedMergedShortForms<'t>> {
+        self.arguments.parse_merged_short_inputs(args)
+    }
+
+    #[inline]
+    fn parse_short_forms(
+        &self,
+        args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+    ) -> NonEmpty<ParsedShortForms<'t>> {
+        self.arguments.parse_short_forms(args)
+    }
+
+    #[inline]
+    fn parse_long_forms(
+        &self,
+        args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
+    ) -> NonEmpty<ParsedLongForms<'t>> {
+        self.arguments.parse_long_forms(args)
+    }
+
+    #[inline]
+    fn validate(&self, recognized: RecognizedArguments<'t>) -> OutcomeResult<'t, (), NewError> {
+        self.arguments.validate(recognized).convert_error(&*self.mapper)
+    }
+
+    #[inline]
+    fn accumulate(
+        self: Box<Self>,
+        recognized: RecognizedArguments<'t>,
+    ) -> OutcomeResult<'t, T, NewError> {
+        let Self { arguments, mapper } = *self;
+        arguments.accumulate(recognized).convert_error(&*mapper)
+    }
+}
+
 #[expect(
     clippy::multiple_inherent_impl,
-    reason = "Impl together with special mapping for Error=Void."
+    reason = "This conversion implementation is separated from construction and parsing impls."
 )]
 impl<'t, T, Error> Arguments<'t, T, Error> {
     /// Converts errors with the supplied functions.
+    ///
+    /// The error-display callback is retained for API compatibility. Error displays are only used
+    /// when a value argument is rendered as a string; that operation has no equivalent for an
+    /// arbitrary type-erased [`Combine`] implementation.
     #[inline]
     pub fn convert_error<NewError>(
         self,
         mapper: impl 't + Fn(Error) -> NewError + Clone,
         display_new_error: impl 't + Fn(&NewError) -> String + Clone,
     ) -> Arguments<'t, T, NewError> {
-        todo!()
+        match self {
+            Self::Single(argument) => {
+                Arguments::Single(argument.convert_error(mapper, display_new_error))
+            },
+            Self::Alternatives(alternatives) => {
+                Arguments::Alternatives(Box::new(alternatives.map(|arguments| {
+                    arguments.convert_error(mapper.clone(), display_new_error.clone())
+                })))
+            },
+            arguments @ Self::Combined(_) => Arguments::Combined(Box::new(ConvertedArguments {
+                arguments,
+                mapper: Box::new(mapper),
+            })),
+        }
     }
 
     /// Converts errors using [`From::from`].

@@ -4,7 +4,7 @@ use std::{
     borrow::Cow,
     convert::identity,
     ffi::{OsStr, OsString},
-    fmt::{Debug, Display},
+    fmt::{self, Debug, Display},
     num::NonZeroI32,
     result,
     str::FromStr,
@@ -14,7 +14,7 @@ use nonempty::NonEmpty;
 
 use crate::{
     arguments::{
-        Arguments, ParsedMergedShortForms, ParsedShortForms,
+        Arguments, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, RecognizedArguments,
         argumente::Argumente,
         combine::Combine,
         flag::Flag,
@@ -230,7 +230,7 @@ struct OptionArguments<'t, F, T, E> {
     arguments: Arguments<'t, T, E>,
 }
 
-impl<'t, T, E, F: FnOnce(Result<'t, T, E>) -> Result<'t, T, E>> Combine<'t, T, E>
+impl<'t, T: Debug, E: Debug, F: FnOnce(Result<'t, T, E>) -> Result<'t, T, E>> Combine<'t, T, E>
     for OptionArguments<'t, F, T, E>
 {
     #[inline]
@@ -268,28 +268,31 @@ impl<'t, T, E, F: FnOnce(Result<'t, T, E>) -> Result<'t, T, E>> Combine<'t, T, E
     }
 
     #[inline]
-    #[expect(
-        clippy::absolute_paths,
-        reason = "This localized parser implementation intentionally requires this pattern."
-    )]
     fn parse_long_forms(
         &self,
         args: Box<dyn Iterator<Item = ArgumentInput> + '_>,
-    ) -> NonEmpty<crate::arguments::ParsedLongForms<'t>> {
+    ) -> NonEmpty<ParsedLongForms<'t>> {
         self.arguments.parse_long_forms(args)
     }
 
     #[inline]
-    #[expect(
-        clippy::absolute_paths,
-        reason = "This localized parser implementation intentionally requires this pattern."
-    )]
-    fn accumulate(
-        self: Box<Self>,
-        recognized: crate::arguments::RecognizedArguments<'t>,
-    ) -> Result<'t, T, E> {
+    fn validate(&self, recognized: RecognizedArguments<'t>) -> Result<'t, (), E> {
+        self.arguments.validate(recognized)
+    }
+
+    #[inline]
+    fn accumulate(self: Box<Self>, recognized: RecognizedArguments<'t>) -> Result<'t, T, E> {
         let Self { adjust_result, arguments } = *self;
         adjust_result(arguments.accumulate(recognized))
+    }
+
+    #[inline]
+    fn debug_fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("OptionArguments")
+            .field("adjust_result", &"<closure>")
+            .field("arguments", &self.arguments)
+            .finish()
     }
 }
 

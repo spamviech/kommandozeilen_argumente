@@ -995,7 +995,7 @@ The earlier broad allowances have been removed; the remaining cleanup is tracked
   `combine.rs` (should already be deleted in Phase 1, verify nothing was reintroduced).
 - [x] Fix the pre-existing `unnecessary_semicolon` clippy error in
   `kommandozeilen_argumente_derive/src/parse.rs:1005`.
-- [-] Resolve every warning `cargo clippy --workspace --all-features -- -D warnings` reports:
+- [x] Resolve every warning `cargo clippy --workspace --all-features -- -D warnings` reports:
   add missing documentation, remove genuinely-unused private items (e.g. `filter_prefix`,
   `strip_as_prefix`/`strip_as_prefix_n` if still unused after the rename), and fix the
   `OptionHelper`/`ergebnis_anpassen`-style unread-field warning if it still exists. Prefer code
@@ -1004,7 +1004,7 @@ The earlier broad allowances have been removed; the remaining cleanup is tracked
   indexing/slicing, public `#[inline]`, absolute-path, private-documentation, default-construction,
   shadowing, and staged-parser `todo!()` diagnostics. Do not bulk-convert attributes: every
   expectation must be verified as fulfilled.
-- [-] Remove any now-unnecessary `todo!()`s discovered to be reachable during this phase.
+- [x] Implement or remove every remaining `todo!()` discovered during this phase.
   The remaining default `Combine` trait methods and `Arguments::convert_error` are documented,
   intentional stubs outside the staged parser; every concrete parser path is implemented and
   covered by the integration tests.
@@ -1030,11 +1030,11 @@ The earlier broad allowances have been removed; the remaining cleanup is tracked
 
 **Automated Verification**:
 
-- [-] `cargo build --workspace --all-features` succeeds with zero warnings after scoped-lint cleanup
-- [-] `cargo test --workspace --all-features` passes after scoped-lint cleanup
-- [-] `cargo clippy --workspace --all-features -- -D warnings` passes without crate-wide lint allowances
-- [-] `cargo +nightly doc --workspace --all-features --no-deps` succeeds with no broken links after scoped-lint cleanup
-- [-] `grep -rn 'kombiniere!\|Kombiniere\|ErzeugeHilfeText\|dyn_to_owned::Anzeige\|parse_rekursiv' src/ tests/ kommandozeilen_argumente_derive/src/` has only intentional German-mirror `Argumente::Kombiniere` references; the documented `kombiniere!` compatibility macro is outside these paths.
+- [x] `cargo build --workspace --all-features` succeeds with zero warnings after scoped-lint cleanup
+- [x] `cargo test --workspace --all-features` passes after scoped-lint cleanup
+- [x] `cargo clippy --workspace --all-features -- -D warnings` passes without crate-wide lint allowances
+- [x] `cargo +nightly doc --workspace --all-features --no-deps` succeeds with no broken links after scoped-lint cleanup
+- [x] `grep -rn 'kombiniere!\|Kombiniere\|ErzeugeHilfeText\|dyn_to_owned::Anzeige\|parse_rekursiv' src/ tests/ kommandozeilen_argumente_derive/src/` has only intentional German-mirror `Argumente::Kombiniere` references; the documented `kombiniere!` compatibility macro is outside these paths.
 
 ---
 

@@ -97,6 +97,21 @@ fn tries_the_next_alternative_after_a_value_conversion_failure() {
 }
 
 #[test]
+fn converts_errors_for_single_arguments() {
+    let arguments = Arguments::from(alternative_value(reject_value))
+        .convert_error(|error| error.len(), |error| error.to_string());
+
+    let (result, remaining) = arguments.parse([OsString::from("--choice=rejected")].into_iter());
+
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert!(matches!(result, Result::Error(errors) if matches!(
+        &errors.head,
+        kommandozeilen_argumente::Error::ParseError(error)
+            if matches!(error.error, ParseError::ParseError(33))
+    )));
+}
+
+#[test]
 fn early_exit_short_circuits_result_accumulation() {
     let early_exit =
         EarlyExit::new(Description::new("--", "help", "-", "h", None, None), "show help");

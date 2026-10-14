@@ -541,6 +541,35 @@ fn create_value_help_text<T>(
 }
 
 impl<'t, T, E> Value<'t, T, E> {
+    /// Converts this argument's parse error type.
+    pub(crate) fn convert_error<NewError>(
+        self,
+        mapper: impl 't + Fn(E) -> NewError + Clone,
+        display_new_error: impl 't + Fn(&NewError) -> String + Clone,
+    ) -> Value<'t, T, NewError> {
+        let Self {
+            description,
+            value_infix,
+            meta_var,
+            possible_values,
+            parse,
+            display,
+            display_error: _,
+        } = self;
+        let parse: Box<dyn 't + Parse<'t, T, ParseError<NewError>>> =
+            Box::new(move |input| parse(input).map_err(|error| error.convert(mapper.clone())));
+        let display_error: Box<dyn 't + Show<'t, NewError>> = Box::new(display_new_error);
+        Value {
+            description,
+            value_infix,
+            meta_var,
+            possible_values,
+            parse: Cow::Owned(parse),
+            display,
+            display_error: Cow::Owned(display_error),
+        }
+    }
+
     /// Creates this argument's syntax and help text.
     #[inline]
     pub fn create_help_text(&self, meta_default: &str, meta_allowed_values: &str) -> Help {

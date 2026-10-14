@@ -410,6 +410,23 @@ impl<'a, 't, T, Error> SingleArgumentRef<'a, 't, T, Error> {
 }
 
 impl<'t, T, ParseError> SingleArgument<'t, T, ParseError> {
+    /// Converts the parse error type of a value argument.
+    pub(crate) fn convert_error<NewError>(
+        self,
+        mapper: impl 't + Fn(ParseError) -> NewError + Clone,
+        display_new_error: impl 't + Fn(&NewError) -> String + Clone,
+    ) -> SingleArgument<'t, T, NewError> {
+        match self {
+            Self::Flag(flag) => SingleArgument::Flag(flag),
+            Self::EarlyExit { early_exit, value, display } => {
+                SingleArgument::EarlyExit { early_exit, value, display }
+            },
+            Self::Value(value) => {
+                SingleArgument::Value(value.convert_error(mapper, display_new_error))
+            },
+        }
+    }
+
     /// Validates typed accumulation without consuming defaults or callbacks.
     pub(crate) fn validate(
         &self,
