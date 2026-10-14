@@ -302,8 +302,8 @@ struct ProgramSettings<Description> {
     description: Description,
 }
 
-// TODO erlaube env-Variable
 /// Program name in help/version text.
+/// Falls back to the `CARGO_PKG_NAME` environment variable when specifying [`None`].
 #[derive(Debug, Clone)]
 struct ProgramName(Option<String>);
 
@@ -326,7 +326,6 @@ impl ProgramName {
     }
 }
 
-// TODO erlaube env-Variable
 /// Program version in help/version text.
 #[derive(Debug, Clone)]
 enum ProgramVersion {
