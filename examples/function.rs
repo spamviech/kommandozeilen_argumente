@@ -160,8 +160,8 @@ fn main() {
         );
     let args = argumente
         .parse_complete_with_language_from_env(NonZeroI32::new(1).expect("1 != 0"), language);
-    #[expect(clippy::print_stdout, clippy::use_debug, reason = "example implementation.")]
+    #[expect(clippy::print_stdout, reason = "example implementation.")]
     {
-        println!("{args:?}");
+        println!("{args}");
     }
 }

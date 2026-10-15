@@ -159,8 +159,8 @@ fn main() {
         );
     let args = argumente_mit_hilfe_und_version
         .parse_vollständig_mit_sprache_aus_env(NonZeroI32::new(1).expect("1 != 0"), sprache);
-    #[expect(clippy::print_stdout, clippy::use_debug, reason = "Beispiel-Implementierung.")]
+    #[expect(clippy::print_stdout, reason = "Beispiel-Implementierung.")]
     {
-        println!("{args:?}");
+        println!("{args}");
     }
 }

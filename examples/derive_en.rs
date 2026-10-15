@@ -60,8 +60,8 @@ impl Display for Args {
 
 fn main() {
     let args = Args::parse_with_error_message_from_env(NonZeroI32::new(1i32).expect("1 != 0"));
-    #[expect(clippy::print_stdout, clippy::use_debug, reason = "example implementation.")]
+    #[expect(clippy::print_stdout, reason = "example implementation.")]
     {
-        println!("{args:?}");
+        println!("{args}");
     }
 }
