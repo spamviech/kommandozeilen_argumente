@@ -277,3 +277,63 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
     };
     Ok(ts)
 }
+
+#[cfg(test)]
+mod test {
+    use quote::quote;
+
+    use super::*;
+
+    #[test]
+    fn derives_named_fields_and_configured_early_exits() {
+        let derived = derive_parse(quote! {
+            #[kommandozeilen_argumente(
+                language: english,
+                program(name: "app", version: "1.2.3", description: "An app"),
+                version,
+                help,
+            )]
+            struct Arguments {
+                /// Enable the feature.
+                #[kommandozeilen_argumente(long: "feature", short: f, default: false)]
+                feature: bool,
+            }
+        })
+        .expect("supported struct derives successfully")
+        .to_string();
+
+        assert!(derived.contains("impl :: kommandozeilen_argumente :: Parse for Arguments"));
+        assert!(derived.contains("Description :: new"));
+        assert!(derived.contains("\"feature\""));
+        assert!(derived.contains("with_version_early_exit"));
+        assert!(derived.contains("with_help_early_exit"));
+        assert!(derived.contains("\"app\""));
+        assert!(derived.contains("\"1.2.3\""));
+        assert!(derived.contains("Some (\"An app\")"));
+    }
+
+    #[test]
+    fn rejects_tuple_fields() {
+        let error = derive_parse(quote! { struct Arguments(bool); })
+            .expect_err("tuple fields are unsupported");
+
+        assert_eq!(error.to_string(), "Only named fields are supported.");
+    }
+
+    #[test]
+    fn rejects_generics_and_non_structs() {
+        let generic_error = derive_parse(quote! { struct Arguments<T> { value: T } })
+            .expect_err("generic structs are unsupported");
+        assert_eq!(
+            generic_error.to_string(),
+            "Only structs without generics are supported, but received 1 parameter(s)."
+        );
+
+        let enum_error = derive_parse(quote! { enum Arguments { Value } })
+            .expect_err("only structs are supported");
+        assert_eq!(
+            enum_error.to_string(),
+            "Only structs are supported, but received enum: enum Arguments { Value }"
+        );
+    }
+}

@@ -260,3 +260,66 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Er
     );
     Ok(instance)
 }
+
+#[cfg(test)]
+mod test {
+    use quote::quote;
+
+    use super::*;
+
+    #[test]
+    fn derives_variants_with_enum_and_variant_case_settings() {
+        #[expect(clippy::panic, reason = "Quick and dirty error handling for a test.")]
+        let derived = match derive_enum_argument(quote! {
+            #[kommandozeilen_argumente(case: sensitive)]
+            enum Mode {
+                Fast,
+                #[kommandozeilen_argumente(case: insensitive)]
+                Safe,
+            }
+        }) {
+            Ok(derived) => derived.to_string(),
+            Err(error) => {
+                panic!("unit enum with supported attributes derives successfully: {error}")
+            },
+        };
+
+        assert!(derived.contains("impl kommandozeilen_argumente :: EnumArgument for Mode"));
+        assert!(derived.contains(
+            "Some (:: kommandozeilen_argumente :: nonempty ! [Self :: Fast , Self :: Safe])"
+        ));
+        assert!(derived.contains(
+            "Normalized :: new (\"Fast\") . eq_with_case (string , kommandozeilen_argumente :: \
+             unicode :: Case :: Sensitive)"
+        ));
+        assert!(derived.contains(
+            "Normalized :: new (\"Safe\") . eq_with_case (string , kommandozeilen_argumente :: \
+             unicode :: Case :: Insensitive)"
+        ));
+    }
+
+    #[test]
+    fn rejects_data_variants() {
+        let error = derive_enum_argument(quote! { enum Mode { Fast(String) } })
+            .expect_err("data variants are unsupported");
+
+        assert_eq!(error.to_string(), "Only unit variants are supported, but Fast contains data.");
+    }
+
+    #[test]
+    fn rejects_generics_and_non_enums() {
+        let generic_error = derive_enum_argument(quote! { enum Mode<T> { Fast } })
+            .expect_err("generic enums are unsupported");
+        assert_eq!(
+            generic_error.to_string(),
+            "Only enums without generics are supported, but received 1 parameter(s)."
+        );
+
+        let struct_error =
+            derive_enum_argument(quote! { struct Mode; }).expect_err("only enums are supported");
+        assert_eq!(
+            struct_error.to_string(),
+            "Only enums are supported, but received struct: struct Mode ;"
+        );
+    }
+}

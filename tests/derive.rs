@@ -315,6 +315,7 @@ fn verschmelze_kurzformen_wert() -> result::Result<(), DString> {
 
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(language: english)]
+#[expect(clippy::struct_excessive_bools, reason = "The types directly control the generated cli parsing.")]
 struct UnicodeDerived {
     #[kommandozeilen_argumente(long: "föö", short: f)]
     flag: bool,

@@ -20,7 +20,7 @@ Cargo workspace with two crates:
 ```sh
 cargo build --all-features                  # build both crates
 cargo test                                  # unit + default-feature integration tests (including tests/help.rs)
-cargo test --all-features                   # includes derive- and german-gated tests
+cargo test --workspace --all-features       # run all workspace tests, including derive-crate unit tests and derive-/german-gated tests
 cargo test --all-features --test derive     # just the derive-macro integration test
 cargo test --all-features <test_name>       # single test by name substring
 cargo clippy --all-features --all-targets   # lint (extensive lint config in Cargo.toml)
