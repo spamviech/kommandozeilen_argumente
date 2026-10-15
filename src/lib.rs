@@ -1,9 +1,9 @@
-#![doc = include_str!("../LIESMICH.md")]
+#![doc = include_str!("../README.md")]
 // Verwende doc_cfg für bessere Dokumentation von feature-gated derive Macros.
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 
 #[doc(no_inline)]
-pub use ::nonempty::{nonempty, NonEmpty};
+pub use ::nonempty::{NonEmpty, nonempty};
 
 #[macro_export]
 /// Crate Name spezifiziert in Cargo.toml.
@@ -27,26 +27,37 @@ macro_rules! crate_version {
     };
 }
 
-pub mod argumente;
-pub mod beschreibung;
+pub mod arguments;
+pub mod description;
 pub mod dyn_to_owned;
-pub mod ergebnis;
+pub mod language;
+pub mod outcome;
 pub mod parse;
-pub mod sprache;
 pub mod unicode;
+
+// TODO example for alternatives, derive for alternatives
 
 #[doc(inline)]
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use self::{
-    argumente::{
+    arguments::{
+        Arguments,
+        early_exit::EarlyExit,
         flag::Flag,
-        frühes_beenden::{EarlyExit, FrühesBeenden},
-        wert::{EnumArgument, Value, Wert},
-        Argumente, Arguments,
+        value::{EnumArgument, Value},
     },
-    beschreibung::{ArgumentInput, Beschreibung, Description},
-    ergebnis::{Ergebnis, Error, Fehler, ParseError, ParseFehler, Result},
+    description::{ArgumentInput, Description},
+    language::Language,
+    outcome::{Error, ParseError, Result},
     parse::{Parse, ParseArgument},
-    sprache::{Language, Sprache},
-    unicode::{Case, Compare, Normalisiert, Normalized, Vergleich},
+    unicode::{Case, Compare, Normalized},
+};
+#[cfg(feature = "german")]
+#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "german")))]
+pub use self::{
+    arguments::{argumente::Argumente, early_exit::FrühesBeenden, value::Wert},
+    description::Beschreibung,
+    language::Sprache,
+    outcome::{Ergebnis, Fehler, ParseFehler},
+    unicode::{Normalisiert, Vergleich},
 };

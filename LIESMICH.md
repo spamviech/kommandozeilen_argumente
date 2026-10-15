@@ -5,10 +5,33 @@ __Note__: This is the german ReadMe, for the english version see
 
 Parser für Kommandozeilen-Argumente mit optionaler, automatischer Hilfe-Generierung.
 
+## API-Migration (0.3.0)
+
+Version 0.3.0 verwendet die englische API als primäre API: Neuer Code sollte Namen wie
+`Arguments`, `Description`, `Value`, `EarlyExit`, `Result` und `Language` verwenden. Die
+Deutschsprachige Spiegel-API ist zur Kompatibilität über das optionale `german`-Feature verfügbar.
+Das `combine!`-Macro ist die bevorzugte Schreibweise; `kombiniere!` ist mit diesem Feature als
+Kompatibilitäts-Wrapper für den deutschen `Argumente`-Spiegel verfügbar.
+
+## Feature „german“
+
+Die englischsprachige primäre API ist ohne Feature-Flags verfügbar. Das `german`-Feature stellt
+zusätzlich deutschsprachige Spiegeltypen, deutsch benannte Methoden und das `kombiniere!`-Macro
+bereit:
+
+```toml
+[dependencies]
+kommandozeilen_argumente = { version = "0.3", features = ["german"] }
+```
+
+`Language::GERMAN` ist auch ohne das `german`-Feature verfügbar, damit die englische API weiterhin
+deutsche Standardtexte erzeugen kann. Der Spiegeltyp `Sprache` benötigt hingegen das Feature.
+
 Zum erstellen eines neuen Arguments werden assoziierte Funktionen bereitgestellt,
 der Ergebnistyp wird dabei durch eine Typ-Variable festgelegt.
-Argumente können mithilfe des `kombiniere!`-Macros, bzw. dedizierten `kombiniereN`-Funktionen,
-zu komplexeren Strukturen zusammengefasst werden,
+Argumente können mithilfe des bevorzugten `combine!`-Macros (mit `german`-Feature auch des
+Kompatibilitäts-Wrappers `kombiniere!`), bzw. dedizierten `kombiniereN`-Funktionen, zu
+komplexeren Strukturen zusammengefasst werden,
 die zum parsen potentiell mehrere Argumente benötigen.
 
 Ein Argument wird durch seine Langnamen oder potentiellen Kurznamen identifiziert.
@@ -20,9 +43,9 @@ lang sind.
 
 Alle verwendeten Strings, z.B. für die erzeugte Hilfe-Meldung, sind konfigurierbar.
 Sofern es relevant ist werden für Deutsch und Englisch spezialisierte Funktionen bereitgestellt.
-Außerdem werden Synonyme in Deutsch und Englisch angeboten.
-Eine Wiederholung der Strings kann über den `Sprache`-Typ und die darin enthaltenen
-Standard-Werte vermieden werden.
+Deutschsprachige Synonyme und Spiegeltypen benötigen das `german`-Feature.
+Eine Wiederholung der Strings kann über den stets verfügbaren `Language`-Typ und die darin
+enthaltenen Standardwerte vermieden werden.
 
 Argumente können Standard-Werte haben, der verwendet wird sofern keiner ihrer Namen verwendet wird.
 Ohne Standard-Wert muss das Argument verwendet werden, ansonsten schlägt das Parsen fehl.
@@ -32,7 +55,9 @@ Ohne Standard-Wert muss das Argument verwendet werden, ansonsten schlägt das Pa
 Flags sind Argumente ohne Wert, sie können entweder aktiviert oder deaktiviert sein.
 Meistens repräsentieren sie `bool`-Argumente, andere Typen werden aber ebenfalls unterstützt.
 
+#[expect(clippy::doc_markdown, reason = "Required by this parser API or compatibility implementation.")]
 Eine Flag mit Langnamen `flag`, lang_präfix `--`, Kurznamen `f`, kurz_präfix `-`,
+#[expect(clippy::doc_markdown, reason = "Required by this parser API or compatibility implementation.")]
 invertiere_präfix `kein` und invertiere_infix `-` kann mit `--flag` oder `-f` aktiviert
 und mit `--kein-flag` deaktiviert werden.
 
@@ -54,7 +79,9 @@ Die Konvertierung des Wertes wird aus `OsString` versucht.
 
 Es ist möglich, alle erlaubten Werte im Hilfe-Text anzeigen zu lassen.
 
+#[expect(clippy::doc_markdown, reason = "Required by this parser API or compatibility implementation.")]
 Ein Wert-Argument mit LangNamen `wert`, lang_präfix `--`, KurzNamen `w`, kurz_präfix `-` und
+#[expect(clippy::doc_markdown, reason = "Required by this parser API or compatibility implementation.")]
 wert_infix `=` für ein Zahlenargument wird für jede der folgenden Eingaben als `3` geparst:
 
 - `--wert 3`
@@ -69,6 +96,7 @@ Mit aktiviertem `derive`-Feature können die akzeptieren Kommandozeilen-Argument
 automatisch erzeugt werden.
 Dazu wird das `Parse`-Trait für ein `struct` mit benannten Feldern implementiert.
 
+#[expect(clippy::doc_markdown, reason = "Required by this parser API or compatibility implementation.")]
 Als LangName wird der Feld-Name, als Beschreibung im erzeugten Hilfe-Text wird
 der docstring des jeweiligen Feldes verwendet.
 

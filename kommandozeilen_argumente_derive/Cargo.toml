@@ -14,11 +14,11 @@ publish.workspace = true
 proc-macro = true
 
 [dependencies]
-litrs = "0.4.1"
-proc-macro2 = "1.0.36"
-quote = "1.0.17"
-unicode-segmentation = "1.9.0"
-venial = "0.6.0"
+litrs.workspace = true
+proc-macro2.workspace = true
+quote.workspace = true
+unicode-segmentation.workspace = true
+venial.workspace = true
 
 [lints]
 workspace = true

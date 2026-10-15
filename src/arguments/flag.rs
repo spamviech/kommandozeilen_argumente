@@ -1,0 +1,343 @@
+//! Flag arguments.
+
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    convert::identity,
+    ffi::OsString,
+    fmt::{self, Debug},
+};
+
+use nonempty::NonEmpty;
+
+use crate::{
+    arguments::{
+        ParsedFlag, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, help::Help,
+    },
+    description::{ArgumentInput, Description, Name},
+    dyn_to_owned::{Bool, Show},
+    language::Language,
+    unicode::Compare,
+};
+
+/// A flag argument.
+#[must_use]
+pub struct Flag<'t, T> {
+    /// General description of the argument.
+    pub description: Description<'t, T>,
+
+    /// Prefix used to invert the flag argument.
+    pub invert_prefix: Compare<'t>,
+
+    /// Infix following the inversion prefix.
+    pub invert_infix: Compare<'t>,
+
+    /// Converts the parsed boolean to the argument value.
+    pub convert: Cow<'t, dyn Bool<'t, T>>,
+
+    /// Displays an argument value.
+    pub display: Cow<'t, dyn Show<'t, T>>,
+}
+
+impl<T: Debug> Debug for Flag<'_, T> {
+    #[inline]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Flag")
+            .field("description", &self.description)
+            .field("invert_prefix", &self.invert_prefix)
+            .field("invert_infix", &self.invert_infix)
+            .field("convert", &"<closure>")
+            .field("display", &"<closure>")
+            .finish()
+    }
+}
+
+impl<'t> Flag<'t, bool> {
+    /// Creates a flag argument that can be disabled with a `no` prefix.
+    #[inline]
+    pub fn new(description: Description<'t, bool>) -> Self {
+        Self::new_with_language(description, Language::ENGLISH)
+    }
+
+    /// Creates a flag argument that can be disabled with a German `kein` prefix.
+    #[cfg(feature = "german")]
+    ///
+    /// ## Deutsch
+    /// Erzeugt ein Flag-Argument, das mit einem `kein`-Präfix deaktiviert werden kann.
+    #[inline]
+    pub fn neu(beschreibung: crate::Beschreibung<'t, bool>) -> Self {
+        Self::neu_mit_sprache(beschreibung, crate::Sprache::DEUTSCH)
+    }
+
+    /// Creates a flag argument that can be disabled with the language's configured prefix.
+    #[inline]
+    pub fn new_with_language(description: Description<'t, bool>, language: Language) -> Self {
+        Self {
+            description,
+            invert_prefix: language.invert_prefix.into(),
+            invert_infix: language.invert_infix.into(),
+            convert: Cow::Borrowed(&identity),
+            display: Cow::Borrowed(&<bool as ToString>::to_string),
+        }
+    }
+
+    /// Creates a flag argument that can be disabled with the configured German language prefix.
+    #[cfg(feature = "german")]
+    ///
+    /// ## Deutsch
+    /// Erzeugt ein Flag-Argument, das mit dem konfigurierten Präfix deaktiviert werden kann.
+    #[inline]
+    pub fn neu_mit_sprache(
+        beschreibung: crate::Beschreibung<'t, bool>,
+        sprache: crate::Sprache,
+    ) -> Self {
+        Self::new_with_language(beschreibung.into(), sprache.into())
+    }
+}
+
+impl<T> Flag<'_, T> {
+    /// Creates the syntax and corresponding help text for this argument.
+    #[inline]
+    pub fn create_help_text(&self, meta_default: &str) -> Help {
+        let Self { description, invert_prefix, invert_infix, convert: _, display } = self;
+        let Description { name, help, default } = description;
+        let Name { long_prefix, long, short_prefix, short } = name;
+        let mut syntax = String::new();
+        syntax.push_str(long_prefix.as_str());
+        syntax.push('[');
+        syntax.push_str(invert_prefix.as_str());
+        syntax.push_str(invert_infix.as_str());
+        syntax.push(']');
+        let NonEmpty { head, tail } = long;
+        Name::alternatives_as_regex(head, tail.as_slice(), &mut syntax);
+        if let Some((short_head, short_tail)) = short.split_first() {
+            syntax.push_str(" | ");
+            syntax.push_str(short_prefix.as_str());
+            Name::alternatives_as_regex(short_head, short_tail, &mut syntax);
+        }
+        let help = match (help, default) {
+            (None, None) => None,
+            (None, Some(default)) => Some(format!("{meta_default}: {}", display(default))),
+            (Some(help), None) => Some(String::from(*help)),
+            (Some(help), Some(default)) => {
+                let mut help_with_default = (*help).to_owned();
+                help_with_default.push(' ');
+                help_with_default.push_str(meta_default);
+                help_with_default.push_str(": ");
+                help_with_default.push_str(&display(default));
+                Some(help_with_default)
+            },
+        };
+        Help { syntax, help }
+    }
+
+    /// Converts this flag's value to a string using its display function.
+    #[inline]
+    pub fn as_string_flag(&self) -> Flag<'_, String> {
+        let Self { description, invert_prefix, invert_infix, convert, display } = self;
+        let convert_boxed: Box<dyn '_ + Bool<'_, String>> =
+            Box::new(|value: bool| display(&convert(value)));
+        Flag {
+            description: description.as_ref().convert(&**display),
+            invert_prefix: invert_prefix.clone(),
+            invert_infix: invert_infix.clone(),
+            convert: Cow::Owned(convert_boxed),
+            display: Cow::Borrowed(&Clone::clone),
+        }
+    }
+}
+
+/// Parses non-merged short flag forms from the supplied inputs.
+fn parse_short_flag_forms<'argument, T>(
+    description: &Description<'argument, T>,
+    invert_prefix: &Compare<'argument>,
+    invert_infix: &Compare<'argument>,
+    args: impl Iterator<Item = ArgumentInput>,
+) -> ParsedShortForms<'argument> {
+    let mut flags = Vec::new();
+    let remaining = args
+        .filter_map(|argument| match argument {
+            ArgumentInput::Unchanged(argument) => {
+                let input = Cow::Owned(argument.to_string_lossy().into_owned());
+                description
+                    .name
+                    .parse_short_flag(invert_prefix, invert_infix, &argument)
+                    .map_or_else(
+                        || Some(ArgumentInput::Unchanged(argument)),
+                        |(name, value)| {
+                            flags.push(ParsedFlag { name: Cow::Owned(name.into()), value, input });
+                            None
+                        },
+                    )
+            },
+            adjusted @ ArgumentInput::AdjustedMergedShortNames(_) => Some(adjusted),
+        })
+        .collect();
+    ParsedShortForms {
+        early_exits: Vec::new(),
+        flags,
+        missing_values: HashSet::default(),
+        values: HashMap::default(),
+        remaining,
+    }
+}
+
+impl<'t, T> Flag<'t, T> {
+    /// Parses standalone short-form arguments.
+    #[inline]
+    pub fn parse_short_form(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedShortForms<'t> {
+        parse_short_flag_forms(&self.description, &self.invert_prefix, &self.invert_infix, args)
+    }
+
+    /// Parses long-form arguments.
+    #[inline]
+    pub fn parse_long_form(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedLongForms<'t> {
+        let mut flags = Vec::new();
+        let remaining = args
+            .filter_map(|argument| match argument {
+                ArgumentInput::Unchanged(argument) => {
+                    let input = Cow::Owned(argument.to_string_lossy().into_owned());
+                    self.description
+                        .name
+                        .parse_long_flag(&self.invert_prefix, &self.invert_infix, &argument)
+                        .map_or_else(
+                            || Some(ArgumentInput::Unchanged(argument)),
+                            |(name, value)| {
+                                flags.push(ParsedFlag {
+                                    name: Cow::Owned(name.into()),
+                                    value,
+                                    input,
+                                });
+                                None
+                            },
+                        )
+                },
+                adjusted @ ArgumentInput::AdjustedMergedShortNames(_) => Some(adjusted),
+            })
+            .collect();
+        ParsedLongForms {
+            early_exits: Vec::new(),
+            flags,
+            missing_values: HashSet::default(),
+            values: HashMap::default(),
+            remaining,
+        }
+    }
+
+    /// Parses merged short-form arguments.
+    ///
+    /// Rules to allow merging of short names:
+    ///
+    /// - All short names in the same string share the same (short) prefix.
+    /// - Only short names consisting of a single grapheme participate.
+    /// - At most one value argument per block; it must be last.
+    /// - Merging of short names must be enabled for this argument.
+    #[inline]
+    pub fn parse_merged_short_forms(
+        &self,
+        args: impl Iterator<Item = OsString>,
+    ) -> ParsedMergedShortForms<'t> {
+        self.parse_merged_short_inputs(args.map(ArgumentInput::Unchanged))
+    }
+
+    /// Parses merged short-form arguments while retaining adjusted-block remainders.
+    #[inline]
+    pub(crate) fn parse_merged_short_inputs(
+        &self,
+        args: impl Iterator<Item = ArgumentInput>,
+    ) -> ParsedMergedShortForms<'t> {
+        let Self { description, invert_prefix: _, invert_infix: _, convert: _, display: _ } = self;
+        let mut flags = Vec::new();
+        let remaining = args
+            .filter_map(|argument| {
+                let input = match &argument {
+                    ArgumentInput::Unchanged(argument) => {
+                        Cow::Owned(argument.to_string_lossy().into_owned())
+                    },
+                    ArgumentInput::AdjustedMergedShortNames(_) => Cow::Borrowed(""),
+                };
+                if let Some(parsed) = description.name.parse_flag_merge_short_forms(&argument) {
+                    flags.push(ParsedFlag {
+                        name: Cow::Owned(parsed.name.into()),
+                        value: parsed.value,
+                        input,
+                    });
+                    parsed.remaining
+                } else {
+                    Some(argument)
+                }
+            })
+            .collect();
+        ParsedMergedShortForms {
+            early_exits: Vec::new(),
+            flags,
+            missing_values: HashSet::default(),
+            values: HashMap::default(),
+            remaining,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![expect(clippy::indexing_slicing, reason = "Easier assert_eq! for the first element.")]
+
+    use std::ffi::OsString;
+
+    use crate::{ArgumentInput, Description, arguments::flag::Flag};
+
+    #[test]
+    fn parses_a_short_flag_from_a_merged_block() {
+        let flag = Flag::new(Description::new("--", "flag", "-", "f", None, Some(false)));
+        let result = flag.parse_merged_short_forms(
+            [OsString::from("-faf"), OsString::from("--other")].into_iter(),
+        );
+
+        assert_eq!(result.flags.len(), 1);
+        assert_eq!(result.flags[0].name, "f");
+        assert_eq!(result.remaining.len(), 2);
+    }
+
+    #[test]
+    fn leaves_short_form_disabled_argument_unchanged() {
+        let flag = Flag::new(Description::new("--", "flag", "-", None::<&str>, None, Some(false)));
+        let result = flag.parse_merged_short_forms([OsString::from("-f")].into_iter());
+
+        assert!(result.flags.is_empty());
+        assert_eq!(result.remaining.len(), 1);
+    }
+
+    #[test]
+    fn parses_a_standalone_short_flag() {
+        let flag = Flag::new(Description::new("--", "flag", "-", "f", None, Some(false)));
+        let result = flag.parse_short_form(
+            [OsString::from("-f"), OsString::from("-ff")].into_iter().map(ArgumentInput::Unchanged),
+        );
+
+        assert_eq!(result.flags.len(), 1);
+        assert_eq!(result.flags[0].name, "f");
+        assert_eq!(result.remaining.len(), 1);
+    }
+
+    #[test]
+    fn parses_long_flags_and_inversion() {
+        let flag = Flag::new(Description::new("--", "flag", "-", "f", None, Some(false)));
+        let result = flag.parse_long_form(
+            [OsString::from("--flag"), OsString::from("--no-flag"), OsString::from("-f")]
+                .into_iter()
+                .map(ArgumentInput::Unchanged),
+        );
+
+        assert_eq!(result.flags.len(), 2);
+        assert!(result.flags[0].value);
+        assert!(!result.flags[1].value);
+        assert_eq!(result.remaining.len(), 1);
+    }
+}

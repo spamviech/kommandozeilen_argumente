@@ -1,7 +1,6 @@
 //! An example using the function-api with english names.
 
-// dependencies of the lib
-#![allow(unused_crate_dependencies)]
+#![expect(unused_crate_dependencies, reason = "dependencies of the lib")]
 
 use std::{
     borrow::Cow,
@@ -11,13 +10,12 @@ use std::{
     num::NonZeroI32,
 };
 
-use nonempty::nonempty;
-
 use kommandozeilen_argumente::{
-    argumente::{flag::Flag, hilfe::Default, wert::Value},
-    combine, crate_name, crate_version, Compare, Description, EnumArgument, Language, NonEmpty,
-    ParseArgument, ParseError,
+    Compare, Description, EnumArgument, Language, NonEmpty, ParseArgument, ParseError,
+    arguments::{flag::Flag, help::Default, value::Value},
+    combine, crate_name, crate_version,
 };
+use nonempty::nonempty;
 
 /// An example enum, to show the use of [`EnumArgument`].
 #[derive(Debug, Clone)]
@@ -36,7 +34,7 @@ impl EnumArgument for Enumeration {
         Some(nonempty![One, Two, Three])
     }
 
-    fn parse_enum(arg: &OsStr) -> Result<Self, kommandozeilen_argumente::ParseFehler<String>> {
+    fn parse_enum(arg: &OsStr) -> Result<Self, ParseError<String>> {
         use Enumeration::{One, Three, Two};
         if let Some(string) = arg.to_str() {
             // Target strings only contain ASCII-characters.
@@ -46,10 +44,10 @@ impl EnumArgument for Enumeration {
                 "one" => Ok(One),
                 "two" => Ok(Two),
                 "three" => Ok(Three),
-                _ => Err(ParseError::ParseFehler(format!("Unknown variant: {string}"))),
+                _ => Err(ParseError::ParseError(format!("Unknown variant: {string}"))),
             }
         } else {
-            Err(ParseError::InvaliderString(OsString::from(arg)))
+            Err(ParseError::InvalidString(OsString::from(arg)))
         }
     }
 }
@@ -109,17 +107,17 @@ fn main() {
         language,
     );
     let required = Flag {
-        beschreibung: Description::new_with_language(
+        description: Description::new_with_language(
             "required",
             "r",
             Some("A flag without default value, with alternative prefix to invert the flag."),
             None,
             language,
         ),
-        invertiere_präfix: Compare::from("kein"),
-        invertiere_infix: Compare::from(language.invertiere_infix),
-        konvertiere: Cow::Borrowed(&identity),
-        anzeige: Cow::Borrowed(&ToString::to_string),
+        invert_prefix: Compare::from("kein"),
+        invert_infix: Compare::from(language.invert_infix),
+        convert: Cow::Borrowed(&identity),
+        display: Cow::Borrowed(&ToString::to_string),
     };
     let value = String::arguments_with_language(
         Description::new_with_language(
@@ -141,7 +139,10 @@ fn main() {
         ),
         language,
     );
-    #[allow(clippy::shadow_unrelated)]
+    #[expect(
+        clippy::shadow_unrelated,
+        reason = "lambda arguments, linked by calling with arguments."
+    )]
     let merge = |flag, renamed, required, value, enumeration| Args {
         flag,
         renamed,
@@ -153,14 +154,14 @@ fn main() {
         .with_help_and_version_early_exit_with_language(
             &Default,
             crate_name!(),
-            Some("Programm-Description."),
+            Some("Program-Description."),
             crate_version!(),
             language,
         );
     let args = argumente
-        .parse_vollständig_mit_sprache_aus_env(NonZeroI32::new(1).expect("1 != 0"), language);
-    #[allow(clippy::print_stdout, clippy::use_debug)]
+        .parse_complete_with_language_from_env(NonZeroI32::new(1).expect("1 != 0"), language);
+    #[expect(clippy::print_stdout, reason = "example implementation.")]
     {
-        println!("{args:?}");
+        println!("{args}");
     }
 }

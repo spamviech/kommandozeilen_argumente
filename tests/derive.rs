@@ -1,28 +1,27 @@
 //! Tests zum Parsen von Kommandozeilen-Argumenten, erzeugt über das derive-Feature.
 
-// dependencies of the lib
-#![allow(unused_crate_dependencies)]
-#![allow(
+#![expect(unused_crate_dependencies, reason = "dependencies of the lib")]
+#![expect(
     clippy::tests_outside_test_module,
     clippy::print_stdout,
     clippy::print_stderr,
-    clippy::exit,
-    clippy::use_debug
+    clippy::use_debug,
+    reason = "Integration test."
 )]
 
 use std::{
     borrow::Cow,
     ffi::OsString,
     fmt::{self, Debug, Display, Formatter},
-    iter,
+    iter, result,
 };
-
-use nonempty::{nonempty, NonEmpty};
 
 use kommandozeilen_argumente::{
-    beschreibung::{AdjustedMergedShortNames, MergedShortNameSuffix},
-    ArgumentInput, Argumente, EnumArgument, Ergebnis, Fehler, Normalisiert, Parse, ParseArgument,
+    ArgumentInput, Arguments, Compare, Description, EnumArgument, Error, Language, Normalized,
+    Parse, ParseArgument, Result,
+    description::{AdjustedMergedShortNames, MergedShortNameSuffix},
 };
+use nonempty::{NonEmpty, nonempty};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
 #[kommandozeilen_argumente(case: insensitive)]
@@ -65,10 +64,10 @@ impl Display for DisplayAsNewline<NonEmpty<Cow<'_, str>>> {
     }
 }
 
-impl<T: Display> Display for DisplayAsNewline<NonEmpty<Fehler<'_, T>>> {
+impl<T: Display> Display for DisplayAsNewline<NonEmpty<Error<'_, T>>> {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        for fehler in &self.0 {
-            writeln!(formatter, "{}", fehler.fehlermeldung())?;
+        for error in &self.0 {
+            writeln!(formatter, "{}", error.error_message())?;
         }
         Ok(())
     }
@@ -91,7 +90,7 @@ struct Test {
     /// opt
     #[kommandozeilen_argumente(lang: alternativ, kurz: [p, q, r])]
     opt: Option<Bla>,
-    #[allow(clippy::doc_markdown)]
+    #[expect(clippy::doc_markdown, reason = "Used in cli implementation.")]
     /// from_str
     #[kommandozeilen_argumente(FromStr, standard: 42, meta_var: VAR)]
     from_str: i32,
@@ -105,10 +104,22 @@ struct Test {
 struct Empty;
 
 #[test]
-fn derive_hilfe_test() -> Result<(), DString> {
-    let arg = Test::kommandozeilen_argumente();
-    match arg.parse(iter::once(OsString::from("--hilfe".to_owned()))) {
-        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+fn derive_empty_test() -> result::Result<(), DString> {
+    let arguments: Arguments<'_, Empty, String> = Empty::arguments();
+    match arguments.parse(iter::empty()) {
+        (Result::Value(Empty), unused) if unused.is_empty() => Ok(()),
+        (_result, unused) if !unused.is_empty() => {
+            Err(DString(format!("Unused arguments: {unused:?}")))
+        },
+        result => Err(DString(format!("Unexpected result: {result:?}"))),
+    }
+}
+
+#[test]
+fn derive_hilfe_test() -> result::Result<(), DString> {
+    let arg = Test::arguments();
+    match arg.parse(iter::once(OsString::from("--hilfe"))) {
+        (Result::EarlyExit(nachrichten), nicht_verwendet) => {
             for nachricht in nachrichten {
                 println!("{nachricht}");
             }
@@ -118,9 +129,9 @@ fn derive_hilfe_test() -> Result<(), DString> {
                 Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
             }
         },
-        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
+        (Result::Error(fehler_sammlung), nicht_verwendet) => {
             for fehler in &fehler_sammlung {
-                eprintln!("{}", fehler.fehlermeldung());
+                eprintln!("{}", fehler.error_message());
             }
             eprintln!("{nicht_verwendet:?}");
             Err(DString(format!("Parsen mit fehler:\n{}", DisplayAsNewline(fehler_sammlung))))
@@ -129,31 +140,31 @@ fn derive_hilfe_test() -> Result<(), DString> {
     }
 }
 
-const DUMMY: kommandozeilen_argumente::Sprache = kommandozeilen_argumente::Sprache {
-    lang_präfix: "(-.-)",
-    kurz_präfix: "~",
-    invertiere_präfix: "dummy",
-    invertiere_infix: "*",
-    wert_infix: "+",
+const DUMMY: Language = Language {
+    long_prefix: "(-.-)",
+    short_prefix: "~",
+    invert_prefix: "dummy",
+    invert_infix: "*",
+    value_infix: "+",
     meta_var: "dummy",
-    optionen: "dummy",
-    standard: "dummy",
-    erlaubte_werte: "dummy",
-    fehlende_flag: "dummy",
-    fehlender_wert: "dummy",
-    parse_fehler: "dummy",
-    invalider_string: "dummy",
-    argument_nicht_verwendet: "dummy",
-    hilfe_beschreibung: "dummy",
-    hilfe_lang: "dummy",
-    hilfe_kurz: "dummy",
-    version_beschreibung: "dummy",
-    version_lang: "dummy",
-    version_kurz: "dummy",
-    syntax_präfix: "dummy",
+    options: "dummy",
+    default: "dummy",
+    allowed_values: "dummy",
+    missing_flag: "dummy",
+    missing_value: "dummy",
+    parse_error: "dummy",
+    invalid_string: "dummy",
+    unused_argument: "dummy",
+    help_description: "dummy",
+    help_long: "dummy",
+    help_short: "dummy",
+    version_description: "dummy",
+    version_long: "dummy",
+    version_short: "dummy",
+    syntax_prefix: "dummy",
     syntax_padding: 'd',
-    alternative_präfix: "dummy",
-    alternative_trennzeichen: 'd',
+    alternative_prefix: "dummy",
+    alternative_separator: 'd',
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -163,29 +174,25 @@ enum Flag {
 }
 
 impl ParseArgument for Flag {
-    fn argumente<'t>(
-        beschreibung: kommandozeilen_argumente::Beschreibung<'t, Self>,
-        invertiere_präfix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
-        invertiere_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
-        _wert_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
+    fn arguments<'t>(
+        description: Description<'t, Self>,
+        invert_prefix: impl Into<Compare<'t>>,
+        invert_infix: impl Into<Compare<'t>>,
+        _value_infix: impl Into<Compare<'t>>,
         _meta_var: &'t str,
-    ) -> Argumente<'t, Self, String> {
-        Argumente::from(kommandozeilen_argumente::Flag {
-            beschreibung,
-            invertiere_präfix: invertiere_präfix.into(),
-            invertiere_infix: invertiere_infix.into(),
-            konvertiere: Cow::Borrowed(&|bool| {
-                if bool {
-                    Flag::Active
-                } else {
-                    Flag::Inactive
-                }
+    ) -> Arguments<'t, Self, String> {
+        Arguments::from(kommandozeilen_argumente::Flag {
+            description,
+            invert_prefix: invert_prefix.into(),
+            invert_infix: invert_infix.into(),
+            convert: Cow::Borrowed(&|bool| {
+                if bool { Flag::Active } else { Flag::Inactive }
             }),
-            anzeige: Cow::Borrowed(&|flag| format!("{flag:?}")),
+            display: Cow::Borrowed(&|flag| format!("{flag:?}")),
         })
     }
 
-    fn standard() -> Option<Self> {
+    fn default() -> Option<Self> {
         Some(Flag::Inactive)
     }
 }
@@ -214,10 +221,10 @@ struct Test2 {
 }
 
 #[test]
-fn derive_help_test() -> Result<(), DString> {
-    let arg = Test2::kommandozeilen_argumente();
-    match arg.parse(iter::once(OsString::from("--help".to_owned()))) {
-        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+fn derive_help_test() -> result::Result<(), DString> {
+    let arg = Test2::arguments();
+    match arg.parse(iter::once(OsString::from("--help"))) {
+        (Result::EarlyExit(nachrichten), nicht_verwendet) => {
             for nachricht in nachrichten {
                 println!("{nachricht}");
             }
@@ -227,9 +234,9 @@ fn derive_help_test() -> Result<(), DString> {
                 Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
             }
         },
-        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
+        (Result::Error(fehler_sammlung), nicht_verwendet) => {
             for fehler in &fehler_sammlung {
-                eprintln!("{}", fehler.fehlermeldung());
+                eprintln!("{}", fehler.error_message());
             }
             eprintln!("{nicht_verwendet:?}");
             Err(DString(format!("Parsen mit fehler:\n{}", DisplayAsNewline(fehler_sammlung))))
@@ -239,10 +246,10 @@ fn derive_help_test() -> Result<(), DString> {
 }
 
 #[test]
-fn verschmelze_kurzformen_hilfe() -> Result<(), DString> {
-    let arg = Test::kommandozeilen_argumente();
-    match arg.parse(iter::once(OsString::from("-vh".to_owned()))) {
-        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
+fn verschmelze_kurzformen_hilfe() -> result::Result<(), DString> {
+    let arg = Test::arguments();
+    match arg.parse(iter::once(OsString::from("-vh"))) {
+        (Result::EarlyExit(nachrichten), nicht_verwendet) => {
             let übrige = nicht_verwendet.len();
             if übrige > 0 {
                 Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
@@ -258,9 +265,9 @@ fn verschmelze_kurzformen_hilfe() -> Result<(), DString> {
                 Ok(())
             }
         },
-        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
+        (Result::Error(fehler_sammlung), nicht_verwendet) => {
             for fehler in &fehler_sammlung {
-                eprintln!("{}", fehler.fehlermeldung());
+                eprintln!("{}", fehler.error_message());
             }
             eprintln!("{nicht_verwendet:?}");
             Err(DString(format!("Parsen mit fehler:\n{}", DisplayAsNewline(fehler_sammlung))))
@@ -270,14 +277,13 @@ fn verschmelze_kurzformen_hilfe() -> Result<(), DString> {
 }
 
 #[test]
-fn verschmelze_kurzformen_wert() -> Result<(), DString> {
+fn verschmelze_kurzformen_wert() -> result::Result<(), DString> {
     // soll nicht für Wert-Argumente (vor allem am Anfang der Liste) funktionieren!
-    // FIXME wert am Anfang soll keinen Parse-Fehler auslösen!
-    let arg2 = Test2::kommandozeilen_argumente();
+    let arg2 = Test2::arguments();
     match arg2.parse(
         [OsString::from(String::from("-xfb")), OsString::from(String::from("Muh"))].into_iter(),
     ) {
-        (Ergebnis::Wert(test2), nicht_verwendet) => {
+        (Result::Value(test2), nicht_verwendet) => {
             let erwartet = Test2 {
                 bla: Bla::Meh,
                 inner: Inner { inner_flag: false },
@@ -287,7 +293,7 @@ fn verschmelze_kurzformen_wert() -> Result<(), DString> {
             // Der Wert Kurz-Name soll nicht "nach hinten durchrutschen"!
             let erwartet_nicht_verwendet = [
                 ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
-                    prefix: Normalisiert::neu(Cow::from("-")),
+                    prefix: Normalized::new(Cow::from("-")),
                     graphemes: nonempty![Box::from("x")],
                     suffix: MergedShortNameSuffix::Removed,
                 }),
@@ -307,11 +313,52 @@ fn verschmelze_kurzformen_wert() -> Result<(), DString> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Parse)]
+#[kommandozeilen_argumente(language: english)]
+#[expect(clippy::struct_excessive_bools, reason = "The types directly control the generated cli parsing.")]
+struct UnicodeDerived {
+    #[kommandozeilen_argumente(long: "föö", short: f)]
+    flag: bool,
+    #[kommandozeilen_argumente(long: "pört", short: p, FromStr)]
+    port: u16,
+    #[kommandozeilen_argumente(long: "Ärger", short: a, case(long: insensitive))]
+    case_insensitive: bool,
+    #[kommandozeilen_argumente(long: "e\u{301}clair", short)]
+    eclair: bool,
+    #[kommandozeilen_argumente(short)]
+    über: bool,
+}
+
 #[test]
-fn verschmelze_kurzformen_erfolgreich() -> Result<(), DString> {
-    let arg2 = Test2::kommandozeilen_argumente();
-    match arg2.parse(iter::once(OsString::from("-fb".to_owned()))) {
-        (Ergebnis::Wert(test2), nicht_verwendet) => {
+fn derived_unicode_names_preserve_normalization_case_and_graphemes() {
+    let (result, remaining) = UnicodeDerived::arguments().parse(
+        [
+            OsString::from("-e\u{301}fü"),
+            OsString::from("-p8080"),
+            OsString::from("--ärger"),
+            OsString::from("--über"),
+        ]
+        .into_iter(),
+    );
+
+    assert_eq!(remaining, []);
+    assert!(matches!(
+        result,
+        Result::Value(UnicodeDerived {
+            flag: true,
+            port: 8080,
+            case_insensitive: true,
+            eclair: true,
+            über: true,
+        })
+    ));
+}
+
+#[test]
+fn verschmelze_kurzformen_erfolgreich() -> result::Result<(), DString> {
+    let arg2 = Test2::arguments();
+    match arg2.parse(iter::once(OsString::from("-fb"))) {
+        (Result::Value(test2), nicht_verwendet) => {
             let übrige = nicht_verwendet.len();
             let erwartet = Test2 {
                 bla: Bla::Meh,

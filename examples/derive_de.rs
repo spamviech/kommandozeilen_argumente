@@ -1,13 +1,6 @@
 //! Ein Beispiel des "derive"-features mit deutschen Namen.
 
-// dependencies of the lib
-#![allow(unused_crate_dependencies)]
-// checking if the derive macro triggers any lint
-#![allow(clippy::blanket_clippy_restriction_lints)]
-#![warn(clippy::restriction)]
-// Funktioniert nur, wenn es für das gesamte Modul deaktiviert wird.
-// Benötigt für einige [`Sprache`]-Felder.
-#![allow(clippy::disallowed_script_idents)]
+#![expect(unused_crate_dependencies, reason = "dependencies of the lib")]
 
 use core::{
     fmt::{self, Debug, Display},
@@ -29,9 +22,7 @@ enum Aufzählung {
 }
 
 impl Display for Aufzählung {
-    #[allow(clippy::renamed_function_params)]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        #[allow(clippy::implicit_return)]
         Debug::fmt(self, formatter)
     }
 }
@@ -40,8 +31,6 @@ impl Display for Aufzählung {
 #[derive(Debug, Parse)]
 #[kommandozeilen_argumente(hilfe(beschreibung: "Programm-Beschreibung.", kurz))]
 #[kommandozeilen_argumente(version, sprache: deutsch, programm(version))]
-// wegen `invertiere_präfix`
-#[allow(clippy::disallowed_script_idents)]
 struct Args {
     /// Eine Flag mit Standard-Einstellungen.
     flag: bool,
@@ -59,13 +48,6 @@ struct Args {
 }
 
 impl Display for Args {
-    #[allow(
-        clippy::pattern_type_mismatch,
-        clippy::question_mark_used,
-        clippy::implicit_return,
-        clippy::non_ascii_literal,
-        clippy::renamed_function_params
-    )]
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Args { flag, umbenannt, benötigt, wert, aufzählung } = self;
         writeln!(formatter, "flag: {flag}")?;
@@ -77,10 +59,9 @@ impl Display for Args {
 }
 
 fn main() {
-    #[allow(clippy::expect_used, clippy::separated_literal_suffix)]
-    let args = Args::parse_mit_fehlermeldung_aus_env(NonZeroI32::new(1_i32).expect("1 != 0"));
-    #[allow(clippy::print_stdout, clippy::use_debug)]
+    let args = Args::parse_mit_fehlermeldung_aus_env(NonZeroI32::new(1i32).expect("1 != 0"));
+    #[expect(clippy::print_stdout, reason = "example implementation.")]
     {
-        println!("{args:?}");
+        println!("{args}");
     }
 }

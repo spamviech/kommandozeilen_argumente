@@ -15,9 +15,9 @@ resolver = "2"
 
 [workspace.package]
 authors = ["spamviech <spamviech@web.de>"]
-edition = "2021"
+edition = "2024"
 license = "MIT"
-rust-version = "1.80"
+rust-version = "1.85"
 repository = "https://github.com/spamviech/kommandozeilen_argumente"
 publish = false
 
@@ -25,19 +25,33 @@ publish = false
 
 [features]
 default = []
-derive = ["kommandozeilen_argumente_derive"]
+# Exposes the German mirror API; `Language::GERMAN` remains available without it.
+german = []
+derive = ["dep:kommandozeilen_argumente_derive"]
 
 [[test]]
 name = "derive"
 required-features = ["derive"]
 
-[[example]]
-name = "derive"
+[[test]]
+name = "hilfe"
+required-features = ["german"]
+
+[[test]]
+name = "staged_parser"
 required-features = ["derive"]
+
+[[example]]
+name = "derive_de"
+required-features = ["derive", "german"]
 
 [[example]]
 name = "derive_en"
 required-features = ["derive"]
+
+[[example]]
+name = "funktion"
+required-features = ["german"]
 
 [dependencies]
 dyn-clone.workspace = true
@@ -51,19 +65,60 @@ unicode-segmentation.workspace = true
 void.workspace = true
 
 [workspace.dependencies]
-dyn-clone = "1.0.17"
-either = "1.6.1"
-itertools = "0.12.1"
-litrs = "0.4.1"
-nonempty = "0.10.0"
-paste = "1.0.15"
-proc-macro2 = "1.0.36"
-unicase = "2.6.0"
-unicode-normalization = "0.1.19"
-unicode-segmentation = "1.9.0"
-quote = "1.0.17"
-venial = "0.6.0"
-void = "1.0.2"
+[workspace.dependencies.dyn-clone]
+version = "1.0.17"
+default-features = false
+
+[workspace.dependencies.either]
+version = "1.6.1"
+default-features = false
+
+[workspace.dependencies.itertools]
+version = "0.15.0"
+default-features = false
+features = ["use_alloc"]
+
+[workspace.dependencies.litrs]
+version = "1.0.0"
+default-features = false
+features = ["proc-macro2"]
+
+[workspace.dependencies.nonempty]
+version = "0.12.0"
+default-features = false
+
+[workspace.dependencies.paste]
+version = "1.0.15"
+default-features = false
+
+[workspace.dependencies.proc-macro2]
+version = "1.0.36"
+default-features = false
+
+[workspace.dependencies.unicase]
+version = "2.6.0"
+default-features = false
+
+[workspace.dependencies.unicode-normalization]
+version = "0.1.19"
+default-features = false
+
+[workspace.dependencies.unicode-segmentation]
+version = "1.9.0"
+default-features = false
+features = ["no_std"]
+
+[workspace.dependencies.quote]
+version = "1.0.17"
+default-features = false
+
+[workspace.dependencies.void]
+version = "1.0.1"
+default-features = false
+
+[workspace.dependencies.venial]
+version = "0.6.0"
+default-features = false
 
 [dependencies.kommandozeilen_argumente_derive]
 path = "./kommandozeilen_argumente_derive"
@@ -74,7 +129,7 @@ optional = true
 workspace = true
 
 [workspace.lints.rust]
-# Aktiviere alle Warnungen/Lints, außer: box_pointers, non_ascii_idents, unstable_features
+# Aktiviere alle Warnungen/Lints, außer: non_ascii_idents, unstable_features
 absolute_paths_not_starting_with_crate = "warn"
 elided_lifetimes_in_paths = "warn"
 explicit_outlives_requirements = "warn"
@@ -86,7 +141,6 @@ missing_copy_implementations = "warn"
 missing_debug_implementations = "warn"
 missing_docs = "warn"
 noop_method_call = "warn"
-pointer_structural_match = "warn"
 rust_2021_incompatible_closure_captures = "warn"
 rust_2021_incompatible_or_patterns = "warn"
 rust_2021_prefixes_incompatible_syntax = "warn"
@@ -97,6 +151,7 @@ trivial_numeric_casts = "warn"
 unreachable_pub = "warn"
 unsafe_code = "warn"
 unsafe_op_in_unsafe_fn = "warn"
+unexpected_cfgs = "warn"
 unused_crate_dependencies = "warn"
 unused_extern_crates = "warn"
 unused_import_braces = "warn"
@@ -104,7 +159,6 @@ unused_lifetimes = "warn"
 unused_qualifications = "warn"
 unused_results = "warn"
 variant_size_differences = "warn"
-box_pointers = "allow"
 non_ascii_idents = "allow"
 unstable_features = "allow"
 
@@ -208,7 +262,6 @@ str_to_string = "warn"
 string_add = "warn"
 string_lit_chars_any = "allow"             # lint existiert aus Performance-Gründen, app ist nicht Performance-kritisch
 string_slice = "warn"
-string_to_string = "warn"
 suspicious_xor_used_as_pow = "warn"
 tests_outside_test_module = "warn"
 todo = "warn"
