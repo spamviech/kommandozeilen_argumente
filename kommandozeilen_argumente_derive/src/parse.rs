@@ -9,7 +9,7 @@ use litrs::StringLit;
 use proc_macro2::{Ident, TokenStream, TokenTree};
 use quote::{ToTokens, quote};
 use unicode_segmentation::UnicodeSegmentation;
-use venial::{Fields, Item, NamedField, Struct, TypeExpr, parse_item};
+use venial::{Attribute, Fields, Item, NamedField, Struct, TypeExpr, parse_item};
 
 use crate::{
     CompileError,
@@ -591,6 +591,375 @@ fn literal_or_to_string(token_stream: &TokenStream) -> String {
     }
 }
 
+/// Generated prefixes and names for a nested help or version attribute.
+type SubArgumentNames = (LongPrefix, TokenStream, ShortPrefix, TokenStream);
+
+/// Parse the common names and program settings of nested help or version attributes.
+fn parse_named_sub_arguments(
+    sub_args: Vec<Argument>,
+    span: proc_macro2::Span,
+    name: &str,
+    program_settings: Option<&mut ProgramSettings<Option<ProgramDescription>>>,
+) -> Result<(Option<Language>, SubArgumentNames), CreateError> {
+    use ParseValueError::Unsupported;
+    let crate_ident = crate_ident();
+    let mut language = None;
+    let mut long_prefix = LongPrefix::default();
+    let mut long_names = LongNames::default();
+    let mut short_prefix = ShortPrefix::default();
+    let mut short_names = ShortNames::default();
+    if let Err(create_error) = parse_value_argument(
+        sub_args,
+        Some(&mut language),
+        None,
+        None,
+        None,
+        program_settings,
+        Some(&mut long_prefix),
+        Some(&mut long_names),
+        Some(&mut short_prefix),
+        Some(&mut short_names),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    ) {
+        let name = name.to_owned();
+        return Err(Box::new(move |arg_name| match create_error(arg_name) {
+            Unsupported { arg_name, argument } => Unsupported {
+                arg_name,
+                argument: Argument {
+                    span,
+                    name,
+                    value: ArgumentValue::SubArgument(vec![argument]),
+                },
+            },
+            error @ ParseValueError::NoLongName { .. } => error,
+        }));
+    }
+    let (long_names, first, long_names_case) = match long_names.namen.as_ref() {
+        Some((head, tail)) => (
+            quote!(
+                #crate_ident::NonEmpty {
+                    head: #head,
+                    tail: vec![#(#tail),*]
+                }
+            ),
+            head.clone(),
+            long_names.case,
+        ),
+        None => (quote!(#name), name.to_owned(), long_names.case),
+    };
+    let short_names = short_names.into_vec_tokens(&first, long_names_case);
+    Ok((language, (long_prefix, long_names, short_prefix, short_names)))
+}
+
+/// Wrap an unsupported `case(...)` setting in its parent attribute.
+fn case_error_argument(
+    span: proc_macro2::Span,
+    name: &str,
+    sub_name: &str,
+    value: &TokenStream,
+) -> Argument {
+    Argument {
+        span,
+        name: name.to_owned(),
+        value: ArgumentValue::SubArgument(vec![Argument {
+            span,
+            name: sub_name.to_owned(),
+            value: ArgumentValue::Stream(value.clone()),
+        }]),
+    }
+}
+
+/// Apply case-sensitivity settings from a nested `case(...)` attribute.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Case settings can target each supported argument component."
+)]
+fn parse_case_sub_arguments(
+    span: proc_macro2::Span,
+    name: String,
+    sub_args: Vec<Argument>,
+    long_prefix: &mut Option<&mut LongPrefix>,
+    long_names: &mut Option<&mut LongNames>,
+    short_prefix: &mut Option<&mut ShortPrefix>,
+    short_names: &mut Option<&mut ShortNames>,
+    invert_prefix: &mut Option<&mut InvertPrefix>,
+    invert_infix: &mut Option<&mut InvertInfix>,
+    value_infix: &mut Option<&mut ValueInfix>,
+) -> Result<(), CreateError> {
+    use ParseValueError::Unsupported;
+    macro_rules! set_case {
+        ($target:expr, $case:expr, $argument:expr) => {
+            if let Some(target) = $target.as_mut() {
+                target.case = Some($case);
+            } else {
+                return Err(Box::new(move |arg_name| Unsupported {
+                    arg_name,
+                    argument: $argument,
+                }));
+            }
+        };
+    }
+    for sub_arg in sub_args {
+        let Argument { name: sub_name, value: ArgumentValue::Stream(ts), .. } = sub_arg else {
+            return Err(Box::new(move |arg_name| Unsupported {
+                arg_name,
+                argument: Argument { span, name, value: ArgumentValue::SubArgument(vec![sub_arg]) },
+            }));
+        };
+        let error_argument = case_error_argument(span, &name, &sub_name, &ts);
+        let Some(case) = Case::parse(&ts) else {
+            return Err(Box::new(move |arg_name| Unsupported {
+                arg_name,
+                argument: error_argument,
+            }));
+        };
+        match sub_name.as_str() {
+            "lang_präfix" | "long_prefix" => set_case!(long_prefix, case, error_argument),
+            "lang" | "long" => set_case!(long_names, case, error_argument),
+            "kurz_präfix" | "short_prefix" => set_case!(short_prefix, case, error_argument),
+            "kurz" | "short" => set_case!(short_names, case, error_argument),
+            "invertiere_präfix" | "invert_prefix" => {
+                set_case!(invert_prefix, case, error_argument);
+            },
+            "invertiere_infix" | "invert_infix" => {
+                set_case!(invert_infix, case, error_argument);
+            },
+            "wert_infix" | "value_infix" => set_case!(value_infix, case, error_argument),
+            _ => {
+                return Err(Box::new(move |arg_name| Unsupported {
+                    arg_name,
+                    argument: error_argument,
+                }));
+            },
+        }
+    }
+    Ok(())
+}
+
+/// Configure a help early exit from a nested `help(...)` or `hilfe(...)` attribute.
+fn parse_help_sub_arguments(
+    span: proc_macro2::Span,
+    name: &str,
+    sub_args: Vec<Argument>,
+    create_help: &mut CreateHelp,
+) -> Result<(), CreateError> {
+    let mut program_settings = ProgramSettings {
+        name: ProgramName(None),
+        version: ProgramVersion::Unspecified,
+        description: Some(ProgramDescription(None)),
+    };
+    let (language, names) =
+        parse_named_sub_arguments(sub_args, span, name, Some(&mut program_settings))?;
+    let description = ProgramSettings {
+        name: program_settings.name,
+        version: program_settings.version,
+        description: program_settings
+            .description
+            .expect("Some-Wert für Programm-Description wird bei rekursiven Aufruf nie None!"),
+    };
+    let default_language = if name == "hilfe" { Deutsch } else { English };
+    *create_help = CreateHelp(Some(Box::new(create_help_method(
+        &language.unwrap_or(default_language),
+        Some(names),
+        description,
+    ))));
+    Ok(())
+}
+
+/// Configure a version early exit from a nested `version(...)` attribute.
+fn parse_version_sub_arguments(
+    span: proc_macro2::Span,
+    name: &str,
+    sub_args: Vec<Argument>,
+    create_version: &mut CreateVersion,
+) -> Result<(), CreateError> {
+    let mut program_settings = ProgramSettings {
+        name: ProgramName(None),
+        version: ProgramVersion::Unspecified,
+        description: None,
+    };
+    let (language, names) =
+        parse_named_sub_arguments(sub_args, span, name, Some(&mut program_settings))?;
+    let settings = ProgramSettings {
+        name: program_settings.name,
+        version: program_settings.version,
+        description: (),
+    };
+    *create_version =
+        CreateVersion(Some(Box::new(create_version_method(language, Some(names), settings))));
+    Ok(())
+}
+
+/// Configure default program settings from a nested `program(...)` or `programm(...)` attribute.
+fn parse_program_sub_arguments(
+    span: proc_macro2::Span,
+    name: String,
+    sub_args: Vec<Argument>,
+    default_program_settings: &mut ProgramSettings<ProgramDescription>,
+) -> Result<(), CreateError> {
+    use ParseValueError::{NoLongName, Unsupported};
+    let mut program_settings = ProgramSettings {
+        name: ProgramName(None),
+        version: ProgramVersion::Unspecified,
+        description: Some(ProgramDescription(None)),
+    };
+    if let Err(create_error) = parse_value_argument(
+        sub_args,
+        None,
+        None,
+        None,
+        None,
+        Some(&mut program_settings),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    ) {
+        return Err(Box::new(move |arg_name| match create_error(arg_name) {
+            Unsupported { arg_name, argument } => Unsupported {
+                arg_name,
+                argument: Argument {
+                    span,
+                    name,
+                    value: ArgumentValue::SubArgument(vec![argument]),
+                },
+            },
+            error @ NoLongName { .. } => error,
+        }));
+    }
+    *default_program_settings = ProgramSettings {
+        name: program_settings.name,
+        version: program_settings.version,
+        description: program_settings
+            .description
+            .expect("Some-Wert für Programm-Description wird bei rekursivem Aufruf nie None!"),
+    };
+    Ok(())
+}
+
+/// Parse a nested attribute group such as `help(...)`, `version(...)`, or `case(...)`.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "Nested attributes selectively update the supported parser settings."
+)]
+fn parse_sub_argument(
+    span: proc_macro2::Span,
+    name: String,
+    sub_args: Vec<Argument>,
+    default_program_settings: &mut Option<&mut ProgramSettings<ProgramDescription>>,
+    create_help: &mut Option<&mut CreateHelp>,
+    create_version: &mut Option<&mut CreateVersion>,
+    long_prefix: &mut Option<&mut LongPrefix>,
+    long_names: &mut Option<&mut LongNames>,
+    short_prefix: &mut Option<&mut ShortPrefix>,
+    short_names: &mut Option<&mut ShortNames>,
+    invert_prefix: &mut Option<&mut InvertPrefix>,
+    invert_infix: &mut Option<&mut InvertInfix>,
+    value_infix: &mut Option<&mut ValueInfix>,
+) -> Result<(), CreateError> {
+    use ParseValueError::Unsupported;
+
+    match (
+        name.as_str(),
+        create_help.as_mut(),
+        create_version.as_mut(),
+        default_program_settings.as_mut(),
+    ) {
+        ("hilfe" | "help", Some(create_help), _, _) => {
+            parse_help_sub_arguments(span, &name, sub_args, create_help)?;
+        },
+        ("version", _, Some(create_version), _) => {
+            parse_version_sub_arguments(span, &name, sub_args, create_version)?;
+        },
+        ("programm" | "program", _, _, Some(default_program_settings)) => {
+            parse_program_sub_arguments(span, name, sub_args, default_program_settings)?;
+        },
+        ("case", _, _, _) => parse_case_sub_arguments(
+            span,
+            name,
+            sub_args,
+            long_prefix,
+            long_names,
+            short_prefix,
+            short_names,
+            invert_prefix,
+            invert_infix,
+            value_infix,
+        )?,
+        _ => {
+            return Err(Box::new(move |arg_name| Unsupported {
+                arg_name,
+                argument: Argument { span, name, value: ArgumentValue::SubArgument(sub_args) },
+            }));
+        },
+    }
+
+    Ok(())
+}
+
+/// Set the argument value or return [`ParseValueError::Unsupported`].
+macro_rules! set_argument {
+    (< $([$mut_var: expr, $value: expr $(,)?]),+ $(,)?>, $sub_arg: expr $(,)?) => {
+        $(
+            if let Some(var) = $mut_var.as_mut() {
+                **var = $value;
+            } else
+        )+
+        {
+            return Err(Box::new(move |arg_name| Unsupported {
+                arg_name,
+                argument: $sub_arg,
+            }));
+        }
+    };
+    ($mut_var: expr, $value: expr, $sub_arg: expr $(,)?) => {
+        set_argument!(<[$mut_var, $value]>, $sub_arg)
+    };
+}
+
+/// Helper macro for the argument-setting macros below.
+macro_rules! set_argument_field {
+    ($mut_var:expr, $feld:ident, $value:expr, $sub_arg:expr) => {
+        if let Some(var) = $mut_var.as_mut() {
+            var.$feld = $value;
+        } else {
+            return Err(Box::new(move |arg_name| Unsupported { arg_name, argument: $sub_arg }));
+        }
+    };
+}
+
+/// Set [`LongNames`] or [`ShortNames`] for an argument.
+macro_rules! set_argument_names {
+    ($mut_var:expr, $value:expr, $sub_arg:expr) => {
+        set_argument_field!($mut_var, namen, $value, $sub_arg)
+    };
+}
+
+/// Set a [`String`] value for an argument.
+macro_rules! set_argument_string {
+    ($mut_var:expr, $value:expr, $sub_arg:expr) => {
+        set_argument_field!($mut_var, string, Some($value), $sub_arg)
+    };
+}
+
+/// Set the [`Case`] value for an argument.
+macro_rules! set_argument_case {
+    ($mut_var:expr, $value:expr, $sub_arg:expr) => {
+        set_argument_field!($mut_var, case, Some($value), $sub_arg)
+    };
+}
+
 /// Parse the attributes for a value argument.
 #[expect(
     clippy::too_many_arguments,
@@ -616,54 +985,6 @@ fn parse_value_argument(
     mut field_argument: Option<&mut FieldArgument>,
 ) -> Result<(), CreateError> {
     use ParseValueError::{NoLongName, Unsupported};
-    let crate_ident = crate_ident();
-    /// Set the argument value or return [`ParseValueError::Unsupported`].
-    macro_rules! set_argument {
-        (< $([$mut_var: expr, $value: expr $(,)?]),+ $(,)?>, $sub_arg: expr $(,)?) => {
-            $(
-                if let Some(var) = $mut_var.as_mut() {
-                    **var = $value;
-                } else
-            )+
-            {
-                return Err(Box::new(move |arg_name| Unsupported {
-                    arg_name,
-                    argument: $sub_arg,
-                }));
-            }
-        };
-        ($mut_var: expr, $value: expr, $sub_arg: expr $(,)?) => {
-            set_argument!(<[$mut_var, $value]>, $sub_arg)
-        };
-    }
-    /// Helper macro for the argument-setting macros below.
-    macro_rules! set_argument_field {
-        ($mut_var:expr, $feld:ident, $value:expr, $sub_arg:expr) => {
-            if let Some(var) = $mut_var.as_mut() {
-                var.$feld = $value;
-            } else {
-                return Err(Box::new(move |arg_name| Unsupported { arg_name, argument: $sub_arg }));
-            }
-        };
-    }
-    /// Set [`LongNames`] or [`ShortNames`] for an argument.
-    macro_rules! set_argument_names {
-        ($mut_var:expr, $value:expr, $sub_arg:expr) => {
-            set_argument_field!($mut_var, namen, $value, $sub_arg)
-        };
-    }
-    /// Set a [`String`] value for an argument.
-    macro_rules! set_argument_string {
-        ($mut_var:expr, $value:expr, $sub_arg:expr) => {
-            set_argument_field!($mut_var, string, Some($value), $sub_arg)
-        };
-    }
-    /// Set the [`Case`] value for an argument.
-    macro_rules! set_argument_case {
-        ($mut_var:expr, $value:expr, $sub_arg:expr) => {
-            set_argument_field!($mut_var, case, Some($value), $sub_arg)
-        };
-    }
     for Argument { span, name, value } in args {
         match value {
             ArgumentValue::NoValue => match name.as_str() {
@@ -898,236 +1219,21 @@ fn parse_value_argument(
                     }));
                 },
             },
-            ArgumentValue::SubArgument(sub_args) => {
-                /// Parse a sub-argument recursively.
-                macro_rules! recursive {
-                    ($program_settings: expr, $sub_language: ident, $prefix_and_names: ident $(,)?) => {
-                        let mut $sub_language = None;
-                        let mut sub_long_prefix = LongPrefix::default();
-                        let mut sub_long = LongNames::default();
-                        let mut sub_short_prefix = ShortPrefix::default();
-                        let mut sub_short = ShortNames::default();
-                        let result = parse_value_argument(
-                            sub_args,
-                            Some(&mut $sub_language),
-                            None,
-                            None,
-                            None,
-                            $program_settings,
-                            Some(&mut sub_long_prefix),
-                            Some(&mut sub_long),
-                            Some(&mut sub_short_prefix),
-                            Some(&mut sub_short),
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                        );
-                        if let Err(create_error) = result {
-                            return Err(Box::new(move |arg_name| match create_error(arg_name) {
-                                Unsupported { arg_name, argument } => Unsupported {
-                                    arg_name,
-                                    argument: Argument {
-                                        span,
-                                        name,
-                                        value: ArgumentValue::SubArgument(vec![argument])
-                                    }
-                                },
-                                error => error,
-                            }))
-                        };
-                        let (sub_lang_ts, erster) = match sub_long.namen.as_ref() {
-                            Some((head, tail)) => (
-                                quote!(
-                                    #crate_ident::NonEmpty {
-                                        head: #head,
-                                        tail: vec![#(#tail),*]
-                                    }
-                                ),
-                                head,
-                            ),
-                            None => (quote!(#name), &name),
-                        };
-                        let sub_kurz_ts = sub_short.into_vec_tokens(erster, sub_long.case);
-                        let $prefix_and_names =
-                            (sub_long_prefix, sub_lang_ts, sub_short_prefix, sub_kurz_ts);
-                    }
-                }
-                match (
-                    name.as_str(),
-                    create_help.as_mut(),
-                    create_version.as_mut(),
-                    default_program_settings.as_mut(),
-                ) {
-                    ("hilfe" | "help", Some(erstelle_hilfe), _, _) => {
-                        let mut sub_program_settings = ProgramSettings {
-                            name: ProgramName(None),
-                            version: ProgramVersion::Unspecified,
-                            description: Some(ProgramDescription(None)),
-                        };
-                        recursive!(Some(&mut sub_program_settings), sub_language, prefix_and_name,);
-                        let sub_program_description = ProgramSettings {
-                            name: sub_program_settings.name,
-                            version: sub_program_settings.version,
-                            description: sub_program_settings.description.expect(
-                                "Some-Wert für Programm-Description wird bei rekursiven Aufruf \
-                                 nie None!",
-                            ),
-                        };
-                        let default_language = if name == "hilfe" { Deutsch } else { English };
-                        **erstelle_hilfe = CreateHelp(Some(Box::new(create_help_method(
-                            &sub_language.unwrap_or(default_language),
-                            Some(prefix_and_name),
-                            sub_program_description,
-                        ))));
-                    },
-                    ("version", _, Some(erstelle_version), _) => {
-                        let mut sub_program_settings = ProgramSettings {
-                            name: ProgramName(None),
-                            version: ProgramVersion::Unspecified,
-                            description: None,
-                        };
-                        recursive!(Some(&mut sub_program_settings), sub_language, prefix_and_names,);
-                        let sub_program_description = ProgramSettings {
-                            name: sub_program_settings.name,
-                            version: sub_program_settings.version,
-                            description: (),
-                        };
-                        **erstelle_version = CreateVersion(Some(Box::new(create_version_method(
-                            sub_language,
-                            Some(prefix_and_names),
-                            sub_program_description,
-                        ))));
-                    },
-                    ("programm" | "program", _, _, Some(default_program_settings)) => {
-                        let mut sub_program_settings = ProgramSettings {
-                            name: ProgramName(None),
-                            version: ProgramVersion::Unspecified,
-                            description: Some(ProgramDescription(None)),
-                        };
-                        let result = parse_value_argument(
-                            sub_args,
-                            None,
-                            None,
-                            None,
-                            None,
-                            Some(&mut sub_program_settings),
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                        );
-                        if let Err(create_error) = result {
-                            return Err(Box::new(move |arg_name| match create_error(arg_name) {
-                                Unsupported { arg_name, argument } => Unsupported {
-                                    arg_name,
-                                    argument: Argument {
-                                        span,
-                                        name,
-                                        value: ArgumentValue::SubArgument(vec![argument]),
-                                    },
-                                },
-                                error @ NoLongName { .. } => error,
-                            }));
-                        }
-                        **default_program_settings = ProgramSettings {
-                            name: sub_program_settings.name,
-                            version: sub_program_settings.version,
-                            description: sub_program_settings.description.expect(
-                                "Some-Wert für Programm-Description wird bei rekursivem Aufruf \
-                                 nie None!",
-                            ),
-                        }
-                    },
-                    ("case", _, _, _) => {
-                        for sub_arg in sub_args {
-                            if let Argument {
-                                name: sub_name,
-                                value: ArgumentValue::Stream(ts),
-                                ..
-                            } = sub_arg
-                            {
-                                /// Value for an unsupported sub-argument.
-                                macro_rules! error_argument {
-                                    () => {
-                                        Argument {
-                                            span,
-                                            name,
-                                            value: ArgumentValue::SubArgument(vec![Argument {
-                                                span,
-                                                name: sub_name,
-                                                value: ArgumentValue::Stream(ts),
-                                            }]),
-                                        }
-                                    };
-                                }
-                                let Some(case) = Case::parse(&ts) else {
-                                    return Err(Box::new(move |arg_name| Unsupported {
-                                        arg_name,
-                                        argument: error_argument!(),
-                                    }));
-                                };
-                                match sub_name.as_str() {
-                                    "lang_präfix" | "long_prefix" => {
-                                        set_argument_case!(long_prefix, case, error_argument!());
-                                    },
-                                    "lang" | "long" => {
-                                        set_argument_case!(long_names, case, error_argument!());
-                                    },
-                                    "kurz_präfix" | "short_prefix" => {
-                                        set_argument_case!(short_prefix, case, error_argument!());
-                                    },
-                                    "kurz" | "short" => {
-                                        set_argument_case!(short_names, case, error_argument!());
-                                    },
-                                    "invertiere_präfix" | "invert_prefix" => {
-                                        set_argument_case!(invert_prefix, case, error_argument!());
-                                    },
-                                    "invertiere_infix" | "invert_infix" => {
-                                        set_argument_case!(invert_infix, case, error_argument!());
-                                    },
-                                    "wert_infix" | "value_infix" => {
-                                        set_argument_case!(value_infix, case, error_argument!());
-                                    },
-                                    _ => {
-                                        return Err(Box::new(move |arg_name| Unsupported {
-                                            arg_name,
-                                            argument: error_argument!(),
-                                        }));
-                                    },
-                                }
-                            } else {
-                                return Err(Box::new(move |arg_name| Unsupported {
-                                    arg_name,
-                                    argument: Argument {
-                                        span,
-                                        name,
-                                        value: ArgumentValue::SubArgument(vec![sub_arg]),
-                                    },
-                                }));
-                            }
-                        }
-                    },
-                    _ => {
-                        return Err(Box::new(move |arg_name| Unsupported {
-                            arg_name,
-                            argument: Argument {
-                                span,
-                                name,
-                                value: ArgumentValue::SubArgument(sub_args),
-                            },
-                        }));
-                    },
-                }
-            },
+            ArgumentValue::SubArgument(sub_args) => parse_sub_argument(
+                span,
+                name,
+                sub_args,
+                &mut default_program_settings,
+                &mut create_help,
+                &mut create_version,
+                &mut long_prefix,
+                &mut long_names,
+                &mut short_prefix,
+                &mut short_names,
+                &mut invert_prefix,
+                &mut invert_infix,
+                &mut value_infix,
+            )?,
         }
     }
     Ok(())
@@ -1250,7 +1356,7 @@ impl CompileError for Error {
     }
 }
 
-/// Obtain the [`Ok`] value or return the [`Err`] value immediately.
+/// Obtain the [`Ok`] value or return the result of calling the [`Err`] value immediately.
 macro_rules! unwrap_or_return {
     ($result:expr $(, $($arg:expr)+)? $(,)?) => {
         match $result {
@@ -1260,47 +1366,255 @@ macro_rules! unwrap_or_return {
     };
 }
 
-/// Implementation of the derive macro for the [`Parse`] trait.
-#[expect(
-    clippy::too_many_lines,
-    reason = "Deriving Parse requires collecting and translating all struct and field attributes."
-)]
-pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
-    use Error::{EmptyFieldName, Generics, NotStruct, UnnamedFields};
-    let item = parse_item(input.clone())?;
-    // Item als #[non_exhaustive] markiert
+/// Shared settings used to derive the arguments for each field.
+struct FieldSettings<'a> {
+    /// Effective language of the derive invocation.
+    language: &'a Language,
+    /// Default prefix for long field names.
+    long_prefix: &'a LongPrefix,
+    /// Default prefix for short field names.
+    short_prefix: &'a ShortPrefix,
+    /// Default prefix for inverted field names.
+    invert_prefix: &'a InvertPrefix,
+    /// Default infix for inverted field names.
+    invert_infix: &'a InvertInfix,
+    /// Default infix preceding field values.
+    value_infix: &'a ValueInfix,
+    /// Default metavariable used in field help text.
+    meta_var: &'a TokenStream,
+}
+
+/// Mutable state assembled from a field's attributes.
+struct FieldAttributeSettings {
+    /// Documentation fragments used as help text.
+    help_literals: Vec<String>,
+    /// Long argument names.
+    long_names: TokenStream,
+    /// Short argument names.
+    short_names: TokenStream,
+    /// Prefix for long argument names.
+    long_prefix: LongPrefix,
+    /// Prefix for short argument names.
+    short_prefix: ShortPrefix,
+    /// Prefix for inverted argument names.
+    invert_prefix: InvertPrefix,
+    /// Infix for inverted argument names.
+    invert_infix: InvertInfix,
+    /// Infix preceding argument values.
+    value_infix: ValueInfix,
+    /// Metavariable for argument values.
+    meta_var: Option<MetaVar>,
+    /// Default value for the argument.
+    default_value: DefaultValue,
+    /// Strategy for parsing the argument value.
+    argument: FieldArgument,
+}
+
+/// Parse one documentation or `kommandozeilen_argumente` attribute for a field.
+fn parse_field_attribute(
+    attr: Attribute,
+    field_ident: &Ident,
+    field_ident_str: &str,
+    crate_ident: &Ident,
+    settings: &mut FieldAttributeSettings,
+) -> Result<(), Error> {
+    if path_is_ident(&attr, "doc") {
+        let args_str = quote!(#(attr.meta)).to_string();
+        if let Some(stripped) =
+            args_str.strip_prefix("= \"").and_then(|string| string.strip_suffix('\"'))
+        {
+            let trimmed = stripped.trim();
+            if !trimmed.is_empty() {
+                settings.help_literals.push(trimmed.to_owned());
+            }
+        }
+    } else if path_is_ident(&attr, "kommandozeilen_argumente") {
+        let mut field_args = Vec::new();
+        split_parenthesized_arguments(vec![field_ident.to_string()], &mut field_args, attr.value)?;
+        let mut long_names = LongNames::default();
+        let mut short_names = ShortNames::default();
+        unwrap_or_return!(
+            parse_value_argument(
+                field_args,
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(&mut settings.long_prefix),
+                Some(&mut long_names),
+                Some(&mut settings.short_prefix),
+                Some(&mut short_names),
+                Some(&mut settings.invert_prefix),
+                Some(&mut settings.invert_infix),
+                Some(&mut settings.value_infix),
+                Some(&mut settings.meta_var),
+                Some(&mut settings.default_value),
+                Some(&mut settings.argument),
+            ),
+            Some(field_ident_str.to_owned())
+        );
+        let first = if let Some((head, tail)) = long_names.namen.as_ref() {
+            settings.long_names = if let Some(case) = long_names.case {
+                quote!(
+                    ::#crate_ident::NonEmpty {
+                        head: ::#crate_ident::Compare {
+                            string: ::#crate_ident::Normalized::new(#head),
+                            case: #case,
+                        },
+                        tail: vec![#(::#crate_ident::Compare {
+                            string: ::#crate_ident::Normalized::new(#tail),
+                            case: #case,
+                        }),*],
+                    }
+                )
+            } else {
+                quote!(
+                    ::#crate_ident::NonEmpty {
+                        head: #head,
+                        tail: vec![#(#tail),*]
+                    }
+                )
+            };
+            head
+        } else {
+            settings.long_names = quote!(#field_ident_str);
+            field_ident_str
+        };
+        settings.short_names = short_names.into_vec_tokens(first, long_names.case);
+    } else {
+        // unused attribute
+    }
+    Ok(())
+}
+
+/// Generate the argument constructor for one named field.
+fn derive_field(
+    field: NamedField,
+    settings: &FieldSettings<'_>,
+) -> Result<(Ident, TokenStream), Error> {
+    use Error::EmptyFieldName;
+    let crate_ident = crate_ident();
+    let NamedField { attributes: field_attrs, name: field_ident, ty: field_type, .. } = field;
+    let field_ident_str = field_ident.to_string();
+    if field_ident_str.is_empty() {
+        return Err(EmptyFieldName(field_ident));
+    }
+    let mut field_settings = FieldAttributeSettings {
+        help_literals: Vec::new(),
+        long_names: quote!(#field_ident_str),
+        short_names: quote!(None::<&str>),
+        long_prefix: settings.long_prefix.clone(),
+        short_prefix: settings.short_prefix.clone(),
+        invert_prefix: settings.invert_prefix.clone(),
+        invert_infix: settings.invert_infix.clone(),
+        value_infix: settings.value_infix.clone(),
+        meta_var: None,
+        default_value: DefaultValue(
+            quote!(<#field_type as ::#crate_ident::ParseArgument>::default()),
+        ),
+        argument: FieldArgument::EnumArgument,
+    };
+    for attr in field_attrs {
+        parse_field_attribute(
+            attr,
+            &field_ident,
+            &field_ident_str,
+            &crate_ident,
+            &mut field_settings,
+        )?;
+    }
+    let field_long_prefix = field_settings.long_prefix.token_stream(settings.language);
+    let field_short_prefix = field_settings.short_prefix.token_stream(settings.language);
+    let field_invert_prefix = field_settings.invert_prefix.token_stream(settings.language);
+    let field_invert_infix = field_settings.invert_infix.token_stream(settings.language);
+    let field_value_infix = field_settings.value_infix.token_stream(settings.language);
+    let field_meta_var = if let Some(MetaVar(string)) = field_settings.meta_var {
+        quote!(#string)
+    } else {
+        settings.meta_var.clone()
+    };
+    let help_string = field_settings.help_literals.join(" ");
+    let hilfe =
+        if help_string.is_empty() { quote!(None::<&str>) } else { quote!(Some(#help_string)) };
+    let long_names = field_settings.long_names;
+    let short_names = field_settings.short_names;
+    let default_value = field_settings.default_value;
+    let create_description = quote!(
+        let description = ::#crate_ident::Description::new(
+            #field_long_prefix,
+            #long_names,
+            #field_short_prefix,
+            #short_names,
+            #hilfe,
+            #default_value,
+        );
+    );
+    let create_arguments = field_settings.argument.create_arguments(
+        &create_description,
+        &field_invert_prefix,
+        &field_invert_infix,
+        &field_value_infix,
+        &field_meta_var,
+        &field_type,
+    );
+    Ok((field_ident, create_arguments))
+}
+
+/// Parse the attributes and generate the argument constructor for every struct field.
+fn derive_fields(
+    fields: Fields,
+    settings: &FieldSettings<'_>,
+) -> Result<Vec<(Ident, TokenStream)>, Error> {
+    use Error::UnnamedFields;
+    let iter: Box<dyn Iterator<Item = NamedField>> = match fields {
+        Fields::Unit => Box::new(iter::empty()),
+        Fields::Named(named_fields) => {
+            Box::new(named_fields.fields.inner.into_iter().map(|(field, _punct)| field))
+        },
+        Fields::Tuple(tuple_fields) => return Err(UnnamedFields(tuple_fields.tk_parens.span)),
+    };
+    iter.map(|field| derive_field(field, settings)).collect()
+}
+
+/// Extract the [`Struct`] from the [`Item`] or return the corresponding [`Error`].
+fn try_into_struct(input: TokenStream, item: Item) -> Result<Struct, Error> {
     #[expect(
         clippy::wildcard_enum_match_arm,
         reason = "venial::Item in non_exhaustive. Only Types are supported."
     )]
-    let Struct { fields, name, generic_params, where_clause, attributes, .. } = match item {
-        Item::Struct(struct_) => struct_,
+    match item {
+        Item::Struct(struct_) => Ok(struct_),
         Item::Enum(enum_) => {
-            return Err(NotStruct {
-                typ: UnsupportedType::Enum,
-                span: enum_.tk_enum.span(),
-                input,
-            });
+            Err(Error::NotStruct { typ: UnsupportedType::Enum, span: enum_.tk_enum.span(), input })
         },
-        Item::Union(union) => {
-            return Err(NotStruct {
-                typ: UnsupportedType::Union,
-                span: union.tk_union.span(),
-                input,
-            });
-        },
-        _ => {
-            return Err(NotStruct {
-                typ: UnsupportedType::Unknown,
-                span: input
-                    .clone()
-                    .into_iter()
-                    .next()
-                    .map_or_else(proc_macro2::Span::call_site, |tt| tt.span()),
-                input,
-            });
-        },
-    };
+        Item::Union(union) => Err(Error::NotStruct {
+            typ: UnsupportedType::Union,
+            span: union.tk_union.span(),
+            input,
+        }),
+        _ => Err(Error::NotStruct {
+            typ: UnsupportedType::Unknown,
+            span: input
+                .clone()
+                .into_iter()
+                .next()
+                .map_or_else(proc_macro2::Span::call_site, |tt| tt.span()),
+            input,
+        }),
+    }
+}
+
+/// Implementation of the derive macro for the [`Parse`](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html) trait.
+#[expect(
+    clippy::too_many_lines,
+    reason = "Already split up, so this is mostly orchestration. Good enough for now."
+)]
+pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
+    use Error::Generics;
+    let item = parse_item(input.clone())?;
+    let Struct { fields, name, generic_params, where_clause, attributes, .. } =
+        try_into_struct(input, item)?;
     let param_count = generic_params.as_ref().map_or(0, |param_list| param_list.params.len());
     let has_where_clause = where_clause.is_some();
     if (param_count > 0) || has_where_clause {
@@ -1372,144 +1686,18 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
         let language_tokens = language.token_stream();
         quote!(#language_tokens.meta_var)
     };
-    let mut tuples = Vec::new();
-    let iter: Box<dyn Iterator<Item = NamedField>> = match fields {
-        Fields::Unit => Box::new(iter::empty()),
-        Fields::Named(named_fields) => {
-            Box::new(named_fields.fields.inner.into_iter().map(|(field, _punct)| field))
+    let tuples = derive_fields(
+        fields,
+        &FieldSettings {
+            language: &language,
+            long_prefix: &long_prefix,
+            short_prefix: &short_prefix,
+            invert_prefix: &invert_prefix,
+            invert_infix: &invert_infix,
+            value_infix: &value_infix,
+            meta_var: &meta_var,
         },
-        Fields::Tuple(tuple_fields) => return Err(UnnamedFields(tuple_fields.tk_parens.span)),
-    };
-    for field in iter {
-        let NamedField { attributes: field_attrs, name: field_ident, ty: field_type, .. } = field;
-        let mut help_literals = Vec::new();
-        let field_ident_str = field_ident.to_string();
-        if field_ident_str.is_empty() {
-            return Err(EmptyFieldName(field_ident));
-        }
-        let mut lang = quote!(#field_ident_str);
-        let mut kurz = quote!(None::<&str>);
-        let mut field_long_prefix = long_prefix.clone();
-        let mut field_short_prefix = short_prefix.clone();
-        let mut field_invert_prefix = invert_prefix.clone();
-        let mut field_invert_infix = invert_infix.clone();
-        let mut field_value_infix = value_infix.clone();
-        let mut field_meta_var = None;
-        let mut standard =
-            DefaultValue(quote!(<#field_type as ::#crate_ident::ParseArgument>::default()));
-        let mut field_argument = FieldArgument::EnumArgument;
-        for attr in field_attrs {
-            if path_is_ident(&attr, "doc") {
-                let args_str = quote!(#(attr.meta)).to_string();
-                if let Some(stripped) =
-                    args_str.strip_prefix("= \"").and_then(|string| string.strip_suffix('"'))
-                {
-                    let trimmed = stripped.trim();
-                    if !trimmed.is_empty() {
-                        help_literals.push(trimmed.to_owned());
-                    }
-                }
-            } else if path_is_ident(&attr, "kommandozeilen_argumente") {
-                let mut field_args = Vec::new();
-                split_parenthesized_arguments(
-                    vec![field_ident.to_string()],
-                    &mut field_args,
-                    attr.value,
-                )?;
-                let mut long_names = LongNames::default();
-                let mut short_names = ShortNames::default();
-                unwrap_or_return!(
-                    parse_value_argument(
-                        field_args,
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                        Some(&mut field_long_prefix),
-                        Some(&mut long_names),
-                        Some(&mut field_short_prefix),
-                        Some(&mut short_names),
-                        Some(&mut field_invert_prefix),
-                        Some(&mut field_invert_infix),
-                        Some(&mut field_value_infix),
-                        Some(&mut field_meta_var),
-                        Some(&mut standard),
-                        Some(&mut field_argument),
-                    ),
-                    Some(field_ident_str)
-                );
-                let erster = if let Some((head, tail)) = long_names.namen.as_ref() {
-                    lang = if let Some(case) = long_names.case {
-                        quote!(
-                            ::#crate_ident::NonEmpty {
-                                head: ::#crate_ident::Compare {
-                                    string: ::#crate_ident::Normalized::new(#head),
-                                    case: #case,
-                                },
-                                tail: vec![#(::#crate_ident::Compare {
-                                    string: ::#crate_ident::Normalized::new(#tail),
-                                    case: #case,
-                                }),*],
-                            }
-                        )
-                    } else {
-                        quote!(
-                            ::#crate_ident::NonEmpty {
-                                head: #head,
-                                tail: vec![#(#tail),*]
-                            }
-                        )
-                    };
-                    head
-                } else {
-                    lang = quote!(#field_ident_str);
-                    &field_ident_str
-                };
-                kurz = short_names.into_vec_tokens(erster, long_names.case);
-            } else {
-                // unused attribute
-            }
-        }
-        let field_long_prefix = field_long_prefix.token_stream(&language);
-        let field_short_prefix = field_short_prefix.token_stream(&language);
-        let field_invert_prefix = field_invert_prefix.token_stream(&language);
-        let field_invert_infix = field_invert_infix.token_stream(&language);
-        let field_value_infix = field_value_infix.token_stream(&language);
-        let field_meta_var = if let Some(MetaVar(string)) = field_meta_var {
-            quote!(#string)
-        } else {
-            meta_var.clone()
-        };
-        let mut help_string = String::new();
-        for part_string in help_literals {
-            if !help_string.is_empty() {
-                help_string.push(' ');
-            }
-            help_string.push_str(&part_string);
-        }
-        let hilfe =
-            if help_string.is_empty() { quote!(None::<&str>) } else { quote!(Some(#help_string)) };
-        let create_description = quote!(
-            let description = ::#crate_ident::Description::new(
-                #field_long_prefix,
-                #lang,
-                #field_short_prefix,
-                #kurz,
-                #hilfe,
-                #standard,
-            );
-        );
-        let create_arguments = field_argument.create_arguments(
-            &create_description,
-            &field_invert_prefix,
-            &field_invert_infix,
-            &field_value_infix,
-            &field_meta_var,
-            &field_type,
-        );
-        tuples.push((field_ident, create_arguments));
-    }
+    )?;
     let (idents, create_arguments): (Vec<_>, Vec<_>) = tuples.into_iter().unzip();
     let combined = quote!(
         #(
