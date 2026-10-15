@@ -30,7 +30,6 @@ use crate::{
     outcome::{Ergebnis, Error, Fehler},
 };
 
-
 /// Konfiguration der Kommandozeilen-Argumente.
 ///
 /// ## English synonym

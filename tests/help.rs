@@ -24,6 +24,29 @@ impl Debug for DString {
 }
 
 #[test]
+fn unicode_help_uses_byte_length_padding() {
+    let language = Language::ENGLISH;
+    let flag = Flag::new_with_language(
+        Description::new_with_language("föö", "f", Some("Unicode flag."), Some(false), language),
+        language,
+    );
+    let arguments = Arguments::single_argument(SingleArgument::flag(flag))
+        .with_help_early_exit_with_language(&Default, "program", None, None, language);
+    let (result, remaining) = arguments.parse(iter::once(OsString::from("--help")));
+
+    assert_eq!(remaining, []);
+    let Result::EarlyExit(messages) = result else {
+        unreachable!("expected help early exit");
+    };
+    assert!(
+        messages.head.contains("  --[no-]föö | -f Unicode flag. Default: false\n")
+            && messages.head.contains("  --help | -h       Show this text.\n"),
+        "{}",
+        messages.head
+    );
+}
+
+#[test]
 fn help_test() -> result::Result<(), DString> {
     let language = Language::ENGLISH;
     let flag = Flag::new_with_language(

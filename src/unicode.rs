@@ -510,15 +510,17 @@ mod tests {
     #[test]
     fn strips_normalized_prefixes_at_grapheme_boundaries() {
         let composed = Compare::from("é");
-        let input = Normalized::new("e\u{301}x");
-        let (prefix, suffix) = composed.strip_as_prefix_n(&input).expect("matching prefix");
-        assert_eq!(prefix.as_str(), "é");
-        assert_eq!(suffix.as_str(), "x");
+        let composed_input = Normalized::new("e\u{301}x");
+        let (composed_prefix, composed_suffix) =
+            composed.strip_as_prefix_n(&composed_input).expect("matching prefix");
+        assert_eq!(composed_prefix.as_str(), "é");
+        assert_eq!(composed_suffix.as_str(), "x");
 
         let grapheme = Compare::from("e\u{301}");
-        let input = Normalized::new("e\u{301}x");
-        let (prefix, suffix) = grapheme.strip_as_prefix_n(&input).expect("matching grapheme");
-        assert_eq!(prefix.as_str(), "é");
-        assert_eq!(suffix.as_str(), "x");
+        let grapheme_input = Normalized::new("e\u{301}x");
+        let (grapheme_prefix, grapheme_suffix) =
+            grapheme.strip_as_prefix_n(&grapheme_input).expect("matching grapheme");
+        assert_eq!(grapheme_prefix.as_str(), "é");
+        assert_eq!(grapheme_suffix.as_str(), "x");
     }
 }

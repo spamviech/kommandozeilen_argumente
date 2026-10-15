@@ -1365,12 +1365,27 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
                     Some(field_ident_str)
                 );
                 let erster = if let Some((head, tail)) = long_names.namen.as_ref() {
-                    lang = quote!(
-                        ::#crate_ident::NonEmpty {
-                            head: #head,
-                            tail: vec![#(#tail),*]
-                        }
-                    );
+                    lang = if let Some(case) = long_names.case {
+                        quote!(
+                            ::#crate_ident::NonEmpty {
+                                head: ::#crate_ident::Compare {
+                                    string: ::#crate_ident::Normalized::new(#head),
+                                    case: #case,
+                                },
+                                tail: vec![#(::#crate_ident::Compare {
+                                    string: ::#crate_ident::Normalized::new(#tail),
+                                    case: #case,
+                                }),*],
+                            }
+                        )
+                    } else {
+                        quote!(
+                            ::#crate_ident::NonEmpty {
+                                head: #head,
+                                tail: vec![#(#tail),*]
+                            }
+                        )
+                    };
                     head
                 } else {
                     lang = quote!(#field_ident_str);

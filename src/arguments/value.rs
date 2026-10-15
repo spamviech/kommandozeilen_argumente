@@ -394,6 +394,7 @@ fn parse_short_value_forms<'argument>(
         remaining,
     }
 }
+
 /// Parses long value forms from the supplied inputs.
 fn parse_long_value_forms<'argument>(
     name: &Name<'argument>,
@@ -442,6 +443,7 @@ fn parse_long_value_forms<'argument>(
         remaining,
     }
 }
+
 /// Parses merged short value forms from the supplied inputs.
 fn parse_value_merged_short_forms<'argument>(
     name: &Name<'argument>,
@@ -492,6 +494,7 @@ fn parse_value_merged_short_forms<'argument>(
         remaining,
     }
 }
+
 /// Creates syntax and help text from the shared parts of a German or English value argument.
 #[expect(
     clippy::ptr_arg,

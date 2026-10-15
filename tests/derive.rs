@@ -313,6 +313,46 @@ fn verschmelze_kurzformen_wert() -> result::Result<(), DString> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Parse)]
+#[kommandozeilen_argumente(language: english)]
+struct UnicodeDerived {
+    #[kommandozeilen_argumente(long: "föö", short: f)]
+    flag: bool,
+    #[kommandozeilen_argumente(long: "pört", short: p, FromStr)]
+    port: u16,
+    #[kommandozeilen_argumente(long: "Ärger", short: a, case(long: insensitive))]
+    case_insensitive: bool,
+    #[kommandozeilen_argumente(long: "e\u{301}clair", short)]
+    eclair: bool,
+    #[kommandozeilen_argumente(short)]
+    über: bool,
+}
+
+#[test]
+fn derived_unicode_names_preserve_normalization_case_and_graphemes() {
+    let (result, remaining) = UnicodeDerived::arguments().parse(
+        [
+            OsString::from("-e\u{301}fü"),
+            OsString::from("-p8080"),
+            OsString::from("--ärger"),
+            OsString::from("--über"),
+        ]
+        .into_iter(),
+    );
+
+    assert_eq!(remaining, []);
+    assert!(matches!(
+        result,
+        Result::Value(UnicodeDerived {
+            flag: true,
+            port: 8080,
+            case_insensitive: true,
+            eclair: true,
+            über: true,
+        })
+    ));
+}
+
 #[test]
 fn verschmelze_kurzformen_erfolgreich() -> result::Result<(), DString> {
     let arg2 = Test2::arguments();

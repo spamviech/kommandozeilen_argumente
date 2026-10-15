@@ -4,16 +4,21 @@
 #![expect(clippy::tests_outside_test_module, reason = "Integration test.")]
 
 use std::{
+    assert_matches,
     borrow::Cow,
     ffi::{OsStr, OsString},
-    result,
+    iter, result,
     string::ToString,
 };
 
 use kommandozeilen_argumente::{
     ArgumentInput, Arguments, Description, EarlyExit, Parse, ParseArgument, ParseError, Result,
-    Value, arguments::single_argument::SingleArgument, combine,
-    dyn_to_owned::Parse as ParseCallback, nonempty,
+    Value,
+    arguments::single_argument::SingleArgument,
+    combine,
+    description::{AdjustedMergedShortNames, MergedShortNameSuffix},
+    dyn_to_owned::Parse as ParseCallback,
+    nonempty,
 };
 
 const EMPTY_REMAINING: [ArgumentInput; 0] = [];
@@ -26,7 +31,7 @@ fn parses_a_single_flag() {
     let (result, remaining) = arguments.parse([OsString::from("--verbose")].into_iter());
 
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Value(true)));
+    assert_matches!(result, Result::Value(true));
 }
 
 #[test]
@@ -37,7 +42,7 @@ fn parses_a_single_value() {
     let (result, remaining) = arguments.parse([OsString::from("--port=8080")].into_iter());
 
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Value(8080)));
+    assert_matches!(result, Result::Value(8080));
 }
 
 #[derive(Debug, PartialEq, Eq, Parse)]
@@ -53,7 +58,7 @@ fn derives_and_accumulates_a_combined_struct() {
     );
 
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Value(Configuration { verbose: true, port: 8080 })));
+    assert_matches!(result, Result::Value(Configuration { verbose: true, port: 8080 }));
 }
 
 fn reject_value(_: &OsStr) -> result::Result<String, ParseError<String>> {
@@ -94,7 +99,7 @@ fn tries_the_next_alternative_after_a_value_conversion_failure() {
     let (result, remaining) = arguments.parse([OsString::from("--choice=accepted")].into_iter());
 
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Value(value) if value == "accepted"));
+    assert_matches!(result, Result::Value(value) if value == "accepted");
 }
 
 #[test]
@@ -105,11 +110,15 @@ fn converts_errors_for_single_arguments() {
     let (result, remaining) = arguments.parse([OsString::from("--choice=rejected")].into_iter());
 
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Error(errors) if matches!(
-        &errors.head,
-        kommandozeilen_argumente::Error::ParseError(error)
-            if matches!(error.error, ParseError::ParseError(33))
-    )));
+    assert_matches!(
+        result,
+        Result::Error(errors)
+            if matches!(
+                &errors.head,
+                kommandozeilen_argumente::Error::ParseError(error)
+                    if matches!(error.error, ParseError::ParseError(33))
+            )
+    );
 }
 
 #[test]
@@ -121,80 +130,207 @@ fn early_exit_short_circuits_result_accumulation() {
     let (result, remaining) = arguments.parse([OsString::from("--help")].into_iter());
 
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::EarlyExit(messages) if messages.head == "show help"));
+    assert_matches!(result, Result::EarlyExit(messages) if messages.head == "show help");
 }
 
 #[test]
+#[expect(
+    clippy::shadow_unrelated,
+    reason = "This test separately exercises combined arguments and an early exit."
+)]
 fn parses_canonically_equivalent_unicode_names_in_all_public_forms() {
-    let flag = <bool as ParseArgument>::new(Description::new("--", "f\u{f6}o", "-", "f", None, None));
-    let value = <u16 as ParseArgument>::new(Description::new("--", "p\u{f6}rt", "-", "p", None, None));
+    let flag =
+        <bool as ParseArgument>::new(Description::new("--", "f\u{f6}o", "-", "f", None, None));
+    let value =
+        <u16 as ParseArgument>::new(Description::new("--", "p\u{f6}rt", "-", "p", None, None));
     let arguments = combine!(|flag, value| (flag, value), flag, value);
-    let (result, remaining) = arguments.parse(
-        [OsString::from("--fo\u{308}o"), OsString::from("-p8080")].into_iter(),
-    );
+    let (result, remaining) =
+        arguments.parse([OsString::from("--fo\u{308}o"), OsString::from("-p8080")].into_iter());
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Value((true, 8080))));
+    assert_matches!(result, Result::Value((true, 8080)));
 
-    let early_exit = EarlyExit::new(
-        Description::new("--", "h\u{e9}lp", "-", "h", None, None),
-        "unicode help",
-    );
+    let early_exit =
+        EarlyExit::new(Description::new("--", "h\u{e9}lp", "-", "h", None, None), "unicode help");
     let (result, remaining) = Arguments::single_argument(SingleArgument::early_exit(early_exit))
         .parse([OsString::from("--he\u{301}lp")].into_iter());
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::EarlyExit(messages) if messages.head == "unicode help"));
+    assert_matches!(result, Result::EarlyExit(messages) if messages.head == "unicode help");
 }
 
 #[test]
+#[expect(
+    clippy::shadow_unrelated,
+    reason = "The combine callback binds parsed values with their argument names."
+)]
 fn merged_short_names_consume_whole_multiscalar_graphemes() {
-    let accent = <bool as ParseArgument>::new(Description::new("--", "accent", "-", "e\u{301}", None, None));
+    let accent =
+        <bool as ParseArgument>::new(Description::new("--", "accent", "-", "e\u{301}", None, None));
     let x = <bool as ParseArgument>::new(Description::new("--", "x", "-", "x", None, None));
     let (result, remaining) = combine!(|accent, x| (accent, x), accent, x)
         .parse([OsString::from("-e\u{301}x")].into_iter());
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Value((true, true))));
+    assert_matches!(result, Result::Value((true, true)));
 }
 
 #[test]
+#[expect(
+    clippy::shadow_unrelated,
+    reason = "The test runs independent successful and unsuccessful parsing scenarios."
+)]
 fn multigrapheme_short_names_are_not_merged() {
-    let argument = <bool as ParseArgument>::new(Description::new("--", "alpha", "-", "ab", None, None));
+    let argument =
+        <bool as ParseArgument>::new(Description::new("--", "alpha", "-", "ab", None, None));
     let (result, remaining) = argument.parse([OsString::from("-ab")].into_iter());
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Value(true)));
+    assert_matches!(result, Result::Value(true));
 
-    let argument = <bool as ParseArgument>::new(Description::new("--", "alpha", "-", "ab", None, None));
+    let argument =
+        <bool as ParseArgument>::new(Description::new("--", "alpha", "-", "ab", None, None));
     let (result, remaining) = argument.parse([OsString::from("-a")].into_iter());
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Error(_)));
+    assert_matches!(result, Result::Error(_));
 }
 
 #[test]
+#[expect(
+    clippy::shadow_unrelated,
+    reason = "The combine callback binds parsed values with their argument names."
+)]
 fn adjusted_merged_remainders_continue_merged_short_recognition() {
     let flag = <bool as ParseArgument>::new(Description::new("--", "flag", "-", "f", None, None));
     let value = <u16 as ParseArgument>::new(Description::new("--", "value", "-", "x", None, None));
     let (result, remaining) = combine!(|flag, value| (flag, value), flag, value)
         .parse([OsString::from("-fx"), OsString::from("42")].into_iter());
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Value((true, 42))));
+    assert_matches!(result, Result::Value((true, 42)));
 }
 
 #[test]
-fn values_report_missing_use_defaults_and_keep_the_last_occurrence() {
-    let required = <u16 as ParseArgument>::new(Description::new("--", "port", "-", "p", None, None));
-    let (result, _) = required.parse(std::iter::empty());
-    assert!(matches!(result, Result::Error(errors) if matches!(errors.head, kommandozeilen_argumente::Error::MissingValue { .. })));
-
-    let defaulted = <u16 as ParseArgument>::new(Description::new("--", "port", "-", "p", None, Some(80)));
-    let (result, remaining) = defaulted.parse(std::iter::empty());
+#[expect(
+    clippy::shadow_unrelated,
+    reason = "The test repeats the same candidate setup for successful and fallback scenarios."
+)]
+fn merged_short_value_candidates_prefer_values_then_fall_back_to_flags() {
+    let value =
+        <String as ParseArgument>::new(Description::new("--", "output", "-", "o", None, None));
+    let flag =
+        <bool as ParseArgument>::new(Description::new("--", "force", "-", "f", None, Some(false)));
+    let (result, remaining) = combine!(|value, flag| (value, flag), value, flag)
+        .parse([OsString::from("-of")].into_iter());
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Value(80)));
+    assert_matches!(result, Result::Value((value, false)) if value == "f");
 
-    let repeated = <u16 as ParseArgument>::new(Description::new("--", "port", "-", "p", None, None));
-    let (result, remaining) = repeated.parse(
-        [OsString::from("--port=80"), OsString::from("--port=8080")].into_iter(),
+    let value =
+        <u16 as ParseArgument>::new(Description::new("--", "output", "-", "o", None, Some(0)));
+    let flag =
+        <bool as ParseArgument>::new(Description::new("--", "force", "-", "f", None, Some(false)));
+    let (result, remaining) = combine!(|value, flag| (value, flag), value, flag)
+        .parse([OsString::from("-of")].into_iter());
+    assert_eq!(
+        remaining,
+        [ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
+            prefix: "-".into(),
+            graphemes: nonempty![Box::from("o")],
+            suffix: MergedShortNameSuffix::Removed,
+        })]
     );
+    assert_matches!(result, Result::Value((0, true)));
+}
+
+#[test]
+#[expect(
+    clippy::shadow_unrelated,
+    reason = "The combine callback binds parsed values with their argument names."
+)]
+fn adjusted_merged_remainders_are_not_standalone_names_or_raw_values() {
+    let flag = <bool as ParseArgument>::new(Description::new("--", "flag", "-", "f", None, None));
+    let value =
+        <u16 as ParseArgument>::new(Description::new("--", "value", "-", "xy", None, Some(7)));
+    let (result, remaining) = combine!(|flag, value| (flag, value), flag, value)
+        .parse([OsString::from("-fx")].into_iter());
+
+    assert_matches!(result, Result::Value((true, 7)));
+    assert_eq!(
+        remaining,
+        [ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
+            prefix: "-".into(),
+            graphemes: nonempty![Box::from("x")],
+            suffix: MergedShortNameSuffix::Unchanged,
+        })]
+    );
+}
+
+#[test]
+#[expect(
+    clippy::shadow_unrelated,
+    reason = "The test runs sequential required, defaulted, and repeated-value scenarios."
+)]
+fn values_report_missing_use_defaults_and_keep_the_last_occurrence() {
+    let required =
+        <u16 as ParseArgument>::new(Description::new("--", "port", "-", "p", None, None));
+    let (result, _) = required.parse(iter::empty());
+    assert!(
+        matches!(result, Result::Error(errors) if matches!(errors.head, kommandozeilen_argumente::Error::MissingValue { .. }))
+    );
+
+    let defaulted =
+        <u16 as ParseArgument>::new(Description::new("--", "port", "-", "p", None, Some(80)));
+    let (result, remaining) = defaulted.parse(iter::empty());
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Value(8080)));
+    assert_matches!(result, Result::Value(80));
+
+    let repeated =
+        <u16 as ParseArgument>::new(Description::new("--", "port", "-", "p", None, None));
+    let (result, remaining) =
+        repeated.parse([OsString::from("--port=80"), OsString::from("--port=8080")].into_iter());
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert_matches!(result, Result::Value(8080));
+}
+
+#[test]
+#[expect(
+    clippy::shadow_unrelated,
+    reason = "The test runs sequential failure, ordering, and early-exit scenarios."
+)]
+fn alternatives_aggregate_failures_select_in_order_and_allow_early_exit() {
+    #[expect(clippy::unnecessary_wraps, reason = "The parser callback interface requires Result.")]
+    fn first_value(_: &OsStr) -> result::Result<String, ParseError<String>> {
+        Ok(String::from("first"))
+    }
+
+    #[expect(clippy::unnecessary_wraps, reason = "The parser callback interface requires Result.")]
+    fn second_value(_: &OsStr) -> result::Result<String, ParseError<String>> {
+        Ok(String::from("second"))
+    }
+
+    let failures = Arguments::alternatives(nonempty![
+        Arguments::from(alternative_value(reject_value)),
+        Arguments::from(alternative_value(reject_value)),
+    ]);
+    let (result, remaining) = failures.parse([OsString::from("--choice=value")].into_iter());
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert_matches!(result, Result::Error(errors) if errors.len() == 2);
+
+    let ordered = Arguments::alternatives(nonempty![
+        Arguments::from(alternative_value(first_value)),
+        Arguments::from(alternative_value(second_value)),
+    ]);
+    let (result, remaining) = ordered.parse([OsString::from("--choice=value")].into_iter());
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert_matches!(result, Result::Value(value) if value == "first");
+
+    let early_exit =
+        EarlyExit::new(Description::new("--", "help", "-", "h", None, None), "show help");
+    let early: Arguments<'_, String, String> = Arguments::single_argument(
+        SingleArgument::early_exit_with_value(early_exit, String::from("unused")),
+    )
+    .error_from_void(ToString::to_string);
+    let required =
+        <String as ParseArgument>::new(Description::new("--", "required", "-", "r", None, None));
+    let (result, remaining) = Arguments::alternatives(nonempty![early, required])
+        .parse([OsString::from("--help")].into_iter());
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert_matches!(result, Result::EarlyExit(messages) if messages.head == "show help");
 }
 
 #[cfg(unix)]
@@ -202,14 +338,18 @@ fn values_report_missing_use_defaults_and_keep_the_last_occurrence() {
 fn non_utf8_raw_values_reach_the_typed_value_parser() {
     use std::os::unix::ffi::OsStringExt as _;
 
-    let argument = <String as ParseArgument>::new(Description::new("--", "text", "-", "t", None, None));
-    let (result, remaining) = argument.parse(
-        [OsString::from("--text"), OsString::from_vec(vec![0xff])].into_iter(),
-    );
+    let argument =
+        <String as ParseArgument>::new(Description::new("--", "text", "-", "t", None, None));
+    let (result, remaining) =
+        argument.parse([OsString::from("--text"), OsString::from_vec(vec![0xff])].into_iter());
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert!(matches!(result, Result::Error(errors) if matches!(
-        &errors.head,
-        kommandozeilen_argumente::Error::ParseError(error)
-            if matches!(error.error, ParseError::InvalidString(_))
-    )));
+    assert_matches!(
+        result,
+        Result::Error(errors)
+            if matches!(
+                &errors.head,
+                kommandozeilen_argumente::Error::ParseError(error)
+                    if matches!(error.error, ParseError::InvalidString(_))
+            )
+    );
 }

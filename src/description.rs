@@ -840,8 +840,7 @@ mod tests {
 
     #[test]
     fn overlapping_long_and_short_prefixes_do_not_reinterpret_long_forms_as_merged_blocks() {
-        let description: Description<'_, ()> =
-            Description::new("--", "help", "-", "h", None, None);
+        let description: Description<'_, ()> = Description::new("--", "help", "-", "h", None, None);
         assert!(
             description
                 .name
@@ -852,8 +851,7 @@ mod tests {
 
     #[test]
     fn identical_windows_style_prefixes_do_not_reinterpret_long_forms_as_merged_blocks() {
-        let description: Description<'_, ()> =
-            Description::new("/", "help", "/", "h", None, None);
+        let description: Description<'_, ()> = Description::new("/", "help", "/", "h", None, None);
         assert!(description.name.parse_early_exit(&OsString::from("/help")));
         assert!(
             description
