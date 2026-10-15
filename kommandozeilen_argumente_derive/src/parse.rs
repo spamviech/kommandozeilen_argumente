@@ -11,9 +11,12 @@ use quote::{ToTokens, quote};
 use unicode_segmentation::UnicodeSegmentation;
 use venial::{Fields, Item, NamedField, Struct, TypeExpr, parse_item};
 
-use crate::utility::{
-    Argument, ArgumentValue, Case, SplitArgumentsError, crate_ident, exactly_one, path_is_ident,
-    split_parenthesized_arguments,
+use crate::{
+    CompileError,
+    utility::{
+        Argument, ArgumentValue, Case, SplitArgumentsError, crate_ident, exactly_one,
+        path_is_ident, split_parenthesized_arguments,
+    },
 };
 
 /// Language for an argument structure. Influences default values for other settings.
@@ -241,6 +244,8 @@ pub(crate) enum ParseValueError {
         arg_name: Option<String>,
         /// String parsed as a long name.
         name: String,
+        /// Location of the empty long-name list.
+        span: proc_macro2::Span,
     },
 }
 
@@ -249,35 +254,38 @@ impl Display for ParseValueError {
         use ArgumentValue::{List, NoValue, Stream, SubArgument};
         use ParseValueError::{NoLongName, Unsupported};
         match self {
-            Unsupported { arg_name, argument: Argument { name, value: NoValue } } => {
+            Unsupported { arg_name, argument: Argument { name, value: NoValue, .. } } => {
                 write!(formatter, "Unsupported argument")?;
                 if let Some(arg_name) = arg_name {
                     write!(formatter, " for {arg_name}")?;
                 }
                 write!(formatter, ": {name}")
             },
-            Unsupported { arg_name, argument: Argument { name, value: wert @ SubArgument(_) } } => {
+            Unsupported {
+                arg_name,
+                argument: Argument { name, value: wert @ SubArgument(_), .. },
+            } => {
                 write!(formatter, "Unsupported sub-argument of {name}")?;
                 if let Some(arg_name) = arg_name {
                     write!(formatter, " for {arg_name}")?;
                 }
                 write!(formatter, ": {wert}")
             },
-            Unsupported { arg_name, argument: Argument { name, value: wert @ List(_) } } => {
+            Unsupported { arg_name, argument: Argument { name, value: wert @ List(_), .. } } => {
                 write!(formatter, "Unsupported list argument {name}")?;
                 if let Some(arg_name) = arg_name {
                     write!(formatter, " for {arg_name}")?;
                 }
                 write!(formatter, ": {wert}")
             },
-            Unsupported { arg_name, argument: Argument { name, value: wert @ Stream(_) } } => {
+            Unsupported { arg_name, argument: Argument { name, value: wert @ Stream(_), .. } } => {
                 write!(formatter, "Unsupported named argument {name}")?;
                 if let Some(arg_name) = arg_name {
                     write!(formatter, " for {arg_name}")?;
                 }
                 write!(formatter, ": {wert}")
             },
-            NoLongName { arg_name, name } => {
+            NoLongName { arg_name, name, .. } => {
                 write!(formatter, "No long name")?;
                 if let Some(arg_name) = arg_name {
                     write!(formatter, " for {arg_name}")?;
@@ -618,7 +626,7 @@ fn parse_value_argument(
                 } else
             )+
             {
-                return Err(Box::new(|arg_name| Unsupported {
+                return Err(Box::new(move |arg_name| Unsupported {
                     arg_name,
                     argument: $sub_arg,
                 }));
@@ -634,7 +642,7 @@ fn parse_value_argument(
             if let Some(var) = $mut_var.as_mut() {
                 var.$feld = $value;
             } else {
-                return Err(Box::new(|arg_name| Unsupported { arg_name, argument: $sub_arg }));
+                return Err(Box::new(move |arg_name| Unsupported { arg_name, argument: $sub_arg }));
             }
         };
     }
@@ -656,7 +664,7 @@ fn parse_value_argument(
             set_argument_field!($mut_var, case, Some($value), $sub_arg)
         };
     }
-    for Argument { name, value } in args {
+    for Argument { span, name, value } in args {
         match value {
             ArgumentValue::NoValue => match name.as_str() {
                 "name" => set_argument!(
@@ -664,7 +672,7 @@ fn parse_value_argument(
                         .as_mut()
                         .map(|program_settings| { &mut program_settings.name }),
                     ProgramName(None),
-                    Argument { name, value }
+                    Argument { span, name, value }
                 ),
                 "version" => set_argument!(
                     <
@@ -687,7 +695,7 @@ fn parse_value_argument(
                             )))),
                         ],
                     >,
-                    Argument { name, value }
+                    Argument { span, name, value }
                 ),
                 "hilfe" => set_argument!(
                     create_help,
@@ -700,7 +708,7 @@ fn parse_value_argument(
                             description: ProgramDescription(None)
                         }
                     )))),
-                    Argument { name, value }
+                    Argument { span, name, value }
                 ),
                 "help" => set_argument!(
                     create_help,
@@ -713,32 +721,40 @@ fn parse_value_argument(
                             description: ProgramDescription(None)
                         }
                     )))),
-                    Argument { name, value }
+                    Argument { span, name, value }
                 ),
                 "kurz" | "short" => {
                     set_argument_names!(
                         short_names,
                         ShortNamesKind::Auto,
-                        Argument { name, value }
+                        Argument { span, name, value }
                     );
                 },
                 "glätten" | "flatten" => {
-                    set_argument!(field_argument, FieldArgument::Parse, Argument { name, value });
+                    set_argument!(
+                        field_argument,
+                        FieldArgument::Parse,
+                        Argument { span, name, value }
+                    );
                 },
                 "FromStr" => {
-                    set_argument!(field_argument, FieldArgument::FromStr, Argument { name, value });
+                    set_argument!(
+                        field_argument,
+                        FieldArgument::FromStr,
+                        Argument { span, name, value }
+                    );
                 },
                 "benötigt" | "required" => {
                     set_argument!(
                         default_value,
                         DefaultValue(quote!(None)),
-                        Argument { name, value }
+                        Argument { span, name, value }
                     );
                 },
                 _ => {
-                    return Err(Box::new(|arg_name| Unsupported {
+                    return Err(Box::new(move |arg_name| Unsupported {
                         arg_name,
-                        argument: Argument { name, value },
+                        argument: Argument { span, name, value },
                     }));
                 },
             },
@@ -748,12 +764,12 @@ fn parse_value_argument(
                     let (head, tail) = if let Some(head) = namen_iter.next() {
                         (head, namen_iter.collect())
                     } else {
-                        return Err(Box::new(|arg_name| NoLongName { arg_name, name }));
+                        return Err(Box::new(move |arg_name| NoLongName { arg_name, name, span }));
                     };
                     set_argument_names!(
                         long_names,
                         Some((head, tail)),
-                        Argument { name, value: ArgumentValue::List(liste) }
+                        Argument { span, name, value: ArgumentValue::List(liste) }
                     );
                 },
                 "kurz" | "short" => {
@@ -761,13 +777,13 @@ fn parse_value_argument(
                     set_argument_names!(
                         short_names,
                         ShortNamesKind::Names(namen_iter.collect()),
-                        Argument { name, value: ArgumentValue::List(liste) }
+                        Argument { span, name, value: ArgumentValue::List(liste) }
                     );
                 },
                 _ => {
-                    return Err(Box::new(|arg_name| Unsupported {
+                    return Err(Box::new(move |arg_name| Unsupported {
                         arg_name,
-                        argument: Argument { name, value: ArgumentValue::List(liste) },
+                        argument: Argument { span, name, value: ArgumentValue::List(liste) },
                     }));
                 },
             },
@@ -776,7 +792,7 @@ fn parse_value_argument(
                     set_argument!(
                         language,
                         Some(Language::parse(ts)),
-                        Argument { name, value: ArgumentValue::Stream(ts) }
+                        Argument { span, name, value: ArgumentValue::Stream(ts) }
                     );
                 },
                 "name" => set_argument!(
@@ -784,89 +800,89 @@ fn parse_value_argument(
                         .as_mut()
                         .map(|program_settings| { &mut program_settings.name }),
                     ProgramName(Some(literal_or_to_string(&ts))),
-                    Argument { name, value: ArgumentValue::Stream(ts) }
+                    Argument { span, name, value: ArgumentValue::Stream(ts) }
                 ),
                 "version" => set_argument!(
                     program_settings
                         .as_mut()
                         .map(|program_settings| { &mut program_settings.version }),
                     ProgramVersion::Specified(literal_or_to_string(&ts)),
-                    Argument { name, value: ArgumentValue::Stream(ts) }
+                    Argument { span, name, value: ArgumentValue::Stream(ts) }
                 ),
                 "beschreibung" | "description" => set_argument!(
                     program_settings
                         .as_mut()
                         .and_then(|program_settings| { program_settings.description.as_mut() }),
                     ProgramDescription(Some(literal_or_to_string(&ts))),
-                    Argument { name, value: ArgumentValue::Stream(ts) }
+                    Argument { span, name, value: ArgumentValue::Stream(ts) }
                 ),
                 "lang_präfix" | "long_prefix" => {
                     set_argument_string!(
                         long_prefix,
                         literal_or_to_string(&ts),
-                        Argument { name, value: ArgumentValue::Stream(ts) }
+                        Argument { span, name, value: ArgumentValue::Stream(ts) }
                     );
                 },
                 "kurz_präfix" | "short_prefix" => {
                     set_argument_string!(
                         short_prefix,
                         literal_or_to_string(&ts),
-                        Argument { name, value: ArgumentValue::Stream(ts) }
+                        Argument { span, name, value: ArgumentValue::Stream(ts) }
                     );
                 },
                 "invertiere_präfix" | "invert_prefix" => {
                     set_argument_string!(
                         invert_prefix,
                         literal_or_to_string(&ts),
-                        Argument { name, value: ArgumentValue::Stream(ts) }
+                        Argument { span, name, value: ArgumentValue::Stream(ts) }
                     );
                 },
                 "invertiere_infix" | "invert_infix" => {
                     set_argument_string!(
                         invert_infix,
                         literal_or_to_string(&ts),
-                        Argument { name, value: ArgumentValue::Stream(ts) }
+                        Argument { span, name, value: ArgumentValue::Stream(ts) }
                     );
                 },
                 "wert_infix" | "value_infix" => {
                     set_argument_string!(
                         value_infix,
                         literal_or_to_string(&ts),
-                        Argument { name, value: ArgumentValue::Stream(ts) }
+                        Argument { span, name, value: ArgumentValue::Stream(ts) }
                     );
                 },
                 "meta_var" => {
                     set_argument!(
                         meta_var,
                         Some(MetaVar(literal_or_to_string(&ts))),
-                        Argument { name, value: ArgumentValue::Stream(ts) }
+                        Argument { span, name, value: ArgumentValue::Stream(ts) }
                     );
                 },
                 "standard" | "default" => {
                     set_argument!(
                         default_value,
                         DefaultValue(quote!(Some(#ts))),
-                        Argument { name, value: ArgumentValue::Stream(ts) }
+                        Argument { span, name, value: ArgumentValue::Stream(ts) }
                     );
                 },
                 "lang" | "long" => set_argument_names!(
                     long_names,
                     Some((literal_or_to_string(&ts), Vec::new())),
-                    Argument { name, value: ArgumentValue::Stream(ts) }
+                    Argument { span, name, value: ArgumentValue::Stream(ts) }
                 ),
                 "kurz" | "short" => set_argument_names!(
                     short_names,
                     ShortNamesKind::Names(vec![literal_or_to_string(&ts)]),
-                    Argument { name, value: ArgumentValue::Stream(ts) }
+                    Argument { span, name, value: ArgumentValue::Stream(ts) }
                 ),
                 "case" => {
                     let Some(case) = Case::parse(&ts) else {
-                        return Err(Box::new(|arg_name| Unsupported {
+                        return Err(Box::new(move |arg_name| Unsupported {
                             arg_name,
-                            argument: Argument { name, value: ArgumentValue::Stream(ts) },
+                            argument: Argument { span, name, value: ArgumentValue::Stream(ts) },
                         }));
                     };
-                    let argument = Argument { name, value: ArgumentValue::Stream(ts) };
+                    let argument = Argument { span, name, value: ArgumentValue::Stream(ts) };
                     set_argument_case!(long_prefix, case, argument);
                     set_argument_case!(long_names, case, argument);
                     set_argument_case!(short_prefix, case, argument);
@@ -876,9 +892,9 @@ fn parse_value_argument(
                     set_argument_case!(value_infix, case, argument);
                 },
                 _ => {
-                    return Err(Box::new(|arg_name| Unsupported {
+                    return Err(Box::new(move |arg_name| Unsupported {
                         arg_name,
-                        argument: Argument { name, value: ArgumentValue::Stream(ts) },
+                        argument: Argument { span, name, value: ArgumentValue::Stream(ts) },
                     }));
                 },
             },
@@ -910,10 +926,11 @@ fn parse_value_argument(
                             None,
                         );
                         if let Err(create_error) = result {
-                            return Err(Box::new(|arg_name| match create_error(arg_name) {
+                            return Err(Box::new(move |arg_name| match create_error(arg_name) {
                                 Unsupported { arg_name, argument } => Unsupported {
                                     arg_name,
                                     argument: Argument {
+                                        span,
                                         name,
                                         value: ArgumentValue::SubArgument(vec![argument])
                                     }
@@ -1009,10 +1026,11 @@ fn parse_value_argument(
                             None,
                         );
                         if let Err(create_error) = result {
-                            return Err(Box::new(|arg_name| match create_error(arg_name) {
+                            return Err(Box::new(move |arg_name| match create_error(arg_name) {
                                 Unsupported { arg_name, argument } => Unsupported {
                                     arg_name,
                                     argument: Argument {
+                                        span,
                                         name,
                                         value: ArgumentValue::SubArgument(vec![argument]),
                                     },
@@ -1031,15 +1049,20 @@ fn parse_value_argument(
                     },
                     ("case", _, _, _) => {
                         for sub_arg in sub_args {
-                            if let Argument { name: sub_name, value: ArgumentValue::Stream(ts) } =
-                                sub_arg
+                            if let Argument {
+                                name: sub_name,
+                                value: ArgumentValue::Stream(ts),
+                                ..
+                            } = sub_arg
                             {
                                 /// Value for an unsupported sub-argument.
                                 macro_rules! error_argument {
                                     () => {
                                         Argument {
+                                            span,
                                             name,
                                             value: ArgumentValue::SubArgument(vec![Argument {
+                                                span,
                                                 name: sub_name,
                                                 value: ArgumentValue::Stream(ts),
                                             }]),
@@ -1047,7 +1070,7 @@ fn parse_value_argument(
                                     };
                                 }
                                 let Some(case) = Case::parse(&ts) else {
-                                    return Err(Box::new(|arg_name| Unsupported {
+                                    return Err(Box::new(move |arg_name| Unsupported {
                                         arg_name,
                                         argument: error_argument!(),
                                     }));
@@ -1075,16 +1098,17 @@ fn parse_value_argument(
                                         set_argument_case!(value_infix, case, error_argument!());
                                     },
                                     _ => {
-                                        return Err(Box::new(|arg_name| Unsupported {
+                                        return Err(Box::new(move |arg_name| Unsupported {
                                             arg_name,
                                             argument: error_argument!(),
                                         }));
                                     },
                                 }
                             } else {
-                                return Err(Box::new(|arg_name| Unsupported {
+                                return Err(Box::new(move |arg_name| Unsupported {
                                     arg_name,
                                     argument: Argument {
+                                        span,
                                         name,
                                         value: ArgumentValue::SubArgument(vec![sub_arg]),
                                     },
@@ -1093,9 +1117,10 @@ fn parse_value_argument(
                         }
                     },
                     _ => {
-                        return Err(Box::new(|arg_name| Unsupported {
+                        return Err(Box::new(move |arg_name| Unsupported {
                             arg_name,
                             argument: Argument {
+                                span,
                                 name,
                                 value: ArgumentValue::SubArgument(sub_args),
                             },
@@ -1143,6 +1168,8 @@ pub(crate) enum Error {
     NotStruct {
         /// Parsed kind of type.
         typ: UnsupportedType,
+        /// Location of the unsupported type keyword.
+        span: proc_macro2::Span,
         /// Macro input.
         input: TokenStream,
     },
@@ -1152,9 +1179,11 @@ pub(crate) enum Error {
         count: usize,
         /// `where` clause of the type.
         where_clause: bool,
+        /// Location of the generic parameters or `where` clause.
+        span: proc_macro2::Span,
     },
     /// Unnamed field in the `struct`.
-    UnnamedFields,
+    UnnamedFields(proc_macro2::Span),
     /// Field with an empty name.
     EmptyFieldName(Ident),
 }
@@ -1168,10 +1197,10 @@ impl Display for Error {
             Venial(error) => write!(formatter, "{error}"),
             SplitArguments(error) => write!(formatter, "{error}"),
             ParseValue(error) => write!(formatter, "{error}"),
-            NotStruct { typ, input } => {
+            NotStruct { typ, input, .. } => {
                 write!(formatter, "Only structs are supported, but received {typ}: {input}")
             },
-            Generics { count, where_clause } => {
+            Generics { count, where_clause, .. } => {
                 write!(
                     formatter,
                     "Only structs without generics are supported, but received {count} \
@@ -1182,7 +1211,7 @@ impl Display for Error {
                 }
                 write!(formatter, ".")
             },
-            UnnamedFields => formatter.write_str("Only named fields are supported."),
+            UnnamedFields(_) => formatter.write_str("Only named fields are supported."),
             EmptyFieldName(ident) => write!(formatter, "Named field has an empty name: {ident}"),
         }
     }
@@ -1203,6 +1232,21 @@ impl From<SplitArgumentsError> for Error {
 impl From<ParseValueError> for Error {
     fn from(input: ParseValueError) -> Error {
         Error::ParseValue(input)
+    }
+}
+
+impl CompileError for Error {
+    fn span(&self) -> proc_macro2::Span {
+        match self {
+            Self::ParseValue(ParseValueError::Unsupported { argument, .. }) => argument.span,
+            Self::ParseValue(ParseValueError::NoLongName { span, .. })
+            | Self::NotStruct { span, .. }
+            | Self::Generics { span, .. }
+            | Self::UnnamedFields(span) => *span,
+            Self::Venial(error) => error.span(),
+            Self::SplitArguments(error) => error.span(),
+            Self::EmptyFieldName(ident) => ident.span(),
+        }
     }
 }
 
@@ -1231,14 +1275,45 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
     )]
     let Struct { fields, name, generic_params, where_clause, attributes, .. } = match item {
         Item::Struct(struct_) => struct_,
-        Item::Enum(_) => return Err(NotStruct { typ: UnsupportedType::Enum, input }),
-        Item::Union(_) => return Err(NotStruct { typ: UnsupportedType::Union, input }),
-        _ => return Err(NotStruct { typ: UnsupportedType::Unknown, input }),
+        Item::Enum(enum_) => {
+            return Err(NotStruct {
+                typ: UnsupportedType::Enum,
+                span: enum_.tk_enum.span(),
+                input,
+            });
+        },
+        Item::Union(union) => {
+            return Err(NotStruct {
+                typ: UnsupportedType::Union,
+                span: union.tk_union.span(),
+                input,
+            });
+        },
+        _ => {
+            return Err(NotStruct {
+                typ: UnsupportedType::Unknown,
+                span: input
+                    .clone()
+                    .into_iter()
+                    .next()
+                    .map_or_else(proc_macro2::Span::call_site, |tt| tt.span()),
+                input,
+            });
+        },
     };
-    let param_count = generic_params.map_or(0, |param_list| param_list.params.len());
+    let param_count = generic_params.as_ref().map_or(0, |param_list| param_list.params.len());
     let has_where_clause = where_clause.is_some();
     if (param_count > 0) || has_where_clause {
-        return Err(Generics { count: param_count, where_clause: has_where_clause });
+        let span = generic_params.as_ref().map_or_else(
+            || {
+                where_clause
+                    .expect("where clause exists when generic parameters do not")
+                    .tk_where
+                    .span()
+            },
+            |params| params.tk_l_bracket.span(),
+        );
+        return Err(Generics { count: param_count, where_clause: has_where_clause, span });
     }
     let mut args = Vec::new();
     for attr in attributes {
@@ -1303,7 +1378,7 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
         Fields::Named(named_fields) => {
             Box::new(named_fields.fields.inner.into_iter().map(|(field, _punct)| field))
         },
-        Fields::Tuple(_) => return Err(UnnamedFields),
+        Fields::Tuple(tuple_fields) => return Err(UnnamedFields(tuple_fields.tk_parens.span)),
     };
     for field in iter {
         let NamedField { attributes: field_attrs, name: field_ident, ty: field_type, .. } = field;

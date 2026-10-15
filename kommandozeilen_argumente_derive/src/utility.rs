@@ -6,7 +6,7 @@ use std::{
     iter,
 };
 
-use proc_macro2::{Delimiter, Ident, Punct, Spacing, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::{ToTokens, format_ident, quote};
 use venial::{Attribute, AttributeValue, GroupSpan};
 
@@ -160,6 +160,8 @@ impl Display for ArgumentValue {
 /// Argument for a field.
 #[derive(Debug, Clone)]
 pub(crate) struct Argument {
+    /// Location of the argument name in the macro input.
+    pub(crate) span: Span,
     /// Argument name.
     pub(crate) name: String,
     /// Argument value.
@@ -168,7 +170,7 @@ pub(crate) struct Argument {
 
 impl Display for Argument {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        let Argument { name, value } = self;
+        let Argument { name, value, .. } = self;
         formatter.write_str(name)?;
         write_argument_value(formatter, true, value)
     }
@@ -209,6 +211,20 @@ pub(crate) enum SplitArgumentsError {
         /// [`TokenStream`] for the value.
         value: TokenStream,
     },
+}
+
+impl SplitArgumentsError {
+    /// Source location of the malformed argument.
+    pub(crate) fn span(&self) -> Span {
+        match self {
+            Self::NotParenthesized { ts, .. }
+            | Self::EmptyArgument { ts, .. }
+            | Self::InvalidArgumentValue { value: ts, .. } => {
+                ts.clone().into_iter().next().map_or_else(Span::call_site, |tt| tt.span())
+            },
+            Self::InvalidArgumentName { tt, .. } => tt.span(),
+        }
+    }
 }
 
 impl Display for SplitArgumentsError {
@@ -285,8 +301,8 @@ fn split_arguments(
     while iter_mut_ref.peek().is_some() {
         let mut arg_iter = iter_mut_ref.take_while(token_tree_is_not_comma).peekable();
         // extract name
-        let name = match arg_iter.next() {
-            Some(TokenTree::Ident(ident)) => ident.to_string(),
+        let (span, name) = match arg_iter.next() {
+            Some(TokenTree::Ident(ident)) => (ident.span(), ident.to_string()),
             Some(tt) => return Err(InvalidArgumentName { parent, tt }),
             None => return Err(EmptyArgument { parent, ts: iter_mut_ref.collect() }),
         };
@@ -338,7 +354,7 @@ fn split_arguments(
             },
         };
         // Argument hinzufügen
-        args.push(Argument { name, value });
+        args.push(Argument { span, name, value });
     }
     Ok(())
 }

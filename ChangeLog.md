@@ -2,8 +2,6 @@
 
 ## Unreleased changes
 
-## 0.3.0
-
 ### Breaking changes
 
 - Die englische API ist nun primär: Neue Anwendungen sollen `Arguments`, `Description`, `Value`,
@@ -15,6 +13,8 @@
   `Argumente` verfügbar.
 - Das Feature `derive` gehört nicht mehr zur Standard-Feature-Liste und muss bei Bedarf explizit
   aktiviert werden.
+- Das neue Feature `german` aktiviert die deutschen Spiegeltypen und Kompatibilitäts-APIs und muss
+  für deren Verwendung explizit aktiviert werden.
 
 ### Parsing
 
@@ -34,6 +34,9 @@
 - `Alternativen` für Argumente hinzugefügt.
 - `Normalisiert::as_str` hinzugefügt.
 - Clippy-Lints bereinigt und `venial` für das Parsing der Proc-Makro-Attribute verwendet.
+- Derive-Makro-Diagnosen markieren nun die relevante Stelle der fehlerhaften Eingabe statt das
+  gesamte `derive`-Makro, etwa ungültige Attribute, generische Parameter oder Daten enthaltende
+  Enum-Varianten.
 
 ## 0.2.0
 

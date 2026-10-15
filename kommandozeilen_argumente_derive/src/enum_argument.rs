@@ -6,9 +6,12 @@ use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use venial::{Attribute, Enum, EnumVariant, Fields, Item, parse_item};
 
-use crate::utility::{
-    Argument, ArgumentValue, Case, SplitArgumentsError, crate_ident, path_is_ident,
-    split_parenthesized_arguments,
+use crate::{
+    CompileError,
+    utility::{
+        Argument, ArgumentValue, Case, SplitArgumentsError, crate_ident, path_is_ident,
+        split_parenthesized_arguments,
+    },
 };
 
 /// Unsupported type for the derive macro: only enums are supported.
@@ -41,6 +44,8 @@ pub(crate) enum Error {
     NotEnum {
         /// Parsed kind of type.
         typ: UnsupportedType,
+        /// Location of the unsupported type keyword.
+        span: proc_macro2::Span,
         /// Macro input.
         input: TokenStream,
     },
@@ -50,6 +55,8 @@ pub(crate) enum Error {
         count: usize,
         /// `where` clause of the type.
         where_clause: bool,
+        /// Location of the generic parameters or `where` clause.
+        span: proc_macro2::Span,
     },
     /// A variant with data was found.
     DataVariant {
@@ -68,10 +75,10 @@ impl Display for Error {
         use Error::{DataVariant, Generics, NotEnum, SplitArguments, Unsupported, Venial};
         match self {
             Venial(error) => write!(formatter, "{error}"),
-            NotEnum { typ, input } => {
+            NotEnum { typ, input, .. } => {
                 write!(formatter, "Only enums are supported, but received {typ}: {input}")
             },
-            Generics { count, where_clause } => {
+            Generics { count, where_clause, .. } => {
                 write!(
                     formatter,
                     "Only enums without generics are supported, but received {count} parameter(s)"
@@ -85,16 +92,16 @@ impl Display for Error {
                 write!(formatter, "Only unit variants are supported, but {variant} contains data.")
             },
             SplitArguments(error) => write!(formatter, "{error}"),
-            Unsupported(Argument { name, value: NoValue }) => {
+            Unsupported(Argument { name, value: NoValue, .. }) => {
                 write!(formatter, "Unsupported argument: {name}")
             },
-            Unsupported(Argument { name, value: value @ SubArgument(_sub_args) }) => {
+            Unsupported(Argument { name, value: value @ SubArgument(_sub_args), .. }) => {
                 write!(formatter, "Unsupported sub-argument of {name}: {value}")
             },
-            Unsupported(Argument { name, value: value @ List(_list) }) => {
+            Unsupported(Argument { name, value: value @ List(_list), .. }) => {
                 write!(formatter, "Unsupported list argument {name}: {value}")
             },
-            Unsupported(Argument { name, value: value @ Stream(_tokens) }) => {
+            Unsupported(Argument { name, value: value @ Stream(_tokens), .. }) => {
                 write!(formatter, "Unsupported named argument {name}: {value}")
             },
         }
@@ -113,6 +120,18 @@ impl From<SplitArgumentsError> for Error {
     }
 }
 
+impl CompileError for Error {
+    fn span(&self) -> proc_macro2::Span {
+        match self {
+            Self::Unsupported(argument) => argument.span,
+            Self::NotEnum { span, .. } | Self::Generics { span, .. } => *span,
+            Self::DataVariant { variant } => variant.span(),
+            Self::SplitArguments(error) => error.span(),
+            Self::Venial(error) => error.span(),
+        }
+    }
+}
+
 /// Parse attributes on an enum or a variant.
 fn parse_attributes(field: Option<&Ident>, attrs: Vec<Attribute>) -> Result<Option<Case>, Error> {
     let mut args = Vec::new();
@@ -127,10 +146,11 @@ fn parse_attributes(field: Option<&Ident>, attrs: Vec<Attribute>) -> Result<Opti
     }
     let mut case = None;
     for arg in args {
+        let span = arg.span;
         match arg {
-            Argument { name, value: ArgumentValue::Stream(ts) } if name == "case" => {
+            Argument { name, value: ArgumentValue::Stream(ts), .. } if name == "case" => {
                 case = Some(Case::parse(&ts).ok_or({
-                    Error::Unsupported(Argument { name, value: ArgumentValue::Stream(ts) })
+                    Error::Unsupported(Argument { span, name, value: ArgumentValue::Stream(ts) })
                 })?);
             },
             _ => return Err(Error::Unsupported(arg)),
@@ -149,16 +169,47 @@ pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Er
     )]
     let Enum { variants, name, generic_params, where_clause, attributes, .. } = match item {
         Item::Enum(enum_) => enum_,
-        Item::Struct(_) => return Err(NotEnum { typ: UnsupportedType::Struct, input }),
-        Item::Union(_) => return Err(NotEnum { typ: UnsupportedType::Union, input }),
-        _ => return Err(NotEnum { typ: UnsupportedType::Unknown, input }),
+        Item::Struct(struct_) => {
+            return Err(NotEnum {
+                typ: UnsupportedType::Struct,
+                span: struct_.tk_struct.span(),
+                input,
+            });
+        },
+        Item::Union(union) => {
+            return Err(NotEnum {
+                typ: UnsupportedType::Union,
+                span: union.tk_union.span(),
+                input,
+            });
+        },
+        _ => {
+            return Err(NotEnum {
+                typ: UnsupportedType::Unknown,
+                span: input
+                    .clone()
+                    .into_iter()
+                    .next()
+                    .map_or_else(proc_macro2::Span::call_site, |tt| tt.span()),
+                input,
+            });
+        },
     };
 
     let crate_ident = crate_ident();
-    let param_count = generic_params.map_or(0, |param_list| param_list.params.len());
+    let param_count = generic_params.as_ref().map_or(0, |param_list| param_list.params.len());
     let has_where_clause = where_clause.is_some();
     if (param_count > 0) || has_where_clause {
-        return Err(Generics { count: param_count, where_clause: has_where_clause });
+        let span = generic_params.as_ref().map_or_else(
+            || {
+                where_clause
+                    .expect("where clause exists when generic parameters do not")
+                    .tk_where
+                    .span()
+            },
+            |params| params.tk_l_bracket.span(),
+        );
+        return Err(Generics { count: param_count, where_clause: has_where_clause, span });
     }
     let standard_case = parse_attributes(None, attributes)?;
     let mut idents = Vec::new();

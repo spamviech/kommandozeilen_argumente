@@ -6,21 +6,29 @@
 use std::fmt::Display;
 
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::quote;
+use quote::quote_spanned;
 
 mod enum_argument;
 mod parse;
 mod utility;
 
-// TODO verwende Span
+/// A compile-time diagnostic with a source location.
+pub(crate) trait CompileError: Display {
+    /// The source location to highlight.
+    fn span(&self) -> Span;
+}
+
 /// Return the value or create a [`compile_error!`] with the error message.
-fn unwrap_or_compile_error<Error: Display>(result: Result<TokenStream2, Error>) -> TokenStream {
+fn unwrap_or_compile_error<Error: CompileError>(
+    result: Result<TokenStream2, Error>,
+) -> TokenStream {
     let ts = match result {
         Ok(ts) => ts,
         Err(fehler) => {
             let fehlermeldung = fehler.to_string();
-            quote!(compile_error! {#fehlermeldung })
+            quote_spanned!(fehler.span()=> compile_error! {#fehlermeldung })
         },
     };
     ts.into()
