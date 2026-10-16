@@ -392,6 +392,7 @@ fn parse_short_value_forms<'argument>(
         missing_values,
         values,
         remaining,
+        alternative_branches: Vec::new(),
     }
 }
 
@@ -441,6 +442,7 @@ fn parse_long_value_forms<'argument>(
         missing_values,
         values,
         remaining,
+        alternative_branches: Vec::new(),
     }
 }
 
@@ -492,6 +494,7 @@ fn parse_value_merged_short_forms<'argument>(
         missing_values,
         values,
         remaining,
+        alternative_branches: Vec::new(),
     }
 }
 
@@ -705,6 +708,7 @@ impl<'t, T, E> Value<'t, T, E> {
                     missing_values: HashSet::default(),
                     values: HashMap::default(),
                     remaining: args,
+                    alternative_branches: Vec::new(),
                 }],
             }
         }

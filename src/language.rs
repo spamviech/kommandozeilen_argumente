@@ -31,6 +31,8 @@ pub struct Language {
     pub invalid_string: &'static str,
     /// Description for an unused argument error.
     pub unused_argument: &'static str,
+    /// Separator between errors from rejected alternatives.
+    pub alternative_error_separator: &'static str,
     /// Description for the generated help argument.
     pub help_description: &'static str,
     /// Long name for the generated help argument.
@@ -70,6 +72,7 @@ impl Language {
         parse_error: "Parse Error",
         invalid_string: "Invalid String",
         unused_argument: "Unused argument(s)",
+        alternative_error_separator: "-------------------",
         help_description: "Show this text.",
         help_long: "help",
         help_short: "h",
@@ -97,6 +100,7 @@ impl Language {
         parse_error: "Parse-Fehler",
         invalid_string: "Invalider String",
         unused_argument: "Nicht alle Argumente verwendet",
+        alternative_error_separator: "-------------------",
         help_description: "Zeige diesen Text an.",
         help_long: "hilfe",
         help_short: "h",
@@ -129,6 +133,7 @@ impl Language {
             parse_fehler,
             invalider_string,
             argument_nicht_verwendet,
+            alternative_fehler_trennzeichen,
             hilfe_beschreibung,
             hilfe_lang,
             hilfe_kurz,
@@ -155,6 +160,7 @@ impl Language {
             parse_error: parse_fehler,
             invalid_string: invalider_string,
             unused_argument: argument_nicht_verwendet,
+            alternative_error_separator: alternative_fehler_trennzeichen,
             help_description: hilfe_beschreibung,
             help_long: hilfe_lang,
             help_short: hilfe_kurz,
@@ -201,6 +207,8 @@ pub struct Sprache {
     pub invalider_string: &'static str,
     /// Beschreibung für ein nicht verwendetes Argument in einer Fehlermeldung.
     pub argument_nicht_verwendet: &'static str,
+    /// Trennzeichen zwischen Fehlern abgelehnter Alternativen.
+    pub alternative_fehler_trennzeichen: &'static str,
     /// Beschreibung für die Hilfe-Flag im automatisch erzeugten Hilfe-Text.
     pub hilfe_beschreibung: &'static str,
     /// Lang-Name für die Hilfe-Flag.
@@ -249,6 +257,7 @@ impl Sprache {
             parse_error,
             invalid_string,
             unused_argument,
+            alternative_error_separator,
             help_description,
             help_long,
             help_short,
@@ -275,6 +284,7 @@ impl Sprache {
             parse_fehler: parse_error,
             invalider_string: invalid_string,
             argument_nicht_verwendet: unused_argument,
+            alternative_fehler_trennzeichen: alternative_error_separator,
             hilfe_beschreibung: help_description,
             hilfe_lang: help_long,
             hilfe_kurz: help_short,

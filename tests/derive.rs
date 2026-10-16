@@ -205,6 +205,7 @@ const DUMMY: Language = Language {
     parse_error: "dummy",
     invalid_string: "dummy",
     unused_argument: "dummy",
+    alternative_error_separator: "dummy",
     help_description: "dummy",
     help_long: "dummy",
     help_short: "dummy",

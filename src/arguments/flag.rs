@@ -180,6 +180,7 @@ fn parse_short_flag_forms<'argument, T>(
         missing_values: HashSet::default(),
         values: HashMap::default(),
         remaining,
+        alternative_branches: Vec::new(),
     }
 }
 
@@ -228,6 +229,7 @@ impl<'t, T> Flag<'t, T> {
             missing_values: HashSet::default(),
             values: HashMap::default(),
             remaining,
+            alternative_branches: Vec::new(),
         }
     }
 
@@ -281,6 +283,7 @@ impl<'t, T> Flag<'t, T> {
             missing_values: HashSet::default(),
             values: HashMap::default(),
             remaining,
+            alternative_branches: Vec::new(),
         }
     }
 }

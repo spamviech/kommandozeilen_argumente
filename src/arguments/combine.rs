@@ -184,7 +184,11 @@ macro_rules! impl_combine_tuple {
                             [<arg_ $suffix:snake:lower>]
                                 .parse_merged_short_inputs(candidate.remaining.clone().into_iter())
                                 .into_iter()
-                                .map(move |parsed| candidate.clone().merge(parsed))
+                                .filter_map(move |parsed| {
+                                    candidate.compatible_with(&parsed.alternative_branches).then(|| {
+                                        candidate.clone().merge(parsed)
+                                    })
+                                })
                         }).collect();
                     )+
                     NonEmpty::from_vec(candidates).expect("Tuple combinations have at least one candidate.")
@@ -205,7 +209,11 @@ macro_rules! impl_combine_tuple {
                             [<arg_ $suffix:snake:lower>]
                                 .parse_short_forms(candidate.remaining.clone().into_iter())
                                 .into_iter()
-                                .map(move |parsed| candidate.clone().merge(parsed))
+                                .filter_map(move |parsed| {
+                                    candidate.compatible_with(&parsed.alternative_branches).then(|| {
+                                        candidate.clone().merge(parsed)
+                                    })
+                                })
                         }).collect();
                     )+
                     NonEmpty::from_vec(candidates).expect("Tuple combinations have at least one candidate.")
@@ -226,7 +234,11 @@ macro_rules! impl_combine_tuple {
                             [<arg_ $suffix:snake:lower>]
                                 .parse_long_forms(candidate.remaining.clone().into_iter())
                                 .into_iter()
-                                .map(move |parsed| candidate.clone().merge(parsed))
+                                .filter_map(move |parsed| {
+                                    candidate.compatible_with(&parsed.alternative_branches).then(|| {
+                                        candidate.clone().merge(parsed)
+                                    })
+                                })
                         }).collect();
                     )+
                     NonEmpty::from_vec(candidates).expect("Tuple combinations have at least one candidate.")

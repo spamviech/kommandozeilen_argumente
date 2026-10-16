@@ -8,7 +8,7 @@ use std::{
     fmt::{self, Debug, Display},
     num::NonZeroI32,
     path::Path,
-    process,
+    process, ptr,
 };
 
 use itertools::Itertools as _;
@@ -23,7 +23,7 @@ use crate::{
     },
     description::ArgumentInput,
     language::Language,
-    outcome::{self, Error, Result as OutcomeResult},
+    outcome::{self, AlternativeErrors, Error, Result as OutcomeResult},
 };
 
 #[cfg(feature = "german")]
@@ -176,6 +176,34 @@ pub struct ParsedRawValue<'s> {
     pub input: Cow<'s, str>,
 }
 
+/// An alternative branch selected during name recognition.
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AlternativeBranch {
+    /// Identity of the `Alternatives` allocation that owns this branch.
+    alternatives: *const (),
+    /// Index of the selected branch within that allocation.
+    index: usize,
+}
+
+/// Returns whether two recognition candidates chose compatible alternative branches.
+fn alternative_id<T>(alternatives: &T) -> *const () {
+    ptr::from_ref(alternatives).cast()
+}
+
+/// Returns whether two recognition candidates chose compatible alternative branches.
+fn compatible_alternative_branches(
+    first: &[AlternativeBranch],
+    second: &[AlternativeBranch],
+) -> bool {
+    first.iter().all(|first_branch| {
+        second.iter().all(|second_branch| {
+            first_branch.alternatives != second_branch.alternatives
+                || first_branch.index == second_branch.index
+        })
+    })
+}
+
 /// Output of stage 1, merged short-name recognition.
 #[derive(Debug, Clone)]
 pub struct ParsedMergedShortForms<'argument> {
@@ -189,6 +217,8 @@ pub struct ParsedMergedShortForms<'argument> {
     pub values: HashMap<ParsedValueName<'argument>, ParsedRawValue<'argument>>,
     /// Input not consumed by this stage.
     pub remaining: Vec<ArgumentInput>,
+    /// Branches selected by nested alternatives during this stage.
+    pub alternative_branches: Vec<AlternativeBranch>,
 }
 
 /// Output of stage 2, standalone short-name recognition.
@@ -204,6 +234,8 @@ pub struct ParsedShortForms<'argument> {
     pub values: HashMap<ParsedValueName<'argument>, ParsedRawValue<'argument>>,
     /// Input not consumed by this stage.
     pub remaining: Vec<ArgumentInput>,
+    /// Branches selected by nested alternatives during this stage.
+    pub alternative_branches: Vec<AlternativeBranch>,
 }
 
 /// Output of stage 3, long-name recognition.
@@ -219,6 +251,8 @@ pub struct ParsedLongForms<'argument> {
     pub values: HashMap<ParsedValueName<'argument>, ParsedRawValue<'argument>>,
     /// Input not consumed by this stage.
     pub remaining: Vec<ArgumentInput>,
+    /// Branches selected by nested alternatives during this stage.
+    pub alternative_branches: Vec<AlternativeBranch>,
 }
 
 /// Recognition state accumulated from the three name-recognition stages.
@@ -234,6 +268,8 @@ pub struct RecognizedArguments<'argument> {
     pub values: HashMap<ParsedValueName<'argument>, ParsedRawValue<'argument>>,
     /// Input unconsumed after stage 3.
     pub remaining: Vec<ArgumentInput>,
+    /// Branches selected during name recognition.
+    pub alternative_branches: Vec<AlternativeBranch>,
 }
 
 impl<'argument> RecognizedArguments<'argument> {
@@ -249,7 +285,10 @@ impl<'argument> RecognizedArguments<'argument> {
             missing_values: merged.missing_values,
             values: merged.values,
             remaining: long.remaining,
+            alternative_branches: merged.alternative_branches,
         };
+        result.alternative_branches.extend(short.alternative_branches);
+        result.alternative_branches.extend(long.alternative_branches);
         result.merge_stage(short.early_exits, short.flags, short.missing_values, short.values);
         result.merge_stage(long.early_exits, long.flags, long.missing_values, long.values);
         result
@@ -286,11 +325,18 @@ impl ParsedMergedShortForms<'_> {
             missing_values: HashSet::new(),
             values: HashMap::new(),
             remaining: Vec::new(),
+            alternative_branches: Vec::new(),
         }
+    }
+
+    /// Returns whether this candidate and `next` selected compatible branches.
+    pub(crate) fn compatible_with(&self, alternative_branches: &[AlternativeBranch]) -> bool {
+        compatible_alternative_branches(&self.alternative_branches, alternative_branches)
     }
 
     /// Appends the next result from the same recognition stage.
     pub(crate) fn merge(mut self, mut next: Self) -> Self {
+        self.alternative_branches.append(&mut next.alternative_branches);
         self.early_exits.append(&mut next.early_exits);
         self.flags.append(&mut next.flags);
         for name in next.missing_values {
@@ -316,11 +362,18 @@ impl ParsedShortForms<'_> {
             missing_values: HashSet::new(),
             values: HashMap::new(),
             remaining: Vec::new(),
+            alternative_branches: Vec::new(),
         }
+    }
+
+    /// Returns whether this candidate and `next` selected compatible branches.
+    pub(crate) fn compatible_with(&self, alternative_branches: &[AlternativeBranch]) -> bool {
+        compatible_alternative_branches(&self.alternative_branches, alternative_branches)
     }
 
     /// Appends the next result from the same recognition stage.
     pub(crate) fn merge(mut self, mut next: Self) -> Self {
+        self.alternative_branches.append(&mut next.alternative_branches);
         self.early_exits.append(&mut next.early_exits);
         self.flags.append(&mut next.flags);
         for name in next.missing_values {
@@ -346,11 +399,18 @@ impl ParsedLongForms<'_> {
             missing_values: HashSet::new(),
             values: HashMap::new(),
             remaining: Vec::new(),
+            alternative_branches: Vec::new(),
         }
+    }
+
+    /// Returns whether this candidate and `next` selected compatible branches.
+    pub(crate) fn compatible_with(&self, alternative_branches: &[AlternativeBranch]) -> bool {
+        compatible_alternative_branches(&self.alternative_branches, alternative_branches)
     }
 
     /// Appends the next result from the same recognition stage.
     pub(crate) fn merge(mut self, mut next: Self) -> Self {
+        self.alternative_branches.append(&mut next.alternative_branches);
         self.early_exits.append(&mut next.early_exits);
         self.flags.append(&mut next.flags);
         for name in next.missing_values {
@@ -388,11 +448,17 @@ impl<'t, T, F> Arguments<'t, T, F> {
             Self::Combined(combine) => combine.parse_merged_short_inputs(Box::new(args)),
             Self::Alternatives(alternatives) => {
                 let args = args.collect_vec();
-                NonEmpty::collect(
-                    alternatives.iter().flat_map(|argument| {
-                        argument.parse_merged_short_inputs(args.iter().cloned())
-                    }),
-                )
+                let alternatives_id = alternative_id(alternatives.as_ref());
+                NonEmpty::collect(alternatives.iter().enumerate().flat_map(|(index, argument)| {
+                    argument.parse_merged_short_inputs(args.iter().cloned()).into_iter().map(
+                        move |mut candidate| {
+                            candidate
+                                .alternative_branches
+                                .push(AlternativeBranch { alternatives: alternatives_id, index });
+                            candidate
+                        },
+                    )
+                }))
                 .expect("Iterator of NonEmpty<NonEmpty<_>>.")
             },
         }
@@ -413,11 +479,17 @@ impl<'t, T, F> Arguments<'t, T, F> {
             Self::Combined(combine) => combine.parse_short_forms(Box::new(args)),
             Self::Alternatives(alternatives) => {
                 let args = args.collect_vec();
-                NonEmpty::collect(
-                    alternatives
-                        .iter()
-                        .flat_map(|argument| argument.parse_short_forms(args.iter().cloned())),
-                )
+                let alternatives_id = alternative_id(alternatives.as_ref());
+                NonEmpty::collect(alternatives.iter().enumerate().flat_map(|(index, argument)| {
+                    argument.parse_short_forms(args.iter().cloned()).into_iter().map(
+                        move |mut candidate| {
+                            candidate
+                                .alternative_branches
+                                .push(AlternativeBranch { alternatives: alternatives_id, index });
+                            candidate
+                        },
+                    )
+                }))
                 .expect("Iterator of NonEmpty<NonEmpty<_>>.")
             },
         }
@@ -438,11 +510,17 @@ impl<'t, T, F> Arguments<'t, T, F> {
             Self::Combined(combine) => combine.parse_long_forms(Box::new(args)),
             Self::Alternatives(alternatives) => {
                 let args = args.collect_vec();
-                NonEmpty::collect(
-                    alternatives
-                        .iter()
-                        .flat_map(|argument| argument.parse_long_forms(args.iter().cloned())),
-                )
+                let alternatives_id = alternative_id(alternatives.as_ref());
+                NonEmpty::collect(alternatives.iter().enumerate().flat_map(|(index, argument)| {
+                    argument.parse_long_forms(args.iter().cloned()).into_iter().map(
+                        move |mut candidate| {
+                            candidate
+                                .alternative_branches
+                                .push(AlternativeBranch { alternatives: alternatives_id, index });
+                            candidate
+                        },
+                    )
+                }))
                 .expect("Iterator of NonEmpty<NonEmpty<_>>.")
             },
         }
@@ -480,14 +558,16 @@ impl<'t, T, F> Arguments<'t, T, F> {
                         },
                         OutcomeResult::Error(candidate_errors) => {
                             remaining = candidate_remaining;
-                            errors.extend(candidate_errors);
+                            errors.push(candidate_errors);
                         },
                     }
                 }
                 (
-                    OutcomeResult::Error(
-                        NonEmpty::from_vec(errors).expect("Alternatives are non-empty."),
-                    ),
+                    OutcomeResult::Error(NonEmpty::singleton(Error::Alternatives(Box::new(
+                        AlternativeErrors(
+                            NonEmpty::from_vec(errors).expect("Alternatives are non-empty."),
+                        ),
+                    )))),
                     remaining,
                 )
             },
@@ -497,8 +577,16 @@ impl<'t, T, F> Arguments<'t, T, F> {
                 let mut selected = None;
                 for merged in arguments.parse_merged_short_forms(input.iter().cloned()) {
                     for short in arguments.parse_short_forms(merged.remaining.clone().into_iter()) {
+                        if !merged.compatible_with(&short.alternative_branches) {
+                            continue;
+                        }
                         for long in arguments.parse_long_forms(short.remaining.clone().into_iter())
                         {
+                            if !merged.compatible_with(&long.alternative_branches)
+                                || !short.compatible_with(&long.alternative_branches)
+                            {
+                                continue;
+                            }
                             let candidate = RecognizedArguments::from_stages(
                                 merged.clone(),
                                 short.clone(),
@@ -510,7 +598,7 @@ impl<'t, T, F> Arguments<'t, T, F> {
                                     break;
                                 },
                                 OutcomeResult::Error(candidate_errors) => {
-                                    errors.extend(candidate_errors);
+                                    errors.push(candidate_errors);
                                 },
                             }
                         }
@@ -522,49 +610,88 @@ impl<'t, T, F> Arguments<'t, T, F> {
                         break;
                     }
                 }
-                match selected {
-                    Some(candidate) => {
-                        let remaining = candidate.remaining.clone();
-                        (arguments.accumulate(candidate), remaining)
-                    },
-                    None => (
-                        OutcomeResult::Error(
-                            NonEmpty::from_vec(errors)
-                                .expect("Parsing has at least one failed candidate."),
-                        ),
-                        Vec::new(),
-                    ),
+                if let Some(candidate) = selected {
+                    let remaining = candidate.remaining.clone();
+                    (arguments.accumulate(candidate), remaining)
+                } else {
+                    let errors = NonEmpty::from_vec(errors)
+                        .expect("Parsing has at least one failed candidate.");
+                    let errors = if errors.len() == 1 {
+                        errors.head
+                    } else {
+                        NonEmpty::singleton(Error::Alternatives(Box::new(AlternativeErrors(
+                            errors,
+                        ))))
+                    };
+                    (OutcomeResult::Error(errors), Vec::new())
                 }
             },
         }
     }
 
     /// Validates a candidate's typed parsing before consuming the parser branch.
-    ///
-    /// ## Panics
-    ///
-    /// When passing a [`Arguments::Alternatives`].
     pub(crate) fn validate(&self, recognized: RecognizedArguments<'t>) -> OutcomeResult<'t, (), F> {
         match self {
             Self::Single(argument) => argument.validate(recognized),
             Self::Combined(combine) => combine.validate(recognized),
-            Self::Alternatives(_) => {
-                unreachable!("Alternatives are handled before staged recognition.")
+            Self::Alternatives(alternatives) => {
+                let alternatives_id = alternative_id(alternatives.as_ref());
+                let selected_branch = recognized
+                    .alternative_branches
+                    .iter()
+                    .find(|branch| branch.alternatives == alternatives_id)
+                    .map(|branch| branch.index);
+                let mut errors = Vec::new();
+                for (index, alternative) in alternatives.iter().enumerate() {
+                    if selected_branch.is_some_and(|selected_branch| selected_branch != index) {
+                        continue;
+                    }
+                    match alternative.validate(recognized.clone()) {
+                        OutcomeResult::Value(()) => return OutcomeResult::Value(()),
+                        OutcomeResult::EarlyExit(messages) => {
+                            return OutcomeResult::EarlyExit(messages);
+                        },
+                        OutcomeResult::Error(candidate_errors) => errors.push(candidate_errors),
+                    }
+                }
+                OutcomeResult::Error(NonEmpty::singleton(Error::Alternatives(Box::new(
+                    AlternativeErrors(
+                        NonEmpty::from_vec(errors).expect("Alternatives are non-empty."),
+                    ),
+                ))))
             },
         }
     }
 
     /// Accumulates this argument's recognized inputs into its typed result.
-    ///
-    /// ## Panics
-    ///
-    /// When passing a [`Arguments::Alternatives`].
     pub(crate) fn accumulate(self, recognized: RecognizedArguments<'t>) -> OutcomeResult<'t, T, F> {
         match self {
             Self::Single(argument) => argument.accumulate(recognized),
             Self::Combined(combine) => combine.accumulate(recognized),
-            Self::Alternatives(_) => {
-                unreachable!("Alternatives are handled before staged recognition.")
+            Self::Alternatives(alternatives) => {
+                let alternatives_id = alternative_id(alternatives.as_ref());
+                let selected_branch = recognized
+                    .alternative_branches
+                    .iter()
+                    .find(|branch| branch.alternatives == alternatives_id)
+                    .map(|branch| branch.index);
+                let mut errors = Vec::new();
+                for (index, alternative) in alternatives.into_iter().enumerate() {
+                    if selected_branch.is_some_and(|selected_branch| selected_branch != index) {
+                        continue;
+                    }
+                    match alternative.validate(recognized.clone()) {
+                        OutcomeResult::Value(()) | OutcomeResult::EarlyExit(_) => {
+                            return alternative.accumulate(recognized);
+                        },
+                        OutcomeResult::Error(candidate_errors) => errors.push(candidate_errors),
+                    }
+                }
+                OutcomeResult::Error(NonEmpty::singleton(Error::Alternatives(Box::new(
+                    AlternativeErrors(
+                        NonEmpty::from_vec(errors).expect("Alternatives are non-empty."),
+                    ),
+                ))))
             },
         }
     }

@@ -309,7 +309,15 @@ fn alternatives_aggregate_failures_select_in_order_and_allow_early_exit() {
     ]);
     let (result, remaining) = failures.parse([OsString::from("--choice=value")].into_iter());
     assert_eq!(remaining, EMPTY_REMAINING);
-    assert_matches!(result, Result::Error(errors) if errors.len() == 2);
+    assert_matches!(
+        result,
+        Result::Error(errors)
+            if matches!(
+                &errors.head,
+                kommandozeilen_argumente::Error::Alternatives(alternatives)
+                    if alternatives.0.len() == 2
+            )
+    );
 
     let ordered = Arguments::alternatives(nonempty![
         Arguments::from(alternative_value(first_value)),
@@ -331,6 +339,27 @@ fn alternatives_aggregate_failures_select_in_order_and_allow_early_exit() {
         .parse([OsString::from("--help")].into_iter());
     assert_eq!(remaining, EMPTY_REMAINING);
     assert_matches!(result, Result::EarlyExit(messages) if messages.head == "show help");
+}
+
+#[test]
+fn nested_alternatives_keep_their_branch_across_recognition_stages() {
+    let alternatives = Arguments::alternatives(nonempty![
+        Arguments::from(alternative_value(reject_value)),
+        Arguments::from(alternative_value(reject_value)),
+    ]);
+    let (result, remaining) =
+        combine!(|value| value, alternatives).parse([OsString::from("--choice=value")].into_iter());
+
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert_matches!(
+        result,
+        Result::Error(errors)
+            if matches!(
+                &errors.head,
+                kommandozeilen_argumente::Error::Alternatives(alternative_errors)
+                    if alternative_errors.0.len() == 2
+            )
+    );
 }
 
 #[cfg(unix)]

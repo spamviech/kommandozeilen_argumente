@@ -122,6 +122,7 @@ impl<'t> EarlyExit<'t> {
             missing_values: HashSet::default(),
             values: HashMap::default(),
             remaining,
+            alternative_branches: Vec::new(),
         }
     }
 
@@ -158,6 +159,7 @@ impl<'t> EarlyExit<'t> {
             missing_values: HashSet::default(),
             values: HashMap::default(),
             remaining,
+            alternative_branches: Vec::new(),
         }
     }
 
@@ -205,6 +207,7 @@ impl<'t> EarlyExit<'t> {
             missing_values: HashSet::default(),
             values: HashMap::default(),
             remaining,
+            alternative_branches: Vec::new(),
         }
     }
 }

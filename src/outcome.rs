@@ -121,9 +121,16 @@ pub enum Result<'t, T, E> {
     Error(NonEmpty<Error<'t, E>>),
 }
 
+/// Errors from each rejected command-line argument alternative.
+#[derive(Debug, Clone)]
+#[must_use]
+pub struct AlternativeErrors<'t, E>(pub NonEmpty<NonEmpty<Error<'t, E>>>);
+
 /// An error encountered while parsing command-line arguments.
 #[derive(Debug, Clone)]
 pub enum Error<'t, E> {
+    /// Errors from each rejected alternative.
+    Alternatives(Box<AlternativeErrors<'t, E>>),
     /// A required flag was absent.
     MissingFlag {
         /// All names of the flag.
@@ -234,8 +241,16 @@ impl<'t, T, E> Result<'t, T, E> {
 impl<'t, E> Error<'t, E> {
     /// Converts the embedded error.
     #[inline]
-    pub fn convert<F>(self, mapper: impl FnOnce(E) -> F) -> Error<'t, F> {
+    pub fn convert<F>(self, mapper: impl Fn(E) -> F) -> Error<'t, F> {
+        self.convert_ref(&mapper)
+    }
+
+    /// Converts the embedded error using a reusable mapper.
+    fn convert_ref<F>(self, mapper: &impl Fn(E) -> F) -> Error<'t, F> {
         match self {
+            Self::Alternatives(alternatives) => Error::Alternatives(Box::new(AlternativeErrors(
+                alternatives.0.map(|errors| errors.map(|error| error.convert_ref(mapper))),
+            ))),
             Self::MissingFlag { name, invert_prefix, invert_infix } => {
                 Error::MissingFlag { name, invert_prefix, invert_infix }
             },
@@ -290,11 +305,12 @@ impl<E: Display> Error<'_, E> {
     /// Creates a human-readable error message using `language`.
     #[inline]
     pub fn create_error_message_with_language(&self, language: Language) -> String {
-        self.create_error_message(
+        self.create_error_message_with_separator(
             language.missing_flag,
             language.missing_value,
             language.parse_error,
             language.invalid_string,
+            language.alternative_error_separator,
         )
     }
 
@@ -306,6 +322,24 @@ impl<E: Display> Error<'_, E> {
         missing_value: &str,
         parse_error: &str,
         invalid_string: &str,
+    ) -> String {
+        self.create_error_message_with_separator(
+            missing_flag,
+            missing_value,
+            parse_error,
+            invalid_string,
+            Language::ENGLISH.alternative_error_separator,
+        )
+    }
+
+    /// Creates a human-readable error message using an alternative error separator.
+    fn create_error_message_with_separator(
+        &self,
+        missing_flag: &str,
+        missing_value: &str,
+        parse_error: &str,
+        invalid_string: &str,
+        alternative_error_separator: &str,
     ) -> String {
         fn message(
             description: &str,
@@ -343,6 +377,26 @@ impl<E: Display> Error<'_, E> {
             result
         }
         match self {
+            Self::Alternatives(alternatives) => alternatives
+                .0
+                .iter()
+                .map(|errors| {
+                    errors
+                        .iter()
+                        .map(|error| {
+                            error.create_error_message_with_separator(
+                                missing_flag,
+                                missing_value,
+                                parse_error,
+                                invalid_string,
+                                alternative_error_separator,
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                })
+                .collect::<Vec<_>>()
+                .join(&format!("\n{alternative_error_separator}\n")),
             Self::MissingFlag { name, invert_prefix, invert_infix } => {
                 message(missing_flag, name, Either::Left((invert_prefix, invert_infix)))
             },
@@ -389,10 +443,18 @@ pub enum Ergebnis<'t, T, E> {
     /// Parse-Fehler.
     Fehler(NonEmpty<Fehler<'t, E>>),
 }
+/// Deutsche Spiegelung von [`AlternativeErrors`].
+#[derive(Debug, Clone)]
+#[must_use]
+#[cfg(feature = "german")]
+pub struct AlternativenFehler<'t, E>(pub NonEmpty<NonEmpty<Fehler<'t, E>>>);
+
 /// Deutsches Spiegelbild von [`Error`].
 #[derive(Debug, Clone)]
 #[cfg(feature = "german")]
 pub enum Fehler<'t, E> {
+    /// Fehler jeder abgelehnten Alternative.
+    Alternativen(Box<AlternativenFehler<'t, E>>),
     /// Eine benötigte Flag fehlte.
     FehlendeFlag {
         /// Alle Namen der Flag.
@@ -489,6 +551,9 @@ impl<'t, E> From<Error<'t, E>> for Fehler<'t, E> {
     #[inline]
     fn from(value: Error<'t, E>) -> Self {
         match value {
+            Error::Alternatives(alternatives) => Self::Alternativen(Box::new(AlternativenFehler(
+                alternatives.0.map(|errors| errors.map(Into::into)),
+            ))),
             Error::MissingFlag { name, invert_prefix, invert_infix } => Self::FehlendeFlag {
                 name,
                 invertiere_präfix: invert_prefix,
@@ -506,6 +571,9 @@ impl<'t, E> From<Fehler<'t, E>> for Error<'t, E> {
     #[inline]
     fn from(value: Fehler<'t, E>) -> Self {
         match value {
+            Fehler::Alternativen(alternativen) => Self::Alternatives(Box::new(AlternativeErrors(
+                alternativen.0.map(|errors| errors.map(Into::into)),
+            ))),
             Fehler::FehlendeFlag { name, invertiere_präfix, invertiere_infix } => {
                 Self::MissingFlag {
                     name,
@@ -606,7 +674,7 @@ impl<'t, T, E> Ergebnis<'t, T, E> {
 impl<'t, E> Fehler<'t, E> {
     /// Konvertiert den enthaltenen Fehler.
     #[inline]
-    pub fn konvertiere<F>(self, mapper: impl FnOnce(E) -> F) -> Fehler<'t, F> {
+    pub fn konvertiere<F>(self, mapper: impl Fn(E) -> F) -> Fehler<'t, F> {
         Error::from(self).convert(mapper).into()
     }
 }
@@ -637,11 +705,12 @@ impl<E: Display> Fehler<'_, E> {
     /// Erstellt eine menschenlesbare Fehlermeldung mit `sprache`.
     #[inline]
     pub fn erstelle_fehlermeldung_mit_sprache(&self, sprache: Sprache) -> String {
-        self.erstelle_fehlermeldung(
+        self.erstelle_fehlermeldung_mit_trennzeichen(
             sprache.fehlende_flag,
             sprache.fehlender_wert,
             sprache.parse_fehler,
             sprache.invalider_string,
+            sprache.alternative_fehler_trennzeichen,
         )
     }
 
@@ -654,7 +723,45 @@ impl<E: Display> Fehler<'_, E> {
         parse_fehler: &str,
         invalider_string: &str,
     ) -> String {
+        self.erstelle_fehlermeldung_mit_trennzeichen(
+            fehlende_flag,
+            fehlender_wert,
+            parse_fehler,
+            invalider_string,
+            Sprache::DEUTSCH.alternative_fehler_trennzeichen,
+        )
+    }
+
+    /// Erstellt eine menschenlesbare Fehlermeldung mit einem Alternativen-Fehlertrennzeichen.
+    fn erstelle_fehlermeldung_mit_trennzeichen(
+        &self,
+        fehlende_flag: &str,
+        fehlender_wert: &str,
+        parse_fehler: &str,
+        invalider_string: &str,
+        alternative_fehler_trennzeichen: &str,
+    ) -> String {
         match self {
+            Self::Alternativen(alternativen) => alternativen
+                .0
+                .iter()
+                .map(|fehler| {
+                    fehler
+                        .iter()
+                        .map(|fehler| {
+                            fehler.erstelle_fehlermeldung_mit_trennzeichen(
+                                fehlende_flag,
+                                fehlender_wert,
+                                parse_fehler,
+                                invalider_string,
+                                alternative_fehler_trennzeichen,
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                })
+                .collect::<Vec<_>>()
+                .join(&format!("\n{alternative_fehler_trennzeichen}\n")),
             Self::FehlendeFlag { name, invertiere_präfix, invertiere_infix } => {
                 Error::<E>::MissingFlag {
                     name: name.clone(),
