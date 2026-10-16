@@ -4,17 +4,17 @@ use std::fmt::{self, Display, Formatter};
 
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-use venial::{Item, Struct, parse_item};
+use venial::parse_item;
 
 use crate::{
     CompileError,
     parse::{
         attributes::parse_value_argument,
-        fields::{FieldSettings, derive_fields, try_into_struct},
+        fields::{FieldSettings, derive_fields},
         types::{
-            CreateHelp, CreateVersion, English, InvertInfix, InvertPrefix, LongPrefix,
+            CreateHelp, CreateVersion, English, InvertInfix, InvertPrefix, LongPrefix, ParseItem,
             ParseValueError, ProgramDescription, ProgramName, ProgramSettings, ProgramVersion,
-            ShortPrefix, ValueInfix,
+            ShortPrefix, ValueInfix, try_into_parse_item,
         },
     },
     utility::{SplitArgumentsError, crate_ident, path_is_ident, split_parenthesized_arguments},
@@ -25,11 +25,9 @@ mod attributes;
 mod fields;
 mod types;
 
-/// Unsupported type for the derive macro: only structs are supported.
+/// Unsupported type for the derive macro: only structs and enums are supported.
 #[derive(Debug)]
 pub(crate) enum UnsupportedType {
-    /// enum
-    Enum,
     /// union
     Union,
     /// Unknown
@@ -38,9 +36,8 @@ pub(crate) enum UnsupportedType {
 
 impl Display for UnsupportedType {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
-        use UnsupportedType::{Enum, Union, Unknown};
+        use UnsupportedType::{Union, Unknown};
         formatter.write_str(match self {
-            Enum => "enum",
             Union => "union",
             Unknown => "Unknown",
         })
@@ -56,7 +53,7 @@ pub(crate) enum Error {
     SplitArguments(SplitArgumentsError),
     /// Error while parsing a value.
     ParseValue(ParseValueError),
-    /// The type is not a `struct`.
+    /// The type is neither a `struct` nor an `enum`.
     NotStruct {
         /// Parsed kind of type.
         typ: UnsupportedType,
@@ -74,8 +71,10 @@ pub(crate) enum Error {
         /// Location of the generic parameters or `where` clause.
         span: proc_macro2::Span,
     },
-    /// Unnamed field in the `struct`.
+    /// Unnamed field in a struct or enum variant.
     UnnamedFields(proc_macro2::Span),
+    /// Enum without variants.
+    EmptyEnum(proc_macro2::Span),
     /// Field with an empty name.
     EmptyFieldName(Ident),
 }
@@ -83,14 +82,18 @@ pub(crate) enum Error {
 impl Display for Error {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         use Error::{
-            EmptyFieldName, Generics, NotStruct, ParseValue, SplitArguments, UnnamedFields, Venial,
+            EmptyEnum, EmptyFieldName, Generics, NotStruct, ParseValue, SplitArguments,
+            UnnamedFields, Venial,
         };
         match self {
             Venial(error) => write!(formatter, "{error}"),
             SplitArguments(error) => write!(formatter, "{error}"),
             ParseValue(error) => write!(formatter, "{error}"),
             NotStruct { typ, input, .. } => {
-                write!(formatter, "Only structs are supported, but received {typ}: {input}")
+                write!(
+                    formatter,
+                    "Only structs and enums are supported, but received {typ}: {input}"
+                )
             },
             Generics { count, where_clause, .. } => {
                 write!(
@@ -104,6 +107,7 @@ impl Display for Error {
                 write!(formatter, ".")
             },
             UnnamedFields(_) => formatter.write_str("Only named fields are supported."),
+            EmptyEnum(_) => formatter.write_str("Enums must have at least one variant."),
             EmptyFieldName(ident) => write!(formatter, "Named field has an empty name: {ident}"),
         }
     }
@@ -134,7 +138,8 @@ impl CompileError for Error {
             Self::ParseValue(ParseValueError::NoLongName { span, .. })
             | Self::NotStruct { span, .. }
             | Self::Generics { span, .. }
-            | Self::UnnamedFields(span) => *span,
+            | Self::UnnamedFields(span)
+            | Self::EmptyEnum(span) => *span,
             Self::Venial(error) => error.span(),
             Self::SplitArguments(error) => error.span(),
             Self::EmptyFieldName(ident) => ident.span(),
@@ -149,9 +154,8 @@ impl CompileError for Error {
 )]
 pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
     use Error::Generics;
-    let item = parse_item(input.clone())?;
-    let Struct { fields, name, generic_params, where_clause, attributes, .. } =
-        try_into_struct(input, item)?;
+    let ParseItem { name, generic_params, where_clause, attributes, variants } =
+        try_into_parse_item(input.clone(), parse_item(input)?)?;
     let param_count = generic_params.as_ref().map_or(0, |param_list| param_list.params.len());
     let has_where_clause = where_clause.is_some();
     if (param_count > 0) || has_where_clause {
@@ -223,25 +227,38 @@ pub(crate) fn derive_parse(input: TokenStream) -> Result<TokenStream, Error> {
         let language_tokens = language.token_stream();
         quote!(#language_tokens.meta_var)
     };
-    let tuples = derive_fields(
-        fields,
-        &FieldSettings {
-            language: &language,
-            long_prefix: &long_prefix,
-            short_prefix: &short_prefix,
-            invert_prefix: &invert_prefix,
-            invert_infix: &invert_infix,
-            value_infix: &value_infix,
-            meta_var: &meta_var,
-        },
-    )?;
-    let (idents, create_arguments): (Vec<_>, Vec<_>) = tuples.into_iter().unzip();
-    let combined = quote!(
-        #(
-            let #idents = ::#crate_ident::Arguments::from(#create_arguments);
-        )*
-        ::#crate_ident::combine!(|#(#idents),*| Self {#(#idents),*}, #(#idents),*)
-    );
+    let field_settings = FieldSettings {
+        language: &language,
+        long_prefix: &long_prefix,
+        short_prefix: &short_prefix,
+        invert_prefix: &invert_prefix,
+        invert_infix: &invert_infix,
+        value_infix: &value_infix,
+        meta_var: &meta_var,
+    };
+    let mut alternatives = Vec::new();
+    for (variant, fields) in variants {
+        let tuples = derive_fields(fields, &field_settings)?;
+        let (idents, create_arguments): (Vec<_>, Vec<_>) = tuples.into_iter().unzip();
+        let construct = if let Some(variant) = variant {
+            quote!(Self::#variant { #(#idents),* })
+        } else {
+            quote!(Self { #(#idents),* })
+        };
+        alternatives.push(quote!({
+            #(
+                let #idents = ::#crate_ident::Arguments::from(#create_arguments);
+            )*
+            ::#crate_ident::combine!(|#(#idents),*| #construct, #(#idents),*)
+        }));
+    }
+    let combined = if alternatives.len() == 1 {
+        alternatives.pop().expect("Structs have one alternative.")
+    } else if alternatives.is_empty() {
+        return Err(Error::EmptyEnum(name.span()));
+    } else {
+        quote!(::#crate_ident::Arguments::alternatives(::#crate_ident::nonempty![#(#alternatives),*]))
+    };
     let with_version = if let CreateVersion(Some(add_version)) = create_version {
         add_version(
             combined,
@@ -321,7 +338,24 @@ mod test {
     }
 
     #[test]
-    fn rejects_generics_and_non_structs() {
+    fn derives_named_enum_variants_as_alternatives() {
+        let derived = derive_parse(quote! {
+            enum Arguments {
+                File { path: String },
+                Url { url: String },
+            }
+        })
+        .expect("named enum variants derive successfully")
+        .to_string();
+
+        assert!(derived.contains("impl :: kommandozeilen_argumente :: Parse for Arguments"));
+        assert!(derived.contains("Arguments :: alternatives"));
+        assert!(derived.contains("Self :: File { path }"));
+        assert!(derived.contains("Self :: Url { url }"));
+    }
+
+    #[test]
+    fn rejects_generics_and_unsupported_types() {
         let generic_error = derive_parse(quote! { struct Arguments<T> { value: T } })
             .expect_err("generic structs are unsupported");
         assert_eq!(
@@ -329,11 +363,12 @@ mod test {
             "Only structs without generics are supported, but received 1 parameter(s)."
         );
 
-        let enum_error = derive_parse(quote! { enum Arguments { Value } })
-            .expect_err("only structs are supported");
+        let union_error = derive_parse(quote! { union Arguments { value: u8 } })
+            .expect_err("unions are unsupported");
         assert_eq!(
-            enum_error.to_string(),
-            "Only structs are supported, but received enum: enum Arguments { Value }"
+            union_error.to_string(),
+            "Only structs and enums are supported, but received union: union Arguments { value : \
+             u8 }"
         );
     }
 }

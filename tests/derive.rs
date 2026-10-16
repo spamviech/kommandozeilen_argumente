@@ -10,6 +10,7 @@
 )]
 
 use std::{
+    assert_matches,
     borrow::Cow,
     ffi::OsString,
     fmt::{self, Debug, Display, Formatter},
@@ -102,6 +103,55 @@ struct Test {
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(language: english)]
 struct Empty;
+
+#[derive(Debug, PartialEq, Eq, Parse)]
+#[kommandozeilen_argumente(language: english)]
+enum DerivedAlternatives {
+    Flag {
+        #[kommandozeilen_argumente(required)]
+        enabled: bool,
+    },
+    Number {
+        value: i64,
+    },
+    File {
+        #[kommandozeilen_argumente(short: f)]
+        path: String,
+    },
+    Url {
+        #[kommandozeilen_argumente(short: u)]
+        url: String,
+    },
+}
+
+#[test]
+fn derive_enum_uses_variants_as_alternatives() {
+    let (flag, flag_remaining) =
+        DerivedAlternatives::arguments().parse([OsString::from("--enabled")].into_iter());
+    assert_eq!(flag_remaining, []);
+    assert_matches!(flag, Result::Value(DerivedAlternatives::Flag { enabled: true }));
+
+    let (number, number_remaining) = DerivedAlternatives::arguments()
+        .parse([OsString::from("--value"), OsString::from("42")].into_iter());
+    assert_eq!(number_remaining, []);
+    assert_matches!(number, Result::Value(DerivedAlternatives::Number { value: 42 }));
+
+    let (file, remaining) = DerivedAlternatives::arguments()
+        .parse([OsString::from("--path"), OsString::from("Cargo.toml")].into_iter());
+    assert_eq!(remaining, []);
+    assert_matches!(
+        file,
+        Result::Value(DerivedAlternatives::File { path }) if path == "Cargo.toml"
+    );
+
+    let (url, url_remaining) = DerivedAlternatives::arguments()
+        .parse([OsString::from("-uhttps://example.com")].into_iter());
+    assert_eq!(url_remaining, []);
+    assert_matches!(
+        url,
+        Result::Value(DerivedAlternatives::Url { url }) if url == "https://example.com"
+    );
+}
 
 #[test]
 fn derive_empty_test() -> result::Result<(), DString> {
@@ -199,9 +249,15 @@ impl ParseArgument for Flag {
 
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(language: DUMMY)]
-struct Inner {
-    #[kommandozeilen_argumente(default: false, short)]
-    inner_flag: bool,
+enum Inner {
+    Flag {
+        #[kommandozeilen_argumente(default: false, short)]
+        inner_flag: bool,
+    },
+    Integer {
+        #[kommandozeilen_argumente(default: 0, short)]
+        inner_int: i8,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq, Parse)]
@@ -286,7 +342,7 @@ fn verschmelze_kurzformen_wert() -> result::Result<(), DString> {
         (Result::Value(test2), nicht_verwendet) => {
             let erwartet = Test2 {
                 bla: Bla::Meh,
-                inner: Inner { inner_flag: false },
+                inner: Inner::Flag { inner_flag: false },
                 flag: Flag::Active,
                 bool_flag: true,
             };
@@ -315,7 +371,10 @@ fn verschmelze_kurzformen_wert() -> result::Result<(), DString> {
 
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(language: english)]
-#[expect(clippy::struct_excessive_bools, reason = "The types directly control the generated cli parsing.")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "The types directly control the generated cli parsing."
+)]
 struct UnicodeDerived {
     #[kommandozeilen_argumente(long: "föö", short: f)]
     flag: bool,
@@ -342,7 +401,7 @@ fn derived_unicode_names_preserve_normalization_case_and_graphemes() {
     );
 
     assert_eq!(remaining, []);
-    assert!(matches!(
+    assert_matches!(
         result,
         Result::Value(UnicodeDerived {
             flag: true,
@@ -351,7 +410,7 @@ fn derived_unicode_names_preserve_normalization_case_and_graphemes() {
             eclair: true,
             über: true,
         })
-    ));
+    );
 }
 
 #[test]
@@ -362,7 +421,7 @@ fn verschmelze_kurzformen_erfolgreich() -> result::Result<(), DString> {
             let übrige = nicht_verwendet.len();
             let erwartet = Test2 {
                 bla: Bla::Meh,
-                inner: Inner { inner_flag: false },
+                inner: Inner::Flag { inner_flag: false },
                 flag: Flag::Active,
                 bool_flag: true,
             };

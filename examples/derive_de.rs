@@ -27,6 +27,35 @@ impl Display for Aufzählung {
     }
 }
 
+/// Eine innere Alternative, die durch ihr benötigtes Argument gewählt wird.
+#[derive(Debug, Parse)]
+enum Inner {
+    /// Wählt die Flag-Alternative.
+    Flag {
+        #[kommandozeilen_argumente(benötigt)]
+        /// Ob die innere Flag aktiv ist.
+        innere_flag: bool,
+    },
+    /// Wählt die Zahlen-Alternative.
+    Zahl {
+        /// Die innere Zahl.
+        innere_zahl: i8,
+    },
+}
+
+impl Display for Inner {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Flag { innere_flag } => {
+                write!(formatter, "Flag {{ innere_flag: {innere_flag} }}")
+            },
+            Self::Zahl { innere_zahl } => {
+                write!(formatter, "Zahl {{ innere_zahl: {innere_zahl} }}")
+            },
+        }
+    }
+}
+
 /// Struktur zur Definition der Kommandozeilen-Argumente.
 #[derive(Debug, Parse)]
 #[kommandozeilen_argumente(hilfe(beschreibung: "Programm-Beschreibung.", kurz))]
@@ -45,16 +74,20 @@ struct Args {
     /// Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable.
     #[kommandozeilen_argumente(kurz, standard: Aufzählung::Zwei, meta_var: VAR)]
     aufzählung: Aufzählung,
+    /// Eine benötigte innere Alternative.
+    #[kommandozeilen_argumente(flatten)]
+    inner: Inner,
 }
 
 impl Display for Args {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Args { flag, umbenannt, benötigt, wert, aufzählung } = self;
+        let Args { flag, umbenannt, benötigt, wert, aufzählung, inner } = self;
         writeln!(formatter, "flag: {flag}")?;
         writeln!(formatter, "umbenannt: {umbenannt}")?;
         writeln!(formatter, "benötigt: {benötigt}")?;
         writeln!(formatter, "wert: {wert}")?;
-        writeln!(formatter, "aufzählung: {aufzählung}")
+        writeln!(formatter, "aufzählung: {aufzählung}")?;
+        writeln!(formatter, "inner: {inner}")
     }
 }
 

@@ -11,7 +11,7 @@ use std::{
 };
 
 use kommandozeilen_argumente::{
-    Beschreibung, EnumArgument, ParseArgument, ParseError, Sprache, Vergleich,
+    Argumente, Beschreibung, EnumArgument, ParseArgument, ParseError, Sprache, Vergleich,
     arguments::{flag::Flag, help::Standard, value::Wert},
     crate_name, crate_version, kombiniere,
 };
@@ -58,6 +58,34 @@ impl Display for Aufzählung {
     }
 }
 
+/// Eine innere Alternative, die durch ihr benötigtes Argument gewählt wird.
+#[derive(Debug)]
+enum Inner {
+    /// Wählt die Flag-Alternative.
+    Flag {
+        /// Ob die innere Flag aktiv ist.
+        innere_flag: bool,
+    },
+    /// Wählt die Zahlen-Alternative.
+    Zahl {
+        /// Die innere Zahl.
+        innere_zahl: i8,
+    },
+}
+
+impl Display for Inner {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Flag { innere_flag } => {
+                write!(formatter, "Flag {{ innere_flag: {innere_flag} }}")
+            },
+            Self::Zahl { innere_zahl } => {
+                write!(formatter, "Zahl {{ innere_zahl: {innere_zahl} }}")
+            },
+        }
+    }
+}
+
 /// Struktur um die geparsten Kommandozeilen-Argumente zu repräsentieren.
 #[derive(Debug)]
 struct Args {
@@ -71,19 +99,23 @@ struct Args {
     wert: String,
     /// Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable.
     aufzählung: Aufzählung,
+    /// Eine benötigte innere Alternative.
+    inner: Inner,
 }
 
 impl Display for Args {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Args { flag, umbenannt, benötigt, wert, aufzählung } = self;
+        let Args { flag, umbenannt, benötigt, wert, aufzählung, inner } = self;
         writeln!(formatter, "flag: {flag}")?;
         writeln!(formatter, "umbenannt: {umbenannt}")?;
         writeln!(formatter, "benötigt: {benötigt}")?;
         writeln!(formatter, "wert: {wert}")?;
-        writeln!(formatter, "aufzählung: {aufzählung}")
+        writeln!(formatter, "aufzählung: {aufzählung}")?;
+        writeln!(formatter, "inner: {inner}")
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "Das Beispiel erzeugt jedes Argument explizit.")]
 fn main() {
     let sprache = Sprache::DEUTSCH;
     let flag = Flag::neu_mit_sprache(
@@ -130,6 +162,34 @@ fn main() {
         ),
         sprache,
     );
+    let innere_flag = Flag::neu_mit_sprache(
+        Beschreibung::neu_mit_sprache(
+            "innere-flag",
+            None::<&str>,
+            Some("Wählt die Flag-Alternative."),
+            None,
+            sprache,
+        ),
+        sprache,
+    );
+    let innere_zahl = i8::argumente_mit_sprache(
+        Beschreibung::neu_mit_sprache(
+            "innere-zahl",
+            None::<&str>,
+            Some("Wählt die Zahlen-Alternative."),
+            None,
+            sprache,
+        ),
+        sprache,
+    );
+    #[expect(
+        clippy::shadow_unrelated,
+        reason = "Die kombiniere-Callbacks binden geparste Werte an ihre Argumentnamen."
+    )]
+    let inner = Argumente::alternativen(nonempty![
+        kombiniere!(|innere_flag| Inner::Flag { innere_flag }, innere_flag),
+        kombiniere!(|innere_zahl| Inner::Zahl { innere_zahl }, innere_zahl),
+    ]);
     let aufzählung = Wert::neu_enum_mit_sprache(
         Beschreibung::neu_mit_sprache(
             "aufzählung",
@@ -141,14 +201,15 @@ fn main() {
         sprache,
     );
     #[expect(clippy::shadow_unrelated, reason = "lambda-Argumente, über Aufruf identisch.")]
-    let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung| Args {
+    let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung, inner| Args {
         flag,
         umbenannt,
         benötigt,
         wert,
         aufzählung,
+        inner,
     };
-    let argumente = kombiniere!(zusammenfassen, flag, umbenannt, benötigt, wert, aufzählung);
+    let argumente = kombiniere!(zusammenfassen, flag, umbenannt, benötigt, wert, aufzählung, inner);
     let argumente_mit_hilfe_und_version = argumente
         .mit_hilfe_und_version_frühes_beenden_mit_sprache(
             &Standard,

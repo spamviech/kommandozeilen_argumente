@@ -58,6 +58,32 @@ impl Display for Enumeration {
     }
 }
 
+/// An inner alternative selected by its required argument.
+#[derive(Debug)]
+enum Inner {
+    /// Select the flag alternative.
+    Flag {
+        /// Whether the inner flag is enabled.
+        inner_flag: bool,
+    },
+    /// Select the number alternative.
+    Number {
+        /// The inner number.
+        inner_number: i8,
+    },
+}
+
+impl Display for Inner {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Flag { inner_flag } => write!(formatter, "Flag {{ inner_flag: {inner_flag} }}"),
+            Self::Number { inner_number } => {
+                write!(formatter, "Number {{ inner_number: {inner_number} }}")
+            },
+        }
+    }
+}
+
 /// struct representing the parsed command line arguments.
 #[derive(Debug)]
 struct Args {
@@ -71,19 +97,23 @@ struct Args {
     value: String,
     /// An Enumeration-value with default value and alternative meta variable.
     enumeration: Enumeration,
+    /// A required inner alternative.
+    inner: Inner,
 }
 
 impl Display for Args {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Args { flag, renamed, required, value, enumeration } = self;
+        let Args { flag, renamed, required, value, enumeration, inner } = self;
         writeln!(formatter, "flag: {flag}")?;
         writeln!(formatter, "renamed: {renamed}")?;
         writeln!(formatter, "required: {required}")?;
         writeln!(formatter, "value: {value}")?;
-        writeln!(formatter, "enumeration: {enumeration}")
+        writeln!(formatter, "enumeration: {enumeration}")?;
+        writeln!(formatter, "inner: {inner}")
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "The example constructs every argument explicitly.")]
 fn main() {
     let language = Language::ENGLISH;
     let flag = Flag::new_with_language(
@@ -129,6 +159,34 @@ fn main() {
         ),
         language,
     );
+    let inner_flag = Flag::new_with_language(
+        Description::new_with_language(
+            "inner-flag",
+            None::<&str>,
+            Some("Select the flag alternative."),
+            None,
+            language,
+        ),
+        language,
+    );
+    let inner_number = i8::arguments_with_language(
+        Description::new_with_language(
+            "inner-number",
+            None::<&str>,
+            Some("Select the number alternative."),
+            None,
+            language,
+        ),
+        language,
+    );
+    #[expect(
+        clippy::shadow_unrelated,
+        reason = "The combine callbacks bind parsed values with their argument names."
+    )]
+    let inner = kommandozeilen_argumente::Arguments::alternatives(nonempty![
+        combine!(|inner_flag| Inner::Flag { inner_flag }, inner_flag),
+        combine!(|inner_number| Inner::Number { inner_number }, inner_number),
+    ]);
     let enumeration = Value::new_enum_with_language(
         Description::new_with_language(
             "enumeration",
@@ -143,14 +201,15 @@ fn main() {
         clippy::shadow_unrelated,
         reason = "lambda arguments, linked by calling with arguments."
     )]
-    let merge = |flag, renamed, required, value, enumeration| Args {
+    let merge = |flag, renamed, required, value, enumeration, inner| Args {
         flag,
         renamed,
         required,
         value,
         enumeration,
+        inner,
     };
-    let argumente = combine!(merge, flag, renamed, required, value, enumeration)
+    let argumente = combine!(merge, flag, renamed, required, value, enumeration, inner)
         .with_help_and_version_early_exit_with_language(
             &Default,
             crate_name!(),

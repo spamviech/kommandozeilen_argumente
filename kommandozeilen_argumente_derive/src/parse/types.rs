@@ -6,9 +6,69 @@ use litrs::StringLit;
 use proc_macro2::{TokenStream, TokenTree};
 use quote::{ToTokens, quote};
 use unicode_segmentation::UnicodeSegmentation;
-use venial::TypeExpr;
+use venial::{Attribute, Fields, GenericParamList, Item, TypeExpr, WhereClause};
 
-use crate::utility::{Argument, ArgumentValue, Case, crate_ident, exactly_one};
+use crate::{
+    parse::{Error, UnsupportedType},
+    utility::{Argument, ArgumentValue, Case, crate_ident, exactly_one},
+};
+
+/// The fields needed to derive [`Parse`](https://docs.rs/kommandozeilen_argumente/latest/kommandozeilen_argumente/trait.Parse.html).
+pub(super) struct ParseItem {
+    /// Name of the struct or enum.
+    pub(super) name: proc_macro2::Ident,
+    /// Generic parameters, which are not supported by the derive macro.
+    pub(super) generic_params: Option<GenericParamList>,
+    /// `where` clause, which is not supported by the derive macro.
+    pub(super) where_clause: Option<WhereClause>,
+    /// Attributes applied to the struct or enum.
+    pub(super) attributes: Vec<Attribute>,
+    /// Named alternatives, where `None` represents the one struct alternative.
+    pub(super) variants: Vec<(Option<proc_macro2::Ident>, Fields)>,
+}
+
+/// Extract a supported item from a parsed [`Item`].
+pub(super) fn try_into_parse_item(input: TokenStream, item: Item) -> Result<ParseItem, Error> {
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "The venial item enum is non-exhaustive; only structs and enums are supported."
+    )]
+    match item {
+        Item::Struct(struct_) => Ok(ParseItem {
+            name: struct_.name,
+            generic_params: struct_.generic_params,
+            where_clause: struct_.where_clause,
+            attributes: struct_.attributes,
+            variants: vec![(None, struct_.fields)],
+        }),
+        Item::Enum(enum_) => Ok(ParseItem {
+            name: enum_.name,
+            generic_params: enum_.generic_params,
+            where_clause: enum_.where_clause,
+            attributes: enum_.attributes,
+            variants: enum_
+                .variants
+                .inner
+                .into_iter()
+                .map(|(variant, _punct)| (Some(variant.name), variant.fields))
+                .collect(),
+        }),
+        Item::Union(union) => Err(Error::NotStruct {
+            typ: UnsupportedType::Union,
+            span: union.tk_union.span(),
+            input,
+        }),
+        _ => Err(Error::NotStruct {
+            typ: UnsupportedType::Unknown,
+            span: input
+                .clone()
+                .into_iter()
+                .next()
+                .map_or_else(proc_macro2::Span::call_site, |tt| tt.span()),
+            input,
+        }),
+    }
+}
 
 /// Language for an argument structure. Influences default values for other settings.
 #[derive(Debug, Clone)]
@@ -585,5 +645,62 @@ pub(super) fn literal_or_to_string(token_stream: &TokenStream) -> String {
         string_lit.into_value()
     } else {
         token_stream.to_string()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use quote::quote;
+    use venial::parse_item;
+
+    use super::*;
+
+    #[test]
+    #[expect(clippy::indexing_slicing, reason = "Simplify testing of the first/second element.")]
+    fn parse_item_collects_struct_fields_and_enum_variants() {
+        let struct_item = try_into_parse_item(
+            quote!(
+                struct Arguments {
+                    verbose: bool,
+                }
+            ),
+            parse_item(quote!(
+                struct Arguments {
+                    verbose: bool,
+                }
+            ))
+            .expect("struct parses as a venial item"),
+        )
+        .expect("struct is supported");
+        assert_eq!(struct_item.name.to_string(), "Arguments");
+        assert_eq!(struct_item.variants.len(), 1);
+        assert!(struct_item.variants[0].0.is_none());
+
+        let enum_item = try_into_parse_item(
+            quote!(
+                enum Arguments {
+                    File { path: String },
+                    Url { url: String },
+                }
+            ),
+            parse_item(quote!(
+                enum Arguments {
+                    File { path: String },
+                    Url { url: String },
+                }
+            ))
+            .expect("enum parses as a venial item"),
+        )
+        .expect("enum is supported");
+        assert_eq!(enum_item.name.to_string(), "Arguments");
+        assert_eq!(enum_item.variants.len(), 2);
+        assert_eq!(
+            enum_item.variants[0].0.as_ref().map(ToString::to_string),
+            Some(String::from("File"))
+        );
+        assert_eq!(
+            enum_item.variants[1].0.as_ref().map(ToString::to_string),
+            Some(String::from("Url"))
+        );
     }
 }

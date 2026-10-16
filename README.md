@@ -97,7 +97,9 @@ and `value_infix` `=` for a number type is parsed with result `3` for each of th
 ## Feature "derive"
 
 Accepted command line arguments can be produced automatically using the `derive` feature.
-It allows deriving an implementation of the `Parse` trait for a `struct` with named fields.
+It allows deriving an implementation of the `Parse` trait for a `struct` with named fields or an
+`enum` whose variants have named fields. Enum variants are parsed as alternatives in declaration
+order: the first variant whose complete argument set parses successfully is selected.
 
 The long name of the argument is the field name,
 the description in the help text is the docstring of the field.

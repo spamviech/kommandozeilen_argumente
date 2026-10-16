@@ -37,6 +37,9 @@
 - Derive-Makro-Diagnosen markieren nun die relevante Stelle der fehlerhaften Eingabe statt das
   gesamte `derive`-Makro, etwa ungültige Attribute, generische Parameter oder Daten enthaltende
   Enum-Varianten.
+- `#[derive(Parse)]` unterstützt nun Enums mit benannten Feldern: Die Varianten werden als
+  Alternativen in Deklarationsreihenfolge geparst; die erste vollständig erfolgreiche Variante
+  wird ausgewählt.
 
 ## 0.2.0
 

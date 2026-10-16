@@ -35,8 +35,6 @@ pub mod outcome;
 pub mod parse;
 pub mod unicode;
 
-// TODO example for alternatives, derive for alternatives
-
 #[doc(inline)]
 #[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
 pub use self::{

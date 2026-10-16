@@ -5,8 +5,8 @@ use std::iter;
 use venial::{Attribute, Fields, NamedField};
 
 use crate::parse::{
-    Error, Ident, Item, Struct, TokenStream, UnsupportedType, crate_ident, parse_value_argument,
-    path_is_ident, quote, split_parenthesized_arguments,
+    Error, Ident, TokenStream, crate_ident, parse_value_argument, path_is_ident, quote,
+    split_parenthesized_arguments,
     types::{
         DefaultValue, FieldArgument, InvertInfix, InvertPrefix, Language, LongNames, LongPrefix,
         MetaVar, ShortNames, ShortPrefix, ValueInfix,
@@ -232,32 +232,4 @@ pub(super) fn derive_fields(
         Fields::Tuple(tuple_fields) => return Err(UnnamedFields(tuple_fields.tk_parens.span)),
     };
     iter.map(|field| derive_field(field, settings)).collect()
-}
-
-/// Extract the [`Struct`] from the [`Item`] or return the corresponding [`Error`].
-pub(super) fn try_into_struct(input: TokenStream, item: Item) -> Result<Struct, Error> {
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "venial::Item in non_exhaustive. Only Types are supported."
-    )]
-    match item {
-        Item::Struct(struct_) => Ok(struct_),
-        Item::Enum(enum_) => {
-            Err(Error::NotStruct { typ: UnsupportedType::Enum, span: enum_.tk_enum.span(), input })
-        },
-        Item::Union(union) => Err(Error::NotStruct {
-            typ: UnsupportedType::Union,
-            span: union.tk_union.span(),
-            input,
-        }),
-        _ => Err(Error::NotStruct {
-            typ: UnsupportedType::Unknown,
-            span: input
-                .clone()
-                .into_iter()
-                .next()
-                .map_or_else(proc_macro2::Span::call_site, |tt| tt.span()),
-            input,
-        }),
-    }
 }

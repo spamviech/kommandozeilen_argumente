@@ -27,6 +27,33 @@ impl Display for Enumeration {
     }
 }
 
+/// An inner alternative selected by its required argument.
+#[derive(Debug, Parse)]
+enum Inner {
+    /// Select the flag alternative.
+    Flag {
+        #[kommandozeilen_argumente(required)]
+        /// Whether the inner flag is enabled.
+        inner_flag: bool,
+    },
+    /// Select the number alternative.
+    Number {
+        /// The inner number.
+        inner_number: i8,
+    },
+}
+
+impl Display for Inner {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Flag { inner_flag } => write!(formatter, "Flag {{ inner_flag: {inner_flag} }}"),
+            Self::Number { inner_number } => {
+                write!(formatter, "Number {{ inner_number: {inner_number} }}")
+            },
+        }
+    }
+}
+
 /// struct to define the command line arguments.
 #[derive(Debug, Parse)]
 #[kommandozeilen_argumente(help(description: "program description.", short))]
@@ -45,16 +72,20 @@ struct Args {
     /// An Enumeration-value with default value and alternative meta variable.
     #[kommandozeilen_argumente(kurz, standard: Enumeration::Two, meta_var: VAR)]
     enumeration: Enumeration,
+    /// A required inner alternative.
+    #[kommandozeilen_argumente(flatten)]
+    inner: Inner,
 }
 
 impl Display for Args {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Args { flag, renamed, required, value, enumeration } = self;
+        let Args { flag, renamed, required, value, enumeration, inner } = self;
         writeln!(formatter, "flag: {flag}")?;
         writeln!(formatter, "renamed: {renamed}")?;
         writeln!(formatter, "required: {required}")?;
         writeln!(formatter, "value: {value}")?;
-        writeln!(formatter, "enumeration: {enumeration}")
+        writeln!(formatter, "enumeration: {enumeration}")?;
+        writeln!(formatter, "inner: {inner}")
     }
 }
 
