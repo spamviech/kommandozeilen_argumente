@@ -13,7 +13,8 @@ use void::Void;
 use crate::{arguments::help::Hilfe, description::Beschreibung};
 use crate::{
     arguments::{
-        ParsedEarlyExit, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, help::Help,
+        help::Help, parsing::ParsedEarlyExit, parsing::ParsedLongForms,
+        parsing::ParsedMergedShortForms, parsing::ParsedShortForms,
     },
     description::{ArgumentInput, Description, Name},
 };

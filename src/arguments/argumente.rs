@@ -11,7 +11,7 @@ use itertools::Itertools as _;
 use nonempty::{NonEmpty, nonempty};
 use void::Void;
 
-pub use crate::arguments::{ParsedLongForms, ParsedMergedShortForms, ParsedShortForms};
+pub use crate::arguments::parsing::{ParsedLongForms, ParsedMergedShortForms, ParsedShortForms};
 /// Compatibility re-exports for established German module paths.
 pub use crate::arguments::{combine, early_exit, flag, help, single_argument, value};
 use crate::{

@@ -10,9 +10,12 @@ use paste::paste;
 
 use crate::{
     arguments::{
-        ArgumentInput, Arguments, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms,
-        RecognizedArguments,
+        ArgumentInput, Arguments,
         help::{self, CreateHelpText},
+        parsing::ParsedLongForms,
+        parsing::ParsedMergedShortForms,
+        parsing::ParsedShortForms,
+        parsing::RecognizedArguments,
     },
     outcome::Result,
 };

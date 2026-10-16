@@ -12,8 +12,9 @@ use void::Void;
 use crate::arguments::{early_exit::FrühesBeenden, help::Hilfe, value::Wert};
 use crate::{
     arguments::{
-        ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, RecognizedArguments,
-        early_exit::EarlyExit, flag::Flag, help::Help, value::Value,
+        early_exit::EarlyExit, flag::Flag, help::Help, parsing::ParsedLongForms,
+        parsing::ParsedMergedShortForms, parsing::ParsedShortForms, parsing::RecognizedArguments,
+        value::Value,
     },
     description::ArgumentInput,
     dyn_to_owned::Show,

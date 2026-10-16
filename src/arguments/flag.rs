@@ -12,7 +12,8 @@ use nonempty::NonEmpty;
 
 use crate::{
     arguments::{
-        ParsedFlag, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, help::Help,
+        help::Help, parsing::ParsedFlag, parsing::ParsedLongForms, parsing::ParsedMergedShortForms,
+        parsing::ParsedShortForms,
     },
     description::{ArgumentInput, Description, Name},
     dyn_to_owned::{Bool, Show},

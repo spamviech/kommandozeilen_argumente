@@ -17,8 +17,8 @@ use crate::{
 };
 use crate::{
     arguments::{
-        ParsedLongForms, ParsedMergedShortForms, ParsedRawValue, ParsedShortForms, ParsedValueName,
-        help::Help,
+        help::Help, parsing::ParsedLongForms, parsing::ParsedMergedShortForms,
+        parsing::ParsedRawValue, parsing::ParsedShortForms, parsing::ParsedValueName,
     },
     description::{ArgumentInput, Description, Name},
     dyn_to_owned::{Parse, Show},

@@ -21,10 +21,14 @@ use crate::{
 };
 use crate::{
     arguments::{
-        Arguments, ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, RecognizedArguments,
+        Arguments,
         combine::Combine,
         flag::Flag,
         help::{self, CreateHelpText},
+        parsing::ParsedLongForms,
+        parsing::ParsedMergedShortForms,
+        parsing::ParsedShortForms,
+        parsing::RecognizedArguments,
         single_argument::SingleArgument,
         value::{EnumArgument, Value},
     },
