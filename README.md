@@ -5,14 +5,6 @@ __Anmerkung__: Dies ist die englische `ReadMe`, für die deutsche Version siehe
 
 Parser for command line arguments with optional automatic help generation.
 
-## API migration (0.3.0)
-
-Version 0.3.0 makes the English API the primary API: use names such as `Arguments`,
-`Description`, `Value`, `EarlyExit`, `Result`, and `Language` in new code. The German mirror
-API is available for compatibility behind the optional `german` feature. The `combine!` macro is
-the preferred spelling; `kombiniere!` is available with that feature as a compatibility wrapper
-for the German `Argumente` mirror.
-
 ## Feature "german"
 
 The crate exposes its English-primary API without feature flags. Enable the `german` feature to
@@ -115,7 +107,7 @@ Types used as a `ParseArgument` must be an instance of `Display`.
 
 The default behaviour can be changed using `#[kommandozeilen_argumente(<Optionen>)]` attributes.
 
-The following options are supported at the `struct` declaration.
+The following options are supported at the `struct`/`enum` declaration.
 
 - `sprache: <sprache>` | `language: <language>`:
   Default value for some strings, default: `english`.
@@ -211,16 +203,18 @@ Both cases produce the following help text:
 kommandozeilen_argumente 0.3.0
 program description.
 
-derive_en.exe [OPTIONS]
+derive_en [OPTIONS]
 
 OPTIONS:
-  --[no]-flag                         A flag with default settings. [Default: false]
-  --[no]-(other|names)  | -u          A flag with alternative names. [Default: false]
-  --[kein]-required     | -r          A flag without default value, with alternative prefix to invert the flag.
-  --value(=| )VALUE                   A String value.
-  --enumeration(=| )VAR | -e[=| ]VAR  An Enumeration-value with default value and alternative meta variable. [Possible values: One, Two, Three | Default: Two]
-  --version             | -v          Show the current version.
-  --help                | -h          Show this text.
+  --[no-]flag                        Default: false
+  --[no-](other|names) | -u          Default: false
+  --[kein-]required | -r             
+  --value( |=)VALUE                  
+  --enumeration( |=)VAR | -e[ |=]VAR [Default: Two, Possible values: One, Two, Three]
+  | --[no-]inner_flag                
+  | --inner_number( |=)VALUE         
+  --version | -v                     Show the current version.
+  --help | -h                        Show this text.
 ```
 
 ## Missing (planned) Features
@@ -228,4 +222,5 @@ OPTIONS:
 - subcommands
 - position-based arguments
 - Different default value for name without value and name doesn't appear
+  (can be simulated using `Alternatives`)
 - argument-groups (only one of these N flags can be active)

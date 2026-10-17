@@ -5,14 +5,6 @@ __Note__: This is the german ReadMe, for the english version see
 
 Parser für Kommandozeilen-Argumente mit optionaler, automatischer Hilfe-Generierung.
 
-## API-Migration (0.3.0)
-
-Version 0.3.0 verwendet die englische API als primäre API: Neuer Code sollte Namen wie
-`Arguments`, `Description`, `Value`, `EarlyExit`, `Result` und `Language` verwenden. Die
-Deutschsprachige Spiegel-API ist zur Kompatibilität über das optionale `german`-Feature verfügbar.
-Das `combine!`-Macro ist die bevorzugte Schreibweise; `kombiniere!` ist mit diesem Feature als
-Kompatibilitäts-Wrapper für den deutschen `Argumente`-Spiegel verfügbar.
-
 ## Feature „german“
 
 Die englischsprachige primäre API ist ohne Feature-Flags verfügbar. Das `german`-Feature stellt
@@ -26,6 +18,22 @@ kommandozeilen_argumente = { version = "0.3", features = ["german"] }
 
 `Language::GERMAN` ist auch ohne das `german`-Feature verfügbar, damit die englische API weiterhin
 deutsche Standardtexte erzeugen kann. Der Spiegeltyp `Sprache` benötigt hingegen das Feature.
+
+### Parser-Verhalten
+
+Das Parsen erfolgt über eine mehrstufige Pipeline. Zuerst werden zusammengefasste Kurznamen,
+dann eigenständige Kurznamen und anschließend Langnamen erkannt, bevor typisierte Werte validiert
+und eine Alternative ausgewählt wird. Daher haben zusammengefasste Kurz-Flags Vorrang, wenn sich
+Kurz- und Lang-Präfixe überschneiden, und ein angepasster Rest eines zusammengefassten Blocks wird
+niemals fälschlich als Wert interpretiert. Rohe Werte bleiben `OsString`s, bis das zugehörige
+`Value` sie parst. Dadurch bleiben Nicht-Unicode-Kommandozeileneingaben erhalten, sofern die
+Plattform sie unterstützt.
+
+`Arguments::alternatives` probiert Kandidaten in der Reihenfolge ihrer Deklaration aus. Schlägt
+die Wert-Konvertierung eines Kandidaten fehl, kann ein nachfolgender Kandidat dennoch erfolgreich
+sein. Der erste vollständig validierte Kandidat wird zum endgültigen Ergebnis akkumuliert. Wenn
+keiner validiert, werden ihre Parse-Fehler gemeinsam gemeldet. Das vollständige Verhalten
+beschreibt [der Entwurf zum mehrstufigen Parsen](docs/parsing.md).
 
 Zum erstellen eines neuen Arguments werden assoziierte Funktionen bereitgestellt,
 der Ergebnistyp wird dabei durch eine Typ-Variable festgelegt.
@@ -55,9 +63,7 @@ Ohne Standard-Wert muss das Argument verwendet werden, ansonsten schlägt das Pa
 Flags sind Argumente ohne Wert, sie können entweder aktiviert oder deaktiviert sein.
 Meistens repräsentieren sie `bool`-Argumente, andere Typen werden aber ebenfalls unterstützt.
 
-#[expect(clippy::doc_markdown, reason = "Required by this parser API or compatibility implementation.")]
 Eine Flag mit Langnamen `flag`, lang_präfix `--`, Kurznamen `f`, kurz_präfix `-`,
-#[expect(clippy::doc_markdown, reason = "Required by this parser API or compatibility implementation.")]
 invertiere_präfix `kein` und invertiere_infix `-` kann mit `--flag` oder `-f` aktiviert
 und mit `--kein-flag` deaktiviert werden.
 
@@ -79,9 +85,7 @@ Die Konvertierung des Wertes wird aus `OsString` versucht.
 
 Es ist möglich, alle erlaubten Werte im Hilfe-Text anzeigen zu lassen.
 
-#[expect(clippy::doc_markdown, reason = "Required by this parser API or compatibility implementation.")]
 Ein Wert-Argument mit LangNamen `wert`, lang_präfix `--`, KurzNamen `w`, kurz_präfix `-` und
-#[expect(clippy::doc_markdown, reason = "Required by this parser API or compatibility implementation.")]
 wert_infix `=` für ein Zahlenargument wird für jede der folgenden Eingaben als `3` geparst:
 
 - `--wert 3`
@@ -92,11 +96,12 @@ wert_infix `=` für ein Zahlenargument wird für jede der folgenden Eingaben als
 
 ## Feature "derive"
 
-Mit aktiviertem `derive`-Feature können die akzeptieren Kommandozeilen-Argumente
-automatisch erzeugt werden.
-Dazu wird das `Parse`-Trait für ein `struct` mit benannten Feldern implementiert.
+Mit aktiviertem `derive`-Feature können die akzeptierten Kommandozeilen-Argumente
+automatisch erzeugt werden. Dazu wird das `Parse`-Trait für ein `struct` mit benannten Feldern
+oder ein `enum`, dessen Varianten benannte Felder haben, implementiert. Enum-Varianten werden als
+Alternativen in Deklarationsreihenfolge geparst: Die erste Variante, deren vollständige
+Argumentmenge erfolgreich geparst werden kann, wird ausgewählt.
 
-#[expect(clippy::doc_markdown, reason = "Required by this parser API or compatibility implementation.")]
 Als LangName wird der Feld-Name, als Beschreibung im erzeugten Hilfe-Text wird
 der docstring des jeweiligen Feldes verwendet.
 
@@ -111,7 +116,7 @@ Für eine Verwendung als `ParseArgument` wird zusätzlich eine `Display`-Impleme
 
 Das Standard-Verhalten kann über `#[kommandozeilen_argumente(<Optionen>)]`-Attribute beeinflusst werden.
 
-Direkt am `struct` werden folgende Optionen unterstützt:
+Direkt am `struct`/`enum` werden folgende Optionen unterstützt:
 
 - `sprache: <sprache>` | `language: <language>`:
   Standard-Einstellung für einige Strings, Standard: `english`.
@@ -206,17 +211,18 @@ In beiden Fällen wird folgender Hilfe-Text erzeugt:
 kommandozeilen_argumente 0.3.0
 Programm-Beschreibung.
 
-derive.exe [OPTIONEN]
+derive_de [OPTIONEN]
 
 OPTIONEN:
-  --[kein]-flag                         Eine Flag mit Standard-Einstellungen. [Standard: false]
-  --[kein]-(andere|namen) | -u          Eine Flag mit alternativen Namen. [Standard: false]
-  --[no]-benötigt         | -b          Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.
-  --wert(=| )WERT                       Ein String-Wert.
-  --aufzählung(=| )VAR    | -a[=| ]VAR  Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable. [Erlaubte Werte: Eins, Zwei, 
-Drei | Standard: Zwei]
-  --version               | -v          Zeige die aktuelle Version an.
-  --hilfe                 | -h          Zeige diesen Text an.
+  --[kein-]flag                      Standard: false
+  --[kein-](andere|namen) | -u       Standard: false
+  --[no-]benötigt | -b              
+  --wert( |=)WERT                    
+  --aufzählung( |=)VAR | -a[ |=]VAR [Standard: Zwei, Erlaubte Werte: Eins, Zwei, Drei]
+  | --[no-]innere_flag               
+  | --innere_zahl( |=)VALUE          
+  --version | -v                     Zeige die aktuelle Version an.
+  --hilfe | -h                       Zeige diesen Text an.
 ```
 
 ## (Noch) Fehlende Features
@@ -224,4 +230,5 @@ Drei | Standard: Zwei]
 - Unterargumente (subcommands)
 - Positions-basierte Argumente
 - Unterschiedlicher Standard-Wert für Name ohne Wert und Name kommt nicht vor
+  (Kann über `Alternativen` simuliert werden)
 - Argument-Gruppen (nur eine dieser N Flags kann gleichzeitig aktiv sein)
