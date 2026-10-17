@@ -1,5 +1,8 @@
 //! Value arguments.
 
+mod help;
+mod parsing;
+
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
@@ -17,15 +20,26 @@ use crate::{
 };
 use crate::{
     arguments::{
-        help::Help, parsing::ParsedLongForms, parsing::ParsedMergedShortForms,
-        parsing::ParsedRawValue, parsing::ParsedShortForms, parsing::ParsedValueName,
+        help::Help,
+        parsing::ParsedLongForms,
+        parsing::ParsedMergedShortForms,
+        parsing::ParsedRawValue,
+        parsing::ParsedShortForms,
+        parsing::ParsedValueName,
+        value::{
+            help::{as_string_value, create_value_help_text},
+            parsing::{
+                parse_long_value_forms, parse_short_value_forms, parse_value_merged_short_forms,
+            },
+        },
     },
-    description::{ArgumentInput, Description, Name},
+    description::{ArgumentInput, Description},
     dyn_to_owned::{Parse, Show},
     language::Language,
     outcome::{AnnotatedParseError, ParseError},
     unicode::Compare,
 };
+
 #[rustfmt::skip]
 #[cfg(feature = "derive")]
 #[cfg_attr(all(doc, feature = "derive", not(doctest)), doc(cfg(feature = "derive")))]
@@ -289,270 +303,6 @@ impl<'t, T: Display + EnumArgument> Wert<'t, T, String> {
     pub fn neu_enum_mit_sprache(beschreibung: Beschreibung<'t, T>, sprache: Sprache) -> Self {
         Value::new_enum_with_language(beschreibung.into(), sprache.into()).into()
     }
-}
-/// Appends comma-separated displayed values to `string`.
-#[expect(
-    clippy::ptr_arg,
-    reason = "Lifetimes don't work out (easily) using as_ref and &dyn Show<'_,T>"
-)]
-fn show_elements<'t, T: 't>(
-    string: &mut String,
-    display: &Cow<'_, dyn Show<'_, T>>,
-    values: impl IntoIterator<Item = &'t T>,
-) {
-    for (index, value) in values.into_iter().enumerate() {
-        if index != 0 {
-            string.push_str(", ");
-        }
-        string.push_str(&display(value));
-    }
-}
-/// Converts a typed value argument into its string-rendered representation.
-#[expect(
-    clippy::ptr_arg,
-    clippy::too_many_arguments,
-    reason = "Internal function, we are using Cow everywhere. Takes all configuration options \
-              individually."
-)]
-fn as_string_value<'a, 't, T, E, PE: Into<ParseError<E>>>(
-    name: &'a Name<'t>,
-    help: Option<&'t str>,
-    default: Option<&'a T>,
-    value_infix: Compare<'t>,
-    meta_var: &'t str,
-    possible_values: Option<&'a NonEmpty<T>>,
-    parse: &'a Cow<'t, dyn Parse<'t, T, PE>>,
-    display: &'a Cow<'t, dyn Show<'t, T>>,
-    display_error: &'a Cow<'t, dyn Show<'t, E>>,
-) -> Value<'a, String, String>
-where
-    't: 'a,
-{
-    let parse_boxed: Box<dyn 'a + Parse<'a, String, ParseError<String>>> =
-        Box::new(|value: &OsStr| {
-            parse(value)
-                .map(|value| display(&value))
-                .map_err(|error| error.into().convert(|error| display_error(&error)))
-        });
-    Value {
-        description: Description { name: name.clone(), help, default: default.map(&**display) },
-        value_infix,
-        meta_var,
-        possible_values: NonEmpty::from_vec(
-            possible_values.into_iter().flatten().map(&**display).collect(),
-        ),
-        parse: Cow::Owned(parse_boxed),
-        display: Cow::Borrowed(&Clone::clone),
-        display_error: Cow::Borrowed(&Clone::clone),
-    }
-}
-/// Parses non-merged short value forms from the supplied inputs.
-fn parse_short_value_forms<'argument>(
-    name: &Name<'argument>,
-    value_infix: &Compare<'argument>,
-    args: impl Iterator<Item = ArgumentInput>,
-) -> ParsedShortForms<'argument> {
-    let mut values = HashMap::new();
-    let mut missing_values: HashSet<ParsedValueName<'argument>> = HashSet::default();
-    let mut args = args.peekable();
-    let mut remaining = Vec::new();
-    while let Some(argument) = args.next() {
-        match argument {
-            ArgumentInput::Unchanged(argument) => {
-                let input = Cow::Owned(argument.to_string_lossy().into_owned());
-                if let Some((name, inline_value)) =
-                    name.parse_short_with_value(value_infix, &argument)
-                {
-                    let parsed_name = ParsedValueName { name: Cow::Owned(name.into()) };
-                    if let Some(value) = inline_value
-                        .map(|normalized| OsString::from(normalized.as_str()))
-                        .or_else(|| {
-                            args.next_if(|arg| matches!(arg, ArgumentInput::Unchanged(_))).and_then(
-                                |arg| match arg {
-                                    ArgumentInput::Unchanged(value) => Some(value),
-                                    ArgumentInput::AdjustedMergedShortNames(_) => None,
-                                },
-                            )
-                        })
-                    {
-                        let _ = values.insert(parsed_name, ParsedRawValue { value, input });
-                    } else {
-                        let _ = missing_values.insert(parsed_name);
-                    }
-                } else {
-                    remaining.push(ArgumentInput::Unchanged(argument));
-                }
-            },
-            adjusted @ ArgumentInput::AdjustedMergedShortNames(_) => remaining.push(adjusted),
-        }
-    }
-    ParsedShortForms {
-        early_exits: Vec::new(),
-        flags: Vec::new(),
-        missing_values,
-        values,
-        remaining,
-        alternative_branches: Vec::new(),
-    }
-}
-
-/// Parses long value forms from the supplied inputs.
-fn parse_long_value_forms<'argument>(
-    name: &Name<'argument>,
-    value_infix: &Compare<'argument>,
-    args: impl Iterator<Item = ArgumentInput>,
-) -> ParsedLongForms<'argument> {
-    let mut values = HashMap::new();
-    let mut missing_values: HashSet<ParsedValueName<'argument>> = HashSet::default();
-    let mut args = args.peekable();
-    let mut remaining = Vec::new();
-    while let Some(argument) = args.next() {
-        match argument {
-            ArgumentInput::Unchanged(argument) => {
-                let input = Cow::Owned(argument.to_string_lossy().into_owned());
-                if let Some((name, inline_value)) =
-                    name.parse_long_with_value(value_infix, &argument)
-                {
-                    let parsed_name = ParsedValueName { name: Cow::Owned(name.into()) };
-                    if let Some(value) = inline_value
-                        .map(|normalized| OsString::from(normalized.as_str()))
-                        .or_else(|| {
-                            args.next_if(|arg| matches!(arg, ArgumentInput::Unchanged(_))).and_then(
-                                |arg| match arg {
-                                    ArgumentInput::Unchanged(value) => Some(value),
-                                    ArgumentInput::AdjustedMergedShortNames(_) => None,
-                                },
-                            )
-                        })
-                    {
-                        let _ = values.insert(parsed_name, ParsedRawValue { value, input });
-                    } else {
-                        let _ = missing_values.insert(parsed_name);
-                    }
-                } else {
-                    remaining.push(ArgumentInput::Unchanged(argument));
-                }
-            },
-            adjusted @ ArgumentInput::AdjustedMergedShortNames(_) => remaining.push(adjusted),
-        }
-    }
-    ParsedLongForms {
-        early_exits: Vec::new(),
-        flags: Vec::new(),
-        missing_values,
-        values,
-        remaining,
-        alternative_branches: Vec::new(),
-    }
-}
-
-/// Parses merged short value forms from the supplied inputs.
-fn parse_value_merged_short_forms<'argument>(
-    name: &Name<'argument>,
-    value_infix: &Compare<'argument>,
-    args: impl Iterator<Item = ArgumentInput>,
-) -> ParsedMergedShortForms<'argument> {
-    let mut values = HashMap::new();
-    let mut missing_values: HashSet<ParsedValueName<'argument>> = HashSet::default();
-    let mut args = args.peekable();
-    let mut remaining = Vec::new();
-    while let Some(argument) = args.next() {
-        let input = match &argument {
-            ArgumentInput::Unchanged(argument) => {
-                Cow::Owned(argument.to_string_lossy().into_owned())
-            },
-            ArgumentInput::AdjustedMergedShortNames(_) => Cow::Borrowed(""),
-        };
-        if let Some(parsed) = name.parse_with_value_merge_short_forms(value_infix, &argument) {
-            let value = parsed.inline_value.map_or_else(
-                || {
-                    args.next_if(|arg| matches!(arg, ArgumentInput::Unchanged(_))).and_then(|arg| {
-                        match arg {
-                            ArgumentInput::Unchanged(value) => Some(value),
-                            ArgumentInput::AdjustedMergedShortNames(_) => None,
-                        }
-                    })
-                },
-                |value| Some(OsString::from(value.into_string())),
-            );
-            let parsed_name = ParsedValueName { name: Cow::Owned(parsed.name.into()) };
-            if let Some(value) = value {
-                let _ = values.insert(parsed_name, ParsedRawValue { value, input });
-            } else {
-                let _ = missing_values.insert(parsed_name);
-            }
-            if let Some(remaining_input) = parsed.remaining {
-                remaining.push(remaining_input);
-            }
-        } else {
-            remaining.push(argument);
-        }
-    }
-    ParsedMergedShortForms {
-        early_exits: Vec::new(),
-        flags: Vec::new(),
-        missing_values,
-        values,
-        remaining,
-        alternative_branches: Vec::new(),
-    }
-}
-
-/// Creates syntax and help text from the shared parts of a German or English value argument.
-#[expect(
-    clippy::ptr_arg,
-    clippy::too_many_arguments,
-    reason = "Internal method, we are using Cow everywhere."
-)]
-fn create_value_help_text<T>(
-    name: &Name<'_>,
-    help: Option<&str>,
-    default: Option<&T>,
-    value_infix: &str,
-    meta_var: &str,
-    possible_values: Option<&NonEmpty<T>>,
-    display: &Cow<'_, dyn Show<'_, T>>,
-    meta_default: &str,
-    meta_allowed_values: &str,
-) -> Help {
-    let Name { long_prefix, long, short_prefix, short } = name;
-    let mut syntax = long_prefix.as_str().to_owned();
-    Name::alternatives_as_regex(&long.head, &long.tail, &mut syntax);
-    syntax.push_str("( |");
-    syntax.push_str(value_infix);
-    syntax.push(')');
-    syntax.push_str(meta_var);
-    if let Some((head, tail)) = short.split_first() {
-        syntax.push_str(" | ");
-        syntax.push_str(short_prefix.as_str());
-        Name::alternatives_as_regex(head, tail, &mut syntax);
-        syntax.push_str("[ |");
-        syntax.push_str(value_infix);
-        syntax.push(']');
-        syntax.push_str(meta_var);
-    }
-    let suffix = match (default, possible_values) {
-        (None, None) => None,
-        (None, Some(values)) => {
-            let mut text = format!("[{meta_allowed_values}: ");
-            show_elements(&mut text, display, values);
-            text.push(']');
-            Some(text)
-        },
-        (Some(value), None) => Some(format!("[{meta_default}: {}]", display(value))),
-        (Some(value), Some(values)) => {
-            let mut text = format!("[{meta_default}: {}, {meta_allowed_values}: ", display(value));
-            show_elements(&mut text, display, values);
-            text.push(']');
-            Some(text)
-        },
-    };
-    let help = match (help, suffix) {
-        (None, suffix) => suffix,
-        (Some(help), None) => Some(help.to_owned()),
-        (Some(help), Some(suffix)) => Some(format!("{help} {suffix}")),
-    };
-    Help { syntax, help }
 }
 
 impl<'t, T, E> Value<'t, T, E> {

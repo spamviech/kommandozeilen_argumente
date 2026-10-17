@@ -13,16 +13,7 @@ use void::Void;
 
 pub(crate) use crate::description::ArgumentInput;
 use crate::{
-    Description,
-    arguments::{
-        combine::Combine,
-        flag::Flag,
-        help::CreateHelpText,
-        parsing::{ParsedLongForms, ParsedMergedShortForms, ParsedShortForms, RecognizedArguments},
-        single_argument::SingleArgument,
-        value::Value,
-    },
-    language::Language,
+    Description, arguments::parsing::RecognizedArguments, language::Language,
     outcome::Result as OutcomeResult,
 };
 
@@ -35,6 +26,19 @@ pub mod help;
 pub mod parsing;
 pub mod single_argument;
 pub mod value;
+
+pub use self::{
+    combine::Combine,
+    early_exit::EarlyExit,
+    flag::Flag,
+    help::{Alternatives, CreateHelpText, Default, Help, Standard},
+    parsing::{
+        ParsedEarlyExit, ParsedFlag, ParsedLongForms, ParsedMergedShortForms, ParsedRawValue,
+        ParsedShortForms, ParsedValueName,
+    },
+    single_argument::SingleArgument,
+    value::{EnumArgument, Value},
+};
 
 // TODO Unterbefehle/subcommands
 // TODO Positions-basierte Argumente
@@ -158,7 +162,7 @@ impl<'t, T, Error, NewError> Combine<'t, T, NewError>
         variant: &dyn CreateHelpText,
         meta_default: &str,
         meta_possible_values: &str,
-    ) -> NonEmpty<help::Alternatives> {
+    ) -> NonEmpty<Alternatives> {
         self.arguments.create_help_text(variant, meta_default, meta_possible_values)
     }
 
@@ -276,10 +280,10 @@ impl<T, Error> Arguments<'_, T, Error> {
         variant: &dyn CreateHelpText,
         meta_default: &str,
         meta_possible_values: &str,
-    ) -> NonEmpty<help::Alternatives> {
+    ) -> NonEmpty<Alternatives> {
         match self {
             Self::Single(argument) => {
-                nonempty![help::Alternatives::Single(variant.create_help_text(
+                nonempty![Alternatives::Single(variant.create_help_text(
                     argument.as_string_value(),
                     meta_default,
                     meta_possible_values,
@@ -292,7 +296,7 @@ impl<T, Error> Arguments<'_, T, Error> {
                 // Avoid .as_ref() to refer to the Box<> method.
                 let alternatives: &NonEmpty<_> = alternatives;
                 alternatives.as_ref().map(|argument| {
-                    help::Alternatives::Alternatives(Box::new(argument.create_help_text(
+                    Alternatives::Alternatives(Box::new(argument.create_help_text(
                         variant,
                         meta_default,
                         meta_possible_values,
@@ -313,8 +317,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         program_version: &str,
     ) -> Self {
         let message = format!("{program_name} {program_version}");
-        let early_exit =
-            early_exit::EarlyExit { description: arg_description, message: Cow::Owned(message) };
+        let early_exit = EarlyExit { description: arg_description, message: Cow::Owned(message) };
         let early_exit_argument: Arguments<'t, (), Error> =
             Arguments::from(SingleArgument::from(early_exit));
         Self::combine((|value: T, ()| value, self, early_exit_argument))
@@ -371,9 +374,8 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         meta_alternative_separator: char,
     ) -> Self {
         let mut helps = self.create_help_text(variant, meta_standard, meta_possible_values);
-        let mut early_exit =
-            early_exit::EarlyExit { description: arg_description, message: Cow::Borrowed("") };
-        helps.push(help::Alternatives::Single(early_exit.create_help_text()));
+        let mut early_exit = EarlyExit { description: arg_description, message: Cow::Borrowed("") };
+        helps.push(Alternatives::Single(early_exit.create_help_text()));
         let max_syntax_width = max_syntax_width(&helps, meta_alternative_prefix);
         let current_exe = env::current_exe().ok();
         let exe_name = current_exe
@@ -544,12 +546,12 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
 /// Calculates the maximum width of an argument syntax.
 ///
 /// Helper for `Arguments::with_help_early_exit`.
-fn max_syntax_width(helps: &NonEmpty<help::Alternatives>, alternative_prefix: &str) -> usize {
+fn max_syntax_width(helps: &NonEmpty<Alternatives>, alternative_prefix: &str) -> usize {
     helps
         .iter()
         .filter_map(|argument| match argument {
-            help::Alternatives::Single(argument) => Some(argument.syntax.len()),
-            help::Alternatives::Alternatives(alternatives) => {
+            Alternatives::Single(argument) => Some(argument.syntax.len()),
+            Alternatives::Alternatives(alternatives) => {
                 #[expect(
                     clippy::arithmetic_side_effects,
                     reason = "The widths originate from validated display measurements and are \
@@ -559,7 +561,7 @@ fn max_syntax_width(helps: &NonEmpty<help::Alternatives>, alternative_prefix: &s
                     alternative_prefix.len() + max_syntax_width(alternatives, alternative_prefix);
                 Some(width)
             },
-            help::Alternatives::Empty => None,
+            Alternatives::Empty => None,
         })
         .max()
         .expect("NonEmpty")
@@ -574,13 +576,13 @@ fn write_argument_or_alternatives(
     current_prefix: Cow<'_, str>,
     max_syntax_width: usize,
     syntax_padding: char,
-    entry: &help::Alternatives,
+    entry: &Alternatives,
     alternative_prefix: &str,
     alternative_separator: char,
 ) {
     match entry {
-        help::Alternatives::Single(argument) => {
-            let help::Help { syntax, help } = argument;
+        Alternatives::Single(argument) => {
+            let Help { syntax, help } = argument;
             output.push_str(&current_prefix);
             output.push_str(syntax);
             #[expect(
@@ -597,7 +599,7 @@ fn write_argument_or_alternatives(
             }
             output.push('\n');
         },
-        help::Alternatives::Alternatives(alternatives) => {
+        Alternatives::Alternatives(alternatives) => {
             #[expect(
                 clippy::arithmetic_side_effects,
                 reason = "The widths originate from validated display measurements and are \
@@ -630,6 +632,6 @@ fn write_argument_or_alternatives(
                 );
             }
         },
-        help::Alternatives::Empty => {},
+        Alternatives::Empty => {},
     }
 }
