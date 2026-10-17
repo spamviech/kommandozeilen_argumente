@@ -23,6 +23,7 @@ pub mod combine;
 pub mod early_exit;
 pub mod flag;
 pub mod help;
+mod mapped_arguments;
 pub mod parsing;
 pub mod single_argument;
 pub mod value;
@@ -223,6 +224,18 @@ impl<'t, T, Error, NewError> Combine<'t, T, NewError>
     reason = "This conversion implementation is separated from construction and parsing impls."
 )]
 impl<'t, T, Error> Arguments<'t, T, Error> {
+    /// Converts the parsed value with `mapper`.
+    ///
+    /// The original argument definition remains responsible for recognition, validation, and
+    /// help text; `mapper` is called only after it has accumulated a value successfully.
+    #[inline]
+    pub fn convert<S>(
+        mapper: impl 't + Fn(T) -> S,
+        arguments: Arguments<'t, T, Error>,
+    ) -> Arguments<'t, S, Error> {
+        Arguments::combine(mapped_arguments::MappedArguments::new(mapper, arguments))
+    }
+
     /// Converts errors with the supplied functions.
     ///
     /// The error-display callback is retained for API compatibility. Error displays are only used

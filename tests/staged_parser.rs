@@ -103,6 +103,17 @@ fn tries_the_next_alternative_after_a_value_conversion_failure() {
 }
 
 #[test]
+fn converts_argument_values() {
+    let arguments =
+        Arguments::convert(|value| value.len(), Arguments::from(alternative_value(accept_value)));
+
+    let (result, remaining) = arguments.parse([OsString::from("--choice=accepted")].into_iter());
+
+    assert_eq!(remaining, EMPTY_REMAINING);
+    assert_matches!(result, Result::Value(8));
+}
+
+#[test]
 fn converts_errors_for_single_arguments() {
     let arguments = Arguments::from(alternative_value(reject_value))
         .convert_error(|error| error.len(), ToString::to_string);

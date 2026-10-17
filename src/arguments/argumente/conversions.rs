@@ -71,6 +71,22 @@ impl<'t, T, Fehler> From<Argumente<'t, T, Fehler>> for Arguments<'t, T, Fehler> 
         }
     }
 }
+
+#[expect(clippy::multiple_inherent_impl, reason = "Split into multiple sub-modules.")]
+impl<'t, T, Fehler> Argumente<'t, T, Fehler> {
+    /// Konvertiert den geparsten Wert mit `konvertiere`.
+    ///
+    /// Die ursprüngliche Argument-Konfiguration bleibt für Erkennung, Validierung und Hilfetext
+    /// zuständig; `konvertiere` wird erst nach erfolgreicher Akkumulation eines Werts aufgerufen.
+    #[inline]
+    pub fn konvertiere<S>(
+        konvertiere: impl 't + Fn(T) -> S,
+        argumente: Argumente<'t, T, Fehler>,
+    ) -> Argumente<'t, S, Fehler> {
+        Arguments::convert(konvertiere, argumente.into()).into()
+    }
+}
+
 impl<'t, T, Fehler> From<EinzelArgument<'t, T, Fehler>> for Arguments<'t, T, Fehler> {
     #[inline]
     fn from(argument: EinzelArgument<'t, T, Fehler>) -> Self {

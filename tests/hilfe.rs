@@ -37,6 +37,16 @@ fn german_public_api_parses_canonically_equivalent_unicode_names() {
 }
 
 #[test]
+fn german_public_api_converts_argument_values() {
+    let wert = Wert::<i32, _>::neu(Beschreibung::neu("--", "wert", "-", "w", None, None), None);
+    let argumente = Argumente::konvertiere(|wert| wert + 1, Argumente::from(wert));
+    let (ergebnis, verbleibend) = argumente.parse([OsString::from("--wert=41")].into_iter());
+
+    assert_eq!(verbleibend, []);
+    assert_matches!(ergebnis, Ergebnis::Wert(42));
+}
+
+#[test]
 fn unicode_hilfe_uses_byte_length_padding() {
     let sprache = Sprache::DEUTSCH;
     let flag = Flag::neu_mit_sprache(
