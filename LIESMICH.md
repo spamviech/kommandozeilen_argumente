@@ -5,10 +5,41 @@ __Note__: This is the german ReadMe, for the english version see
 
 Parser für Kommandozeilen-Argumente mit optionaler, automatischer Hilfe-Generierung.
 
+## Feature „german“
+
+Die englischsprachige primäre API ist ohne Feature-Flags verfügbar. Das `german`-Feature stellt
+zusätzlich deutschsprachige Spiegeltypen, deutsch benannte Methoden und das `kombiniere!`-Macro
+bereit:
+
+```toml
+[dependencies]
+kommandozeilen_argumente = { version = "0.3", features = ["german"] }
+```
+
+`Language::GERMAN` ist auch ohne das `german`-Feature verfügbar, damit die englische API weiterhin
+deutsche Standardtexte erzeugen kann. Der Spiegeltyp `Sprache` benötigt hingegen das Feature.
+
+## Parser-Verhalten
+
+Das Parsen erfolgt über eine mehrstufige Pipeline. Zuerst werden zusammengefasste Kurznamen,
+dann eigenständige Kurznamen und anschließend Langnamen erkannt, bevor typisierte Werte validiert
+und eine Alternative ausgewählt wird. Daher haben zusammengefasste Kurz-Flags Vorrang, wenn sich
+Kurz- und Lang-Präfixe überschneiden, und ein angepasster Rest eines zusammengefassten Blocks wird
+niemals fälschlich als Wert interpretiert. Rohe Werte bleiben `OsString`s, bis das zugehörige
+`Value` sie parst. Dadurch bleiben Nicht-Unicode-Kommandozeileneingaben erhalten, sofern die
+Plattform sie unterstützt.
+
+`Arguments::alternatives` probiert Kandidaten in der Reihenfolge ihrer Deklaration aus. Schlägt
+die Wert-Konvertierung eines Kandidaten fehl, kann ein nachfolgender Kandidat dennoch erfolgreich
+sein. Der erste vollständig validierte Kandidat wird zum endgültigen Ergebnis akkumuliert. Wenn
+keiner validiert, werden ihre Parse-Fehler gemeinsam gemeldet. Das vollständige Verhalten
+beschreibt [der Entwurf zum mehrstufigen Parsen](docs/parsing.md).
+
 Zum erstellen eines neuen Arguments werden assoziierte Funktionen bereitgestellt,
 der Ergebnistyp wird dabei durch eine Typ-Variable festgelegt.
-Argumente können mithilfe des `kombiniere!`-Macros, bzw. dedizierten `kombiniereN`-Funktionen,
-zu komplexeren Strukturen zusammengefasst werden,
+Argumente können mithilfe des bevorzugten `combine!`-Macros (mit `german`-Feature auch des
+Kompatibilitäts-Wrappers `kombiniere!`), bzw. dedizierten `kombiniereN`-Funktionen, zu
+komplexeren Strukturen zusammengefasst werden,
 die zum parsen potentiell mehrere Argumente benötigen.
 
 Ein Argument wird durch seine Langnamen oder potentiellen Kurznamen identifiziert.
@@ -20,9 +51,9 @@ lang sind.
 
 Alle verwendeten Strings, z.B. für die erzeugte Hilfe-Meldung, sind konfigurierbar.
 Sofern es relevant ist werden für Deutsch und Englisch spezialisierte Funktionen bereitgestellt.
-Außerdem werden Synonyme in Deutsch und Englisch angeboten.
-Eine Wiederholung der Strings kann über den `Sprache`-Typ und die darin enthaltenen
-Standard-Werte vermieden werden.
+Deutschsprachige Synonyme und Spiegeltypen benötigen das `german`-Feature.
+Eine Wiederholung der Strings kann über den stets verfügbaren `Language`-Typ und die darin
+enthaltenen Standardwerte vermieden werden.
 
 Argumente können Standard-Werte haben, der verwendet wird sofern keiner ihrer Namen verwendet wird.
 Ohne Standard-Wert muss das Argument verwendet werden, ansonsten schlägt das Parsen fehl.
@@ -65,9 +96,11 @@ wert_infix `=` für ein Zahlenargument wird für jede der folgenden Eingaben als
 
 ## Feature "derive"
 
-Mit aktiviertem `derive`-Feature können die akzeptieren Kommandozeilen-Argumente
-automatisch erzeugt werden.
-Dazu wird das `Parse`-Trait für ein `struct` mit benannten Feldern implementiert.
+Mit aktiviertem `derive`-Feature können die akzeptierten Kommandozeilen-Argumente
+automatisch erzeugt werden. Dazu wird das `Parse`-Trait für ein `struct` mit benannten Feldern
+oder ein `enum`, dessen Varianten benannte Felder haben, implementiert. Enum-Varianten werden als
+Alternativen in Deklarationsreihenfolge geparst: Die erste Variante, deren vollständige
+Argumentmenge erfolgreich geparst werden kann, wird ausgewählt.
 
 Als LangName wird der Feld-Name, als Beschreibung im erzeugten Hilfe-Text wird
 der docstring des jeweiligen Feldes verwendet.
@@ -83,21 +116,40 @@ Für eine Verwendung als `ParseArgument` wird zusätzlich eine `Display`-Impleme
 
 Das Standard-Verhalten kann über `#[kommandozeilen_argumente(<Optionen>)]`-Attribute beeinflusst werden.
 
-Direkt am `struct` werden folgende Optionen unterstützt:
+Direkt am `struct`/`enum` werden folgende Optionen unterstützt:
 
 - `sprache: <sprache>` | `language: <language>`:
   Standard-Einstellung für einige Strings, Standard: `english`.
   Vorgefertigte Sprachen für `deutsch`, `englisch` und `english`.
-- `version`: erzeuge eine `--version`, `-v` Flag.
-- `hilfe` | `help`: erzeuge eine Flag, die einen Hilfe-Text anzeigt.
+- `programm(<opts>)` | `program(<opts>)`:
+  Allgemeine Programm-Eigenschaften. Überschreibe die Standard-Werte für
+  `hilfe(<opts>)`, `help(<opts>)`, `version(<opts>)` (siehe unten).
+  - `name: <Programm Name>`: Der Programmname, der in Hilfe- und Version-Text verwendet wird.
+    Wenn unspezifiziert, verwende den Wert aus `CARGO_PKG_NAME`.
+  - `version: <Programm Version>`: Die Programmversion die in Hilfe- und Version-Text verwendet wird.
+    Wenn unspezifiziert, zeige keine Version im Hilfe-Text an
+    und verwende den Wert aus `CARGO_PKG_VERSION` im Versions-Text.
+  - `beschreibung: <programm-beschreibung>` | `description: <program_description>`:
+    Setze die im Hilfetext angezeigte Programm-Beschreibung.
+- `hilfe` | `help`: erzeuge eine Flag, die einen Hilfe-Text anzeigt (mit eine Kurz-Variante `-h`).
+  Sofern nicht anders in `programm(<opts>)` spezifiziert,
+  verwende die Werte aus `CARGO_PKG_NAME` und `CARGO_PKG_VERSION`.
+- `version`: erzeuge eine `--version`, `-v` Flag. Sofern nicht anders in `programm(<opts>)` spezifiziert,
+  verwende die Werte aus `CARGO_PKG_NAME` und `CARGO_PKG_VERSION`.
 - `hilfe(<opts>)`, `help(<opts>)`, `version(<opts>)`:
-  Wie die Variante ohne opts, nur Kurzname ist standardmäßig deaktiviert. Mögliche Opts:
+  Wie die Variante ohne opts, aber Kurzname ist standardmäßig deaktiviert. Außerdem wird im Hilfe-Text
+  standardmäßig keine Version angezeigt, sofern nicht anders in `program(<opts>)` spezifiziert.
+  Mögliche Opts:
   - `lang_präfix: <präfix>` | `long_prefix: <prefix>`: Präfix vor Langnamen.
   - `lang: <name>`, `long [<namen>]`: Setze Langnamen explizit.
   - `kurz_präfix: <präfix>` | `short_prefix: <prefix>`: Präfix vor Kurznamen.
   - `kurz`: Setze Kurznamen als erstes Grapheme des originalen Langnamen.
   - `kurz: <name>`, `kurz: [<namen>]`: Setze Kurznamen explizit.
   - `sprache: <sprache>` | `language: <language>`: Sprache von Hilfe-Text und Standard-Namen.
+  - `name`: Verwende den Wert aus `CARGO_PKG_NAME` als Programmname.
+  - `name: <Programm Name>`: Der Programmname.
+  - `version`: Verwende den Wert aus `CARGO_PKG_VERSION` als Programm-Version.
+  - `version: <Programm Version>`: Die Programmversion.
   - `beschreibung: <programm-beschreibung>` | `description: <program_description>`:
     Nur bei `hilfe(<opts>)` und `help(<opts>)` verfügbar.
     Setze die im Hilfetext angezeigte Programm-Beschreibung.
@@ -156,20 +208,21 @@ können im [GitHub-Repository](https://github.com/spamviech/kommandozeilen_argum
 In beiden Fällen wird folgender Hilfe-Text erzeugt:
 
 ```cmd
-kommandozeilen_argumente 0.2.0
+kommandozeilen_argumente 0.3.0
 Programm-Beschreibung.
 
-derive.exe [OPTIONEN]
+derive_de [OPTIONEN]
 
 OPTIONEN:
-  --[kein]-flag                         Eine Flag mit Standard-Einstellungen. [Standard: false]
-  --[kein]-(andere|namen) | -u          Eine Flag mit alternativen Namen. [Standard: false]
-  --[no]-benötigt         | -b          Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.
-  --wert(=| )WERT                       Ein String-Wert.
-  --aufzählung(=| )VAR    | -a[=| ]VAR  Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable. [Erlaubte Werte: Eins, Zwei, 
-Drei | Standard: Zwei]
-  --version               | -v          Zeige die aktuelle Version an.
-  --hilfe                 | -h          Zeige diesen Text an.
+  --[kein-]flag                      Standard: false
+  --[kein-](andere|namen) | -u       Standard: false
+  --[no-]benötigt | -b              
+  --wert( |=)WERT                    
+  --aufzählung( |=)VAR | -a[ |=]VAR [Standard: Zwei, Erlaubte Werte: Eins, Zwei, Drei]
+  | --[no-]innere_flag               
+  | --innere_zahl( |=)VALUE          
+  --version | -v                     Zeige die aktuelle Version an.
+  --hilfe | -h                       Zeige diesen Text an.
 ```
 
 ## (Noch) Fehlende Features
@@ -177,4 +230,5 @@ Drei | Standard: Zwei]
 - Unterargumente (subcommands)
 - Positions-basierte Argumente
 - Unterschiedlicher Standard-Wert für Name ohne Wert und Name kommt nicht vor
+  (Kann über `Alternativen` simuliert werden)
 - Argument-Gruppen (nur eine dieser N Flags kann gleichzeitig aktiv sein)

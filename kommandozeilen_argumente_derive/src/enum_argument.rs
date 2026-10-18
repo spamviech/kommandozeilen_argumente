@@ -1,164 +1,325 @@
-//! Implementierung für das derive-Macro des EnumArgument-Traits.
+//! Implementation of the derive macro for the `EnumArgument` trait.
 
 use std::fmt::{self, Display, Formatter};
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-use syn::{parse2, Attribute, Data, DataEnum, DeriveInput, Fields, Ident, Variant};
+use venial::{Attribute, Enum, EnumVariant, Fields, Item, parse_item};
 
-use crate::utility::{
-    crate_name, split_klammer_argumente, Argument, ArgumentWert, Case, SplitArgumenteFehler,
+use crate::{
+    CompileError,
+    utility::{
+        Argument, ArgumentValue, Case, SplitArgumentsError, crate_ident, path_is_ident,
+        split_parenthesized_arguments,
+    },
 };
 
+/// Unsupported type for the derive macro: only enums are supported.
 #[derive(Debug)]
-pub(crate) enum TypNichtUnterstützt {
+pub(crate) enum UnsupportedType {
+    /// struct
     Struct,
+    /// union
     Union,
+    /// Unknown
+    Unknown,
 }
 
-impl Display for TypNichtUnterstützt {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use TypNichtUnterstützt::*;
-        f.write_str(match self {
+impl Display for UnsupportedType {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        use UnsupportedType::{Struct, Union, Unknown};
+        formatter.write_str(match self {
             Struct => "struct",
             Union => "union",
+            Unknown => "Unknown",
         })
     }
 }
 
-pub(crate) enum Fehler {
-    Syn(syn::Error),
-    KeinEnum { typ: TypNichtUnterstützt, input: TokenStream },
-    Generics { anzahl: usize, where_clause: bool },
-    DatenVariante { variante: Ident },
-    SplitArgumente(SplitArgumenteFehler),
-    NichtUnterstützt(Argument),
+/// Error while parsing an enum and its attributes.
+pub(crate) enum Error {
+    /// Error returned when a [`syn`] parser cannot parse the input tokens.
+    Venial(venial::Error),
+    /// The type is not an `enum`.
+    NotEnum {
+        /// Parsed kind of type.
+        typ: UnsupportedType,
+        /// Location of the unsupported type keyword.
+        span: proc_macro2::Span,
+        /// Macro input.
+        input: TokenStream,
+    },
+    /// Type with generics as macro input.
+    Generics {
+        /// Number of generic parameters.
+        count: usize,
+        /// `where` clause of the type.
+        where_clause: bool,
+        /// Location of the generic parameters or `where` clause.
+        span: proc_macro2::Span,
+    },
+    /// A variant with data was found.
+    DataVariant {
+        /// Field name.
+        variant: Ident,
+    },
+    /// Error while splitting arguments.
+    SplitArguments(SplitArgumentsError),
+    /// The attribute is unsupported.
+    Unsupported(Argument),
 }
 
-impl Display for Fehler {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        use ArgumentWert::*;
-        use Fehler::*;
+impl Display for Error {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        use ArgumentValue::{List, NoValue, Stream, SubArgument};
+        use Error::{DataVariant, Generics, NotEnum, SplitArguments, Unsupported, Venial};
         match self {
-            Syn(error) => write!(f, "{error}"),
-            KeinEnum { typ, input } => {
-                write!(f, "Nur structs unterstützt, aber {typ} bekommen: {input}")
+            Venial(error) => write!(formatter, "{error}"),
+            NotEnum { typ, input, .. } => {
+                write!(formatter, "Only enums are supported, but received {typ}: {input}")
             },
-            Generics { anzahl, where_clause } => {
-                write!(f, "Nur Structs ohne Generics unterstützt, aber {anzahl} Parameter ")?;
+            Generics { count, where_clause, .. } => {
+                write!(
+                    formatter,
+                    "Only enums without generics are supported, but received {count} parameter(s)"
+                )?;
                 if *where_clause {
-                    write!(f, "und eine where-Klausel ")?;
+                    write!(formatter, " and a where clause")?;
                 }
-                write!(f, "bekommen.")
+                write!(formatter, ".")
             },
-            DatenVariante { variante } => {
-                write!(f, "Nur Enums mit Unit-Varianten unterstützt, aber {variante} hält Daten.")
+            DataVariant { variant } => {
+                write!(formatter, "Only unit variants are supported, but {variant} contains data.")
             },
-            SplitArgumente(fehler) => write!(f, "{fehler}"),
-            NichtUnterstützt(Argument { name, wert: KeinWert }) => {
-                write!(f, "Argument nicht unterstützt: {name}")
+            SplitArguments(error) => write!(formatter, "{error}"),
+            Unsupported(Argument { name, value: NoValue, .. }) => {
+                write!(formatter, "Unsupported argument: {name}")
             },
-            NichtUnterstützt(Argument { name, wert: wert @ Unterargument(_sub_args) }) => {
-                write!(f, "Unterargument von {name} nicht unterstützt: {wert}")
+            Unsupported(Argument { name, value: value @ SubArgument(_sub_args), .. }) => {
+                write!(formatter, "Unsupported sub-argument of {name}: {value}")
             },
-            NichtUnterstützt(Argument { name, wert: wert @ Liste(_liste) }) => {
-                write!(f, "Listen-Argument {name} nicht unterstützt: {wert}")
+            Unsupported(Argument { name, value: value @ List(_list), .. }) => {
+                write!(formatter, "Unsupported list argument {name}: {value}")
             },
-            NichtUnterstützt(Argument { name, wert: wert @ Stream(_ts) }) => {
-                write!(f, "Benanntes Argument {name} nicht unterstützt: {wert}")
+            Unsupported(Argument { name, value: value @ Stream(_tokens), .. }) => {
+                write!(formatter, "Unsupported named argument {name}: {value}")
             },
         }
     }
 }
 
-impl From<syn::Error> for Fehler {
-    fn from(input: syn::Error) -> Fehler {
-        Fehler::Syn(input)
+impl From<venial::Error> for Error {
+    fn from(input: venial::Error) -> Error {
+        Error::Venial(input)
     }
 }
 
-impl From<SplitArgumenteFehler> for Fehler {
-    fn from(input: SplitArgumenteFehler) -> Fehler {
-        Fehler::SplitArgumente(input)
+impl From<SplitArgumentsError> for Error {
+    fn from(input: SplitArgumentsError) -> Error {
+        Error::SplitArguments(input)
     }
 }
 
-fn parse_attributes(feld: Option<&Ident>, attrs: Vec<Attribute>) -> Result<Option<Case>, Fehler> {
+impl CompileError for Error {
+    fn span(&self) -> proc_macro2::Span {
+        match self {
+            Self::Unsupported(argument) => argument.span,
+            Self::NotEnum { span, .. } | Self::Generics { span, .. } => *span,
+            Self::DataVariant { variant } => variant.span(),
+            Self::SplitArguments(error) => error.span(),
+            Self::Venial(error) => error.span(),
+        }
+    }
+}
+
+/// Parse attributes on an enum or a variant.
+fn parse_attributes(field: Option<&Ident>, attrs: Vec<Attribute>) -> Result<Option<Case>, Error> {
     let mut args = Vec::new();
     for attr in attrs {
-        if attr.path.is_ident("kommandozeilen_argumente") {
-            split_klammer_argumente(
-                feld.iter().map(ToString::to_string).collect(),
+        if path_is_ident(&attr, "kommandozeilen_argumente") {
+            split_parenthesized_arguments(
+                field.iter().map(ToString::to_string).collect(),
                 &mut args,
-                attr.tokens,
+                attr.value,
             )?;
         }
     }
     let mut case = None;
     for arg in args {
+        let span = arg.span;
         match arg {
-            Argument { name, wert: ArgumentWert::Stream(ts) } if name == "case" => {
+            Argument { name, value: ArgumentValue::Stream(ts), .. } if name == "case" => {
                 case = Some(Case::parse(&ts).ok_or({
-                    Fehler::NichtUnterstützt(Argument { name, wert: ArgumentWert::Stream(ts) })
-                })?)
+                    Error::Unsupported(Argument { span, name, value: ArgumentValue::Stream(ts) })
+                })?);
             },
-            _ => return Err(Fehler::NichtUnterstützt(arg)),
+            _ => return Err(Error::Unsupported(arg)),
         }
     }
     Ok(case)
 }
 
-pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Fehler> {
-    use Fehler::*;
-    use TypNichtUnterstützt::*;
-    let DeriveInput { ident, data, generics, attrs, .. } = parse2(input.clone())?;
-    let DataEnum { variants, .. } = match data {
-        Data::Enum(data_enum) => data_enum,
-        Data::Struct(_) => return Err(KeinEnum { typ: Struct, input }),
-        Data::Union(_) => return Err(KeinEnum { typ: Union, input }),
+/// Implementation of the derive macro for the [`EnumArgument`] trait.
+pub(crate) fn derive_enum_argument(input: TokenStream) -> Result<TokenStream, Error> {
+    use Error::{DataVariant, Generics, NotEnum};
+    let item = parse_item(input.clone())?;
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "venial::Item marked as non_exhaustive. We only support Types."
+    )]
+    let Enum { variants, name, generic_params, where_clause, attributes, .. } = match item {
+        Item::Enum(enum_) => enum_,
+        Item::Struct(struct_) => {
+            return Err(NotEnum {
+                typ: UnsupportedType::Struct,
+                span: struct_.tk_struct.span(),
+                input,
+            });
+        },
+        Item::Union(union) => {
+            return Err(NotEnum {
+                typ: UnsupportedType::Union,
+                span: union.tk_union.span(),
+                input,
+            });
+        },
+        _ => {
+            return Err(NotEnum {
+                typ: UnsupportedType::Unknown,
+                span: input
+                    .clone()
+                    .into_iter()
+                    .next()
+                    .map_or_else(proc_macro2::Span::call_site, |tt| tt.span()),
+                input,
+            });
+        },
     };
-    let crate_name = crate_name();
-    let has_where_clause = generics.where_clause.is_some();
-    if !generics.params.is_empty() || has_where_clause {
-        return Err(Generics { anzahl: generics.params.len(), where_clause: has_where_clause });
+
+    let crate_ident = crate_ident();
+    let param_count = generic_params.as_ref().map_or(0, |param_list| param_list.params.len());
+    let has_where_clause = where_clause.is_some();
+    if (param_count > 0) || has_where_clause {
+        let span = generic_params.as_ref().map_or_else(
+            || {
+                where_clause
+                    .expect("where clause exists when generic parameters do not")
+                    .tk_where
+                    .span()
+            },
+            |params| params.tk_l_bracket.span(),
+        );
+        return Err(Generics { count: param_count, where_clause: has_where_clause, span });
     }
-    let standard_case = parse_attributes(None, attrs)?;
-    let mut varianten = Vec::new();
+    let standard_case = parse_attributes(None, attributes)?;
+    let mut idents = Vec::new();
     let mut cases = Vec::new();
-    for Variant { ident, fields, attrs, .. } in variants {
+    for (enum_variant, _punct) in variants.inner {
+        let EnumVariant { name: variant_ident, fields, attributes: variant_attrs, .. } =
+            enum_variant;
         if let Fields::Unit = fields {
-            let case = parse_attributes(Some(&ident), attrs)?;
+            let case = parse_attributes(Some(&variant_ident), variant_attrs)?;
             cases.push(case.or(standard_case).unwrap_or_default());
-            varianten.push(ident);
+            idents.push(variant_ident);
         } else {
-            return Err(DatenVariante { variante: ident });
+            return Err(DataVariant { variant: variant_ident });
         }
     }
-    let varianten_str: Vec<_> = varianten.iter().map(ToString::to_string).collect();
+    let idents_ts = if idents.is_empty() {
+        quote!(None)
+    } else {
+        quote!(Some(::#crate_ident::nonempty![#(Self::#idents),*]))
+    };
+    let idents_str: Vec<_> = idents.iter().map(ToString::to_string).collect();
     let instance = quote!(
-        impl #crate_name::EnumArgument for #ident {
-            fn varianten() -> Vec<Self> {
-                vec![#(Self::#varianten),*]
+        impl #crate_ident::EnumArgument for #name {
+            fn varianten() -> Option<::#crate_ident::NonEmpty<Self>> {
+                #idents_ts
             }
 
-            fn parse_enum(arg: std::ffi::OsString) -> Result<Self, #crate_name::ParseFehler<String>> {
+            fn parse_enum(
+                arg: &::std::ffi::OsStr,
+            ) -> ::std::result::Result<Self, ::#crate_ident::ParseError<String>> {
                 if let Some(string) = arg.to_str() {
                     #(
-                        if #crate_name::unicode::Normalisiert::neu(#varianten_str).eq(string, #cases)
+                        if ::#crate_ident::unicode::Normalized::new(#idents_str).eq_with_case(string, #cases)
                         {
-                            Ok(Self::#varianten)
+                            Ok(Self::#idents)
                         } else
                     )*
                     {
-                        Err(#crate_name::ParseFehler::ParseFehler(
-                            format!("Unbekannte Variante: {}", string))
-                        )
+                        Err(::#crate_ident::ParseError::ParseError(
+                            format!("Unknown variant: {}", string)
+                        ))
                     }
                 } else {
-                    Err(#crate_name::ParseFehler::InvaliderString(arg))
+                    Err(::#crate_ident::ParseError::InvalidString(::std::ffi::OsString::from(arg)))
                 }
             }
         }
     );
     Ok(instance)
+}
+
+#[cfg(test)]
+mod test {
+    use quote::quote;
+
+    use super::*;
+
+    #[test]
+    fn derives_variants_with_enum_and_variant_case_settings() {
+        #[expect(clippy::panic, reason = "Quick and dirty error handling for a test.")]
+        let derived = match derive_enum_argument(quote! {
+            #[kommandozeilen_argumente(case: sensitive)]
+            enum Mode {
+                Fast,
+                #[kommandozeilen_argumente(case: insensitive)]
+                Safe,
+            }
+        }) {
+            Ok(derived) => derived.to_string(),
+            Err(error) => {
+                panic!("unit enum with supported attributes derives successfully: {error}")
+            },
+        };
+
+        assert!(derived.contains("impl kommandozeilen_argumente :: EnumArgument for Mode"));
+        assert!(derived.contains(
+            "Some (:: kommandozeilen_argumente :: nonempty ! [Self :: Fast , Self :: Safe])"
+        ));
+        assert!(derived.contains(
+            "Normalized :: new (\"Fast\") . eq_with_case (string , kommandozeilen_argumente :: \
+             unicode :: Case :: Sensitive)"
+        ));
+        assert!(derived.contains(
+            "Normalized :: new (\"Safe\") . eq_with_case (string , kommandozeilen_argumente :: \
+             unicode :: Case :: Insensitive)"
+        ));
+    }
+
+    #[test]
+    fn rejects_data_variants() {
+        let error = derive_enum_argument(quote! { enum Mode { Fast(String) } })
+            .expect_err("data variants are unsupported");
+
+        assert_eq!(error.to_string(), "Only unit variants are supported, but Fast contains data.");
+    }
+
+    #[test]
+    fn rejects_generics_and_non_enums() {
+        let generic_error = derive_enum_argument(quote! { enum Mode<T> { Fast } })
+            .expect_err("generic enums are unsupported");
+        assert_eq!(
+            generic_error.to_string(),
+            "Only enums without generics are supported, but received 1 parameter(s)."
+        );
+
+        let struct_error =
+            derive_enum_argument(quote! { struct Mode; }).expect_err("only enums are supported");
+        assert_eq!(
+            struct_error.to_string(),
+            "Only enums are supported, but received struct: struct Mode ;"
+        );
+    }
 }

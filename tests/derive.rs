@@ -1,12 +1,28 @@
 //! Tests zum Parsen von Kommandozeilen-Argumenten, erzeugt über das derive-Feature.
 
+#![expect(unused_crate_dependencies, reason = "dependencies of the lib")]
+#![expect(
+    clippy::tests_outside_test_module,
+    clippy::print_stdout,
+    clippy::print_stderr,
+    clippy::use_debug,
+    reason = "Integration test."
+)]
+
 use std::{
+    assert_matches,
+    borrow::Cow,
     ffi::OsString,
     fmt::{self, Debug, Display, Formatter},
-    iter, process,
+    iter, result,
 };
 
-use kommandozeilen_argumente::{Argumente, EnumArgument, Ergebnis, Parse, ParseArgument};
+use kommandozeilen_argumente::{
+    ArgumentInput, Arguments, Compare, Description, EnumArgument, Error, Language, Normalized,
+    Parse, ParseArgument, Result,
+    description::{AdjustedMergedShortNames, MergedShortNameSuffix},
+};
+use nonempty::{NonEmpty, nonempty};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumArgument)]
 #[kommandozeilen_argumente(case: insensitive)]
@@ -16,17 +32,55 @@ enum Bla {
 }
 
 impl Display for Bla {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        Debug::fmt(self, f)
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        Debug::fmt(self, formatter)
     }
 }
 
 #[test]
 fn arg_enum_derive() {
-    assert_eq!(Bla::varianten(), vec![Bla::Meh, Bla::Muh]);
+    assert_eq!(Bla::varianten(), Some(nonempty![Bla::Meh, Bla::Muh]));
     let os_string: OsString = "meh".to_owned().into();
-    let parse_res = Bla::parse_enum(os_string);
+    let parse_res = Bla::parse_enum(&os_string);
     assert_eq!(parse_res, Ok(Bla::Meh));
+}
+
+struct DisplayAsNewline<Collection>(Collection);
+
+impl<T: Display> Display for DisplayAsNewline<Vec<T>> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        for item in &self.0 {
+            writeln!(formatter, "{item}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Display for DisplayAsNewline<NonEmpty<Cow<'_, str>>> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        for item in &self.0 {
+            writeln!(formatter, "{item}")?;
+        }
+        Ok(())
+    }
+}
+
+impl<T: Display> Display for DisplayAsNewline<NonEmpty<Error<'_, T>>> {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        for error in &self.0 {
+            writeln!(formatter, "{}", error.error_message())?;
+        }
+        Ok(())
+    }
+}
+
+// Wrapper um String, mit Debug=Display Implementierung
+struct DString(String);
+
+impl Debug for DString {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.0)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Parse)]
@@ -37,6 +91,7 @@ struct Test {
     /// opt
     #[kommandozeilen_argumente(lang: alternativ, kurz: [p, q, r])]
     opt: Option<Bla>,
+    #[expect(clippy::doc_markdown, reason = "Used in cli implementation.")]
     /// from_str
     #[kommandozeilen_argumente(FromStr, standard: 42, meta_var: VAR)]
     from_str: i32,
@@ -47,29 +102,120 @@ struct Test {
 
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(language: english)]
-struct Empty {}
+struct Empty;
 
-const DUMMY: kommandozeilen_argumente::Sprache = kommandozeilen_argumente::Sprache {
-    lang_präfix: "(-.-)",
-    kurz_präfix: "~",
-    invertiere_präfix: "dummy",
-    invertiere_infix: "*",
-    wert_infix: "+",
+#[derive(Debug, PartialEq, Eq, Parse)]
+#[kommandozeilen_argumente(language: english)]
+enum DerivedAlternatives {
+    Flag {
+        #[kommandozeilen_argumente(required)]
+        enabled: bool,
+    },
+    Number {
+        value: i64,
+    },
+    File {
+        #[kommandozeilen_argumente(short: f)]
+        path: String,
+    },
+    Url {
+        #[kommandozeilen_argumente(short: u)]
+        url: String,
+    },
+}
+
+#[test]
+fn derive_enum_uses_variants_as_alternatives() {
+    let (flag, flag_remaining) =
+        DerivedAlternatives::arguments().parse([OsString::from("--enabled")].into_iter());
+    assert_eq!(flag_remaining, []);
+    assert_matches!(flag, Result::Value(DerivedAlternatives::Flag { enabled: true }));
+
+    let (number, number_remaining) = DerivedAlternatives::arguments()
+        .parse([OsString::from("--value"), OsString::from("42")].into_iter());
+    assert_eq!(number_remaining, []);
+    assert_matches!(number, Result::Value(DerivedAlternatives::Number { value: 42 }));
+
+    let (file, remaining) = DerivedAlternatives::arguments()
+        .parse([OsString::from("--path"), OsString::from("Cargo.toml")].into_iter());
+    assert_eq!(remaining, []);
+    assert_matches!(
+        file,
+        Result::Value(DerivedAlternatives::File { path }) if path == "Cargo.toml"
+    );
+
+    let (url, url_remaining) = DerivedAlternatives::arguments()
+        .parse([OsString::from("-uhttps://example.com")].into_iter());
+    assert_eq!(url_remaining, []);
+    assert_matches!(
+        url,
+        Result::Value(DerivedAlternatives::Url { url }) if url == "https://example.com"
+    );
+}
+
+#[test]
+fn derive_empty_test() -> result::Result<(), DString> {
+    let arguments: Arguments<'_, Empty, String> = Empty::arguments();
+    match arguments.parse(iter::empty()) {
+        (Result::Value(Empty), unused) if unused.is_empty() => Ok(()),
+        (_result, unused) if !unused.is_empty() => {
+            Err(DString(format!("Unused arguments: {unused:?}")))
+        },
+        result => Err(DString(format!("Unexpected result: {result:?}"))),
+    }
+}
+
+#[test]
+fn derive_hilfe_test() -> result::Result<(), DString> {
+    let arg = Test::arguments();
+    match arg.parse(iter::once(OsString::from("--hilfe"))) {
+        (Result::EarlyExit(nachrichten), nicht_verwendet) => {
+            for nachricht in nachrichten {
+                println!("{nachricht}");
+            }
+            if nicht_verwendet.is_empty() {
+                Ok(())
+            } else {
+                Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
+            }
+        },
+        (Result::Error(fehler_sammlung), nicht_verwendet) => {
+            for fehler in &fehler_sammlung {
+                eprintln!("{}", fehler.error_message());
+            }
+            eprintln!("{nicht_verwendet:?}");
+            Err(DString(format!("Parsen mit fehler:\n{}", DisplayAsNewline(fehler_sammlung))))
+        },
+        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
+    }
+}
+
+const DUMMY: Language = Language {
+    long_prefix: "(-.-)",
+    short_prefix: "~",
+    invert_prefix: "dummy",
+    invert_infix: "*",
+    value_infix: "+",
     meta_var: "dummy",
-    optionen: "dummy",
-    standard: "dummy",
-    erlaubte_werte: "dummy",
-    fehlende_flag: "dummy",
-    fehlender_wert: "dummy",
-    parse_fehler: "dummy",
-    invalider_string: "dummy",
-    argument_nicht_verwendet: "dummy",
-    hilfe_beschreibung: "dummy",
-    hilfe_lang: "dummy",
-    hilfe_kurz: "dummy",
-    version_beschreibung: "dummy",
-    version_lang: "dummy",
-    version_kurz: "dummy",
+    options: "dummy",
+    default: "dummy",
+    allowed_values: "dummy",
+    missing_flag: "dummy",
+    missing_value: "dummy",
+    parse_error: "dummy",
+    invalid_string: "dummy",
+    unused_argument: "dummy",
+    alternative_error_separator: "dummy",
+    help_description: "dummy",
+    help_long: "dummy",
+    help_short: "dummy",
+    version_description: "dummy",
+    version_long: "dummy",
+    version_short: "dummy",
+    syntax_prefix: "dummy",
+    syntax_padding: 'd',
+    alternative_prefix: "dummy",
+    alternative_separator: 'd',
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,38 +225,46 @@ enum Flag {
 }
 
 impl ParseArgument for Flag {
-    fn argumente<'t>(
-        beschreibung: kommandozeilen_argumente::Beschreibung<'t, Self>,
-        invertiere_präfix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
-        invertiere_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
-        _wert_infix: impl Into<kommandozeilen_argumente::Vergleich<'t>>,
+    fn arguments<'t>(
+        description: Description<'t, Self>,
+        invert_prefix: impl Into<Compare<'t>>,
+        invert_infix: impl Into<Compare<'t>>,
+        _value_infix: impl Into<Compare<'t>>,
         _meta_var: &'t str,
-    ) -> kommandozeilen_argumente::Argumente<'t, Self, String> {
-        Argumente::flag(
-            beschreibung,
-            |b| if b { Flag::Active } else { Flag::Inactive },
-            invertiere_präfix,
-            invertiere_infix,
-            |f| format!("{f:?}"),
-        )
+    ) -> Arguments<'t, Self, String> {
+        Arguments::from(kommandozeilen_argumente::Flag {
+            description,
+            invert_prefix: invert_prefix.into(),
+            invert_infix: invert_infix.into(),
+            convert: Cow::Borrowed(&|bool| {
+                if bool { Flag::Active } else { Flag::Inactive }
+            }),
+            display: Cow::Borrowed(&|flag| format!("{flag:?}")),
+        })
     }
 
-    fn standard() -> Option<Self> {
+    fn default() -> Option<Self> {
         Some(Flag::Inactive)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(language: DUMMY)]
-struct Inner {
-    #[kommandozeilen_argumente(default: false, short)]
-    inner_flag: bool,
+enum Inner {
+    Flag {
+        #[kommandozeilen_argumente(default: false, short)]
+        inner_flag: bool,
+    },
+    Integer {
+        #[kommandozeilen_argumente(default: 0, short)]
+        inner_int: i8,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq, Parse)]
 #[kommandozeilen_argumente(version, help(lang: [hilfe, help], kurz: h))]
 struct Test2 {
-    #[kommandozeilen_argumente(default: Bla::Meh, long: [bla, meh, muh])]
+    #[kommandozeilen_argumente(default: Bla::Meh, long: [bla, meh, muh], short: x)]
     /// bla
     bla: Bla,
     /// flag
@@ -124,114 +278,163 @@ struct Test2 {
 }
 
 #[test]
-fn derive_test() {
-    let arg = Test::kommandozeilen_argumente();
-    match arg.parse(iter::once(OsString::from("--hilfe".to_owned()))) {
-        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
-            let übrige = nicht_verwendet.iter().count();
-            if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
-                process::exit(1);
+fn derive_help_test() -> result::Result<(), DString> {
+    let arg = Test2::arguments();
+    match arg.parse(iter::once(OsString::from("--help"))) {
+        (Result::EarlyExit(nachrichten), nicht_verwendet) => {
+            for nachricht in nachrichten {
+                println!("{nachricht}");
+            }
+            if nicht_verwendet.is_empty() {
+                Ok(())
             } else {
-                for nachricht in nachrichten {
-                    println!("{}", nachricht);
-                }
+                Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
             }
         },
-        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
-            for fehler in fehler_sammlung {
-                eprintln!("{}", fehler.fehlermeldung())
+        (Result::Error(fehler_sammlung), nicht_verwendet) => {
+            for fehler in &fehler_sammlung {
+                eprintln!("{}", fehler.error_message());
             }
-            eprintln!("{:?}", nicht_verwendet);
-            process::exit(2);
+            eprintln!("{nicht_verwendet:?}");
+            Err(DString(format!("Parsen mit fehler:\n{}", DisplayAsNewline(fehler_sammlung))))
         },
-        res => {
-            eprintln!("Unerwartetes Ergebnis: {:?}", res);
-            process::exit(3);
-        },
-    }
-    println!("--------------");
-    let arg2 = Test2::kommandozeilen_argumente();
-    match arg2.parse(iter::once(OsString::from("--help".to_owned()))) {
-        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
-            let übrige = nicht_verwendet.iter().count();
-            if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
-                process::exit(1);
-            } else {
-                for nachricht in nachrichten {
-                    println!("{}", nachricht);
-                }
-            }
-        },
-        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
-            for fehler in fehler_sammlung {
-                eprintln!("{}", fehler.fehlermeldung())
-            }
-            eprintln!("{:?}", nicht_verwendet);
-            process::exit(4);
-        },
-        res => {
-            eprintln!("Unerwartetes Ergebnis: {:?}", res);
-            process::exit(5);
-        },
+        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
     }
 }
 
 #[test]
-fn verschmelze_kurzformen() {
-    let arg = Test::kommandozeilen_argumente();
-    match arg.parse(iter::once(OsString::from("-vh".to_owned()))) {
-        (Ergebnis::FrühesBeenden(nachrichten), nicht_verwendet) => {
-            let übrige = nicht_verwendet.iter().count();
+fn verschmelze_kurzformen_hilfe() -> result::Result<(), DString> {
+    let arg = Test::arguments();
+    match arg.parse(iter::once(OsString::from("-vh"))) {
+        (Result::EarlyExit(nachrichten), nicht_verwendet) => {
+            let übrige = nicht_verwendet.len();
             if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
-                process::exit(1);
+                Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
             } else if nachrichten.len() != 2 {
-                eprintln!("Unerwartete Anzahl an Nachrichten: {:?}", nachrichten);
-                process::exit(2);
+                Err(DString(format!(
+                    "Unerwartete Anzahl an Nachrichten: {}",
+                    DisplayAsNewline(nachrichten)
+                )))
             } else {
                 for nachricht in nachrichten {
-                    println!("{}", nachricht);
+                    println!("{nachricht}");
                 }
+                Ok(())
             }
         },
-        (Ergebnis::Fehler(fehler_sammlung), nicht_verwendet) => {
-            for fehler in fehler_sammlung {
-                eprintln!("{}", fehler.fehlermeldung())
+        (Result::Error(fehler_sammlung), nicht_verwendet) => {
+            for fehler in &fehler_sammlung {
+                eprintln!("{}", fehler.error_message());
             }
-            eprintln!("{:?}", nicht_verwendet);
-            process::exit(3);
+            eprintln!("{nicht_verwendet:?}");
+            Err(DString(format!("Parsen mit fehler:\n{}", DisplayAsNewline(fehler_sammlung))))
         },
-        res => {
-            eprintln!("Unerwartetes Ergebnis: {:?}", res);
-            process::exit(4);
-        },
+        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
     }
-    println!("--------------");
-    let arg2 = Test2::kommandozeilen_argumente();
-    match arg2.parse(iter::once(OsString::from("-fb".to_owned()))) {
-        (Ergebnis::Wert(test2), nicht_verwendet) => {
-            let übrige = nicht_verwendet.iter().count();
+}
+
+#[test]
+fn verschmelze_kurzformen_wert() -> result::Result<(), DString> {
+    // soll nicht für Wert-Argumente (vor allem am Anfang der Liste) funktionieren!
+    let arg2 = Test2::arguments();
+    match arg2.parse(
+        [OsString::from(String::from("-xfb")), OsString::from(String::from("Muh"))].into_iter(),
+    ) {
+        (Result::Value(test2), nicht_verwendet) => {
             let erwartet = Test2 {
                 bla: Bla::Meh,
-                inner: Inner { inner_flag: false },
+                inner: Inner::Flag { inner_flag: false },
+                flag: Flag::Active,
+                bool_flag: true,
+            };
+            // Der Wert Kurz-Name soll nicht "nach hinten durchrutschen"!
+            let erwartet_nicht_verwendet = [
+                ArgumentInput::AdjustedMergedShortNames(AdjustedMergedShortNames {
+                    prefix: Normalized::new(Cow::from("-")),
+                    graphemes: nonempty![Box::from("x")],
+                    suffix: MergedShortNameSuffix::Removed,
+                }),
+                ArgumentInput::Unchanged(OsString::from(String::from("Muh"))),
+            ];
+            if nicht_verwendet != erwartet_nicht_verwendet {
+                Err(DString(format!("Unerwartete nicht verwendete Argumente: {nicht_verwendet:?}")))
+            } else if test2 != erwartet {
+                Err(DString(format!("Unerwarteter Wert: {test2:?} != {erwartet:?}")))
+            } else {
+                println!("{test2:?}");
+                println!("{nicht_verwendet:?}");
+                Ok(())
+            }
+        },
+        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Parse)]
+#[kommandozeilen_argumente(language: english)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "The types directly control the generated cli parsing."
+)]
+struct UnicodeDerived {
+    #[kommandozeilen_argumente(long: "föö", short: f)]
+    flag: bool,
+    #[kommandozeilen_argumente(long: "pört", short: p, FromStr)]
+    port: u16,
+    #[kommandozeilen_argumente(long: "Ärger", short: a, case(long: insensitive))]
+    case_insensitive: bool,
+    #[kommandozeilen_argumente(long: "e\u{301}clair", short)]
+    eclair: bool,
+    #[kommandozeilen_argumente(short)]
+    über: bool,
+}
+
+#[test]
+fn derived_unicode_names_preserve_normalization_case_and_graphemes() {
+    let (result, remaining) = UnicodeDerived::arguments().parse(
+        [
+            OsString::from("-e\u{301}fü"),
+            OsString::from("-p8080"),
+            OsString::from("--ärger"),
+            OsString::from("--über"),
+        ]
+        .into_iter(),
+    );
+
+    assert_eq!(remaining, []);
+    assert_matches!(
+        result,
+        Result::Value(UnicodeDerived {
+            flag: true,
+            port: 8080,
+            case_insensitive: true,
+            eclair: true,
+            über: true,
+        })
+    );
+}
+
+#[test]
+fn verschmelze_kurzformen_erfolgreich() -> result::Result<(), DString> {
+    let arg2 = Test2::arguments();
+    match arg2.parse(iter::once(OsString::from("-fb"))) {
+        (Result::Value(test2), nicht_verwendet) => {
+            let übrige = nicht_verwendet.len();
+            let erwartet = Test2 {
+                bla: Bla::Meh,
+                inner: Inner::Flag { inner_flag: false },
                 flag: Flag::Active,
                 bool_flag: true,
             };
             if übrige > 0 {
-                eprintln!("Nicht verwendete Argumente: {:?}", nicht_verwendet);
-                process::exit(5);
+                Err(DString(format!("Nicht verwendete Argumente: {nicht_verwendet:?}")))
             } else if test2 != erwartet {
-                eprintln!("Unerwarteter Wert: {:?} != {:?}", test2, erwartet);
-                process::exit(6);
+                Err(DString(format!("Unerwarteter Wert: {test2:?} != {erwartet:?}")))
             } else {
-                println!("{:?}", test2)
+                println!("{test2:?}");
+                Ok(())
             }
         },
-        res => {
-            eprintln!("Unerwartetes Ergebnis: {:?}", res);
-            process::exit(7);
-        },
+        res => Err(DString(format!("Unerwartetes Ergebnis: {res:?}"))),
     }
 }

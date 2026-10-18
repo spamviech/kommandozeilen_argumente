@@ -1,29 +1,41 @@
+//! Ein Beispiel des Funktion-Apis.
+
+#![expect(unused_crate_dependencies, reason = "dependencies of the lib")]
+
 use std::{
-    ffi::OsString,
-    fmt::{Debug, Display},
+    borrow::Cow,
+    convert::identity,
+    ffi::{OsStr, OsString},
+    fmt::{self, Debug, Display},
     num::NonZeroI32,
 };
 
 use kommandozeilen_argumente::{
-    crate_name, crate_version, kombiniere, Argumente, Beschreibung, EnumArgument, NonEmpty,
-    ParseArgument, ParseFehler, Sprache,
+    Argumente, Beschreibung, EnumArgument, ParseArgument, ParseError, Sprache, Vergleich,
+    arguments::{flag::Flag, help::Standard, value::Wert},
+    crate_name, crate_version, kombiniere,
 };
+use nonempty::{NonEmpty, nonempty};
 
+/// Beispiel-enum um den Anwendung von [`EnumArgument`] zu zeigen.
 #[derive(Debug, Clone)]
 enum Aufzählung {
+    /// eins
     Eins,
+    /// zwei
     Zwei,
+    /// drei
     Drei,
 }
 
 impl EnumArgument for Aufzählung {
-    fn varianten() -> Vec<Self> {
-        use Aufzählung::*;
-        vec![Eins, Zwei, Drei]
+    fn varianten() -> Option<NonEmpty<Self>> {
+        use Aufzählung::{Drei, Eins, Zwei};
+        Some(nonempty![Eins, Zwei, Drei])
     }
 
-    fn parse_enum(arg: OsString) -> Result<Self, kommandozeilen_argumente::ParseFehler<String>> {
-        use Aufzählung::*;
+    fn parse_enum(arg: &OsStr) -> Result<Self, ParseError<String>> {
+        use Aufzählung::{Drei, Eins, Zwei};
         if let Some(string) = arg.to_str() {
             // Vergleich-Strings enthalten nur ASCII-Zeichen,
             // alle anderen können demnach ignoriert werden.
@@ -32,43 +44,81 @@ impl EnumArgument for Aufzählung {
                 "eins" => Ok(Eins),
                 "zwei" => Ok(Zwei),
                 "drei" => Ok(Drei),
-                _ => Err(ParseFehler::ParseFehler(format!("Unbekannte Variante: {}", string))),
+                _ => Err(ParseError::ParseError(format!("Unbekannte Variante: {string}"))),
             }
         } else {
-            Err(ParseFehler::InvaliderString(arg))
+            Err(ParseError::InvalidString(OsString::from(arg)))
         }
     }
 }
 
 impl Display for Aufzählung {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(self, f)
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Debug::fmt(self, formatter)
     }
 }
 
+/// Eine innere Alternative, die durch ihr benötigtes Argument gewählt wird.
+#[derive(Debug)]
+enum Inner {
+    /// Wählt die Flag-Alternative.
+    Flag {
+        /// Ob die innere Flag aktiv ist.
+        innere_flag: bool,
+    },
+    /// Wählt die Zahlen-Alternative.
+    Zahl {
+        /// Die innere Zahl.
+        innere_zahl: i8,
+    },
+}
+
+impl Display for Inner {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Flag { innere_flag } => {
+                write!(formatter, "Flag {{ innere_flag: {innere_flag} }}")
+            },
+            Self::Zahl { innere_zahl } => {
+                write!(formatter, "Zahl {{ innere_zahl: {innere_zahl} }}")
+            },
+        }
+    }
+}
+
+/// Struktur um die geparsten Kommandozeilen-Argumente zu repräsentieren.
 #[derive(Debug)]
 struct Args {
+    /// Eine Flag mit Standard-Einstellungen.
     flag: bool,
+    /// Eine Flag mit alternativen Namen.
     umbenannt: bool,
+    /// Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren.
     benötigt: bool,
+    /// Ein String-Wert.
     wert: String,
+    /// Ein Aufzählung-Wert mit Standard-Wert und alternativer Meta-Variable.
     aufzählung: Aufzählung,
+    /// Eine benötigte innere Alternative.
+    inner: Inner,
 }
 
 impl Display for Args {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Args { flag, umbenannt, benötigt, wert, aufzählung } = self;
-        write!(f, "flag: {flag}\n")?;
-        write!(f, "umbenannt: {umbenannt}\n")?;
-        write!(f, "benötigt: {benötigt}\n")?;
-        write!(f, "wert: {wert}\n")?;
-        write!(f, "aufzählung: {aufzählung}\n")
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Args { flag, umbenannt, benötigt, wert, aufzählung, inner } = self;
+        writeln!(formatter, "flag: {flag}")?;
+        writeln!(formatter, "umbenannt: {umbenannt}")?;
+        writeln!(formatter, "benötigt: {benötigt}")?;
+        writeln!(formatter, "wert: {wert}")?;
+        writeln!(formatter, "aufzählung: {aufzählung}")?;
+        writeln!(formatter, "inner: {inner}")
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "Das Beispiel erzeugt jedes Argument explizit.")]
 fn main() {
     let sprache = Sprache::DEUTSCH;
-    let flag = Argumente::flag_bool_mit_sprache(
+    let flag = Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache(
             "flag",
             None::<&str>,
@@ -78,7 +128,7 @@ fn main() {
         ),
         sprache,
     );
-    let umbenannt = Argumente::flag_bool_mit_sprache(
+    let umbenannt = Flag::neu_mit_sprache(
         Beschreibung::neu_mit_sprache(
             NonEmpty { head: "andere", tail: vec!["namen"] },
             "u",
@@ -88,17 +138,20 @@ fn main() {
         ),
         sprache,
     );
-    let benötigt = Argumente::flag_bool(
-        Beschreibung::neu_mit_sprache(
+    let benötigt = Flag {
+        description: Beschreibung::neu_mit_sprache(
             "benötigt",
             "b",
             Some("Eine Flag ohne Standard-Wert mit alternativem Präfix zum invertieren."),
             None,
             sprache,
-        ),
-        "no",
-        sprache.invertiere_infix,
-    );
+        )
+        .into(),
+        invert_prefix: Vergleich::from("no").into(),
+        invert_infix: Vergleich::from(sprache.invertiere_infix).into(),
+        convert: Cow::Borrowed(&identity),
+        display: Cow::Borrowed(&ToString::to_string),
+    };
     let wert = String::argumente_mit_sprache(
         Beschreibung::neu_mit_sprache(
             "wert",
@@ -109,7 +162,35 @@ fn main() {
         ),
         sprache,
     );
-    let aufzählung = Argumente::wert_enum_display(
+    let innere_flag = Flag::neu_mit_sprache(
+        Beschreibung::neu_mit_sprache(
+            "innere-flag",
+            None::<&str>,
+            Some("Wählt die Flag-Alternative."),
+            None,
+            sprache,
+        ),
+        sprache,
+    );
+    let innere_zahl = i8::argumente_mit_sprache(
+        Beschreibung::neu_mit_sprache(
+            "innere-zahl",
+            None::<&str>,
+            Some("Wählt die Zahlen-Alternative."),
+            None,
+            sprache,
+        ),
+        sprache,
+    );
+    #[expect(
+        clippy::shadow_unrelated,
+        reason = "Die kombiniere-Callbacks binden geparste Werte an ihre Argumentnamen."
+    )]
+    let inner = Argumente::alternativen(nonempty![
+        kombiniere!(|innere_flag| Inner::Flag { innere_flag }, innere_flag),
+        kombiniere!(|innere_zahl| Inner::Zahl { innere_zahl }, innere_zahl),
+    ]);
+    let aufzählung = Wert::neu_enum_mit_sprache(
         Beschreibung::neu_mit_sprache(
             "aufzählung",
             "a",
@@ -117,24 +198,30 @@ fn main() {
             Some(Aufzählung::Zwei),
             sprache,
         ),
-        sprache.wert_infix,
-        "VAR",
+        sprache,
     );
-    let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung| Args {
+    #[expect(clippy::shadow_unrelated, reason = "lambda-Argumente, über Aufruf identisch.")]
+    let zusammenfassen = |flag, umbenannt, benötigt, wert, aufzählung, inner| Args {
         flag,
         umbenannt,
         benötigt,
         wert,
         aufzählung,
+        inner,
     };
-    let argumente = kombiniere!(zusammenfassen, flag, umbenannt, benötigt, wert, aufzählung)
-        .hilfe_und_version_mit_sprache(
+    let argumente = kombiniere!(zusammenfassen, flag, umbenannt, benötigt, wert, aufzählung, inner);
+    let argumente_mit_hilfe_und_version = argumente
+        .mit_hilfe_und_version_frühes_beenden_mit_sprache(
+            &Standard,
             crate_name!(),
             Some("Programm-Beschreibung."),
             crate_version!(),
             sprache,
         );
-    let args = argumente
+    let args = argumente_mit_hilfe_und_version
         .parse_vollständig_mit_sprache_aus_env(NonZeroI32::new(1).expect("1 != 0"), sprache);
-    println!("{:?}", args)
+    #[expect(clippy::print_stdout, reason = "Beispiel-Implementierung.")]
+    {
+        println!("{args}");
+    }
 }

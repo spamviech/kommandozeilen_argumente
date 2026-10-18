@@ -2,6 +2,47 @@
 
 ## Unreleased changes
 
+## v0.3.0
+
+### Breaking changes
+
+- Die englische API ist nun primär: Neue Anwendungen sollen `Arguments`, `Description`, `Value`,
+  `EarlyExit`, `Result` und `Language` verwenden. Die deutschen Namen bleiben als explizite
+  Spiegeltypen beziehungsweise Kompatibilitäts-APIs erhalten.
+- Die Modulstruktur verwendet englische Primärnamen (`arguments`, `description`, `outcome`,
+  `language`); `arguments::argumente` stellt den deutschen `Argumente`-Spiegel bereit.
+- `combine!` ist das bevorzugte Makro. `kombiniere!` bleibt als Kompatibilitäts-Wrapper für
+  `Argumente` verfügbar.
+- Das Feature `derive` gehört nicht mehr zur Standard-Feature-Liste und muss bei Bedarf explizit
+  aktiviert werden.
+- Das neue Feature `german` aktiviert die deutschen Spiegeltypen und Kompatibilitäts-APIs und muss
+  für deren Verwendung explizit aktiviert werden.
+
+### Parsing
+
+- Der Parser ist vollständig als sechs-stufige Pipeline implementiert: zusammengefasste
+  Kurzformen, eigenständige Kurzformen und Langformen werden vor der typisierten Auswertung
+  erkannt; anschließend werden Alternativen validiert, ausgewählt und akkumuliert.
+- Zusammengefasste Kurzformen haben Vorrang. Verbleibende Teile eines zusammengefassten Blocks
+  werden nicht als eigenständige Namen oder Werte wiederverwendet.
+- Werte bleiben bis zu ihrem besitzenden `Value` als `OsString` erhalten. Alternativen werden in
+  Reihenfolge geprüft; ein Fehler beim Parsen eines Werts verwirft nur die betroffene Alternative.
+- Parserdefinitionen und Callbacks müssen für die Alternativenauswahl nicht `Clone` implementieren.
+
+### API and maintenance
+
+- Neue Typen `Wert`, `Flag`, `FrühesBeenden` und `EinzelArgument` mit `From`-Implementierungen
+  für Argumente; alle Felder sind `pub`.
+- `Alternativen` für Argumente hinzugefügt.
+- `Normalisiert::as_str` hinzugefügt.
+- Clippy-Lints bereinigt und `venial` für das Parsing der Proc-Makro-Attribute verwendet.
+- Derive-Makro-Diagnosen markieren nun die relevante Stelle der fehlerhaften Eingabe statt das
+  gesamte `derive`-Makro, etwa ungültige Attribute, generische Parameter oder Daten enthaltende
+  Enum-Varianten.
+- `#[derive(Parse)]` unterstützt nun Enums mit benannten Feldern: Die Varianten werden als
+  Alternativen in Deklarationsreihenfolge geparst; die erste vollständig erfolgreiche Variante
+  wird ausgewählt.
+
 ## 0.2.0
 
 - Normalisiere Namen und Prä-/Infixe, bevor diese mit Nutzereingaben verglichen werden.
