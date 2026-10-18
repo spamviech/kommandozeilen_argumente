@@ -26,7 +26,7 @@ use crate::{
 /// Trait for types directly usable with the `#[derive(Parse)]` macro for [`crate::Parse`].
 ///
 /// ## Deutsch
-/// Trait für Typen, die direkt mit dem `#[derive(Parse)]`-Makro für [`Parse`] verwendet werden
+/// Trait für Typen, die direkt mit dem `#[derive(Parse)]`-Makro für [`crate::Parse`] verwendet werden
 /// können.
 pub trait ParseArgument: Sized {
     /// Creates [`Arguments`] with the configured properties.
@@ -56,7 +56,7 @@ pub trait ParseArgument: Sized {
     /// Creates an argument configuration with localized defaults.
     ///
     /// ## Deutsches Synonym
-    /// [`argumente_mit_sprache`](ParseArgument::argumente_mit_sprache)
+    /// `argumente_mit_sprache`
     #[inline]
     fn arguments_with_language(
         description: Description<'_, Self>,
@@ -90,7 +90,7 @@ pub trait ParseArgument: Sized {
     /// Creates an argument configuration with English defaults.
     ///
     /// ## Deutsche Version
-    /// [`neu`](ParseArgument::neu)
+    /// `neu`
     #[inline]
     fn new(description: Description<'_, Self>) -> Arguments<'_, Self, String> {
         Self::arguments_with_language(description, Language::ENGLISH)

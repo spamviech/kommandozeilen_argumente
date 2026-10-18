@@ -12,7 +12,7 @@ use unicode_segmentation::UnicodeSegmentation;
 /// with standardized variation sequences.
 ///
 /// ## Deutsches Synonym
-/// [`Normalisiert`]
+/// `Normalisiert`
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Normalized<'t>(Cow<'t, str>);
 
@@ -51,7 +51,7 @@ impl<'t> Normalized<'t> {
     /// using [`nfc`](UnicodeNormalization::nfc).
     ///
     /// ## Deutsches Synonym
-    /// [`neu`](Normalisiert::neu)
+    /// `neu`
     #[inline]
     #[must_use]
     pub fn new(string: impl Into<Cow<'t, str>>) -> Normalized<'t> {
@@ -68,7 +68,7 @@ impl<'t> Normalized<'t> {
     /// Extracts a string slice containing the normalized unicode string.
     ///
     /// ## Deutsches Synonym
-    /// [`as_str`](Normalisiert::as_str)
+    /// `as_str`
     #[inline]
     #[must_use]
     pub fn as_str(&self) -> &str {
@@ -79,7 +79,7 @@ impl<'t> Normalized<'t> {
     /// optionally in a [`case-insensitive way`](unicase::eq).
     ///
     /// ## Deutsches Synonym
-    /// [`eq_mit_case`](Normalisiert::eq_mit_case)
+    /// `eq_mit_case`
     #[inline]
     #[must_use]
     pub fn eq_with_case(&self, string: &str, case_sensitive: Case) -> bool {
@@ -93,7 +93,7 @@ impl<'t> Normalized<'t> {
     /// Extracts a reference of the [`Cow`] containing the normalized unicode string.
     ///
     /// ## Deutsches Synonym
-    /// [`cow_ref`](Normalisiert::cow_ref)
+    /// `cow_ref`
     #[inline]
     #[must_use]
     pub fn cow_ref(&self) -> &Cow<'t, str> {
@@ -103,7 +103,7 @@ impl<'t> Normalized<'t> {
     /// Extracts the [`Cow`] containing the normalized unicode string.
     ///
     /// ## Deutsches Synonym
-    /// [`cow`](Normalisiert::cow)
+    /// `cow`
     #[inline]
     #[must_use]
     pub fn cow(self) -> Cow<'t, str> {
@@ -141,7 +141,7 @@ impl<'t, S: Into<Cow<'t, str>>> From<S> for Normalisiert<'t> {
 
 #[cfg(feature = "german")]
 impl Normalisiert<'_> {
-    /// Convert the [`Normalisiert`] into an owned version with `'static` lifetime,
+    /// Convert the `Normalisiert` into an owned version with `'static` lifetime,
     /// cloning the contents if required.
     #[must_use]
     #[inline]
@@ -266,19 +266,19 @@ impl From<Case> for bool {
 /// Normalized unicode string, as well as if it should be compared in a case-(in)sensitive way.
 ///
 /// ## Deutsches Synonym
-/// [`Vergleich`]
+/// `Vergleich`
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Compare<'t> {
     /// The string to compare to.
     ///
     /// ## Deutsches Synonym
-    /// [`string`](Vergleich::string)
+    /// `string`
     pub string: Normalized<'t>,
 
     /// Is the comparison case-(in)sensitive?
     ///
     /// ## Deutsches Synonym
-    /// [`case`](Vergleich::case)
+    /// `case`
     pub case: Case,
 }
 
@@ -341,7 +341,7 @@ impl Compare<'_> {
     /// Extracts a string slice containing the normalized unicode string.
     ///
     /// ## Deutsches Synonym
-    /// [`as_str`](Vergleich::as_str)
+    /// `as_str`
     #[inline]
     #[must_use]
     pub fn as_str(&self) -> &str {

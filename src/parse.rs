@@ -73,7 +73,7 @@ pub trait Parse: Sized {
     /// Parse [`args_os`](std::env::args_os) and try to create the requested type.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_aus_env`](Parse::parse_aus_env)
+    /// `parse_aus_env`
     #[inline]
     fn parse_from_env<'t>() -> (Result<'t, Self, Self::Error>, Vec<ArgumentInput>)
     where
@@ -103,7 +103,7 @@ pub trait Parse: Sized {
     /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_mit_frühen_beenden`](Parse::parse_mit_frühen_beenden)
+    /// `parse_mit_frühen_beenden`
     #[inline]
     #[expect(
         clippy::type_complexity,
@@ -145,7 +145,7 @@ pub trait Parse: Sized {
     /// `stdout` and the program stops via [`exit`](std::process::exit) with exit code `0`.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_aus_env_mit_frühen_beenden`](Argumente::parse_aus_env_mit_frühen_beenden)
+    /// `parse_aus_env_mit_frühen_beenden`
     #[inline]
     fn parse_from_env_with_early_exit<'t>()
     -> (ParseEarlyExitResult<'t, Self, Self::Error>, Vec<ArgumentInput>)
@@ -182,7 +182,7 @@ pub trait Parse: Sized {
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_vollständig`](Parse::parse_vollständig)
+    /// `parse_vollständig`
     #[inline]
     #[must_use]
     fn parse_complete(
@@ -251,7 +251,7 @@ pub trait Parse: Sized {
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_vollständig_mit_sprache`](Parse::parse_vollständig_mit_sprache)
+    /// `parse_vollständig_mit_sprache`
     #[inline]
     #[must_use]
     fn parse_complete_with_language(
@@ -299,7 +299,7 @@ pub trait Parse: Sized {
     /// [`Language::ENGLISH`].
     ///
     /// ## Deutsche version
-    /// [`parse_mit_fehlermeldung`](Parse::parse_mit_fehlermeldung)
+    /// `parse_mit_fehlermeldung`
     #[inline]
     #[must_use]
     fn parse_with_error_message(
@@ -320,7 +320,7 @@ pub trait Parse: Sized {
     /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
     /// beendet.
     ///
-    /// [`parse_vollständig_mit_sprache`](Parse::parse_vollständig_mit_sprache) mit
+    /// `parse_vollständig_mit_sprache` mit
     /// [`Sprache::DEUTSCH`].
     ///
     /// ## English version
@@ -345,7 +345,7 @@ pub trait Parse: Sized {
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_vollständig_aus_env`](Parse::parse_vollständig_aus_env)
+    /// `parse_vollständig_aus_env`
     #[inline]
     #[must_use]
     fn parse_complete_from_env(
@@ -410,7 +410,7 @@ pub trait Parse: Sized {
     /// `stderr` and the program stops via [`exit`](std::process::exit) with exit code `error_code`.
     ///
     /// ## Deutsches Synonym
-    /// [`parse_vollständig_mit_sprache_aus_env`](Parse::parse_vollständig_mit_sprache_aus_env)
+    /// `parse_vollständig_mit_sprache_aus_env`
     #[inline]
     #[must_use]
     fn parse_complete_with_language_from_env(error_code: NonZeroI32, language: Language) -> Self
@@ -450,7 +450,7 @@ pub trait Parse: Sized {
     /// with [`Language::ENGLISH`].
     ///
     /// ## Deutsche Version
-    /// [`parse_mit_fehlermeldung_aus_env`](Parse::parse_mit_fehlermeldung_aus_env)
+    /// `parse_mit_fehlermeldung_aus_env`
     #[inline]
     #[must_use]
     fn parse_with_error_message_from_env(error_code: NonZeroI32) -> Self
@@ -468,7 +468,7 @@ pub trait Parse: Sized {
     /// geschrieben und das Programm über [`exit`](std::process::exit) mit exit code `fehler_code`
     /// beendet.
     ///
-    /// [`parse_vollständig_mit_sprache_aus_env`](Parse::parse_vollständig_mit_sprache_aus_env)
+    /// `parse_vollständig_mit_sprache_aus_env`
     /// mit [`Sprache::DEUTSCH`].
     ///
     /// ## English version

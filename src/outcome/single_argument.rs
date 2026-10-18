@@ -9,10 +9,10 @@ use std::{
 use super::ParseError;
 use crate::description::AdjustedMergedShortNames;
 
-/// Type alias for [`SingeArgResult`]. Parses the directly following argument as the value.
+/// Type alias for [`SingleArgResult`]. Parses the directly following argument as the value.
 pub type ParseNextArgFn<'t, T, E> = Box<dyn 't + Fn(&OsStr) -> SingleArgResult<'t, T, E>>;
 
-/// Type alias for [`SingeArgResult`]. Parses a following argument in this parsing context.
+/// Type alias for [`SingleArgResult`]. Parses a following argument in this parsing context.
 pub type ParseFollowingArgFn<'t, T, E> =
     Box<dyn 't + Fn(&OsStr) -> Option<SingleArgResult<'t, T, E>>>;
 

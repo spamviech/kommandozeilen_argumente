@@ -56,7 +56,7 @@ impl<T, Error> Debug for CombineDebug<'_, '_, T, Error> {
 /// Configuration of command-line arguments.
 ///
 /// ## Deutsches Synonym
-/// [`Argumente`](argumente::Argumente)
+/// `Argumente`
 #[expect(
     clippy::large_enum_variant,
     reason = "The alternatives variant is intentionally boxed only where needed for the public \
@@ -321,7 +321,7 @@ impl<T, Error> Arguments<'_, T, Error> {
 }
 
 impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
-    /// Adds an [`EarlyExit`](early_exit::EarlyExit)-flag that shows the program version.
+    /// Adds an [`EarlyExit`]-flag that shows the program version.
     #[inline]
     pub fn with_version_early_exit(
         self,
@@ -357,14 +357,14 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         )
     }
 
-    /// Add an [`EarlyExit`](early_exit::EarlyExit)-flag showing the help text for all arguments.
+    /// Add an [`EarlyExit`]-flag showing the help text for all arguments.
     ///
     /// ### Panics
     /// If the syntax-description (including normal + alternativ prefixes) for an argument exceeds
     /// [`usize::MAX`].
     ///
     /// ## Deutsches Synonym
-    /// [`mit_hilfe_frühes_beenden`](argumente::Argumente::mit_hilfe_frühes_beenden)
+    /// `mit_hilfe_frühes_beenden`
     #[inline]
     #[expect(
         clippy::too_many_arguments,
@@ -427,7 +427,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
         Self::combine((|value: T, ()| value, self, early_exit_argument))
     }
 
-    /// Add [`EarlyExit`](crate::arguments::early_exit::EarlyExit)-flags, showing the program
+    /// Add [`EarlyExit`]-flags, showing the program
     /// version, or the help text for all arguments.
     ///
     /// ### Panics
@@ -435,7 +435,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     /// [`usize::MAX`].
     ///
     /// ## Deutsches Synonym
-    /// [`mit_hilfe_und_version_frühes_beenden`](argumente::Argumente::mit_hilfe_und_version_frühes_beenden)
+    /// `mit_hilfe_und_version_frühes_beenden`
     #[inline]
     #[expect(
         clippy::too_many_arguments,
@@ -479,7 +479,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     /// based on a [`Language`].
     ///
     /// ## Deutsches Synonym
-    /// [`mit_hilfe_frühes_beenden_mit_sprache`](argumente::Argumente::mit_hilfe_frühes_beenden_mit_sprache).
+    /// `mit_hilfe_frühes_beenden_mit_sprache`.
     #[inline]
     pub fn with_help_early_exit_with_language(
         self,
@@ -516,7 +516,7 @@ impl<'t, T: Debug, Error: Debug> Arguments<'t, T, Error> {
     /// based on a [`Language`].
     ///
     /// ## Deutsches Synonym
-    /// [`mit_hilfe_und_version_frühes_beenden_mit_sprache`](argumente::Argumente::mit_hilfe_und_version_frühes_beenden_mit_sprache).
+    /// `mit_hilfe_und_version_frühes_beenden_mit_sprache`.
     #[inline]
     pub fn with_help_and_version_early_exit_with_language(
         self,
