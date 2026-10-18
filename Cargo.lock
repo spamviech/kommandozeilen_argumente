@@ -25,7 +25,7 @@ dependencies = [
 
 [[package]]
 name = "kommandozeilen_argumente"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "dyn-clone",
  "either",
