@@ -21,8 +21,8 @@ use crate::{
 
 #[rustfmt::skip]
 #[cfg(feature = "derive")]
-#[cfg_attr(all(doc, feature = "derive", not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::Parse;
+
 pub use argument::ParseArgument;
 
 /// Result of [`Parse::parse_with_early_exit`] and similar methods.

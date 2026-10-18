@@ -9,7 +9,6 @@ use crate::{
     arguments::{
         Arguments,
         argumente::Argumente,
-        early_exit::FrühesBeenden,
         help::{self, CreateHelpText},
     },
     description::Beschreibung,
@@ -54,7 +53,8 @@ impl<T, Fehler> Argumente<'_, T, Fehler> {
     }
 }
 impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
-    /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch die Programm-Version anzeigt wird.
+    /// Füge eine [`FrühesBeenden`](crate::arguments::early_exit::FrühesBeenden)-Flag hinzu, wodurch
+    /// die Programm-Version anzeigt wird.
     ///
     /// ## English synonym
     /// [`Arguments::with_version_early_exit`]
@@ -87,8 +87,8 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
             .into()
     }
 
-    /// Füge eine [`FrühesBeenden`]-Flag hinzu, wodurch der Hilfe-Text für alle Argumente anzeigt
-    /// wird.
+    /// Füge eine [`FrühesBeenden`](crate::arguments::early_exit::FrühesBeenden)-Flag hinzu, wodurch
+    /// der Hilfe-Text für alle Argumente anzeigt wird.
     ///
     /// ### Panics
     /// Wenn die Syntax-Beschreibung (inklusive normalem + Alternativen-Präfix) für ein Argument
@@ -160,8 +160,8 @@ impl<'t, T: Debug, Fehler: Debug> Argumente<'t, T, Fehler> {
             .into()
     }
 
-    /// Füge [`FrühesBeenden`]-Flags hinzu, wodurch die Programm-Version,
-    /// bzw. der Hilfe-Text für alle Argumente anzeigt wird.
+    /// Füge [`FrühesBeenden`](crate::arguments::early_exit::FrühesBeenden)-Flags hinzu, wodurch die
+    /// Programm-Version, bzw. der Hilfe-Text für alle Argumente anzeigt wird.
     ///
     /// ### Panics
     /// Wenn die Syntax-Beschreibung (inklusive normalem + Alternativen-Präfix) für ein Argument

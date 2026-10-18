@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
-// Verwende doc_cfg für bessere Dokumentation von feature-gated derive Macros.
+// Use #[doc(auto_cfg)] (enabled by default) for better documentation of feature-gated Items.
+// https://doc.rust-lang.org/rustdoc/unstable-features.html#docauto_cfgdocauto_cfg--truedocauto_cfg--false
 #![cfg_attr(all(doc, not(doctest)), feature(doc_cfg))]
 
 #[doc(no_inline)]
@@ -36,23 +37,18 @@ pub mod parse;
 pub mod unicode;
 
 #[doc(inline)]
-#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "derive")))]
-pub use self::{
-    arguments::{
-        Arguments,
-        early_exit::EarlyExit,
-        flag::Flag,
-        value::{EnumArgument, Value},
-    },
+// doc(inline) for doc_cfg to work on derive macros (ambiguous name with trait).
+pub use crate::{arguments::value::EnumArgument, parse::Parse};
+pub use crate::{
+    arguments::{Arguments, early_exit::EarlyExit, flag::Flag, value::Value},
     description::{ArgumentInput, Description},
     language::Language,
     outcome::{Error, ParseError, Result},
-    parse::{Parse, ParseArgument},
+    parse::ParseArgument,
     unicode::{Case, Compare, Normalized},
 };
 #[cfg(feature = "german")]
-#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "german")))]
-pub use self::{
+pub use crate::{
     arguments::{argumente::Argumente, early_exit::FrühesBeenden, value::Wert},
     description::Beschreibung,
     language::Sprache,

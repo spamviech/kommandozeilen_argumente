@@ -42,7 +42,6 @@ use crate::{
 
 #[rustfmt::skip]
 #[cfg(feature = "derive")]
-#[cfg_attr(all(doc, feature = "derive", not(doctest)), doc(cfg(feature = "derive")))]
 pub use kommandozeilen_argumente_derive::EnumArgument;
 
 /// A type with a fixed set of values and a parsing method.

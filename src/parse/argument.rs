@@ -26,8 +26,8 @@ use crate::{
 /// Trait for types directly usable with the `#[derive(Parse)]` macro for [`crate::Parse`].
 ///
 /// ## Deutsch
-/// Trait für Typen, die direkt mit dem `#[derive(Parse)]`-Makro für [`crate::Parse`] verwendet werden
-/// können.
+/// Trait für Typen, die direkt mit dem `#[derive(Parse)]`-Makro für [`crate::Parse`] verwendet
+/// werden können.
 pub trait ParseArgument: Sized {
     /// Creates [`Arguments`] with the configured properties.
     ///

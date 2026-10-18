@@ -58,6 +58,7 @@ macro_rules! combine {
 ///
 /// Use [`combine!`] in new code.
 #[cfg(feature = "german")]
+#[cfg_attr(all(doc, not(doctest)), doc(cfg(feature = "german")))]
 #[macro_export]
 macro_rules! kombiniere {
     ($($tokens:tt)*) => {
