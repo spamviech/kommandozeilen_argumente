@@ -13,9 +13,6 @@ keywords = [
     "kommandozeilen_argumente",
     "argument",
     "cli",
-    "arg",
-    "parser",
-    "parse",
     "derive",
     "proc_macro"
 ]
