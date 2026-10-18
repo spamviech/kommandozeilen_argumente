@@ -18,7 +18,7 @@ kommandozeilen_argumente = { version = "0.3", features = ["german"] }
 `Language::GERMAN` is always available, including without the `german` feature, so English API
 users can still produce German default text. The `Sprache` mirror type requires the feature.
 
-### Parsing behavior
+## Parsing behavior
 
 Parsing is implemented as a staged pipeline. It recognizes merged short names first, then
 standalone short names, then long names, before validating typed values and selecting an

@@ -19,7 +19,7 @@ kommandozeilen_argumente = { version = "0.3", features = ["german"] }
 `Language::GERMAN` ist auch ohne das `german`-Feature verfügbar, damit die englische API weiterhin
 deutsche Standardtexte erzeugen kann. Der Spiegeltyp `Sprache` benötigt hingegen das Feature.
 
-### Parser-Verhalten
+## Parser-Verhalten
 
 Das Parsen erfolgt über eine mehrstufige Pipeline. Zuerst werden zusammengefasste Kurznamen,
 dann eigenständige Kurznamen und anschließend Langnamen erkannt, bevor typisierte Werte validiert
