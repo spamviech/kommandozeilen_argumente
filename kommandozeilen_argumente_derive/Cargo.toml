@@ -10,11 +10,11 @@ rust-version.workspace = true
 publish.workspace = true
 categories = ["command-line-interface"]
 keywords = [
-    "kommandozeilen_argumente",
     "argument",
     "cli",
     "arg",
     "parse",
+    "parser",
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

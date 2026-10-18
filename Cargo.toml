@@ -10,9 +10,9 @@ rust-version.workspace = true
 publish.workspace = true
 categories = ["command-line-interface", "development-tools::procedural-macro-helpers"]
 keywords = [
-    "kommandozeilen_argumente",
     "argument",
     "cli",
+    "arg",
     "derive",
     "proc_macro"
 ]
