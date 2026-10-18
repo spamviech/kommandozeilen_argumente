@@ -2,6 +2,8 @@
 
 ## Unreleased changes
 
+## v0.3.0
+
 ### Breaking changes
 
 - Die englische API ist nun primär: Neue Anwendungen sollen `Arguments`, `Description`, `Value`,
