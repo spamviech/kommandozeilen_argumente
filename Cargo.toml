@@ -20,6 +20,9 @@ keywords = [
     "proc_macro"
 ]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [workspace]
 members = ["kommandozeilen_argumente_derive"]
 resolver = "2"

@@ -1,7 +1,4 @@
-//! Derive macros for the `kommandozeilen_argumente` crate.
-//!
-//! ## Deutsch
-//! Derive-Makros für das `kommandozeilen_argumente`-Crate.
+#![doc = include_str!("../README.md")]
 
 use std::fmt::Display;
 
