@@ -8,6 +8,17 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 publish.workspace = true
+categories = ["command-line-interface", "development-tools::procedural-macro-helpers"]
+keywords = [
+    "kommandozeilen_argumente",
+    "argument",
+    "cli",
+    "arg",
+    "parser",
+    "parse",
+    "derive",
+    "proc_macro"
+]
 
 [workspace]
 members = ["kommandozeilen_argumente_derive"]
